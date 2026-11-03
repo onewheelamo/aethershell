@@ -27,6 +27,7 @@ Fait et déployé :
 | 12 | OSD unique : volume et luminosité hors de la barre, barre de progression 2 px | `main.qml`, `island_right.qml` |
 | 14 | Notifications en cartes : liseré d'application 2 px, survol, corps à 3 lignes, « Tout effacer » discret | `island_right.qml` (§7.4 et §7.5) |
 | 13 | Lock screen cohérent : fond flouté 24 px, Inter, heure tabulaire, ligne média, boutons MDI | `hypr_modular/hyprlock.conf`, `core/generate_rofi_theme.sh` §5 |
+| 11 | Panneau de réglages centré 620 px : rail d'onglets, recherche qui saute à l'ancre, curseurs `Slider` | `config_panel.qml`, `main.qml`, `Slider.qml` |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
 surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
@@ -86,7 +87,15 @@ copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 jusqu'à l'écran de verrouillage. Le fond est `path = screenshot` flouté à 24 px :
 rien à maintenir côté wallpaper, et le verrou reprend ce que la session affichait.
 
-Reste : 7, 9, 10, 11, 15, plus les réserves du §4.
+Reste : 7, 9, 10, 15, plus les réserves du §4.
+
+Note 11 : le panneau est **centré** (620 px, hauteur bornée à 900 px) et non plus
+ancré à droite — retournement de la décision initiale après revue. Une recherche
+`targetMap` (id → item, QML n'expose pas `findChild`) déplie la section et défile
+en trois passes ; `forceActiveFocus()` est nécessaire à l'ouverture, sinon
+`WlrKeyboardFocus.OnDemand` ne donne jamais le clavier. Les listes d'applications
+et d'autostart ont une hauteur calée sur leur contenu (plafonnée), et le panneau
+a été repassé en largeurs fluides pour tenir dans 530 px de contenu.
 
 ---
 
@@ -240,9 +249,7 @@ second demande de passer la ligne par `Icon` + `Text`, deux lignes.
 
 Un lot, un chantier clavier, une décision.
 
-- **Lot C — 11 (tiroir de réglages) — L.** Le dernier mur de texte : 2 482 lignes
-  de panneau à redistribuer en tiroir à onglets avec recherche. Les tokens,
-  `CollapsibleSection` et `Icon` sont en place, l'essentiel est de la mise en page.
+- ~~**Lot C — 11 (panneau de réglages)**~~ — livré (commit `de8bdb7` puis retouches).
 - **Lot D — 9 et 10 — M chacun.** Interaction clavier. 10 coûte plus que sa fiche :
   aucun `submap` n'existe aujourd'hui dans `binds.lua`, il faut d'abord créer les
   sous-cartes puis exporter les binds, avant d'afficher quoi que ce soit.
