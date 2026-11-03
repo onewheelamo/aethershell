@@ -177,13 +177,13 @@ ShellRoot {
                     }
                     Rectangle {
                         width: parent.width
-                        height: 6
-                        radius: 3
+                        height: 2
+                        radius: 1
                         color: Theme.surfaceVariant
                         Rectangle {
                             width: parent.width * (Theme.osdValue / 100)
                             height: parent.height
-                            radius: 3
+                            radius: 1
                             color: Theme.accent
                             Behavior on width { NumberAnimation { duration: 120 } }
                         }

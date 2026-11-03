@@ -233,15 +233,19 @@ Item {
                         height: 24
                         radius: Theme.globalRadius
 
+                        readonly property bool outlineActive: isActive && Theme.wsActiveOutline
+
                         color: isUrgent
                             ? Theme.error
-                            : isActive
-                                ? Theme.accent
-                                : wsMa.containsMouse
-                                    ? Theme.surfaceVariant
-                                    : isOccupied
-                                        ? Qt.alpha(Theme.surfaceVariant, 0.75)
-                                        : "transparent"
+                            : outlineActive
+                                ? "transparent"
+                                : isActive
+                                    ? Theme.accent
+                                    : wsMa.containsMouse
+                                        ? Theme.surfaceVariant
+                                        : isOccupied
+                                            ? Qt.alpha(Theme.surfaceVariant, 0.75)
+                                            : "transparent"
 
                         border.color: isUrgent
                             ? Theme.error
@@ -250,7 +254,51 @@ Item {
                                 : isOccupied
                                     ? Theme.accentMuted
                                     : Theme.surfaceVariant
-                        border.width: 1
+                        border.width: outlineActive ? 0 : 1
+
+                        // Liseré dégradé du workspace actif : trait de 1,5 px accent → transparent.
+                        // Un Canvas plutôt que deux Rectangles imbriqués, pour ne pas superposer
+                        // deux surfaces translucides (l'intérieur doublerait l'opacité).
+                        Canvas {
+                            id: wsOutline
+                            anchors.fill: parent
+                            visible: wsDelegate.outlineActive
+                            antialiasing: true
+
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                const w = width
+                                const h = height
+                                const r = Math.min(wsDelegate.radius, h / 2)
+                                const i = 0.75
+                                ctx.reset()
+                                const grad = ctx.createLinearGradient(0, 0, w, 0)
+                                grad.addColorStop(0, Qt.alpha(Theme.accent, 0.95))
+                                grad.addColorStop(1, Qt.alpha(Theme.accent, 0.10))
+                                ctx.strokeStyle = grad
+                                ctx.lineWidth = 1.5
+                                ctx.beginPath()
+                                ctx.moveTo(i + r, i)
+                                ctx.lineTo(w - i - r, i)
+                                ctx.quadraticCurveTo(w - i, i, w - i, i + r)
+                                ctx.lineTo(w - i, h - i - r)
+                                ctx.quadraticCurveTo(w - i, h - i, w - i - r, h - i)
+                                ctx.lineTo(i + r, h - i)
+                                ctx.quadraticCurveTo(i, h - i, i, h - i - r)
+                                ctx.lineTo(i, i + r)
+                                ctx.quadraticCurveTo(i, i, i + r, i)
+                                ctx.closePath()
+                                ctx.stroke()
+                            }
+
+                            onWidthChanged: requestPaint()
+                            onHeightChanged: requestPaint()
+                            onVisibleChanged: if (visible) requestPaint()
+                            Connections {
+                                target: Theme
+                                function onAccentChanged() { wsOutline.requestPaint() }
+                            }
+                        }
 
                         Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 160 } }
@@ -260,11 +308,13 @@ Item {
                             anchors.centerIn: parent
                             anchors.verticalCenterOffset: (wsDelegate.isOccupied && !wsDelegate.isActive) ? -2 : 0
                             text: islandLeft.wsLabel(wsDelegate.wsId)
-                            color: (wsDelegate.isActive || wsDelegate.isUrgent)
+                            color: (wsDelegate.isUrgent || (wsDelegate.isActive && !wsDelegate.outlineActive))
                                 ? Theme.bg
-                                : wsDelegate.isOccupied
-                                    ? Theme.fg
-                                    : Qt.alpha(Theme.fg, 0.65)
+                                : wsDelegate.isActive
+                                    ? Theme.accent
+                                    : wsDelegate.isOccupied
+                                        ? Theme.fg
+                                        : Qt.alpha(Theme.fg, 0.65)
                             font.pixelSize: Theme.textXs
                             font.bold: wsDelegate.isActive || wsDelegate.isOccupied
                         }

@@ -22,6 +22,8 @@ Fait et déployé :
 | 8 | Flou derrière les surfaces layer-shell | `hypr_modular/general.lua` |
 | 8b | Flou shell réglable à part des fenêtres (actif, seuil `ignore_alpha`, popups) | `config_panel.qml`, `config_manager.py`, bloc `shell-blur` de `general.lua` |
 | 8c | Opacité shell séparée de l'opacité des fenêtres | `Theme.qml` (`shellOpacity`), `config_panel.qml`, `config_manager.py` |
+| 6 | Liseré dégradé sur le workspace actif, avec repli fond plein sous 3:1 de contraste | `island_left.qml`, `Theme.qml` (`wsActiveOutline`) |
+| 12 | OSD unique : volume et luminosité hors de la barre, barre de progression 2 px | `main.qml`, `island_right.qml` |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
 surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
@@ -41,7 +43,14 @@ plus que les fenêtres (`decoration.active_opacity` / `inactive_opacity`) ;
 `panelBg` dans `Theme.qml`). Le seuil de flou doit rester **sous** `shell_opacity`,
 sinon Hyprland cesse de flouter : la ligne d'explication du panneau le dit.
 
-Reste : 4, 6, 7, 9, 10, 11, 12, 13, 14, plus deux idées en réserve (§4).
+Note 12 : la boîte système de la barre ne contient plus qu'une icône de volume, sans
+pourcentage : elle ouvre le panneau (volume, luminosité, batterie). Volume et
+luminosité ne s'affichent plus que dans l'OSD bas-centre, déclenché par
+`core/osd.sh` (binds audio et `XF86MonBrightness*` de `hardware-portable.lua`).
+Sur un poste sans batterie, cette icône est le seul contenu de la boîte : la
+supprimer rendrait le panneau système inaccessible.
+
+Reste : 4, 7, 9, 10, 11, 13, 14, plus les réserves du §4.
 
 ---
 
@@ -95,19 +104,6 @@ quel point de la pilule. Les états média dépendent de Mpris (player absent =
 
 Vérification. Une capture par état, plus un clic réel sur chaque zone.
 
-### 6. Liseré dégradé sur le workspace actif — S
-
-Objectif. Remplacer le bloc de couleur plein par un contour dégradé, plus discret.
-
-Fichier. `island_left.qml`, délégué de `workspaceRow`.
-
-Approche. QML ne sait pas dégradé une bordure : deux `Rectangle` imbriqués, le
-extérieur en `LinearGradient` accent → transparent (horizontal), l'intérieur en
-couleur de fond avec 1 px d'inset, rayon identique.
-
-Risque. Sur un fond d'écran clair, le liseré disparaît ; prévoir un repli sur le
-fond plein si le contraste calculé est insuffisant.
-
 ### 7. Depth wallpaper — L, bloqué sur les assets
 
 Objectif. Fond en 2–3 calques avec parallaxe de 6–10 px au changement de
@@ -154,15 +150,6 @@ Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
 tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
 `Icon` étant en place, l'essentiel est de la mise en page.
 
-### 12. Un seul OSD capsule — S/M
-
-Objectif. Volume, luminosité et mute dans une seule capsule bas-centre, barre de
-progression 2 px, au lieu des indicateurs dispersés.
-
-Fichiers. `main.qml` (surface `portable-osd` déjà en place, `Theme.osdKind` /
-`Theme.osdValue`), `island_right.qml` (indicateurs de volume et de luminosité à
-retirer).
-
 ### 13. Lock screen — S
 
 Fichier. `~/.config/hypr/hyprlock.conf` (2,8 Ko, préservé au déploiement).
@@ -200,12 +187,12 @@ basculer en fichiers générés.
 
 ## 5. Ordre conseillé
 
-1. 12 (OSD unique) puis 6 (liseré) — finitions visibles, risque faible.
-2. 4 (dynamic island + routeur de popups) — le plus gros gain visuel, dépend de
-   la règle de popups déjà arbitrée.
-3. 11 puis 14 — les deux derniers murs de texte.
-4. 7 — chantier séparé, en attente des wallpapers en calques.
-5. 9, 10, 13 — interaction et finitions ; 13 est indépendant et rapide.
+1. 13 (lock screen) — S, indépendant, gain immédiat.
+2. 4 (dynamic island + routeur de popups) — le plus gros gain visuel, dépend de la
+   règle de popups déjà arbitrée.
+3. 14 puis 11 — les deux derniers murs de texte.
+4. 9 et 10 — interaction clavier ; 10 commence par l'export des binds.
+5. 7 — chantier séparé, en attente des wallpapers en calques.
 
 ---
 
@@ -226,3 +213,12 @@ basculer en fichiers générés.
   `decoration:active_opacity` suit à 0,50 ; opacité surfaces 0,70 → 0,35 laisse la
   fenêtre identique au pixel (écart 0,00) et ne touche pas `active_opacity`
   (toujours 0,70).
+- 2026-11-03 : lot A livré (6 + 12). Liseré : le contour est tracé au `Canvas`
+  d'`island_left.qml` (trait 1,5 px, accent 0,95 → 0,10) plutôt qu'avec deux
+  Rectangles imbriqués, qui auraient doublé l'opacité de l'intérieur ; repli
+  automatique sur le fond plein sous 3:1 (`Theme.wsActiveOutline`), 6,6:1 avec la
+  palette courante. OSD : les pourcentages volume/luminosité ont quitté la barre,
+  la boîte système ne garde qu'une icône de volume qui ouvre le panneau (vérifié
+  au clic réel : « Contrôles système · Station » s'ouvre), barre de progression
+  ramenée à 2 px. `hyprctl layers` ne liste pas les `PopupWindow` : l'absence de
+  surface n'y prouve pas que le popup est fermé.

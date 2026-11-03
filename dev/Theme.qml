@@ -66,6 +66,18 @@ QtObject {
     // Passer à false remet la barre à trois îlots indépendants.
     readonly property bool barMerged: true
 
+    // 6 : le workspace actif est un contour dégradé plutôt qu'un bloc plein.
+    // QML ne sait pas dégrader une bordure : le contour est tracé au Canvas dans
+    // island_left.qml. Repli automatique sur le fond plein quand le contraste
+    // accent/surface est trop faible (fond clair), faute de quoi le liseré
+    // disparaîtrait. Mettre wsActiveOutline: false force le fond plein.
+    readonly property real accentContrast: {
+        const la = 0.2126 * accent.r + 0.7152 * accent.g + 0.0722 * accent.b
+        const lb = 0.2126 * surface.r + 0.7152 * surface.g + 0.0722 * surface.b
+        return (la > lb) ? (la + 0.05) / (lb + 0.05) : (lb + 0.05) / (la + 0.05)
+    }
+    readonly property bool wsActiveOutline: accentContrast >= 3.0
+
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: HYPRLAND LAYOUT & BLUR METRICS
     // ────────────────────────────────────────────────────────────────────────

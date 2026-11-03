@@ -701,88 +701,17 @@ Item {
                         }
                     }
 
-                    // Audio Volume indicator (scroll to adjust, right-click to mute)
-                    Item {
-                        width: volRow.implicitWidth
-                        height: 24
+                    // Entrée unique vers le panneau système (volume, luminosité, batterie).
+                    // Les pourcentages ont quitté la barre : volume et luminosité passent par
+                    // l'OSD (bas-centre) et par les curseurs du panneau. L'icône ne garde que
+                    // l'état muet, qui doit rester lisible d'un coup d'œil.
+                    Icon {
                         anchors.verticalCenter: parent.verticalCenter
-
-                        Row {
-                            id: volRow
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
-                                size: Theme.iconSm
-                                color: islandRight.volMuted ? Theme.error : Theme.accent
-                            }
-
-                            Text {
-                                text: islandRight.volMuted ? "Muet" : (islandRight.volPercent + "%")
-                                color: islandRight.volMuted ? Theme.error : Theme.fg
-                                font.pixelSize: Theme.textSm
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: mouse => {
-                                if (mouse.button === Qt.RightButton) {
-                                    islandRight.runSysAction(["mute"])
-                                } else {
-                                    Theme.togglePopup("system")
-                                }
-                            }
-                            onWheel: wheel => {
-                                const step = wheel.angleDelta.y > 0 ? 5 : -5
-                                const nextVol = Math.max(0, Math.min(150, islandRight.volPercent + step))
-                                islandRight.volPercent = nextVol
-                                islandRight.runSysAction(["volume", String(nextVol)])
-                            }
-                        }
-                    }
-
-                    // Screen Brightness indicator (scroll to adjust, hidden when no internal backlight)
-                    Item {
-                        visible: islandRight.hasBacklight
-                        width: briRow.implicitWidth
-                        height: 24
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Row {
-                            id: briRow
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: "brightness"
-                                size: Theme.iconSm
-                                color: Theme.accent
-                            }
-
-                            Text {
-                                text: islandRight.briPercent + "%"
-                                color: Theme.fg
-                                font.pixelSize: Theme.textSm
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Theme.togglePopup("system")
-                            onWheel: wheel => {
-                                const step = wheel.angleDelta.y > 0 ? 5 : -5
-                                const nextBri = Math.max(5, Math.min(100, islandRight.briPercent + step))
-                                islandRight.briPercent = nextBri
-                                islandRight.runSysAction(["brightness", String(nextBri)])
-                            }
-                        }
+                        glyph: islandRight.volMuted
+                            ? "volume-off"
+                            : islandRight.volumeIconFor(islandRight.volPercent, false)
+                        size: Theme.iconSm
+                        color: islandRight.volMuted ? Theme.error : Theme.accent
                     }
                 }
             }
