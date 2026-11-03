@@ -23,6 +23,7 @@ Fait et déployé :
 | 8b | Flou shell réglable à part des fenêtres (actif, seuil `ignore_alpha`, popups) | `config_panel.qml`, `config_manager.py`, bloc `shell-blur` de `general.lua` |
 | 8c | Opacité shell séparée de l'opacité des fenêtres | `Theme.qml` (`shellOpacity`), `config_panel.qml`, `config_manager.py` |
 | 6 | Liseré dégradé sur le workspace actif, avec repli fond plein sous 3:1 de contraste | `island_left.qml`, `Theme.qml` (`wsActiveOutline`) |
+| 4 | Dynamic island : zone média au survol, popup MPRIS, routeur de clics (heure inerte, date → calendrier) | `island_center.qml`, `Theme.qml` (`activePopup` = `media`) |
 | 12 | OSD unique : volume et luminosité hors de la barre, barre de progression 2 px | `main.qml`, `island_right.qml` |
 | 13 | Lock screen cohérent : fond flouté 24 px, Inter, heure tabulaire, ligne média, boutons MDI | `hypr_modular/hyprlock.conf`, `core/generate_rofi_theme.sh` §5 |
 
@@ -51,6 +52,14 @@ luminosité ne s'affichent plus que dans l'OSD bas-centre, déclenché par
 Sur un poste sans batterie, cette icône est le seul contenu de la boîte : la
 supprimer rendrait le panneau système inaccessible.
 
+Note 4 : la pilule centrale a trois zones au clic — l'heure ne fait rien, la date
+ouvre le calendrier, le libellé média ouvre le popup MPRIS. La zone média n'existe
+qu'au survol **et** si une piste joue : pas d'élargissement permanent de la barre
+(choix utilisateur). Le volume n'a pas été doublonné au centre : son curseur reste
+dans le panneau système de l'île droite. Le popup s'appuie sur `mediaPlayer` (toute
+piste, même en pause) et non sur `activePlayer` (en lecture seule), sinon appuyer
+sur pause le refermait ; un `onPlayerChanged` le ferme si le lecteur disparaît.
+
 Note 13 : `hyprlock.conf` est désormais **dans le dépôt** (`dev/hypr_modular/`,
 copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 `~/.config/hypr/hyprlock-colors.conf`, régénéré depuis `style_vars.json` par
@@ -58,7 +67,7 @@ copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 jusqu'à l'écran de verrouillage. Le fond est `path = screenshot` flouté à 24 px :
 rien à maintenir côté wallpaper, et le verrou reprend ce que la session affichait.
 
-Reste : 4, 7, 9, 10, 11, 14, 15, plus les réserves du §4.
+Reste : 7, 9, 10, 11, 14, 15, plus les réserves du §4.
 
 ---
 
@@ -79,38 +88,6 @@ Reste : 4, 7, 9, 10, 11, 14, 15, plus les réserves du §4.
 ---
 
 ## 3. Fiches
-
-### 4. Dynamic island et routeur de popups par contenu — M
-
-Objectif. La pilule centrale devient un objet à états dont la largeur s'anime, et
-chaque zone cliquée ouvre le popup correspondant à sa nature, au lieu d'un popup
-unique.
-
-Règle demandée par l'utilisateur : le calendrier reste un popup, mais seulement
-si l'on clique sur la date. Cliquer la pochette ou le titre ouvre les contrôles
-Mpris, le volume ouvre son curseur, une notification ouvre son détail.
-
-Fichiers. `island_center.qml` (1 215 l.), `Theme.qml` (`activePopup`),
-`main.qml` (la condition `WlrLayershell.keyboardFocus` teste aujourd'hui
-`activePopup === "wifi" || activePopup === "calendar"`).
-
-Approche.
-1. Remplacer l'état binaire `calendarOpen` par une propriété `centerState`
-   (`idle`, `media`, `volume`, `brightness`, `notification`, `calendar`) portée
-   par `island_center`, chaque zone cliquable la positionnant.
-2. Contenu dans un `StackLayout`, largeur de la pilule en `implicitWidth` avec un
-   `Behavior` sur ressort — les paramètres du ressort existent déjà dans
-   `general.lua` (courbe `easy` : mass 1, stiffness 71.2633, damping 15.8273644).
-3. Un seul popup par état, positionné sous la pilule, jamais deux à la fois.
-4. Étendre la condition `keyboardFocus` de `main.qml` aux états qui demandent le
-   clavier (recherche, calendrier).
-
-Risques. Le clic sur la date doit rester distinct du clic sur l'heure : séparer
-les deux `MouseArea` proprement, sinon le calendrier s'ouvre depuis n'importe
-quel point de la pilule. Les états média dépendent de Mpris (player absent =
-état media vide, à masquer).
-
-Vérification. Une capture par état, plus un clic réel sur chaque zone.
 
 ### 7. Depth wallpaper — L, bloqué sur les assets
 
@@ -233,11 +210,8 @@ second demande de passer la ligne par `Icon` + `Text`, deux lignes.
 
 ## 5. Ordre conseillé
 
-Trois lots vérifiables d'un coup, un chantier séparé, une décision.
+Deux lots vérifiables d'un coup, un chantier séparé, une décision.
 
-- **Lot B — 4 (dynamic island et routeur de popups) — M/L.** Le plus gros gain
-  visuel : la pilule centrale devient un objet à états et cesse d'être un bloc de
-  widgets. Se vérifie par une capture par état et un clic réel sur chaque zone.
 - **Lot C — 14 puis 11 — M, puis L.** Les deux derniers murs de texte. 14 est une
   refonte de cartes déjà présentes (popup + toast existent dans
   `island_right.qml`), donc plus court que sa fiche ne le laisse croire : c'est un
@@ -312,3 +286,20 @@ Trois lots vérifiables d'un coup, un chantier séparé, une décision.
     Restent deux usages hors périmètre révélés par cet avertissement : `icon: "⏻"`
     dans `config_panel.qml` (en-tête de section sans icône) et un `Text` brut
     « ⏻ Session & Alimentation » dans `island_right.qml`.
+
+- 2026-11-03 : 4 livré — dynamic island et routeur de clics. La pilule distingue
+  désormais trois zones : l'heure ne fait rien, la date ouvre le calendrier, le
+  libellé média ouvre un nouveau popup MPRIS (pochette ou icône, titre,
+  artiste/album, progression 2 px, temps, previous / lecture-pause / next pilotés
+  par `Services.Mpris`). Décisions prises : élargissement au survol seulement
+  (pas d'état média permanent), volume non doublonné au centre, clic sur un toast
+  → centre de notifications. Deux pièges : (a) une `Row` dans la `Column` du popup
+  sans largeur explicite bouclait (`Column.width` ← `Row.width` ← `Column.width`)
+  et tout le bloc titre restait invisible alors que la barre et les boutons
+  s'affichaient ; (b) conditionner la visibilité du popup à « le joueur joue »
+  refermait celui-ci à l'instant où l'on appuyait sur pause — d'où la séparation
+  `mediaPlayer` (toute piste) / `activePlayer` (en lecture). Vérifié par clics
+  réels : heure 795 px → rien, date 1090 px → calendrier, média 920 px → popup ;
+  bouton central : `playerctl status` passe Playing → Paused → Playing sans que
+  le popup se ferme ; barre de progression à 21 s sur une piste de 60 s (0:20 /
+  -0:39, remplissage au tiers) ; toast réel (`notify-send`) → « Notifications (2) ».
