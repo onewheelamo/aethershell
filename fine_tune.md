@@ -303,3 +303,12 @@ Deux lots vérifiables d'un coup, un chantier séparé, une décision.
   bouton central : `playerctl status` passe Playing → Paused → Playing sans que
   le popup se ferme ; barre de progression à 21 s sur une piste de 60 s (0:20 /
   -0:39, remplissage au tiers) ; toast réel (`notify-send`) → « Notifications (2) ».
+- 2026-11-03 : popup média agrandi sur demande. 300 → 360 px, pochette 40 → 80 px
+  (rayon 5), titre `textLg`, artiste `textSm`, progression 3 px, temps `textXs`,
+  boutons `iconLg` (nouveau token `Theme.iconLg`, 22) dans une boîte 40×34. Deux
+  défauts trouvés en testant avec de vrais lecteurs : la pochette peut arriver en
+  `data:` base64 (mpv-mpris) et le préfixe `file://` la cassait — les schémas
+  connus (`file://`, `http`, `data:`, `image://`) passent désormais tels quels ;
+  et la zone média dépendait de « en lecture », or `isPlaying` tombe entre deux
+  pistes : la zone clignotait et la pilule se rétractait. Elle suit maintenant
+  `mediaPlayer` (toute piste), le survol étant déjà la condition d'affichage.
