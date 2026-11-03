@@ -44,6 +44,16 @@ Item {
         return id
     }
 
+    // Clic sur une miniature : sélection seule. L'aperçu reste une action
+    // explicite du bouton « Aperçu », pour ne jamais prendre l'écran par
+    // surprise (une fenêtre de test plein écran avale le clavier).
+    function select(id) {
+        if (selectedId === id && status !== "")
+            return
+        selectedId = id
+        status = "Sélectionné : " + nameOf(id) + " — « Aperçu » ou « Appliquer »"
+    }
+
     // Aperçu plein écran : on ferme le panneau pour laisser voir le greeter.
     function preview(id) {
         selectedId = id
@@ -144,7 +154,7 @@ Item {
 
                 Text {
                     width: parent.width
-                    text: "Le thème choisi s'applique à la prochaine ouverture de session."
+                    text: "Un clic sélectionne un thème ; « Aperçu » l'affiche en plein écran, « Appliquer » le retient pour la prochaine ouverture de session."
                     color: Qt.alpha(Theme.fg, 0.62)
                     font.pixelSize: Theme.textXs
                     wrapMode: Text.WordWrap
@@ -173,10 +183,8 @@ Item {
                                 height: greeterTab.cellHeight
                                 radius: Theme.globalRadius
                                 color: Theme.surfaceVariant
-                                border.width: cell.selected ? 2 : 1
-                                border.color: cell.selected
-                                    ? Theme.accent
-                                    : Qt.alpha(Theme.fg, 0.10)
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.fg, 0.10)
                                 clip: true
 
                                 Image {
@@ -220,7 +228,19 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: greeterTab.preview(cell.modelData.id)
+                                    onClicked: greeterTab.select(cell.modelData.id)
+                                }
+
+                                // Anneau de sélection : hors du cadre clippé, sinon
+                                // la vignette recouvre la bordure du Rectangle.
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -3
+                                    radius: Theme.globalRadius + 3
+                                    color: "transparent"
+                                    border.width: 2
+                                    border.color: Theme.accent
+                                    visible: cell.selected
                                 }
                             }
 
