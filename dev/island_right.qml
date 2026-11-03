@@ -1596,9 +1596,12 @@ Item {
                 anchors.margins: 14
                 spacing: 10
 
+                // ────────────────────────────────────────────────────────────
+                // En-tête : compteur discret, action neutre au repos
+                // ────────────────────────────────────────────────────────────
                 Item {
                     width: parent.width
-                    height: 24
+                    height: 22
 
                     Row {
                         anchors.left: parent.left
@@ -1614,89 +1617,182 @@ Item {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Notifications (" + islandRight.notificationsList.length + ")"
+                            text: "Notifications"
                             color: Theme.fg
                             font.pixelSize: Theme.textLg
                             font.bold: true
                         }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: islandRight.notificationsList.length > 0
+                            text: islandRight.notificationsList.length
+                            color: Theme.accent
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
                     }
 
-                    Text {
+                    // « Tout effacer » : discret au repos, rouge seulement au survol.
+                    // Le rouge reste un signal, pas une décoration.
+                    Item {
                         visible: islandRight.notificationsList.length > 0
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Tout effacer"
-                        color: Theme.error
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                        MouseArea {
+                        width: clearText.implicitWidth + 12
+                        height: 20
+
+                        Rectangle {
                             anchors.fill: parent
+                            radius: Theme.globalRadius
+                            color: clearMa.containsMouse ? Qt.alpha(Theme.error, 0.12) : "transparent"
+                        }
+
+                        Text {
+                            id: clearText
+                            anchors.centerIn: parent
+                            text: "Tout effacer"
+                            color: clearMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: Theme.textXs
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                        }
+
+                        MouseArea {
+                            id: clearMa
+                            anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: islandRight.notificationsList = []
                         }
                     }
                 }
 
+                // ────────────────────────────────────────────────────────────
+                // Cartes empilées, la plus récente en tête
+                // ────────────────────────────────────────────────────────────
                 Flickable {
                     width: parent.width
-                    height: 270
+                    height: 268
                     contentWidth: width
                     contentHeight: notifListCol.implicitHeight
                     clip: true
+                    boundsBehavior: Flickable.StopAtBounds
 
                     Column {
                         id: notifListCol
                         width: parent.width
                         spacing: 8
 
-                        Text {
+                        // État vide
+                        Item {
                             visible: islandRight.notificationsList.length === 0
-                            text: "Aucune notification récente."
-                            color: Qt.alpha(Theme.fg, 0.65)
-                            font.pixelSize: Theme.textSm
-                            font.italic: true
+                            width: parent.width
+                            height: 268
+
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: Theme.space2
+
+                                Icon {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    glyph: "bell-off"
+                                    size: Theme.iconLg
+                                    color: Qt.alpha(Theme.fg, 0.35)
+                                    opacityLevel: 1
+                                }
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "Aucune notification"
+                                    color: Qt.alpha(Theme.fg, 0.55)
+                                    font.pixelSize: Theme.textSm
+                                }
+                            }
                         }
 
                         Repeater {
                             model: islandRight.notificationsList
 
                             Rectangle {
+                                id: notifCard
                                 required property var modelData
                                 required property int index
                                 width: notifListCol.width
-                                height: notifCardCol.implicitHeight + 16
+                                height: notifCardCol.implicitHeight + 20
                                 radius: Theme.globalRadius
-                                color: Theme.surfaceVariant
-                                border.color: Theme.accentMuted
-                                border.width: 1
+                                color: cardMa.containsMouse
+                                    ? Qt.lighter(Theme.surfaceVariant, 1.15)
+                                    : Theme.surfaceVariant
+                                clip: true
+
+                                Behavior on color { ColorAnimation { duration: 120 } }
+
+                                // Liseré d'application : 2 px, franc sur la carte la
+                                // plus récente, effacé sur les anciennes.
+                                Rectangle {
+                                    width: 2
+                                    height: parent.height
+                                    color: Qt.alpha(Theme.accent, index === 0 ? 0.95 : 0.35)
+                                }
+
+                                MouseArea {
+                                    id: cardMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.NoButton
+                                }
 
                                 Column {
                                     id: notifCardCol
                                     anchors.left: parent.left
                                     anchors.right: parent.right
+                                    anchors.leftMargin: 12
+                                    anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    anchors.margins: 8
                                     spacing: 3
 
                                     Item {
                                         width: parent.width
-                                        height: 16
-                                        Text {
+                                        height: 18
+
+                                        Row {
                                             anchors.left: parent.left
-                                            text: modelData.appName + " · " + modelData.time
-                                            color: Theme.accentMuted
-                                            font.pixelSize: Theme.textXs
-                                            font.bold: true
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: Theme.space1
+
+                                            Text {
+                                                text: modelData.appName
+                                                width: Math.min(implicitWidth, notifCardCol.width - 78)
+                                                color: Theme.accent
+                                                font.pixelSize: Theme.textXs
+                                                font.bold: true
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                text: "·"
+                                                color: Qt.alpha(Theme.fg, 0.4)
+                                                font.pixelSize: Theme.textXs
+                                            }
+                                            Text {
+                                                text: modelData.time
+                                                color: Qt.alpha(Theme.fg, 0.5)
+                                                font.pixelSize: Theme.textXs
+                                                font.features: { "tnum": 1 }
+                                            }
                                         }
+
                                         Icon {
                                             anchors.right: parent.right
                                             anchors.verticalCenter: parent.verticalCenter
                                             glyph: "close"
                                             size: 10
-                                            color: Theme.fg
-                                            opacityLevel: 0.7
+                                            color: closeMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.5)
+                                            opacityLevel: 1
+
                                             MouseArea {
+                                                id: closeMa
                                                 anchors.fill: parent
+                                                anchors.margins: -4
+                                                hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
                                                     const copy = islandRight.notificationsList.slice()
@@ -1720,9 +1816,11 @@ Item {
                                         visible: modelData.body !== ""
                                         width: parent.width
                                         text: modelData.body
-                                        color: Qt.alpha(Theme.fg, 0.85)
+                                        color: Qt.alpha(Theme.fg, 0.8)
                                         font.pixelSize: Theme.textXs
                                         wrapMode: Text.WordWrap
+                                        maximumLineCount: 3
+                                        elide: Text.ElideRight
                                     }
                                 }
                             }
@@ -1753,15 +1851,23 @@ Item {
             anchors.fill: parent
             color: Theme.surfaceVariantBg
             radius: Theme.globalRadius
-            border.color: Theme.warn
-            border.width: 1
+            clip: true
+
+            // Même liseré que les cartes du centre : une notification n'est pas
+            // une alerte, le liseré est en accent et non en warn.
+            Rectangle {
+                width: 2
+                height: parent.height
+                color: Qt.alpha(Theme.accent, 0.95)
+            }
 
             Column {
                 id: toastCol
                 anchors.left: parent.left
                 anchors.right: parent.right
+                anchors.leftMargin: 14
+                anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: 10
                 spacing: 3
 
                 Row {
@@ -1771,13 +1877,13 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: "bell"
                         size: 10
-                        color: Theme.warn
+                        color: Theme.accent
                         opacityLevel: 1
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: islandRight.latestToast ? islandRight.latestToast.appName : ""
-                        color: Theme.warn
+                        color: Theme.accent
                         font.pixelSize: Theme.textXs
                         font.bold: true
                     }
