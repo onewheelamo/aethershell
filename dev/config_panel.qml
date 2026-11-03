@@ -36,6 +36,10 @@ Rectangle {
     border.color: Theme.accent
     border.width: 1
 
+    // Thème du greeter sélectionné dans l'onglet Connexion. Porté ici parce que
+    // le composant de l'onglet est déchargé dès qu'on le quitte.
+    property string greeterSelected: ""
+
     // Recherche : requête courante, alimentée par le champ de la §3.
     property string searchQuery: ""
     // Résultats calculés (label, tab, section, target) — voir searchIndex.
@@ -44,6 +48,8 @@ Rectangle {
     // Index d'ancres : une entrée par réglage notable. Le champ redirige vers
     // l'onglet et la section, puis fait défiler jusqu'à la ligne ciblée.
     readonly property var searchIndex: [
+        { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
+          tab: 4, section: "greeter_theme", target: "secGreeter" },
         { label: "Thème et fond d'écran", words: "theme fond ecran wallpaper couleur",
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Jeux de couleurs Matugen", words: "matugen palette preset couleurs saturation",
@@ -176,7 +182,7 @@ Rectangle {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1: BACKEND IPC & STATE PROPERTIES
     // ────────────────────────────────────────────────────────────────────────
-    property int currentTab: 0 // 0: Esthétique, 1: Système & Écrans, 2: Contrôles, 3: Applications
+    property int currentTab: 0 // 0: Esthétique, 1: Système & Écrans, 2: Contrôles, 3: Applications, 4: Connexion
 
     // State synced with config_manager.py & FileViews
     property string hostName: "Station"
@@ -625,7 +631,8 @@ Rectangle {
                 { icon: "palette", label: "Esthétique" },
                 { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
                 { icon: "keyboard", label: "Contrôles" },
-                { icon: "rocket", label: "Applications" }
+                { icon: "rocket", label: "Applications" },
+                { icon: "lock", label: "Connexion" }
             ]
 
             Rectangle {
@@ -687,6 +694,8 @@ Rectangle {
                 if (root.currentTab === 1) return tabSystemeCol.implicitHeight
                 if (root.currentTab === 2) return tabControlesCol.implicitHeight
                 if (root.currentTab === 3) return tabAppsCol.implicitHeight
+                if (root.currentTab === 4) return greeterTabLoader.item
+                    ? greeterTabLoader.item.implicitHeight : 0
                 return 0
             }
 
@@ -2914,6 +2923,17 @@ Rectangle {
             }
             }   // end CollapsibleSection secAutostart
         }   // end Column tabAppsCol
+
+            // Onglet Connexion (thème du greeter) : composant séparé pour ne pas
+            // alourdir ce fichier — il porte sa grille de miniatures et son backend.
+            Loader {
+                id: greeterTabLoader
+                width: mainFlickable.width
+                visible: root.currentTab === 4
+                active: visible
+                source: "GreeterTab.qml"
+                onLoaded: item.width = mainFlickable.width
+            }
     }   // end Flickable mainFlickable
     }   // end Item tabContentArea
 }

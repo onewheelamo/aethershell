@@ -314,6 +314,7 @@ deploy_new_env() {
     cp "$DEV_DIR/Stepper.qml" "$QS_DIR/Stepper.qml"
     cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"
     cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
+    cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
 
     local qs_manifest
     qs_manifest=$(mktemp)

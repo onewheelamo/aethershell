@@ -35,6 +35,10 @@ trap 'rm -rf "$STAGE"' EXIT
     echo '#!/bin/bash'
     echo 'set -euo pipefail'
     echo "mkdir -p '$BACKUP'"
+    # Helper privilégié + règle polkit : le panneau peut alors changer de thème
+    # ou rafraîchir la palette sans invite (programme root, non modifiable).
+    echo "install -Dm755 '$DEV/portable-greeter' /usr/local/bin/portable-greeter"
+    echo "install -Dm644 '$DEV/50-portable-greeter.rules' /etc/polkit-1/rules.d/50-portable-greeter.rules"
     echo "install -Dm644 '$DEV/out/Themes/portable.conf' '$THEME/Themes/portable.conf'"
     echo "install -Dm644 '$DEV/out/Backgrounds/portable.png' '$THEME/Backgrounds/portable.png'"
     if [ "$MODE" = "full" ]; then

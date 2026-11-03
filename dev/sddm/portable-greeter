@@ -1,0 +1,70 @@
+#!/bin/bash
+# Helper privilégié du greeter portable.
+#
+# Seul programme autorisé sans mot de passe par
+# /etc/polkit-1/rules.d/50-portable-greeter.rules — il est donc volontairement
+# minuscule, sans shell évalué, et il valide tout ce qu'il reçoit :
+#   - `apply <id>`              choisit un thème déjà présent dans le thème
+#   - `set-palette <conf> <bg>` remplace la palette générée et le fond
+#
+# Toute autre invocation sort en erreur.
+
+set -euo pipefail
+
+THEME="/usr/share/sddm/themes/sddm-astronaut-theme"
+SDDM_CONF="/etc/sddm.conf.d/10-portable.conf"
+MARKER="# Généré par dev/sddm/generate.py"
+
+die() { echo "portable-greeter: $*" >&2; exit 2; }
+
+[ "$(id -u)" -eq 0 ] || die "à lancer via pkexec"
+[ -d "$THEME" ] || die "thème absent : $THEME"
+
+cmd="${1:-}"
+
+case "$cmd" in
+apply)
+    id="${2:-}"
+    # Identifiant strict : lettres minuscules, chiffres et souligné.
+    [[ "$id" =~ ^[a-z0-9_]+$ ]] || die "identifiant invalide"
+    conf="$THEME/Themes/$id.conf"
+    [ -f "$conf" ] || die "configuration inconnue : $id"
+    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$THEME/metadata.desktop"
+    mkdir -p "$(dirname "$SDDM_CONF")"
+    printf '[Theme]\nCurrent=sddm-astronaut-theme\n' > "$SDDM_CONF"
+    echo "appliqué : $id"
+    ;;
+
+set-palette)
+    src_conf="${2:-}"
+    src_bg="${3:-}"
+    [ -f "$src_conf" ] || die "conf introuvable"
+    [ -f "$src_bg" ] || die "fond introuvable"
+    [ "$(stat -c %s "$src_conf")" -le 12288 ] || die "conf trop grosse"
+    [ "$(stat -c %s "$src_bg")" -le 8388608 ] || die "fond trop gros"
+
+    # Le fichier doit être celui du générateur : marqueur + uniquement des
+    # sections, des commentaires et des couples CLE="valeur".
+    grep -qxF "[General]" "$src_conf" || die "conf: en-tête inattendu"
+    grep -qF "$MARKER" "$src_conf" || die "conf: marqueur du générateur absent"
+    if grep -vE '^[[:space:]]*$|^#|^\[[A-Za-z]+\]$|^[A-Za-z]+="[^"\\]*"$' "$src_conf" >/dev/null; then
+        die "conf: ligne non reconnue"
+    fi
+
+    # Le fond doit être un PNG 1920×1080 (le greeter est calibré pour ça).
+    head -c 8 "$src_bg" | od -An -tx1 | tr -d ' \n' | grep -qx '89504e470d0a1a0a' \
+        || die "fond: ce n'est pas un PNG"
+    dims="$(identify -format '%wx%h' "$src_bg" 2>/dev/null || true)"
+    [ "$dims" = "1920x1080" ] || die "fond: dimensions $dims au lieu de 1920x1080"
+
+    install -Dm644 "$src_conf" "$THEME/Themes/portable.conf"
+    install -Dm644 "$src_bg" "$THEME/Backgrounds/portable.png"
+    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/portable.conf|" "$THEME/metadata.desktop"
+    printf '[Theme]\nCurrent=sddm-astronaut-theme\n' > "$SDDM_CONF"
+    echo "palette installée"
+    ;;
+
+*)
+    die "commande inconnue : ${cmd:-<vide>}"
+    ;;
+esac

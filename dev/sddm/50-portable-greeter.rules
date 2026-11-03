@@ -1,0 +1,10 @@
+// Autorise l'utilisateur amo à lancer le helper du greeter sans mot de passe.
+// Portée volontairement étroite : un seul programme, root, non modifiable par
+// l'utilisateur. Tout le reste passe toujours par une authentification.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/local/bin/portable-greeter" &&
+        subject.user == "amo") {
+        return polkit.Result.YES;
+    }
+});
