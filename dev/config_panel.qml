@@ -599,7 +599,7 @@ Rectangle {
                 Text {
                     width: 132
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Saturation :"
+                    text: "Contraste :"
                     color: Theme.fg
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -607,12 +607,13 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { v: 0.8, label: "Pastel" },
-                        { v: 0.4, label: "Doux" },
+                        // Matugen : -1 = contraste minimum (pastel), 0 = standard, +1 = maximum (profond)
+                        { v: -0.8, label: "Pastel" },
+                        { v: -0.4, label: "Doux" },
                         { v: 0.0, label: "Standard" },
-                        { v: -0.3, label: "Intense" },
-                        { v: -0.6, label: "Vif" },
-                        { v: -0.8, label: "Max" }
+                        { v: 0.3, label: "Intense" },
+                        { v: 0.6, label: "Vif" },
+                        { v: 0.8, label: "Max" }
                     ]
                     Rectangle {
                         required property var modelData
