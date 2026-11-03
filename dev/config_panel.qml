@@ -2486,6 +2486,9 @@ Rectangle {
                 }
             }
 
+            // Respiration entre la dernière ligne et la barre d'ajout.
+            Item { width: 1; height: 4 }
+
             // Add New Application Variable Row
             Row {
                 spacing: 10
@@ -2712,6 +2715,8 @@ Rectangle {
                     }
                 }
             }
+
+            Item { width: 1; height: 4 }
 
             Row {
                 spacing: 10
