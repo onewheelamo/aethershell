@@ -233,6 +233,15 @@ Les `margins` d'une `PanelWindow` fonctionnent bien ici (position mesurée :
 `xywh 600 974 720 62` pour un écran de 1920 et une marge basse de 44) — le
 commentaire de l'OSD qui les disait inopérants ne concerne que son cas.
 
+La capsule passe **derrière** les fenêtres : une surface de la couche `bottom`
+ne reçoit pas les clics (Hyprland ne route l'entrée que vers les couches
+`top`/`overlay`) et reste sous les fenêtres. Elle est donc invisible dès qu'une
+fenêtre couvre le bas de l'écran. Pour qu'elle reste cliquable quand elle est
+réellement visible, sa couche est liée à l'occupation du workspace :
+`WlrLayershell.layer: desktopClear ? WlrLayer.Top : WlrLayer.Bottom`, où
+`desktopClear` compte les toplevels du workspace focalisé. Bureau nu : dessus,
+donc cliquable (rien à masquer) ; fenêtre présente : dessous, effacée.
+
 ### 9ter. Îlot gauche sans lanceur — LIVRÉ
 
 L'icône Arch et son séparateur sont retirés : l'îlot ne contient plus que les

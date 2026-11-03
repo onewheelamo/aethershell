@@ -2,6 +2,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import Quickshell.Wayland
 
 // Racine du contenu : un Item, instancié par le Loader de shell.qml. Garder ici
@@ -9,6 +10,22 @@ import Quickshell.Wayland
 // Item n'est pas nécessaire (ShellRoot est optionnel).
 Item {
     id: root
+
+    // Vrai quand le workspace courant n'a aucune fenêtre : la capsule de repos
+    // peut alors passer au-dessus (et donc recevoir les clics) sans rien masquer.
+    readonly property bool desktopClear: {
+        const ws = Hyprland.focusedWorkspace
+        if (!ws) return true
+        const tops = Hyprland.toplevels
+        if (tops && tops.values) {
+            for (let i = 0; i < tops.values.length; ++i) {
+                const t = tops.values[i]
+                if (t && t.workspace && t.workspace.id === ws.id) return false
+            }
+            return true
+        }
+        return !(ws.lastIpcObject && ws.lastIpcObject.windows > 0)
+    }
 
     property string pendingKbLayout: Theme.kbLayout || "fr"
 
@@ -277,6 +294,8 @@ Item {
     // Lanceur au repos : la même capsule, toujours posée en bas au centre, à 0,2.
     // Fenêtre étroite (720 px) et non plein écran : hors de la capsule les clics
     // continuent d'aller à la fenêtre en dessous. Un clic dessus ouvre la pilule.
+    // Couche `Bottom` : la capsule passe derrière les fenêtres Hyprland et ne
+    // réapparaît que sur un bureau nu (workspace vide, fenêtre déplacée).
     PanelWindow {
         id: spotlightRestWindow
         visible: !Theme.spotlightVisible
@@ -290,8 +309,10 @@ Item {
         implicitHeight: 62
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        aboveWindows: true
-        WlrLayershell.layer: WlrLayer.Overlay
+        // Bureau nu : au-dessus (une surface de la couche `bottom` ne reçoit pas
+        // les clics, et il n'y a rien à masquer). Fenêtre présente : derrière
+        // elle, la capsule s'efface.
+        WlrLayershell.layer: root.desktopClear ? WlrLayer.Top : WlrLayer.Bottom
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "portable-spotlight-rest"
 
