@@ -144,6 +144,14 @@ QtObject {
     // Pilule spotlight (launcher bas-centre) : surface montée à la demande,
     // fermée par Échap, par un clic hors de la pilule ou après lancement.
     property bool spotlightVisible: false
+
+    // Horodatage de l'ouverture de la pilule. Le fond cliquable ignore les clics
+    // des 300 ms qui suivent : sinon le relâchement du clic qui a ouvert la
+    // pilule (capsule au repos) atterrit sur le fond et la referme aussitôt.
+    property double spotlightOpenedAt: 0
+    onSpotlightVisibleChanged: {
+        if (spotlightVisible) spotlightOpenedAt = Date.now()
+    }
     property string activePopup: "" // "", "weather", "calendar", "media", "wifi", "power", "system", "notifications"
 
     // Applications dont les notifications n'apparaissent pas en toast (elles vont

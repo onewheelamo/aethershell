@@ -277,10 +277,14 @@ Item {
         WlrLayershell.keyboardFocus: Theme.spotlightVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "portable-spotlight"
 
-        // Un clic hors de la pilule ferme la surface.
+        // Un clic hors de la pilule ferme la surface — sauf juste après
+        // l'ouverture, où le relâchement du clic d'invocation arrive ici.
         MouseArea {
             anchors.fill: parent
-            onClicked: Theme.spotlightVisible = false
+            onClicked: {
+                if (Date.now() - Theme.spotlightOpenedAt > 300)
+                    Theme.spotlightVisible = false
+            }
         }
 
         Loader {
