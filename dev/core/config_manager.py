@@ -822,7 +822,11 @@ def remove_app_var(alias):
 # SECTION 8: AUTOSTART MANAGEMENT (autostart.json <-> autostart_cmds.txt)
 # ─────────────────────────────────────────────────────────────────────────────
 DEFAULT_AUTOSTART = [
-    {"name": "Quickshell (barre)", "cmd": "sh -c 'pgrep -x quickshell >/dev/null || exec quickshell' &", "enabled": True},
+    # `-n` (--no-duplicate) : une deuxième instance du même config sort
+    # immédiatement au lieu d'empiler une barre et de reprendre le service de
+    # notifications. Le pgrep couvre déjà le relogin ; -n couvre les lancements
+    # manuels et les lancements concurrents.
+    {"name": "Quickshell (barre)", "cmd": "sh -c 'pgrep -x quickshell >/dev/null || exec quickshell -n' &", "enabled": True},
     {"name": "Hypridle (inactivité)", "cmd": "sh -c 'pgrep -x hypridle >/dev/null || exec hypridle' &", "enabled": True},
     {"name": "awww-daemon (wallpaper, si Noctalia absent)", "cmd": "sh -c 'pgrep -x awww-daemon >/dev/null || exec awww-daemon' &", "enabled": True},
     {"name": "Agent Polkit", "cmd": "sh -c 'for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
