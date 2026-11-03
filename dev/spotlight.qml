@@ -222,7 +222,9 @@ Item {
                 + (root.results.length > 0 ? list.height + footer.height : 0)
                 + (root.results.length === 0 && root.query !== "" ? footer.height + 40 : 0)
         radius: 26
-        color: Qt.alpha(Theme.surface, 0.90)
+        // Même opacité que les popups (shell_opacity) : la pilule reste une
+        // surface du shell, pas un panneau opaque.
+        color: Theme.surfaceBg
         border.color: Qt.alpha(Theme.accent, 0.26)
         border.width: 1
 
