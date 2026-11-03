@@ -1495,18 +1495,23 @@ Item {
         anchor.adjustment: PopupAdjustment.All
         anchor.onAnchoring: anchor.rect = Qt.rect(islandRight.clampPopupX(islandRight, islandRight.width - implicitWidth, implicitWidth), islandRight.popupY(islandRight), anchor.rect.width, anchor.rect.height)
         implicitWidth: 280
-        implicitHeight: 315
+        // Hauteur dérivée du contenu : une valeur fixe coupait la dernière ligne
+        // (le bas n'avait plus que 0 px de marge au lieu de 14).
+        implicitHeight: powerCard.implicitHeight
         color: "transparent"
         visible: Theme.activePopup === "power"
 
         Rectangle {
+            id: powerCard
             anchors.fill: parent
+            implicitHeight: powerColumn.implicitHeight + 28
             color: Theme.surfaceBg
             radius: Theme.globalRadius
             border.color: Theme.error
             border.width: 1
 
             Column {
+                id: powerColumn
                 anchors.fill: parent
                 anchors.margins: 14
                 spacing: 8
