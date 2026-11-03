@@ -300,12 +300,19 @@ Pièges rencontrés et solutions.
   préférer des `Row` dédiées, ou une hauteur explicite.
 
 
-### 15. Écran de connexion SDDM cohérent — M, décision d'installation à prendre
+### 15. Écran de connexion SDDM cohérent — LIVRÉ (sddm-astronaut re-coloré)
 
-Objectif. L'écran de connexion ne doit pas casser l'unité visuelle : même fond
-que le bureau, même accent, même typographie. Aujourd'hui SDDM est resté en
-configuration par défaut (`/etc/sddm.conf.d/*.conf` → `Current=breeze`), donc en
-rupture complète avec le reste.
+**Livré le 03/11/2026** — thème `sddm-astronaut-theme` (AUR, paquet construit et
+installé à la main en `92.abb3163-1`) re-coloré par `dev/sddm/generate.py` et posé
+par `dev/sddm/install.sh`. Mesures et décisions dans `dev/sddm/GREETER_PROPOSAL.md`.
+
+Ce qui a changé par rapport à l'hypothèse de départ : le thème effectif n'était pas
+`breeze` mais `Muse` (deux fichiers `Current=` locaux se contredisaient, l'ordre
+lexical tranchait). `install.sh` neutralise les deux et écrit
+`/etc/sddm.conf.d/10-portable.conf`. Comme `/home/utilisateur` est en `710`, le greeter (uid
+`sddm`) ne peut lire ni `style_vars.json` ni le wallpaper : la palette et le fond
+sont donc **générés dans le thème**, et `install.sh --colors-only` les rafraîchit
+après un changement de palette (une invite polkit).
 
 Fichiers. Aucun pour l'instant : ni `dev/sddm/`, ni thème. Le greeter vit hors
 session, il faut donc un nouveau répertoire dans le dépôt et une étape

@@ -17,6 +17,9 @@ __pycache__/
 dev/core/app_index.json
 dev/core/launch_history.json
 
+# Sorties générées du greeter (conf + fond issus de style_vars.json)
+dev/sddm/out/
+
 # Sensitive information
 dev/core/secrets.json
 secrets.json

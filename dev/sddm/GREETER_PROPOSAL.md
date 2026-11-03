@@ -1,121 +1,110 @@
-# Point 15 — Écran de connexion (greeter) : maquette + architecture
+# Point 15 — Écran de connexion : sddm-astronaut re-coloré (livré)
+
+## Décision
+
+Pas de thème maison : `sddm-astronaut-theme` (AUR), re-coloré depuis
+`style_vars.json` et posé par `dev/sddm/install.sh`. La maquette maison
+(`dev/mockups/greeter_mock.html` et ses rendus) reste dans le dépôt comme
+référence de la direction visuelle, mais la mise en page livrée est celle
+d'astronaut : horloge géante, formulaire centré sur une colonne floutée, libellés
+français, bouton accent.
 
 ## État mesuré le 03/11/2026
 
-- `sddm 0.21.0-7`, service `sddm.service` actif et `enabled`.
-- Le greeter tourne en **X11** : `sddm-greeter-qt6 --theme /usr/share/sddm/themes/Muse`
-  (journal du 02/11 22:12).
-- Deux fichiers se contredisent dans `/etc/sddm.conf.d/` :
-  `99-force-kde-login.conf` (`Current=breeze`) et `kde_settings.conf`
-  (`Current=Muse`). Le second l'emporte dans l'ordre lexical — le thème effectif
-  est **Muse**, pas breeze comme l'annonçait la fiche du backlog.
-- Qt 6.12 ; `SddmComponents 2.0` et `Qt5Compat.GraphicalEffects` sont présents
-  (`/usr/lib/qt6/qml/`) ; `qt6-svg` et `qt6-virtualkeyboard` installés.
-- Clavier déjà en `fr`/`azerty` pour Xorg (`/etc/X11/xorg.conf.d/00-keyboard.conf`),
+- `sddm 0.21.0-7`, service actif et `enabled`, greeter en **X11**
+  (`sddm-greeter-qt6 --theme …`, journal du 02/11 22:12).
+- Deux fichiers locaux se contredisaient dans `/etc/sddm.conf.d/`
+  (`99-force-kde-login.conf` → `breeze`, `kde_settings.conf` → `Muse`), aucun des
+  deux n'appartenant à un paquet : le second l'emportait dans l'ordre lexical, donc
+  le thème effectif était **Muse**, pas breeze.
+- Qt 6.12 ; `SddmComponents 2.0` et `Qt5Compat.GraphicalEffects` présents ;
+  `qt6-svg`, `qt6-virtualkeyboard`, `qt6-multimedia-ffmpeg`, `qt6-5compat` déjà
+  installés → **sddm-astronaut n'ajoute aucune dépendance**.
+- Clavier déjà `fr`/`azerty` pour Xorg (`/etc/X11/xorg.conf.d/00-keyboard.conf`),
   `Numlock=on` dans `/etc/sddm.conf`.
-- **`/home/utilisateur` est en `710`** : le greeter s'exécute sous l'uid `sddm` (969) et ne
-  peut lire ni `~/.config/quickshell/core/style_vars.json`, ni le wallpaper. Toute
-  palette ou image doit donc être **cuite dans le thème** à l'installation.
+- **`/home/utilisateur` est en `710`** : le greeter (uid `sddm`) ne peut lire ni
+  `style_vars.json` ni le wallpaper → palette et fond sont générés **dans** le
+  thème, pas lus à chaud.
 
-## Maquette
+## Installation du thème
 
-`dev/mockups/greeter_mock.html` (source, trois états par `?s=idle|typing|error`)
-et les rendus `greeter_idle.png`, `greeter_typing.png`, `greeter_error.png`,
-`greeter_detail.png` (×2), au wallpaper et à la palette de la session.
+```bash
+git clone https://aur.archlinux.org/sddm-astronaut-theme.git
+cd sddm-astronaut-theme && makepkg -f --noconfirm
+pkexec pacman -U "$PWD"/sddm-astronaut-theme-*.pkg.tar.zst
+```
 
-| Élément | Valeur | Motif |
-|---------|--------|-------|
-| Carte | 364 px, rayon 26, padding 28 | gabarit de la pilule spotlight, pas celui du panneau |
-| Fond carte | `surface` à 78 % + flou 26 | doit rester lisible sur un wallpaper clair |
-| Bordure | accent à 18 % | rappel de la capsule de la barre |
-| Avatar | 68 px, lettre accent sur accent 14 % | pas de photo : aucune dépendance à `user.avatar` |
-| Champ | 46 px, rayon 23, loupe/cadenas 15 px | hauteur de la capsule |
-| Bouton | 42 px, accent plein, texte `bg` | seule surface saturée : le point de mire |
-| Horloge | 76 px poids 200, chiffres tabulaires | l'heure se lit de loin, le reste se lit de près |
-| Pied de carte | filet 1 px + « Hyprland ⌄ » | la session reste atteignable sans encombrer |
-| Coins | hôte en bas à gauche, veille/redémarrage/extinction en bas à droite | rien d'autre n'est cliquable |
+Installé en `92.abb3163-1`, dans `/usr/share/sddm/themes/sddm-astronaut-theme`
+(19 Mo, fonds vidéo inclus).
 
-États : au repos (invite + caret), frappe (points + caret), erreur (bordure et
-message `error`, la carte grandit d'une ligne).
-
-## Architecture proposée
-
-Thème maison **« portable »**, Qt Quick pur — aucune dépendance Plasma/Kirigami,
-aucun paquet AUR :
+## Re-coloration (le dépôt)
 
 ```
 dev/sddm/
-  generate.py            # style_vars.json → theme/palette.json + theme/background.png
-  install.sh             # pkexec : copie le thème, écrit 10-portable.conf
-  theme/
-    Main.qml             # horloge, carte, coins
-    metadata.desktop     # [SddmGreeterTheme] Type=sddm-theme, QtVersion=6, ConfigFile=theme.conf
-    theme.conf
-    palette.json         # généré (bg, fg, accent, surface, error)
-    background.png       # généré : wallpaper assombri 40 %, 1920×1080
+  generate.py    # style_vars.json + `awww query` → out/Themes/portable.conf + out/Backgrounds/portable.png
+  install.sh     # génère puis installe (une invite polkit) ; --colors-only pour la palette seule
+  out/           # sorties générées, hors dépôt (.gitignore)
 ```
 
-- **Palette** : `generate.py` lit `core/style_vars.json` (le même fichier que
-  `config_manager.py` utilise pour les layer rules) et écrit `palette.json`. Comme
-  `colors.lua`, c'est un fichier **généré**, jamais édité à la main.
-- **Flou de la carte** : `ShaderEffectSource` sur `background.png` +
-  `GaussianBlur` (`Qt5Compat.GraphicalEffects`) — le `backdrop-filter` de la
-  maquette se traduit exactement comme ça, sans shader écrit à la main.
-- **Installation séparée** : `dev/sddm/install.sh` (une invite polkit) copie vers
-  `/usr/share/sddm/themes/portable/` et écrit
-  `/etc/sddm.conf.d/10-portable.conf` (`Current=portable`), en supprimant le
-  `Current=` contradictoire des deux fichiers existants. `deploy.sh` reste sans
-  sudo : il n'a aucun moyen de demander un mot de passe, et un déploiement ne
-  doit pas dépendre d'une authentification.
-- **Après un changement de palette** : `dev/sddm/install.sh --colors-only`
-  (une invite, deux fichiers réécrits). Le changement de wallpaper est rare, donc
-  la contrainte est acceptable ; à défaut le greeter garde la palette précédente.
+- `generate.py` prend la palette de `active_theme` (ici `dynamic`) et le wallpaper
+  réellement affiché (`awww query`) — jamais une valeur recopiée à la main.
+- Fond : recadré 1920×1080 puis `-modulate 55` → luminance moyenne **44,0** contre
+  **79,2** à la source, mesurée sur le fichier installé.
+- `install.sh` copie `Themes/portable.conf` et `Backgrounds/portable.png` dans le
+  thème, patche `metadata.desktop` (`ConfigFile=Themes/portable.conf`), neutralise les
+  `Current=` concurrents (sauvegardés dans `~/.config/backups_env/sddm_*`) et écrit
+  `/etc/sddm.conf.d/10-portable.conf` (`Current=sddm-astronaut-theme`). Vérifié :
+  **un seul** `Current=` actif dans `/etc/sddm.conf.d/`.
 
-## API à utiliser (vérifiée présente, à confirmer au test-mode)
+### Correspondance des couleurs
 
-- `sddm.login(user, password, sessionIndex)`, signaux `loginFailed`,
-  `loginSucceeded` ; `sddm.canSuspend/canReboot/canPowerOff` et
-  `suspend()/reboot()/powerOff()`.
-- `userModel` (`lastIndex`, `get(index).name/realName`) et `sessionModel`
-  (`index`, `get(index).name`) pour le pied de carte.
-- Verr. Maj : l'exposition de `keyboard.capsLock` varie selon les versions ; à
-  vérifier d'abord avec un `console.log` en test-mode. Si absent, l'indicateur se
-  déduit du `TextInput` (`inputMethodHints`) et reste optionnel.
+Le thème peint la plupart de ses surfaces à **20 % d'opacité**, et c'est ce qui
+décide du choix : une teinte sombre y disparaît. D'où `accent_muted` pour les
+champs plutôt que `surface_variant`, qui donnait des champs invisibles sur un
+wallpaper de nuit (premier essai, corrigé).
+
+| Clé du thème | Source | Rôle |
+|---|---|---|
+| `TimeTextColor` / `DateTextColor` | `fg` / `fg` à 70 % | horloge et date |
+| `FormBackgroundColor` | `surface` | colonne du formulaire (30 %) |
+| `DimBackgroundColor` + `DimBackground=0.20` | `bg` | voile sur le wallpaper |
+| `Login/PasswordFieldBackgroundColor` | `accent_muted` | champs (20 %) |
+| `PlaceholderTextColor` | `fg` à 55 % | invites |
+| `LoginButtonBackgroundColor` / `…TextColor` | `accent` / `bg` | bouton : pâle au repos, accent plein dès qu'un mot de passe est saisi |
+| `WarningColor` | `error` | échec de connexion |
+| `System/Session/VirtualKeyboard…` | `fg` à 60–70 % | boutons secondaires |
+| `Hover*` | `accent` | survols |
+| `Dropdown*` / `Highlight*` | `bg` / `accent` | listes utilisateurs et sessions |
+
+Autres réglages : `Font=Inter`, `FontSize=13`, `RoundCorners=24`,
+`Locale=fr_FR.UTF-8` (`DateFormat="dddd d"` → « mardi 3 »), `HourFormat=HH:mm`,
+`PartialBlur=true`, `BlurMax=32`, `Blur=1.6`, `FormPosition=center`,
+`HideSystemButtons=false`, `UseRealName=false`, et libellés français dans les
+`Translate*` (`Se connecter`, `Mot de passe`, `Verr. Maj activée`, `Éteindre`…).
 
 ## Vérification
 
-0. **Mode test validé** (03/11) : `QT_QPA_PLATFORM=wayland sddm-greeter-qt6
-   --test-mode --theme <dir>` ouvre une fenêtre Wayland 1920×1080
-   (`class: sddm-greeter-qt6`), capturable au `grim` sans toucher au service. Le
-   thème `ryoku` s'y est affiché avec le bon utilisateur (`amo`) et la session
-   `hyprland (uwsm-managed)` — donc `userModel` et `sessionModel` renseignent
-   correctement, et le libellé de session se déduira du nom renvoyé.
-1. `sddm-greeter-qt6 --test-mode --theme dev/sddm/theme` puis `grim` — jamais
-   `systemctl restart sddm` : cela tue la session en cours.
-2. Comparer l'accent et le fond de la capture à `palette.dynamic`.
-3. Après installation : `grep Current /etc/sddm.conf.d/10-portable.conf`,
-   `ls /usr/share/sddm/themes/portable`, et un seul `Current=` dans
-   `/etc/sddm.conf.d/`.
-4. Changer la palette dans le panneau, relancer `install.sh --colors-only`,
-   recontrôler la capture : le greeter doit suivre sans édition manuelle.
+```bash
+QT_QPA_PLATFORM=wayland sddm-greeter-qt6 --test-mode \
+  --theme /usr/share/sddm/themes/sddm-astronaut-theme
+grim /tmp/greeter.png
+```
 
-## Risques
+Le mode test ouvre une fenêtre Wayland 1920×1080 (`class: sddm-greeter-qt6`) sans
+toucher au service. Trois passes : thème d'origine, thème re-coloré au repos, puis
+mot de passe saisi au clavier virtuel (`/dev/uinput`) — le bouton passe bien en
+accent plein et devient lisible. **Ne jamais** lancer `systemctl restart sddm` :
+cela tue la session en cours.
 
-- Un thème Qt6 dont le `Main.qml` lève une erreur ne casse pas la session : SDDM
-  retombe sur un thème par défaut, mais l'écran de connexion devient inutilisable
-  en cas d'erreur bloquante — d'où le test-mode avant toute bascule.
-- `metadata.desktop` doit porter `Type=sddm-theme`, `MainScript=Main.qml`,
-  `QtVersion=6` et `ConfigFile=theme.conf`, sinon le thème n'apparaît pas dans la
-  liste (vérifié sur `ryoku`).
-- Le greeter X11 démarre avant NetworkManager : l'avatar réseau et la météo sont
-  hors sujet ici, ne rien afficher qui dépende d'un service de session.
+## Points connus
 
-## Trois décisions ouvertes
-
-1. **Thème maison** (recommandé : zéro dépendance, palette Matugen, cohérence
-   garantie) **ou** `sddm-astronaut` depuis l'AUR (plus vite posé, look tiers à
-   re-colorer).
-2. **Installation** : script séparé `dev/sddm/install.sh` + `pkexec` (recommandé)
-   **ou** mode `--system` dans `deploy.sh`.
-3. **Fond** : wallpaper courant assombri 40 % (recommandé) **ou** image dédiée
-   figée dans `dev/sddm/theme/`.
+- L'étiquette de session affiche « Session (Hyprland (uwsm-managed)) » : les
+  parenthèses viennent du nom de session renvoyé par SDDM, pas du thème.
+  Corrigeable en patchant `Components/SessionButton.qml` si le rendu gêne.
+- Une mise à jour du paquet AUR réécrit `metadata.desktop` (donc `ConfigFile`) :
+  relancer `bash dev/sddm/install.sh` après chaque `yay -Syu`.
+- Après un changement de palette ou de wallpaper :
+  `bash dev/sddm/install.sh --colors-only` (une invite polkit). `deploy.sh` ne peut
+  pas le faire — il n'a aucun moyen de s'authentifier.
+- `magick` affiche un `ParseError missing >` en lisant le JPEG source : sans effet,
+  le PNG généré est valide (dimensions et luminance contrôlées).
