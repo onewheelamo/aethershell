@@ -829,10 +829,14 @@ DEFAULT_AUTOSTART = [
     # immédiatement au lieu d'empiler une barre et de reprendre le service de
     # notifications. Le pgrep couvre déjà le relogin ; -n couvre les lancements
     # manuels et les lancements concurrents.
-    {"name": "Quickshell (barre)", "cmd": "sh -c 'pgrep -x quickshell >/dev/null || exec quickshell -n' &", "enabled": True},
-    {"name": "Hypridle (inactivité)", "cmd": "sh -c 'pgrep -x hypridle >/dev/null || exec hypridle' &", "enabled": True},
-    {"name": "awww-daemon (wallpaper, si Noctalia absent)", "cmd": "sh -c 'pgrep -x awww-daemon >/dev/null || exec awww-daemon' &", "enabled": True},
-    {"name": "Agent Polkit", "cmd": "sh -c 'for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
+    # Gardes en chemin absolu (/usr/bin/pgrep) : dans l'environnement d'autostart
+    # un PATH minimal fait échouer la garde, qui échoue alors « ouverte » et
+    # laisse démarrer une seconde instance. Un démon doit être lancé par une
+    # unité systemd (hypridle) quand elle existe.
+    {"name": "Quickshell (barre)", "cmd": "sh -c '/usr/bin/pgrep -x quickshell >/dev/null || exec quickshell -n' &", "enabled": True},
+    {"name": "Hypridle (inactivité)", "cmd": "systemctl --user start hypridle", "enabled": True},
+    {"name": "awww-daemon (wallpaper, si Noctalia absent)", "cmd": "sh -c '/usr/bin/pgrep -x awww-daemon >/dev/null || exec awww-daemon' &", "enabled": True},
+    {"name": "Agent Polkit", "cmd": "sh -c '/usr/bin/pgrep -x hyprpolkitagent >/dev/null && exit 0; for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
 ]
 
 
