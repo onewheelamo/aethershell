@@ -833,8 +833,10 @@ Rectangle {
                 }
 
                 Row {
-                    width: parent.width
-                    spacing: 8
+                    // Pastilles centrées sous leur libellé (elles tiennent sur une
+                    // seule ligne) : largeur implicite, pas width: parent.width.
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 10
 
                 Repeater {
                                     model: [
@@ -885,8 +887,10 @@ Rectangle {
                 }
 
                 Row {
-                    width: parent.width
-                    spacing: 8
+                    // Pastilles centrées sous leur libellé (elles tiennent sur une
+                    // seule ligne) : largeur implicite, pas width: parent.width.
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 10
 
                 Repeater {
                                     model: [
