@@ -21,6 +21,7 @@ Fait et déployé :
 | 5a | Capsule continue : une seule surface derrière les trois groupes | `main.qml` + `Theme.barMerged` |
 | 8 | Flou derrière les surfaces layer-shell | `hypr_modular/general.lua` |
 | 8b | Flou shell réglable à part des fenêtres (actif, seuil `ignore_alpha`, popups) | `config_panel.qml`, `config_manager.py`, bloc `shell-blur` de `general.lua` |
+| 8c | Opacité shell séparée de l'opacité des fenêtres | `Theme.qml` (`shellOpacity`), `config_panel.qml`, `config_manager.py` |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
 surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
@@ -33,6 +34,12 @@ dans `style_vars.json`, `config_manager.py` réécrit le bloc entre
 `-- BEGIN shell-blur` et `-- END shell-blur` de `general.lua`, puis
 `hyprctl reload`. La taille et les passes du flou restent communes aux fenêtres
 (`decoration.blur`) : seul l'actif/le seuil/les popups sont propres au shell.
+
+Note 8c : l'opacité est désormais séparée elle aussi. `global_opacity` ne touche
+plus que les fenêtres (`decoration.active_opacity` / `inactive_opacity`) ;
+`shell_opacity` alimente les surfaces Quickshell (`surfaceBg`, `surfaceVariantBg`,
+`panelBg` dans `Theme.qml`). Le seuil de flou doit rester **sous** `shell_opacity`,
+sinon Hyprland cesse de flouter : la ligne d'explication du panneau le dit.
 
 Reste : 4, 6, 7, 9, 10, 11, 12, 13, 14, plus deux idées en réserve (§4).
 
@@ -213,3 +220,9 @@ basculer en fichiers générés.
   Mesure A/B panneau ouvert : énergie de contours 32,4 → 23,5 (−27 %) flou actif,
   −0 % en zone témoin hors panneau ; seuil 0,90 (au-dessus de l'opacité 0,70)
   redonne exactement la valeur « désactivé », ce qui valide `ignore_alpha`.
+- 2026-11-03 : 8c livré — opacité séparée. Les deux groupes portent maintenant
+  l'opacité et le flou de leur cible. Indépendance mesurée : opacité fenêtres
+  0,70 → 0,50 laisse la barre identique (écart 0,07, luminance 38,8 inchangée) et
+  `decoration:active_opacity` suit à 0,50 ; opacité surfaces 0,70 → 0,35 laisse la
+  fenêtre identique au pixel (écart 0,00) et ne touche pas `active_opacity`
+  (toujours 0,70).

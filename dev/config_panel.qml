@@ -994,35 +994,7 @@ Rectangle {
                     }
                 }
 
-                // 6. Global Opacity
-                Row {
-                    width: (parent.width - 14) / 2
-                    spacing: 8
-
-                    Text {
-                        width: 140
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Opacité générale :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Stepper {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.globalOpacity
-                        minimumValue: 0.30
-                        maximumValue: 1.00
-                        stepSize: 0.05
-                        decimals: 2
-                        textFormatter: v => Math.round(v * 100) + " %"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "global_opacity", String(newVal)])
-                        }
-                    }
-                }
-
-                // 7. Bar Height
+                // 6. Hauteur de barre
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1049,7 +1021,7 @@ Rectangle {
                     }
                 }
 
-                // 8. Pas de redimensionnement clavier
+                // 7. Pas de redimensionnement clavier
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1080,7 +1052,7 @@ Rectangle {
             }   // fin Grid aspect (gaps, arrondis, opacité, barre)
 
             Text {
-                text: "Flou des fenêtres (Hyprland)"
+                text: "Fenêtres (Hyprland)"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
@@ -1095,7 +1067,35 @@ Rectangle {
                 columnSpacing: 14
                 rowSpacing: 12
 
-                // 9. Blur Size
+                // 8. Opacité des fenêtres (decoration.active_opacity)
+                Row {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        width: 140
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Opacité fenêtres :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: Theme.globalOpacity
+                        minimumValue: 0.30
+                        maximumValue: 1.00
+                        stepSize: 0.05
+                        decimals: 2
+                        textFormatter: v => Math.round(v * 100) + " %"
+                        onValueModified: newVal => {
+                            root.runConfigCmd(["style", "global_opacity", String(newVal)])
+                        }
+                    }
+                }
+
+                // 9. Taille du flou
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1123,7 +1123,7 @@ Rectangle {
                     }
                 }
 
-                // 10. Blur Passes
+                // 10. Passes du flou
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1150,7 +1150,7 @@ Rectangle {
                     }
                 }
 
-                // 11. Blur Toggle (Actif / Désactivé)
+                // 11. Flou des fenêtres (Actif / Désactivé)
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1192,10 +1192,10 @@ Rectangle {
                     }
                 }
 
-            }   // fin Grid flou des fenêtres
+            }   // fin Grid fenêtres
 
             Text {
-                text: "Flou des surfaces Quickshell"
+                text: "Surfaces du shell (Quickshell)"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
@@ -1210,7 +1210,35 @@ Rectangle {
                 columnSpacing: 14
                 rowSpacing: 12
 
-                // 12. Flou des surfaces du shell (barre, OSD, panneau)
+                // 12. Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
+                Row {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        width: 140
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Opacité surfaces :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: Theme.shellOpacity
+                        minimumValue: 0.20
+                        maximumValue: 1.00
+                        stepSize: 0.05
+                        decimals: 2
+                        textFormatter: v => Math.round(v * 100) + " %"
+                        onValueModified: newVal => {
+                            root.runConfigCmd(["style", "shell_opacity", String(newVal)])
+                        }
+                    }
+                }
+
+                // 13. Flou des surfaces du shell (barre, OSD, panneau)
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1252,7 +1280,7 @@ Rectangle {
                     }
                 }
 
-                // 13. Seuil de transparence (ignore_alpha)
+                // 14. Seuil de transparence (ignore_alpha)
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1280,7 +1308,7 @@ Rectangle {
                     }
                 }
 
-                // 14. Flou derrière les popups ancrés (calendrier, wifi, volume…)
+                // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1321,14 +1349,15 @@ Rectangle {
                         }
                     }
                 }
-            }   // fin Grid flou Quickshell
+            }   // fin Grid shell
 
             Text {
                 width: parent.width
                 topPadding: 8
-                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
-                    + "La taille et les passes du flou restent communes aux fenêtres, d'où l'effet plus ou moins diffus de part et d'autre. "
-                    + "Le seuil doit rester sous l'opacité globale pour que la capsule soit floutée."
+                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups) ; "
+                    + "l'opacité et le flou des fenêtres se règlent à part, au-dessus. "
+                    + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
+                    + "Le seuil doit rester sous l'opacité des surfaces : au-dessus, Hyprland cesse de flouter."
                 color: Theme.fg
                 opacity: 0.6
                 font.pixelSize: Theme.textXs
@@ -1342,7 +1371,7 @@ Rectangle {
                 rowSpacing: 12
                 topPadding: 12
 
-                // 15. Bouton central (engrenage) — bascule d'affichage
+                // 16. Bouton central (engrenage) — bascule d'affichage
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8

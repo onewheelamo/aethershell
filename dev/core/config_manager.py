@@ -482,6 +482,8 @@ def update_style_var(key, value):
         )
     elif key == "global_opacity":
         data[key] = round(max(0.3, min(1.0, float(value))), 2)
+    elif key == "shell_opacity":
+        data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
         data[key] = max(28, min(60, int(float(value))))
     elif key == "resize_step":
@@ -904,6 +906,8 @@ def get_full_config_state():
         "show_config_button": bool(style_data.get("show_config_button", True)),
         "bar_height": int(style_data.get("bar_height", 40)),
         "global_radius": int(style_data.get("global_radius", 2)),
+        "global_opacity": float(style_data.get("global_opacity", 0.7)),
+        "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
         "hypr_rounding": get_hypr_rounding(),
         "wallpaper_dir": get_wallpaper_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),

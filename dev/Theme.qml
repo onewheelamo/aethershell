@@ -23,7 +23,10 @@ QtObject {
     // ────────────────────────────────────────────────────────────────────────
     property string activeTheme: "dynamic"
     property int globalRadius: 2
+    // Opacité des fenêtres (Hyprland) : decoration.active_opacity / inactive_opacity
     property real globalOpacity: 0.85
+    // Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
+    property real shellOpacity: 0.7
     property string kbLayout: "fr"
     property bool firstRunCompleted: true
     property bool showKeyboardOnboarding: false
@@ -93,10 +96,10 @@ QtObject {
     property color info: "#89b4fa"
     property color success: "#a6e3a1"
 
-    // Pre-computed translucent surfaces matching Hyprland's globalOpacity
-    readonly property color surfaceBg: Qt.alpha(surface, globalOpacity)
-    readonly property color surfaceVariantBg: Qt.alpha(surfaceVariant, Math.min(1.0, globalOpacity + 0.08))
-    readonly property color panelBg: Qt.alpha(bg, globalOpacity)
+    // Pre-computed translucent surfaces matching shellOpacity (surfaces Quickshell)
+    readonly property color surfaceBg: Qt.alpha(surface, shellOpacity)
+    readonly property color surfaceVariantBg: Qt.alpha(surfaceVariant, Math.min(1.0, shellOpacity + 0.08))
+    readonly property color panelBg: Qt.alpha(bg, shellOpacity)
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 4: OSD (ON-SCREEN DISPLAY) STATE & CONTROLLER
@@ -181,6 +184,7 @@ QtObject {
         if (typeof data.global_radius === "number") root.globalRadius = data.global_radius
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
+        if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir

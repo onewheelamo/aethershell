@@ -2,6 +2,7 @@
     "active_theme": "dynamic",
     "global_radius": 18,
     "global_opacity": 0.7,
+    "shell_opacity": 0.7,
     "bar_height": 36,
     "kb_layout": "fr",
     "first_run_completed": true,
