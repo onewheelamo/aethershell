@@ -67,6 +67,15 @@ hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272",  hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273",  hl.dsp.window.resize(), { mouse = true })
 
+-- Fermeture du launcher au clic extérieur.
+-- Hyprland 0.57 ne retire pas le focus clavier d'une surface layer quand on
+-- clique sur le bureau ou sur la fenêtre déjà active : fuzzel (qui quitte
+-- pourtant sur perte de focus) reste affiché. Ce bind non-consommant laisse
+-- passer le clic et ne fait rien quand aucun launcher n'est ouvert.
+hl.bind("mouse:272", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/launcher_click_close.sh"),
+        { mouse = true, non_consuming = true })
+
+
 -- Touches Multimédia Audio
 -- Chaque touche règle le volume puis affiche l'OSD Quickshell via core/osd.sh
 local osd = "$HOME/.config/quickshell/core/osd.sh"

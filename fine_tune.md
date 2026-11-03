@@ -386,3 +386,19 @@ Un lot, un chantier clavier, une décision.
   fonctionnent toujours. Piste complémentaire non appliquée : lancer
   `quickshell -n` (--no-duplicate) dans l'autostart pour empiler zéro barre au
   lieu de trois.
+
+- 2026-11-03 : fuzzel restait affiché malgré un clic à l'extérieur — corrigé.
+  Le launcher quitte pourtant sur perte de focus clavier
+  (`exit-on-keyboard-focus-loss=yes` dans `fuzzel.ini`), mais Hyprland 0.57 ne
+  retire pas le focus clavier d'une surface layer quand le clic tombe sur le
+  bureau (aucune surface à focaliser) ou sur la fenêtre **déjà** active (pas de
+  changement de focus, donc pas de `wl_keyboard.leave`). Un clic sur la barre ou
+  sur une autre fenêtre fermait bien fuzzel : le bug était limité à ces deux cas.
+  Corrigé par un bind souris **non-consommant** (`binds.lua`,
+  `{ mouse = true, non_consuming = true }` sur `mouse:272`) qui lance
+  `core/launcher_click_close.sh` : le script sort immédiatement si fuzzel ne
+  tourne pas, sinon compare `hyprctl cursorpos` à la géométrie de la couche
+  `launcher` et `pkill -x fuzzel` seulement si le clic est dehors. Le clic
+  continue vers la fenêtre en dessous. Mesuré : ~20 ms par clic quand fuzzel est
+  fermé (le `pgrep` précède tout appel `hyprctl`), et le bind `SUPER + mouse:272`
+  de déplacement de fenêtre reste prioritaire (modmask 64 vs 0).
