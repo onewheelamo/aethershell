@@ -55,7 +55,7 @@ hl.config({
 -- BEGIN shell-blur
 local shell_blur = {
     enabled = true,  -- flou derrière les surfaces du shell
-    alpha   = 0.40,   -- sous ce seuil d'opacité, pas de flou (ignore_alpha)
+    alpha   = 0.30,   -- sous ce seuil d'opacité, pas de flou (ignore_alpha)
     popups  = true,  -- flou derrière les popups ancrés (calendrier, wifi…)
 }
 if shell_blur.enabled then

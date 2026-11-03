@@ -2,32 +2,28 @@
     "active_theme": "dynamic",
     "global_radius": 18,
     "global_opacity": 0.7,
-    "shell_opacity": 0.7,
     "bar_height": 36,
     "kb_layout": "fr",
     "first_run_completed": true,
     "wallpaper_dir": "$HOME/Images/wallpapers/",
-    "matugen_scheme": "scheme-neutral",
-    "matugen_contrast": 0.0,
+    "matugen_scheme": "scheme-vibrant",
+    "matugen_contrast": 0.3,
     "blur_enabled": true,
-    "blur_size": 4,
+    "blur_size": 3,
     "blur_passes": 3,
     "blur_vibrancy": 0.1696,
-    "shell_blur_enabled": true,
-    "shell_blur_alpha": 0.4,
-    "shell_blur_popups": true,
     "palette": {
         "dynamic": {
-            "bg": "#100e0c",
-            "fg": "#e8e1dd",
-            "accent": "#d8c3ab",
-            "accent_muted": "#d3c4b4",
-            "surface": "#151311",
-            "surface_variant": "#221f1d",
+            "bg": "#130705",
+            "fg": "#fff2ef",
+            "accent": "#ffb4a3",
+            "accent_muted": "#f3bb9a",
+            "surface": "#1e100c",
+            "surface_variant": "#31211d",
             "error": "#ffb4ab",
-            "warn": "#ddc2a1",
-            "info": "#d3c4b4",
-            "success": "#ddc2a1"
+            "warn": "#f6bb7d",
+            "info": "#f3bb9a",
+            "success": "#f6bb7d"
         },
         "tokyo-night": {
             "bg": "#1a1b26",
@@ -55,11 +51,15 @@
         }
     },
     "panel_sections": {
-        "esthetique_theme": true,
+        "esthetique_theme": false,
         "esthetique_aspect": true,
         "apps_autostart": true
     },
     "resize_step": 10,
     "show_config_button": false,
-    "hypr_rounding": 0
+    "hypr_rounding": 0,
+    "shell_blur_enabled": true,
+    "shell_blur_alpha": 0.3,
+    "shell_blur_popups": true,
+    "shell_opacity": 0.5
 }
