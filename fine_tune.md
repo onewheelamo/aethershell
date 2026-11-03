@@ -251,17 +251,26 @@ déjà remplacé par `SUPER + R` → pilule ; `~/.config/fuzzel` est supprimé e
 sections renumérotées). Le paquet lui-même reste à désinstaller avec un mot de
 passe root : `sudo pacman -Rns fuzzel`.
 
-### 10. Which-key par submap — M
+### 10. Which-key par submap — REPORTÉ (décision utilisateur, 2026-11-03)
 
 Objectif. Overlay deux colonnes listant les binds du submap courant, disparition
-après deux secondes.
+après deux secondes. **Pas nécessaire pour l'instant** : rien à coder tant que
+les sous-cartes n'existent pas.
 
-Prérequis (le vrai coût). Les binds sont déclarés en Lua via `hl.bind` ; il faut
-un export : soit un hook au chargement qui écrit un JSON à côté de `binds.lua`,
-soit un parseur du fichier. Aucun `submap` n'existe aujourd'hui dans `binds.lua` :
-il faut donc d'abord décider quelles touches passent en sous-carte (gestion de
-fenêtre ? redimensionnement ?) et les y déclarer, sinon l'overlay n'a rien à
-montrer. L'affichage lui-même est trivial ensuite.
+Relevé lors de l'analyse, à ne pas refaire :
+- `hyprctl binds -j` expose `key`, `modmask`, `dispatcher`, `arg`, `submap`,
+  `submap_universal` et `description` → **aucun parseur de `binds.lua` n'est
+  nécessaire**, l'overlay peut lire ce JSON à chaud.
+- 67 binds, tous dans la racine (`submap: ""`), **aucune description** : il n'y a
+  aujourd'hui rien à afficher de lisible.
+- `hl.define_submap("nom", function() … end)` (Hyprland 0.57) déclare une
+  sous-carte ; un `{ submap = "…" }` passé à `hl.bind` est ignoré sans erreur.
+
+Le coût est donc la taxonomie, pas l'affichage : décider quelles touches
+quittent la racine (gestion de fenêtre ? redimensionnement ?), comment on entre
+et comment on sort (`Échap`, expiration automatique ?), et remplir les
+`description`. Prévoir `submap_universal` pour garder `SUPER + R` et les
+changements de workspace accessibles dans toutes les sous-cartes.
 
 ### 11. Panneau de réglages centré, 620 px — LIVRÉ
 
