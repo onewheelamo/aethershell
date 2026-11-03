@@ -58,7 +58,7 @@ copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 jusqu'à l'écran de verrouillage. Le fond est `path = screenshot` flouté à 24 px :
 rien à maintenir côté wallpaper, et le verrou reprend ce que la session affichait.
 
-Reste : 4, 7, 9, 10, 11, 14, plus les réserves du §4.
+Reste : 4, 7, 9, 10, 11, 14, 15, plus les réserves du §4.
 
 ---
 
@@ -143,16 +143,19 @@ Objectif. Overlay deux colonnes listant les binds du submap courant, disparition
 après deux secondes.
 
 Prérequis (le vrai coût). Les binds sont déclarés en Lua via `hl.bind` ; il faut
-un export : soit un hook au chargement qui écrit un JSON à côté de
-`binds.lua`, soit un parseur du fichier. L'affichage lui-même est trivial ensuite.
+un export : soit un hook au chargement qui écrit un JSON à côté de `binds.lua`,
+soit un parseur du fichier. Aucun `submap` n'existe aujourd'hui dans `binds.lua` :
+il faut donc d'abord décider quelles touches passent en sous-carte (gestion de
+fenêtre ? redimensionnement ?) et les y déclarer, sinon l'overlay n'a rien à
+montrer. L'affichage lui-même est trivial ensuite.
 
 ### 11. Tiroir de réglages à droite — M/L
 
 Objectif. Remplacer le panneau actuel (mur de lignes) par un tiroir de 380 px :
 onglets, recherche, curseurs de 1 px.
 
-Fichiers. `config_panel.qml` (2 278 l.) côté QML ; `core/config_manager.py`
-(906 l.) ne bouge pas, c'est le backend.
+Fichiers. `config_panel.qml` (2 482 l.) côté QML ; `core/config_manager.py`
+(986 l.) ne bouge pas, c'est le backend.
 
 Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
 tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
@@ -160,54 +163,47 @@ tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens e
 
 ### 14. Notifications en cartes — M
 
-Fichier. `island_right.qml` (1 840 l.).
+Fichier. `island_right.qml` (1 811 l.).
 
 Objectif. Cartes empilées, liseré accent de 2 px par application, titres sans
 emoji, action « tout effacer » discrète.
 
-15 — Écran de connexion SDDM cohérent
-     avec le bureau » :
+### 15. Écran de connexion SDDM cohérent — M, décision d'installation à prendre
 
-         Objectif : l'écran de connexion ne doit pas casser l'unité visuelle — même
-     fond
-         que le bureau, même accent, même typographie. Aujourd'hui SDDM est resté en
-         configuration par défaut, donc en rupture complète.
+Objectif. L'écran de connexion ne doit pas casser l'unité visuelle : même fond
+que le bureau, même accent, même typographie. Aujourd'hui SDDM est resté en
+configuration par défaut (`/etc/sddm.conf.d/*.conf` → `Current=breeze`), donc en
+rupture complète avec le reste.
 
-         À faire
-         - Choisir le fond : le wallpaper courant, ou une variante assombrie. Un fond
-     clair
-           et chargé passe mal sous un formulaire translucide ; l'assombrir d'environ
-     40 %
-           suffit en général et garde le lien avec le bureau.
-         - Choisir un thème Qt Quick pilotable par fichier (sddm-astronaut, Sugar
-     Candy,
-           Corners) : ils exposent Background, Font, AccentColor,
-           FormBackgroundColor, donc réglables sans toucher au QML du thème.
-         - Ne pas écrire les couleurs à la main : les dériver de
-     dev/core/style_vars.json
-           (palette dynamic) au moment du déploiement, comme config_manager.py le fait
-           déjà pour les layer rules. Un changement de palette doit se propager au
-     bureau,
-           à hyprlock et à SDDM en une seule opération.
+Fichiers. Aucun pour l'instant : ni `dev/sddm/`, ni thème. Le greeter vit hors
+session, il faut donc un nouveau répertoire dans le dépôt et une étape
+d'installation distincte du déploiement ordinaire.
 
-         Contraintes
-         - SDDM tourne avant la session : ni Quickshell, ni variables d'environnement
-     du
-           shell. Tout doit être écrit sur disque à chaque changement de palette.
-         - /etc/sddm.conf.d/ demande sudo : soit deploy.sh gagne un mode explicite,
-     soit
-           les fichiers vivent dans dev/sddm/ avec une commande d'installation
-     séparée.
-           Même arbitrage que pour hyprlock.conf au point 13 — à trancher ensemble.
-         - Ne pas tester en redémarrant le service : systemctl restart sddm tue la
-     session
-           en cours. Passer par un TTY (Ctrl+Alt+F2) ou par
-           sddm-greeter --test-mode --theme <chemin>.
+Approche.
+1. Choisir le fond : le wallpaper courant, ou une variante assombrie d'environ
+   40 % — un fond clair et chargé passe mal sous un formulaire translucide.
+2. Choisir un thème Qt Quick pilotable par fichier (sddm-astronaut, Sugar Candy,
+   Corners) : ils exposent `Background`, `Font`, `AccentColor`,
+   `FormBackgroundColor`, donc réglables sans toucher au QML du thème.
+3. Ne pas écrire les couleurs à la main : les dériver de `dev/core/style_vars.json`
+   (palette `dynamic`) au moment du déploiement, comme `config_manager.py` le fait
+   pour les layer rules. Un changement de palette doit se propager au bureau,
+   à hyprlock et à SDDM en une seule opération.
 
-         Vérification : capture du greeter en --test-mode, puis comparaison des
-         couleurs dominantes avec la palette du bureau (accent et fond), et contrôle
-     que le
-         changement de palette se répercute sans édition manuelle.
+Contraintes.
+- SDDM tourne avant la session : ni Quickshell, ni variables d'environnement du
+  shell. Tout doit être écrit sur disque à chaque changement de palette.
+- `/etc/sddm.conf.d/` demande sudo : soit `deploy.sh` gagne un mode explicite,
+  soit les fichiers vivent dans `dev/sddm/` avec une commande d'installation
+  séparée. Même arbitrage que pour `hyprlock.conf` au point 13 — à trancher avant
+  de commencer.
+- Ne pas tester en redémarrant le service : `systemctl restart sddm` tue la
+  session en cours. Passer par un TTY (Ctrl+Alt+F2) ou par
+  `sddm-greeter-qt6 --test-mode --theme <chemin>`.
+
+Vérification. Capture du greeter en `--test-mode`, comparaison des couleurs
+dominantes avec la palette du bureau (accent et fond), puis changement de palette
+dans le panneau et contrôle que le greeter suit sans édition manuelle.
 ---
 
 ## 4. Idées en réserve
@@ -227,15 +223,35 @@ Dette signalée dans `CLEANUP_PROPOSAL_2026-11-03.md` : `programs.lua` et
 générés ; ils produiront un `.upstream` dès que le panneau les modifiera. À
 basculer en fichiers générés.
 
+Deux symboles échappent encore au jeu d'icônes, trouvés par l'avertissement ajouté
+à `Icon.qml` : `icon: "⏻"` sur un en-tête de section de `config_panel.qml` (donc
+une icône vide) et un `Text` brut « ⏻ Session & Alimentation » dans
+`island_right.qml`. Le premier se corrige en une ligne (`glyph: "power"`) ; le
+second demande de passer la ligne par `Icon` + `Text`, deux lignes.
+
 ---
 
 ## 5. Ordre conseillé
 
-1. 4 (dynamic island + routeur de popups) — le plus gros gain visuel, dépend de la
-   règle de popups déjà arbitrée.
-2. 14 puis 11 — les deux derniers murs de texte.
-3. 9 et 10 — interaction clavier ; 10 commence par l'export des binds.
-4. 7 — chantier séparé, en attente des wallpapers en calques.
+Trois lots vérifiables d'un coup, un chantier séparé, une décision.
+
+- **Lot B — 4 (dynamic island et routeur de popups) — M/L.** Le plus gros gain
+  visuel : la pilule centrale devient un objet à états et cesse d'être un bloc de
+  widgets. Se vérifie par une capture par état et un clic réel sur chaque zone.
+- **Lot C — 14 puis 11 — M, puis L.** Les deux derniers murs de texte. 14 est une
+  refonte de cartes déjà présentes (popup + toast existent dans
+  `island_right.qml`), donc plus court que sa fiche ne le laisse croire : c'est un
+  travail de forme, pas de plomberie. 11 est un vrai chantier de mise en page
+  (2 482 lignes de panneau à redistribuer en tiroir à onglets).
+- **Lot D — 9 et 10 — M chacun.** Interaction clavier. 10 coûte plus que sa fiche :
+  aucun `submap` n'existe aujourd'hui dans `binds.lua`, il faut d'abord créer les
+  sous-cartes puis exporter les binds, avant d'afficher quoi que ce soit.
+- **Décision — 15 (SDDM) — M.** Bloqué sur un arbitrage, pas sur du code :
+  `deploy.sh` gagne-t-il un mode sudo, ou l'installation reste-t-elle une commande
+  séparée depuis `dev/sddm/` ?
+- **Chantier séparé — 7 (depth wallpaper) — L.** En attente des wallpapers en
+  calques ; ne pas commencer le QML avant d'avoir choisi le format et deux images
+  de test.
 
 ---
 
