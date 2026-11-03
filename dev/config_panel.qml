@@ -607,14 +607,14 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        // Matugen : -1 = contraste minimum (pastel), 0 = standard, +1 = maximum.
-                        // Liste affichée du plus contrasté au plus pastel.
-                        { v: 0.8, label: "Max" },
-                        { v: 0.6, label: "Contrasté" },
-                        { v: 0.3, label: "Foncé+" },
-                        { v: 0.0, label: "Standard" },
-                        { v: -0.4, label: "Doux-" },
-                        { v: -0.8, label: "Pastel" }
+                        // Libellés d'origine (Pastel → Max), valeurs conservées dans l'ordre
+                        // actuel (+0.8 → -0.8).
+                        { v: 0.8, label: "Pastel" },
+                        { v: 0.6, label: "Doux-" },
+                        { v: 0.3, label: "Standard" },
+                        { v: 0.0, label: "Foncé+" },
+                        { v: -0.4, label: "Contrasté" },
+                        { v: -0.8, label: "Max" }
                     ]
                     Rectangle {
                         required property var modelData
