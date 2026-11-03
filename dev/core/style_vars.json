@@ -12,6 +12,9 @@
     "blur_size": 4,
     "blur_passes": 3,
     "blur_vibrancy": 0.1696,
+    "shell_blur_enabled": true,
+    "shell_blur_alpha": 0.4,
+    "shell_blur_popups": true,
     "palette": {
         "dynamic": {
             "bg": "#100e0c",

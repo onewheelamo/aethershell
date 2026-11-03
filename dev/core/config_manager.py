@@ -329,6 +329,70 @@ def update_hypr_gaps(key, val):
     return True
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Flou des surfaces Quickshell (layer rules) : bloc Lua généré dans general.lua
+# ─────────────────────────────────────────────────────────────────────────────
+# Les layer rules ne sont pas pilotables à chaud en 0.57 (`hyprctl keyword
+# layerrule` répond « unknown request ») : le panneau réécrit donc ce bloc entre
+# ses marqueurs, puis recharge Hyprland. Les namespaces viennent de main.qml.
+SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
+SHELL_BLUR_END = "-- END shell-blur"
+SHELL_BLUR_NAMESPACES = ("portable-bar", "portable-osd", "portable-config", "portable-onboarding")
+SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
+
+
+def build_shell_blur_block(enabled, alpha, popups):
+    """Return the Lua block (markers included) for the given shell blur settings."""
+    flag = lambda b: "true" if b else "false"
+    namespaces = ", ".join(f'"{ns}"' for ns in SHELL_BLUR_NAMESPACES)
+    return "\n".join((
+        SHELL_BLUR_BEGIN,
+        "local shell_blur = {",
+        f"    enabled = {flag(enabled)},  -- flou derrière les surfaces du shell",
+        f"    alpha   = {alpha:.2f},   -- sous ce seuil d'opacité, pas de flou (ignore_alpha)",
+        f"    popups  = {flag(popups)},  -- flou derrière les popups ancrés (calendrier, wifi…)",
+        "}",
+        "if shell_blur.enabled then",
+        f"    for _, ns in ipairs({{ {namespaces} }}) do",
+        "        hl.layer_rule({",
+        "            match        = { namespace = ns },",
+        "            blur         = true,",
+        "            blur_popups  = shell_blur.popups,",
+        "            ignore_alpha = shell_blur.alpha,",
+        "        })",
+        "    end",
+        "end",
+        SHELL_BLUR_END,
+    ))
+
+
+def apply_shell_blur(data=None):
+    """Rewrite the shell-blur block of general.lua from style_vars.json, then reload Hyprland."""
+    src = data if data is not None else load_json(STYLE_FILE)
+    enabled = bool(src.get("shell_blur_enabled", True))
+    alpha = round(max(0.0, min(1.0, float(src.get("shell_blur_alpha", 0.4)))), 2)
+    popups = bool(src.get("shell_blur_popups", True))
+    path = os.path.join(HYPR_DIR, "general.lua")
+    if not os.path.exists(path):
+        return False
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            txt = f.read()
+        pattern = re.compile(re.escape(SHELL_BLUR_BEGIN) + r".*?" + re.escape(SHELL_BLUR_END), re.S)
+        if not pattern.search(txt):
+            print("shell blur block not found in general.lua", file=sys.stderr)
+            return False
+        new_txt, count = pattern.subn(build_shell_blur_block(enabled, alpha, popups), txt)
+        if count and new_txt != txt:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_txt)
+    except Exception as e:
+        print(f"Error updating shell blur block: {e}", file=sys.stderr)
+        return False
+    subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    return True
+
+
 def get_wallpaper_dir():
     """Return configured wallpaper directory (default: '$HOME/Images/wallpapers/')."""
     style_data = load_json(STYLE_FILE)
@@ -394,6 +458,7 @@ def update_style_var(key, value):
     if key == "wallpaper_dir":
         return set_wallpaper_dir(value)
     data = load_json(STYLE_FILE)
+    shell_blur_changed = False
     if key == "global_radius":
         data[key] = max(0, min(30, int(float(value))))
     elif key == "hypr_rounding":
@@ -442,6 +507,12 @@ def update_style_var(key, value):
         data[key] = max(1, min(8, int(float(value))))
     elif key == "blur_vibrancy":
         data[key] = max(0.0, min(1.0, float(value)))
+    elif key in SHELL_BLUR_KEYS:
+        if key == "shell_blur_alpha":
+            data[key] = round(max(0.0, min(1.0, float(value))), 2)
+        else:
+            data[key] = str(value).lower() in ("true", "1", "yes")
+        shell_blur_changed = True
     elif key == "active_theme" and value in data.get("palette", {}):
         data["active_theme"] = value
     elif key in COLOR_KEYS:
@@ -452,6 +523,8 @@ def update_style_var(key, value):
         if re.match(r"^#[0-9a-fA-F]{6}$", val_str):
             data.setdefault("palette", {}).setdefault(active, {})[key] = val_str.lower()
     save_json(STYLE_FILE, data)
+    if shell_blur_changed:
+        apply_shell_blur(data)
     if os.path.exists(ROFI_GEN_SCRIPT):
         subprocess.run(["bash", ROFI_GEN_SCRIPT], check=False)
     return True
@@ -839,6 +912,9 @@ def get_full_config_state():
         "blur_size": int(style_data.get("blur_size", 3)),
         "blur_passes": int(style_data.get("blur_passes", 3)),
         "blur_vibrancy": float(style_data.get("blur_vibrancy", 0.1696)),
+        "shell_blur_enabled": bool(style_data.get("shell_blur_enabled", True)),
+        "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.4)),
+        "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "resize_step": int(style_data.get("resize_step", 15)),
         "panel_sections": style_data.get("panel_sections", {}),
         "gaps": get_hypr_gaps(),

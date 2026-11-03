@@ -20,11 +20,19 @@ Fait et déployé :
 | 3 | Rythme géométrique (`padH`, `space1..4`, `gutter`, `pillRadius`) | `Theme.qml`, tous les fichiers QML |
 | 5a | Capsule continue : une seule surface derrière les trois groupes | `main.qml` + `Theme.barMerged` |
 | 8 | Flou derrière les surfaces layer-shell | `hypr_modular/general.lua` |
+| 8b | Flou shell réglable à part des fenêtres (actif, seuil `ignore_alpha`, popups) | `config_panel.qml`, `config_manager.py`, bloc `shell-blur` de `general.lua` |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
 surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
 et pas seulement la capsule visible. Le seuil doit rester sous l'alpha des
 surfaces du thème (`globalOpacity` 0.7–0.85).
+
+Note 8b : les layer rules ne se changent pas à chaud en 0.57. Le panneau écrit
+donc trois valeurs (`shell_blur_enabled`, `shell_blur_alpha`, `shell_blur_popups`)
+dans `style_vars.json`, `config_manager.py` réécrit le bloc entre
+`-- BEGIN shell-blur` et `-- END shell-blur` de `general.lua`, puis
+`hyprctl reload`. La taille et les passes du flou restent communes aux fenêtres
+(`decoration.blur`) : seul l'actif/le seuil/les popups sont propres au shell.
 
 Reste : 4, 6, 7, 9, 10, 11, 12, 13, 14, plus deux idées en réserve (§4).
 
@@ -200,3 +208,8 @@ basculer en fichiers générés.
   Commits : `16478d8` (fondations), `0d0dd46` (échappements `\u{…}`), `99d55cf`
   (unification des îlots), `7659ac9` (kanji + arch/power), `b1a7dea` (test 5a),
   puis fusion de la capsule en prod et ajout des `layer_rule`.
+- 2026-11-03 : 8b livré — flou shell séparé du flou des fenêtres dans le panneau
+  « Aspect technique du bureau » (deux groupes : fenêtres / surfaces Quickshell).
+  Mesure A/B panneau ouvert : énergie de contours 32,4 → 23,5 (−27 %) flou actif,
+  −0 % en zone témoin hors panneau ; seuil 0,90 (au-dessus de l'opacité 0,70)
+  redonne exactement la valeur « désactivé », ce qui valide `ignore_alpha`.

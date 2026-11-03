@@ -47,10 +47,28 @@ hl.config({
 -- ignore_alpha : sans lui, Hyprland floute toute la surface layer (fenêtre
 -- plein largeur / plein écran) et pas seulement la capsule visible. Le seuil
 -- doit rester sous l'alpha des surfaces du thème (globalOpacity 0.7-0.85).
-hl.layer_rule({ match = { namespace = "portable-bar" },        blur = true, ignore_alpha = 0.4 })
-hl.layer_rule({ match = { namespace = "portable-osd" },        blur = true, ignore_alpha = 0.4 })
-hl.layer_rule({ match = { namespace = "portable-config" },     blur = true, ignore_alpha = 0.4 })
-hl.layer_rule({ match = { namespace = "portable-onboarding" }, blur = true, ignore_alpha = 0.4 })
+--
+-- Ce bloc est piloté depuis le panneau de configuration (section « Aspect
+-- technique du bureau ») : config_manager.py réécrit les trois valeurs entre
+-- les marqueurs BEGIN/END puis recharge Hyprland. Ne pas éditer les valeurs à
+-- la main, elles seraient écrasées au prochain réglage.
+-- BEGIN shell-blur
+local shell_blur = {
+    enabled = true,  -- flou derrière les surfaces du shell
+    alpha   = 0.40,   -- sous ce seuil d'opacité, pas de flou (ignore_alpha)
+    popups  = true,  -- flou derrière les popups ancrés (calendrier, wifi…)
+}
+if shell_blur.enabled then
+    for _, ns in ipairs({ "portable-bar", "portable-osd", "portable-config", "portable-onboarding" }) do
+        hl.layer_rule({
+            match        = { namespace = ns },
+            blur         = true,
+            blur_popups  = shell_blur.popups,
+            ignore_alpha = shell_blur.alpha,
+        })
+    end
+end
+-- END shell-blur
 
 -- Courbes et animations
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })

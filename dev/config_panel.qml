@@ -70,6 +70,10 @@ Rectangle {
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.17
+    // Flou des surfaces layer-shell du shell (layer rules de general.lua)
+    property bool shellBlurEnabled: true
+    property real shellBlurAlpha: 0.4
+    property bool shellBlurPopups: true
     property int resizeStep: 15
     property var panelSections: ({})
 
@@ -127,6 +131,9 @@ Rectangle {
         if (typeof data.blur_size === "number") root.blurSize = data.blur_size
         if (typeof data.blur_passes === "number") root.blurPasses = data.blur_passes
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = data.blur_vibrancy
+        if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
+        if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
+        if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
         if (typeof data.resize_step === "number") root.resizeStep = data.resize_step
         if (data.panel_sections) root.panelSections = data.panel_sections
         if (Array.isArray(data.workspace_keys)) {
@@ -1070,6 +1077,24 @@ Rectangle {
                     }
                 }
 
+            }   // fin Grid aspect (gaps, arrondis, opacité, barre)
+
+            Text {
+                text: "Flou des fenêtres (Hyprland)"
+                color: Theme.accent
+                font.pixelSize: Theme.textMd
+                font.bold: true
+                width: parent.width
+                topPadding: 14
+                bottomPadding: 4
+            }
+
+            Grid {
+                width: parent.width
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 12
+
                 // 9. Blur Size
                 Row {
                     width: (parent.width - 14) / 2
@@ -1167,7 +1192,157 @@ Rectangle {
                     }
                 }
 
-                // 12. Bouton central (engrenage) — bascule d'affichage
+            }   // fin Grid flou des fenêtres
+
+            Text {
+                text: "Flou des surfaces Quickshell"
+                color: Theme.accent
+                font.pixelSize: Theme.textMd
+                font.bold: true
+                width: parent.width
+                topPadding: 14
+                bottomPadding: 4
+            }
+
+            Grid {
+                width: parent.width
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 12
+
+                // 12. Flou des surfaces du shell (barre, OSD, panneau)
+                Row {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        width: 140
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Flou Quickshell :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 140
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
+                            color: root.shellBlurEnabled ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.shellBlurEnabled = !root.shellBlurEnabled
+                                root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
+                            }
+                        }
+                    }
+                }
+
+                // 13. Seuil de transparence (ignore_alpha)
+                Row {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        width: 140
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Seuil de flou :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: root.shellBlurAlpha
+                        minimumValue: 0.05
+                        maximumValue: 0.9
+                        stepSize: 0.05
+                        decimals: 2
+                        onValueModified: newVal => {
+                            root.shellBlurAlpha = newVal
+                            root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
+                        }
+                    }
+                }
+
+                // 14. Flou derrière les popups ancrés (calendrier, wifi, volume…)
+                Row {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        width: 140
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Flou des popups :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 140
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
+                            color: root.shellBlurPopups ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.shellBlurPopups = !root.shellBlurPopups
+                                root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
+                            }
+                        }
+                    }
+                }
+            }   // fin Grid flou Quickshell
+
+            Text {
+                width: parent.width
+                topPadding: 8
+                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
+                    + "La taille et les passes du flou restent communes aux fenêtres, d'où l'effet plus ou moins diffus de part et d'autre. "
+                    + "Le seuil doit rester sous l'opacité globale pour que la capsule soit floutée."
+                color: Theme.fg
+                opacity: 0.6
+                font.pixelSize: Theme.textXs
+                wrapMode: Text.WordWrap
+            }
+
+            Grid {
+                width: parent.width
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 12
+                topPadding: 12
+
+                // 15. Bouton central (engrenage) — bascule d'affichage
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8

@@ -251,5 +251,9 @@ QtObject {
         function osd(kind: string, value: real) {
             root.showOsd(kind, value)
         }
+        // Permet de piloter les popups pour les tests : ipc call portable togglePopup calendar
+        function togglePopup(name: string) {
+            root.togglePopup(name)
+        }
     }
 }
