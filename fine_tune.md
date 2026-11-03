@@ -222,3 +222,20 @@ basculer en fichiers générés.
   au clic réel : « Contrôles système · Station » s'ouvre), barre de progression
   ramenée à 2 px. `hyprctl layers` ne liste pas les `PopupWindow` : l'absence de
   surface n'y prouve pas que le popup est fermé.
+- 2026-11-03 : correctifs après retour sur le lot A.
+  · Liseré : le rayon était borné par la seule hauteur (`min(radius, h/2)`) alors que
+    le tracé est inset de 0,75 px. Les segments droits devenaient négatifs et QML
+    dessinait deux ergots verticaux de chaque côté du kanji. Rayon borné par
+    `(w-2i)/2` et `(h-2i)/2` ; fin du dégradé remontée de 0,10 à 0,30 pour que le
+    contour se referme visuellement.
+  · Molette de volume : elle avait disparu avec les indicateurs. Rétablie sur l'icône
+    (clic gauche = panneau système, clic droit = mute), OSD immédiat via
+    `Theme.showOsd`. Les touches média ne passaient que par l'OSD : l'icône attendait
+    le sondage de 5 s, et une `Connections` sur `osdValue` ne peut pas tester
+    `osdVisible` puisque `showOsd()` écrit la valeur avant de rendre la surface visible.
+  · `Icon.qml` : `volume-high` manquait de la table. Un nom absent rend un texte vide
+    sans message, donc le haut-parleur disparaissait au-dessus de 70 % dans la barre
+    **et** dans l'OSD. Glyphe ajouté, plus un `console.warn` pour tout nom inconnu.
+    Restent deux usages hors périmètre révélés par cet avertissement : `icon: "⏻"`
+    dans `config_panel.qml` (en-tête de section sans icône) et un `Text` brut
+    « ⏻ Session & Alimentation » dans `island_right.qml`.
