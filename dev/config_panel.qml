@@ -2368,7 +2368,10 @@ Rectangle {
 
             Flickable {
                 width: parent.width
-                height: 290
+                // Hauteur calée sur le contenu (plafonnée) : une liste courte ne
+                // laisse pas de vide, une liste longue défile sans couper la
+                // dernière ligne.
+                height: Math.min(appList.implicitHeight, 300)
                 contentWidth: width
                 contentHeight: appList.implicitHeight
                 clip: true
@@ -2599,7 +2602,7 @@ Rectangle {
 
             Flickable {
                 width: parent.width
-                height: 150
+                height: Math.min(autostartList.implicitHeight, 260)
                 contentWidth: width
                 contentHeight: autostartList.implicitHeight
                 clip: true
@@ -2642,7 +2645,7 @@ Rectangle {
                             }
 
                             Rectangle {
-                                width: 96
+                                width: 140
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2663,7 +2666,7 @@ Rectangle {
                             }
 
                             Rectangle {
-                                width: asRow.width - 32 - 96 - 32 - 3 * 10
+                                width: asRow.width - 32 - 140 - 32 - 3 * 10 - 4
                                 height: 32
                                 color: Theme.bg
                                 radius: Theme.globalRadius
