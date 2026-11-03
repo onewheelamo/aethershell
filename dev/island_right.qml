@@ -1511,12 +1511,27 @@ Item {
                 anchors.margins: 14
                 spacing: 8
 
-                Text {
-                    text: "⏻ Session & Alimentation"
-                    color: Theme.error
-                    font.pixelSize: Theme.textLg
-                    font.bold: true
+                // Même en-tête que « Notifications » : glyphe du jeu d'icônes
+                // puis libellé. Le caractère brut ⏻ (U+23FB) tombait en police de
+                // repli, plus fin et collé au texte.
+                Row {
                     anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: Theme.space2
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "power"
+                        size: Theme.iconSm
+                        color: Theme.error
+                        opacityLevel: 1
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Session & Alimentation"
+                        color: Theme.error
+                        font.pixelSize: Theme.textLg
+                        font.bold: true
+                    }
                 }
 
                 Rectangle {
