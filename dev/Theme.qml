@@ -139,6 +139,10 @@ QtObject {
     property bool configPanelVisible: false
     property string activePopup: "" // "", "weather", "calendar", "media", "wifi", "power", "system", "notifications"
 
+    // Applications dont les notifications n'apparaissent pas en toast (elles vont
+    // directement au centre). Alimentée par core/style_vars.json.
+    property var quietNotifApps: []
+
     function togglePopup(name) {
         activePopup = (activePopup === name) ? "" : name
     }
@@ -206,6 +210,7 @@ QtObject {
         if (typeof data.blur_passes === "number") root.blurPasses = Math.max(1, Math.min(8, data.blur_passes))
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = Math.max(0, Math.min(1, data.blur_vibrancy))
         if (typeof data.kb_layout === "string") root.kbLayout = data.kb_layout
+        if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
         if (typeof data.first_run_completed === "boolean") {
             root.firstRunCompleted = data.first_run_completed
             if (!data.first_run_completed) {

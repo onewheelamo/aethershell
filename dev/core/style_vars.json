@@ -4,6 +4,7 @@
     "global_opacity": 0.7,
     "bar_height": 36,
     "kb_layout": "fr",
+    "quiet_notif_apps": [],
     "first_run_completed": true,
     "wallpaper_dir": "$HOME/Images/wallpapers/",
     "matugen_scheme": "scheme-vibrant",

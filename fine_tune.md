@@ -66,8 +66,18 @@ franc sur la plus récente et effacé sur les anciennes — c'est la seule hiér
 de couleur, le fond ne change qu'au survol. Le nom d'application est en accent et
 tronqué, l'heure en chiffres tabulaires, le corps limité à 3 lignes avec ellipse.
 « Tout effacer » est neutre au repos et ne passe en `error` qu'au survol : le rouge
-est un signal. Le toast (§7.5) reprend le même liseré et perd sa bordure `warn` —
-une notification n'est pas une alerte.
+est un signal. Le toast (§7.5) n'a **pas** de liseré (retiré à la demande) et perd
+sa bordure `warn` — une notification n'est pas une alerte.
+
+Note 14b : le choix du toast se fait sur le toast lui-même. Une cloche barrée en
+haut à droite écarte l'application : ses notifications ne s'affichent plus
+spontanément et vont directement au centre. La liste vit dans
+`core/style_vars.json` (`quiet_notif_apps`) via
+`config_manager.py notif_quiet <true|false> <nom d'app…>`, donc elle survit aux
+redéploiements et au redémarrage. Le centre rappelle les applications écartées
+dans un pied discret (« Sans apparition spontanée ») où chaque pastille se retire
+d'un clic : le choix reste réversible sans repasser par un toast. La liste étant
+relue par le `FileView` de `Theme.qml`, l'effet est immédiat dans les deux sens.
 
 Note 13 : `hyprlock.conf` est désormais **dans le dépôt** (`dev/hypr_modular/`,
 copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
@@ -325,3 +335,19 @@ Un lot, un chantier clavier, une décision.
   Piège de méthode : détruire le périphérique `/dev/uinput` entre deux positions
   casse le `HyprlandFocusGrab` et referme le popup — les survols se vérifient par
   petits déplacements internes, ou au pixel entre deux captures.
+- 2026-11-03 : toast sans liseré + choix par application. Le toast ne porte plus
+  de liseré (il reste dans le centre) et gagne une cloche barrée à droite de
+  l'en-tête : elle ajoute l'application à `quiet_notif_apps`
+  (`style_vars.json`), dont les notifications vont désormais directement au
+  centre. Le centre affiche un pied « Sans apparition spontanée » avec une
+  pastille par application écartée, retirable d'un clic. Cycle vérifié au clic
+  réel : toast → cloche barrée → `["Thunar"]`, notification suivante sans toast
+  (moyenne de zone 64,4 = sans toast contre 58,5 avec), carte toujours présente
+  dans le centre, pastille « Thunar » puis `[]` après clic sur sa croix, toast de
+  retour. Nom d'application avec espaces testé (« Strawberry Music Player »).
+  Deux pièges : un enfant ajouté dans un `Flickable` est reparenté à son
+  `contentItem` (hauteur 0) et se superpose au contenu — le pied devait être un
+  frère du `Flickable` dans la `Column` ; et `Icon.qml` mappait `bell-off` sur
+  `F009C`, qui est `bell-outline` (cloche simple, sans barre) — le glyphe
+  « barré » ne l'était pas, corrigé en `F009B` (l'état vide de la barre et du
+  centre affichait donc une cloche normale).

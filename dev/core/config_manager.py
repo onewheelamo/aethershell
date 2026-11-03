@@ -533,6 +533,36 @@ def update_style_var(key, value):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4B: NOTIFICATION TOAST PREFERENCES
+# ─────────────────────────────────────────────────────────────────────────────
+# Applications dont les notifications vont directement au centre, sans toast.
+# La liste vit dans style_vars.json pour survivre aux redéploiements.
+QUIET_NOTIF_KEY = "quiet_notif_apps"
+
+
+def get_quiet_notif_apps():
+    data = load_json(STYLE_FILE)
+    apps = data.get(QUIET_NOTIF_KEY)
+    return [a for a in apps if isinstance(a, str)] if isinstance(apps, list) else []
+
+
+def set_quiet_notif_app(name, quiet):
+    """Add or remove an application from the silent list. Returns the new list."""
+    data = load_json(STYLE_FILE)
+    apps = get_quiet_notif_apps()
+    name = str(name).strip()
+    if not name:
+        return apps
+    if quiet and name not in apps:
+        apps.append(name)
+    elif not quiet and name in apps:
+        apps.remove(name)
+    data[QUIET_NOTIF_KEY] = apps
+    save_json(STYLE_FILE, data)
+    return apps
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SECTION 5: SYSTEM & DISPLAY MANAGEMENT (Monitors, Resolutions, Refresh Rates)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -945,6 +975,9 @@ if __name__ == "__main__":
     elif action == "style" and len(sys.argv) > 3:
         update_style_var(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))
+    elif action == "notif_quiet" and len(sys.argv) > 3:
+        new_list = set_quiet_notif_app(" ".join(sys.argv[3:]), sys.argv[2] == "true")
+        print(json.dumps({"ok": True, "quiet_notif_apps": new_list}))
     elif action == "gaps" and len(sys.argv) > 3:
         update_hypr_gaps(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))

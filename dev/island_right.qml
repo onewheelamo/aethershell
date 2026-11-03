@@ -233,8 +233,12 @@ Item {
             }
             const next = [entry].concat(islandRight.notificationsList).slice(0, 30)
             islandRight.notificationsList = next
-            islandRight.latestToast = entry
-            toastTimer.restart()
+            // Application écartée des toasts : la notification va directement au
+            // centre, sans apparition spontanée.
+            if (Theme.quietNotifApps.indexOf(entry.appName) < 0) {
+                islandRight.latestToast = entry
+                toastTimer.restart()
+            }
         }
     }
 
@@ -244,6 +248,23 @@ Item {
         repeat: false
         onTriggered: islandRight.latestToast = null
     }
+
+    // Écarte une application des toasts, ou la rétablit. La liste vit dans
+    // core/style_vars.json : Theme.qml la recharge via son FileView.
+    function setToastQuiet(appName, quiet) {
+        if (!appName) return
+        quietNotifProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                                  "notif_quiet", quiet ? "true" : "false", appName]
+        quietNotifProc.running = true
+    }
+
+    function quietToastSource() {
+        if (!latestToast) return
+        setToastQuiet(latestToast.appName, true)
+        latestToast = null
+    }
+
+    property Process quietNotifProc: Process {}
 
     Process {
         id: sysInfoProc
@@ -1671,8 +1692,10 @@ Item {
                 // Cartes empilées, la plus récente en tête
                 // ────────────────────────────────────────────────────────────
                 Flickable {
+                    id: notifFlick
                     width: parent.width
-                    height: 268
+                    // Le pied « sans apparition spontanée » rogne la liste d'autant.
+                    height: 268 - (quietFooter.visible ? quietFooter.height + 6 : 0)
                     contentWidth: width
                     contentHeight: notifListCol.implicitHeight
                     clip: true
@@ -1687,7 +1710,7 @@ Item {
                         Item {
                             visible: islandRight.notificationsList.length === 0
                             width: parent.width
-                            height: 268
+                            height: notifFlick.height
 
                             Column {
                                 anchors.centerIn: parent
@@ -1827,6 +1850,98 @@ Item {
                         }
                     }
                 }
+
+                // ────────────────────────────────────────────────────
+                // Applications écartées des toasts : le choix se fait
+                // depuis un toast (cloche barrée) et se défait ici.
+                // ────────────────────────────────────────────────────
+                Item {
+                    id: quietFooter
+                    width: parent.width
+                    height: visible ? quietCol.implicitHeight + 12 : 0
+                    visible: Theme.quietNotifApps.length > 0
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        width: parent.width
+                        height: 1
+                        color: Qt.alpha(Theme.fg, 0.08)
+                    }
+
+                    Column {
+                        id: quietCol
+                        anchors.top: parent.top
+                        anchors.topMargin: 10
+                        width: parent.width
+                        spacing: 6
+
+                        Row {
+                            spacing: Theme.space1
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: "bell-off"
+                                size: 10
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                opacityLevel: 1
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Sans apparition spontanée"
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Theme.text2xs
+                            }
+                        }
+
+                        Flow {
+                            width: parent.width
+                            spacing: 6
+
+                            Repeater {
+                                model: Theme.quietNotifApps
+
+                                Rectangle {
+                                    required property var modelData
+                                    width: quietChipText.implicitWidth + 26
+                                    height: 20
+                                    radius: Theme.globalRadius
+                                    color: Theme.surfaceVariant
+
+                                    Text {
+                                        id: quietChipText
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: Math.min(implicitWidth, 130)
+                                        text: modelData
+                                        color: Qt.alpha(Theme.fg, 0.8)
+                                        font.pixelSize: Theme.text2xs
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Icon {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 7
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        glyph: "close"
+                                        size: 9
+                                        color: chipClose.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.45)
+                                        opacityLevel: 1
+
+                                        MouseArea {
+                                            id: chipClose
+                                            anchors.fill: parent
+                                            anchors.margins: -4
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: islandRight.setToastQuiet(modelData, false)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1846,6 +1961,7 @@ Item {
         implicitHeight: toastCol.implicitHeight + 20
         color: "transparent"
         visible: islandRight.latestToast !== null && Theme.activePopup === ""
+            && Theme.quietNotifApps.indexOf(islandRight.latestToast ? islandRight.latestToast.appName : "") < 0
 
         Rectangle {
             anchors.fill: parent
@@ -1853,39 +1969,72 @@ Item {
             radius: Theme.globalRadius
             clip: true
 
-            // Même liseré que les cartes du centre : une notification n'est pas
-            // une alerte, le liseré est en accent et non en warn.
-            Rectangle {
-                width: 2
-                height: parent.height
-                color: Qt.alpha(Theme.accent, 0.95)
+            // Zone de clic sur tout le toast : déclarée avant le contenu pour que
+            // le bouton « écarter » du contenu reste cliquable par-dessus.
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                // Le clic ouvre le centre de notifications ; le toast s'efface ensuite
+                // de lui-même (timer d'expiration).
+                onClicked: {
+                    islandRight.latestToast = null
+                    Theme.activePopup = "notifications"
+                }
             }
 
             Column {
                 id: toastCol
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.leftMargin: 14
-                anchors.rightMargin: 12
+                anchors.leftMargin: 12
+                anchors.rightMargin: 10
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 3
 
-                Row {
-                    spacing: Theme.space1
+                Item {
+                    width: parent.width
+                    height: 16
 
                     Icon {
+                        id: toastBell
+                        anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: "bell"
                         size: 10
                         color: Theme.accent
                         opacityLevel: 1
                     }
+
                     Text {
+                        anchors.left: toastBell.right
+                        anchors.leftMargin: Theme.space1
                         anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(implicitWidth, parent.width - 46)
                         text: islandRight.latestToast ? islandRight.latestToast.appName : ""
                         color: Theme.accent
                         font.pixelSize: Theme.textXs
                         font.bold: true
+                        elide: Text.ElideRight
+                    }
+
+                    // Écarte cette application des toasts : sa notification reste
+                    // dans le centre, elle n'apparaît simplement plus ici.
+                    Icon {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "bell-off"
+                        size: 12
+                        color: toastQuietMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.5)
+                        opacityLevel: 1
+
+                        MouseArea {
+                            id: toastQuietMa
+                            anchors.fill: parent
+                            anchors.margins: -5
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: islandRight.quietToastSource()
+                        }
                     }
                 }
 
@@ -1905,17 +2054,6 @@ Item {
                     color: Qt.alpha(Theme.fg, 0.85)
                     font.pixelSize: Theme.textXs
                     wrapMode: Text.WordWrap
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                // Le clic ouvre le centre de notifications ; le toast s'efface ensuite
-                // de lui-même (timer d'expiration).
-                onClicked: {
-                    islandRight.latestToast = null
-                    Theme.activePopup = "notifications"
                 }
             }
         }
