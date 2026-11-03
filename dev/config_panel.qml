@@ -270,9 +270,9 @@ Rectangle {
         height: 30
 
         Text {
-            text: "⚙ Panneau de Configuration — " + root.hostName
+            text: "Panneau de configuration — " + root.hostName
             color: Theme.fg
-            font.pixelSize: 18
+            font.pixelSize: Theme.textXl
             font.bold: true
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -288,12 +288,12 @@ Rectangle {
             border.color: Theme.error
             border.width: 1
 
-            Text {
+            Icon {
                 anchors.centerIn: parent
-                text: "✕"
+                glyph: "close"
+                size: Theme.iconSm
                 color: closeMa.containsMouse ? Theme.bg : Theme.error
-                font.pixelSize: 13
-                font.bold: true
+                opacityLevel: 1
             }
 
             MouseArea {
@@ -322,10 +322,10 @@ Rectangle {
 
         Repeater {
             model: [
-                { icon: "🎨", label: "Esthétique" },
-                { icon: "🖥", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
-                { icon: "⌨", label: "Contrôles" },
-                { icon: "🚀", label: "Applications" }
+                { icon: "palette", label: "Esthétique" },
+                { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
+                { icon: "keyboard", label: "Contrôles" },
+                { icon: "rocket", label: "Applications" }
             ]
 
             Rectangle {
@@ -347,15 +347,18 @@ Rectangle {
                     anchors.centerIn: parent
                     spacing: 6
 
-                    Text {
-                        text: tabBtn.modelData.icon
-                        font.pixelSize: 13
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: tabBtn.modelData.icon
+                        size: Theme.iconSm
+                        color: tabBtn.active ? Theme.bg : Theme.fg
+                        opacityLevel: tabBtn.active ? 1 : 0.78
                     }
 
                     Text {
                         text: tabBtn.modelData.label
                         color: tabBtn.active ? Theme.bg : Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: tabBtn.active
                     }
                 }
@@ -432,14 +435,14 @@ Rectangle {
             CollapsibleSection {
                 id: secTheme
                 title: "Thème & Fond d'écran"
-                icon: "🎨"
+                icon: "palette"
                 expanded: root.panelSections["esthetique_theme"] === true
                 onToggled: expanded => root.setPanelSection("esthetique_theme", expanded)
 
                 Text {
                     text: "Jeux de couleurs & Fond d'écran"
                     color: Theme.accent
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.textLg
                     font.bold: true
                     width: parent.width
                 }
@@ -465,7 +468,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: parent.modelData
                             color: parent.isCurrent ? Theme.bg : Theme.fg
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.bold: parent.isCurrent
                         }
 
@@ -491,9 +494,9 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "🖼 Fonds d'écran"
+                        text: "Fonds d'écran"
                         color: wpPickMa.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -524,9 +527,9 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "✨ Sync Matugen"
+                        text: "Synchroniser Matugen"
                         color: matugenMa.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -553,7 +556,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Schéma Matugen :"
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
@@ -576,7 +579,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: parent.modelData.label
                             color: parent.active ? Theme.bg : Theme.fg
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.textXs
                             font.bold: parent.active
                         }
                         MouseArea {
@@ -601,7 +604,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Contraste :"
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
@@ -626,7 +629,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: parent.modelData.label
                             color: parent.active ? Theme.bg : Theme.fg
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.textXs
                             font.bold: parent.active
                         }
                         MouseArea {
@@ -652,7 +655,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Dossier wallpapers :"
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                     font.bold: true
                 }
 
@@ -672,7 +675,7 @@ Rectangle {
                         verticalAlignment: TextInput.AlignVCenter
                         text: Theme.wallpaperDir || root.wallpaperDir
                         color: Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         onAccepted: {
                             if (wpDirInput.text.trim() !== "") {
                                 root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
@@ -691,7 +694,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "Appliquer"
                         color: Theme.bg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -713,7 +716,7 @@ Rectangle {
             Text {
                 text: "Palette active (cliquer sur une pastille pour ajuster sa couleur hex)"
                 color: Theme.accent
-                font.pixelSize: 13
+                font.pixelSize: Theme.textMd
                 font.bold: true
                 width: parent.width
             }
@@ -761,7 +764,7 @@ Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: parent.modelData.label
                             color: Qt.alpha(Theme.fg, 0.8)
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.textXs
                         }
                     }
                 }
@@ -774,7 +777,7 @@ Rectangle {
                     Text {
                         text: "Clé : " + root.selectedColorKey
                         color: Theme.accentMuted
-                        font.pixelSize: 10
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -795,7 +798,7 @@ Rectangle {
                                 verticalAlignment: TextInput.AlignVCenter
                                 text: "#b4befe"
                                 color: Theme.fg
-                                font.pixelSize: 11
+                                font.pixelSize: Theme.textXs
                                 onAccepted: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
                             }
                         }
@@ -809,7 +812,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: "OK"
                                 color: Theme.bg
-                                font.pixelSize: 10
+                                font.pixelSize: Theme.textXs
                                 font.bold: true
                             }
                             MouseArea {
@@ -827,14 +830,14 @@ Rectangle {
             CollapsibleSection {
                 id: secAspect
                 title: "Aspect technique du bureau"
-                icon: "⚙️"
+                icon: "cog"
                 expanded: root.panelSections["esthetique_aspect"] === true
                 onToggled: expanded => root.setPanelSection("esthetique_aspect", expanded)
 
             Text {
                 text: "Aspect du Bureau (Hyprland & Quickshell unifiés)"
                 color: Theme.accent
-                font.pixelSize: 14
+                font.pixelSize: Theme.textLg
                 font.bold: true
                 width: parent.width
             }
@@ -855,7 +858,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Gaps internes (in) :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -883,7 +886,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Gaps externes (out) :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -911,7 +914,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Bordures fenêtres :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -939,7 +942,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Arrondis fenêtres :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -967,7 +970,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Arrondis îlots (QS) :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -994,7 +997,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Opacité générale :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1022,7 +1025,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Hauteur de barre :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1049,7 +1052,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Pas redimensionnement :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1077,7 +1080,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Taille du flou :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1105,7 +1108,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Passes du flou :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1132,7 +1135,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Flou Hyprland :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1149,7 +1152,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: root.blurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
                             color: root.blurEnabled ? Theme.bg : Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
 
@@ -1164,7 +1167,7 @@ Rectangle {
                     }
                 }
 
-                // 12. Bouton ⚙ Îlot Central Toggle
+                // 12. Bouton central (engrenage) — bascule d'affichage
                 Row {
                     width: (parent.width - 14) / 2
                     spacing: 8
@@ -1172,9 +1175,9 @@ Rectangle {
                     Text {
                         width: 140
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Bouton ⚙ central :"
+                        text: "Bouton central :"
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         elide: Text.ElideRight
                     }
 
@@ -1191,7 +1194,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+H)"
                             color: Theme.showConfigButton ? Theme.bg : Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
 
@@ -1218,7 +1221,7 @@ Rectangle {
             Text {
                 text: "Moniteurs détectés (" + root.hostName + ") — Cliquer pour sélectionner un écran"
                 color: Theme.accent
-                font.pixelSize: 14
+                font.pixelSize: Theme.textLg
                 font.bold: true
             }
 
@@ -1246,16 +1249,16 @@ Rectangle {
                             spacing: 2
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "🖥 " + monCard.modelData.name + " (" + monCard.modelData.width + "x" + monCard.modelData.height + "@" + monCard.modelData.refreshRate + "Hz)"
+                                text: monCard.modelData.name + " (" + monCard.modelData.width + "x" + monCard.modelData.height + "@" + monCard.modelData.refreshRate + "Hz)"
                                 color: monCard.isSel ? Theme.accent : Theme.fg
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.textSm
                                 font.bold: true
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: monCard.modelData.description || "Sortie vidéo active"
                                 color: Qt.alpha(Theme.fg, 0.7)
-                                font.pixelSize: 10
+                                font.pixelSize: Theme.textXs
                                 elide: Text.ElideRight
                                 width: monCard.width - 16
                                 horizontalAlignment: Text.AlignHCenter
@@ -1275,7 +1278,7 @@ Rectangle {
             Text {
                 text: "Résolution & Fréquence pour « " + root.selectedMonitorName + " » (persistant dans hardware-" + root.hostName.toLowerCase() + ".lua)"
                 color: Theme.accent
-                font.pixelSize: 13
+                font.pixelSize: Theme.textMd
                 font.bold: true
             }
 
@@ -1299,7 +1302,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: modelData === "preferred" ? "Auto (Preferred)" : modelData + "Hz"
                             color: resMa.containsMouse ? Theme.bg : Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
 
@@ -1324,7 +1327,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Mise à l'échelle (Scale) de " + root.selectedMonitorName + " :"
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                 }
 
                 Repeater {
@@ -1340,7 +1343,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: modelData + "x"
                             color: parent.activeScale ? Theme.bg : Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                         MouseArea {
@@ -1365,7 +1368,7 @@ Rectangle {
                 Text {
                     text: "Profils Multi-Écrans & Mode Tablette (Laptop Portable uniquement)"
                     color: Theme.accent
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.textMd
                     font.bold: true
                 }
 
@@ -1375,9 +1378,9 @@ Rectangle {
 
                     Repeater {
                         model: [
-                            { id: "dual", title: "🖥 + 💻 Étendu (TV + Laptop)" },
-                            { id: "tv", title: "📺 TV Uniquement (Dock)" },
-                            { id: "laptop", title: "💻 Nomade (Laptop seul)" }
+                            { id: "dual", title: "Étendu (TV + laptop)" },
+                            { id: "tv", title: "TV uniquement (dock)" },
+                            { id: "laptop", title: "Nomade (laptop seul)" }
                         ]
 
                         Rectangle {
@@ -1390,7 +1393,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: modelData.title
                                 color: profMa.containsMouse ? Theme.bg : Theme.fg
-                                font.pixelSize: 11
+                                font.pixelSize: Theme.textXs
                                 font.bold: true
                             }
                             MouseArea {
@@ -1424,7 +1427,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: modelData.label
                                 color: rotMa.containsMouse ? Theme.bg : Theme.fg
-                                font.pixelSize: 11
+                                font.pixelSize: Theme.textXs
                             }
                             MouseArea {
                                 id: rotMa
@@ -1459,15 +1462,15 @@ Rectangle {
                         anchors.centerIn: parent
                         spacing: 2
                         Text {
-                            text: "🕒 Fuseau : " + root.timezoneStr
+                            text: "Fuseau : " + root.timezoneStr
                             color: Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                         Text {
                             text: root.ntpSynced ? "✓ Horloge NTP synchronisée" : "⚠ NTP non synchronisé"
                             color: root.ntpSynced ? Theme.success : Theme.warn
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.textXs
                         }
                     }
                 }
@@ -1482,9 +1485,9 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "📶 Ouvrir le panneau Réseau / WiFi"
+                        text: "Ouvrir le panneau réseau / WiFi"
                         color: openWifiMa.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: true
                     }
 
@@ -1511,9 +1514,9 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: root.batLimit80 ? "🔋 Limite 80% : ACTIVE" : "🔋 Activer Limite 80%"
+                        text: root.batLimit80 ? "Limite 80% : active" : "Activer la limite 80%"
                         color: root.batLimit80 ? Theme.bg : Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -1557,7 +1560,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "⌨ Disposition active : " + root.kbLayout.toUpperCase()
                         color: Theme.accent
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.textMd
                         font.bold: true
                     }
 
@@ -1565,7 +1568,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "(Workspaces 1..10 : " + root.workspaceKeys.slice(0, 5).join(", ") + " …)"
                         color: Qt.alpha(Theme.fg, 0.8)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
                 }
 
@@ -1582,9 +1585,9 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "🌍 Assistant Langue Clavier"
+                        text: "Assistant langue du clavier"
                         color: reopenKbMa.containsMouse ? Theme.bg : Theme.accent
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
 
@@ -1604,7 +1607,7 @@ Rectangle {
             Text {
                 text: "Raccourcis Clavier Hyprland (cliquer sur une ligne pour l'éditer)"
                 color: Theme.accent
-                font.pixelSize: 13
+                font.pixelSize: Theme.textMd
                 font.bold: true
             }
 
@@ -1648,7 +1651,7 @@ Rectangle {
                                         anchors.centerIn: parent
                                         text: modelData.mod + " + " + modelData.key
                                         color: Theme.accent
-                                        font.pixelSize: 11
+                                        font.pixelSize: Theme.textXs
                                         font.bold: true
                                     }
                                 }
@@ -1657,7 +1660,7 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "→  " + modelData.target
                                     color: Theme.fg
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                 }
                             }
 
@@ -1689,7 +1692,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: "✕"
                                     color: Theme.error
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                 }
 
                                 MouseArea {
@@ -1717,7 +1720,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "SUPER +"
                         color: Theme.accent
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: true
                     }
                 }
@@ -1737,7 +1740,7 @@ Rectangle {
                         anchors.leftMargin: 8
                         text: "Touche (ex: Return, M)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -1746,7 +1749,7 @@ Rectangle {
                         anchors.margins: 6
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                     }
                 }
 
@@ -1765,7 +1768,7 @@ Rectangle {
                         anchors.leftMargin: 8
                         text: "Commande ou variable (ex: terminal)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -1774,7 +1777,7 @@ Rectangle {
                         anchors.margins: 6
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.info
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         onAccepted: {
                             if (bindKeyInput.text !== "" && bindCmdInput.text !== "") {
                                 root.runConfigCmd(["bind_set", bindKeyInput.text, bindCmdInput.text])
@@ -1793,7 +1796,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "Enregistrer"
                         color: Theme.bg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: true
                     }
 
@@ -1823,14 +1826,14 @@ Rectangle {
             CollapsibleSection {
                 id: secApps
                 title: "Programmes par défaut des raccourcis"
-                icon: "🚀"
+                icon: "rocket"
                 expanded: root.panelSections["apps_programs"] === true
                 onToggled: expanded => root.setPanelSection("apps_programs", expanded)
 
             Text {
                 text: "Variables d'Applications par défaut (Synchronisées à la volée avec Hyprland)"
                 color: Theme.accent
-                font.pixelSize: 14
+                font.pixelSize: Theme.textLg
                 font.bold: true
                 width: parent.width
             }
@@ -1872,7 +1875,7 @@ Rectangle {
                                     text: appRow.modelData.alias
                                     color: Theme.fg
                                     font.bold: true
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                 }
                             }
 
@@ -1893,7 +1896,7 @@ Rectangle {
                                     verticalAlignment: TextInput.AlignVCenter
                                     text: appRow.modelData.cmd
                                     color: Theme.info
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                     onAccepted: root.runConfigCmd(["app_set", appRow.modelData.alias, editCmdInput.text])
                                 }
                             }
@@ -1911,7 +1914,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: "✓"
                                     color: Theme.success
-                                    font.pixelSize: 13
+                                    font.pixelSize: Theme.textMd
                                     font.bold: true
                                 }
 
@@ -1935,7 +1938,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: "✕"
                                     color: Theme.error
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                     font.bold: true
                                 }
 
@@ -1970,7 +1973,7 @@ Rectangle {
                         anchors.leftMargin: 10
                         text: "Nom (ex: Mail)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -1979,7 +1982,7 @@ Rectangle {
                         anchors.margins: 8
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                     }
                 }
 
@@ -1998,7 +2001,7 @@ Rectangle {
                         anchors.leftMargin: 10
                         text: "Programme (ex: thunderbird)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -2007,7 +2010,7 @@ Rectangle {
                         anchors.margins: 8
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.info
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         onAccepted: {
                             if (newAlias.text !== "" && newCmd.text !== "") {
                                 root.runConfigCmd(["app_set", newAlias.text, newCmd.text])
@@ -2028,7 +2031,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "+ Ajouter"
                         color: Theme.bg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: true
                     }
 
@@ -2058,7 +2061,7 @@ Rectangle {
             Text {
                 text: "Autostart Hyprland (effectif au prochain démarrage de session)"
                 color: Theme.accent
-                font.pixelSize: 13
+                font.pixelSize: Theme.textMd
                 font.bold: true
                 width: parent.width
             }
@@ -2096,7 +2099,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: asRow.modelData.enabled ? "✓" : "✕"
                                     color: asRow.modelData.enabled ? Theme.success : Theme.error
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                     font.bold: true
                                 }
 
@@ -2122,7 +2125,7 @@ Rectangle {
                                     text: asRow.modelData.name
                                     color: Theme.fg
                                     font.bold: true
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                 }
                             }
 
@@ -2143,7 +2146,7 @@ Rectangle {
                                     text: asRow.modelData.cmd
                                     elide: Text.ElideRight
                                     color: Theme.info
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                 }
                             }
 
@@ -2159,7 +2162,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     text: "✕"
                                     color: Theme.error
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                     font.bold: true
                                 }
 
@@ -2193,7 +2196,7 @@ Rectangle {
                         anchors.leftMargin: 10
                         text: "Nom (ex: Discord)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -2202,7 +2205,7 @@ Rectangle {
                         anchors.margins: 8
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                     }
                 }
 
@@ -2221,7 +2224,7 @@ Rectangle {
                         anchors.leftMargin: 10
                         text: "Commande (ex: discord &)"
                         color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
 
                     TextInput {
@@ -2230,7 +2233,7 @@ Rectangle {
                         anchors.margins: 8
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.info
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         onAccepted: {
                             if (newAsName.text !== "" && newAsCmd.text !== "") {
                                 root.runConfigCmd(["autostart_add", newAsName.text, newAsCmd.text])
@@ -2251,7 +2254,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "+ Ajouter"
                         color: Theme.bg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: true
                     }
 

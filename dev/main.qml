@@ -53,9 +53,9 @@ ShellRoot {
                 top: parent.top
                 left: parent.left
                 right: parent.right
-                topMargin: 8
-                leftMargin: 8
-                rightMargin: 8
+                topMargin: Theme.gutter
+                leftMargin: Theme.gutter
+                rightMargin: Theme.gutter
             }
             height: Theme.barHeight
             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -128,7 +128,7 @@ ShellRoot {
                         : Theme.osdKind === "mute" ? "󰍭"
                         : (Theme.osdValue <= 0 ? "󰕿" : Theme.osdValue < 50 ? "󰖀" : "󰕾")
                     color: Theme.accent
-                    font.pixelSize: 22
+                    font.pixelSize: Theme.textXxl
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
@@ -139,7 +139,7 @@ ShellRoot {
                             : Theme.osdKind === "mute" ? "Micro coupé"
                             : (Theme.osdValue <= 0 ? "Volume coupé" : "Volume")
                         color: Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                     }
                     Rectangle {
                         width: parent.width
@@ -159,7 +159,7 @@ ShellRoot {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Math.round(Theme.osdValue) + "%"
                     color: Theme.fg
-                    font.pixelSize: 13
+                    font.pixelSize: Theme.textMd
                     font.bold: true
                 }
             }
@@ -233,7 +233,7 @@ ShellRoot {
                 Text {
                     text: "⌨ Premier Lancement — Disposition du Clavier"
                     color: Theme.accent
-                    font.pixelSize: 17
+                    font.pixelSize: Theme.textXl
                     font.bold: true
                 }
 
@@ -241,7 +241,7 @@ ShellRoot {
                     width: parent.width
                     text: "Sélectionnez la langue de votre clavier à la souris (Français AZERTY par défaut).\nCe choix configure Hyprland (input.lua) et adapte automatiquement la nomenclature des raccourcis Workspaces 1 à 5 dans binds.lua pour éviter tout conflit."
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                     wrapMode: Text.WordWrap
                 }
 
@@ -284,14 +284,14 @@ ShellRoot {
                                 Text {
                                     text: kbCard.modelData.title
                                     color: kbCard.selected ? Theme.accent : Theme.fg
-                                    font.pixelSize: 13
+                                    font.pixelSize: Theme.textMd
                                     font.bold: true
                                 }
 
                                 Text {
                                     text: kbCard.modelData.sub
                                     color: Qt.alpha(Theme.fg, 0.75)
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                 }
                             }
 
@@ -321,7 +321,7 @@ ShellRoot {
                             ? "Nomenclature binds.lua : ampersand, eacute, quotedbl, apostrophe, parenleft"
                             : "Nomenclature binds.lua : 1, 2, 3, 4, 5 (aucun conflit QWERTY)"
                         color: Theme.info
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                     }
                 }
@@ -337,7 +337,7 @@ ShellRoot {
                         anchors.centerIn: parent
                         text: "✓ Valider la disposition « " + root.pendingKbLayout.toUpperCase() + " » et Appliquer"
                         color: Theme.bg
-                        font.pixelSize: 13
+                        font.pixelSize: Theme.textMd
                         font.bold: true
                     }
 

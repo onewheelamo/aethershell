@@ -18,7 +18,7 @@ import Quickshell.Hyprland
 
 Item {
     id: islandLeft
-    implicitWidth: contentRow.implicitWidth + 24
+    implicitWidth: contentRow.implicitWidth + Theme.padH * 2
     implicitHeight: Theme.barHeight
     height: Theme.barHeight
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -170,7 +170,7 @@ Item {
         Row {
             id: contentRow
             anchors.centerIn: parent
-            spacing: 10
+            spacing: Theme.space2
 
             // ────────────────────────────────────────────────────────────────
             // SUB-SECTION 4.1: FUZZEL APPLICATION LAUNCHER BUTTON
@@ -189,7 +189,7 @@ Item {
                     anchors.centerIn: parent
                     text: "󰣇"
                     color: Theme.bg
-                    font.pixelSize: 15
+                    font.pixelSize: Theme.textLg
                     font.bold: true
                 }
 
@@ -266,7 +266,7 @@ Item {
                                 : wsDelegate.isOccupied
                                     ? Theme.fg
                                     : Qt.alpha(Theme.fg, 0.65)
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: wsDelegate.isActive || wsDelegate.isOccupied
                         }
 

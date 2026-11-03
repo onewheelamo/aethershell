@@ -47,7 +47,7 @@ Item {
         const absX = Math.max(8, Math.min(win.width - popupW - 8, ix + relX))
         return absX - ix
     }
-    implicitWidth: mainRow.implicitWidth + 24
+    implicitWidth: mainRow.implicitWidth + Theme.padH * 2
     implicitHeight: Theme.barHeight
     height: Theme.barHeight
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -441,14 +441,14 @@ Item {
                             color: Theme.activePopup === "notifications"
                                 ? Theme.bg
                                 : (islandRight.notificationsList.length > 0 ? Theme.warn : Theme.fg)
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.textLg
                         }
 
                         Text {
                             visible: islandRight.notificationsList.length > 0
                             text: String(islandRight.notificationsList.length)
                             color: Theme.activePopup === "notifications" ? Theme.bg : Theme.warn
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                     }
@@ -498,7 +498,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: String(islandRight.pendingUpdatesCount)
                             color: Theme.accent
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                     }
@@ -601,7 +601,7 @@ Item {
                         color: Theme.activePopup === "wifi"
                             ? Theme.bg
                             : (islandRight.wifiConnected ? Theme.accent : Theme.error)
-                        font.pixelSize: 15
+                        font.pixelSize: Theme.textLg
                     }
 
                     Text {
@@ -609,7 +609,7 @@ Item {
                             ? (islandRight.wifiSsid !== "" ? islandRight.wifiSsid : "WiFi")
                             : "Déconnecté"
                         color: Theme.activePopup === "wifi" ? Theme.bg : Theme.fg
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.textSm
                         font.bold: islandRight.wifiConnected
                     }
                 }
@@ -672,13 +672,13 @@ Item {
                             color: (islandRight.batPercent <= 15 && islandRight.batStatus !== "Charging")
                                 ? Theme.error
                                 : (islandRight.batStatus === "Charging" ? Theme.success : Theme.accent)
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.textLg
                         }
 
                         Text {
                             text: islandRight.batPercent + "%"
                             color: Theme.fg
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.bold: islandRight.batPercent <= 15
                         }
 
@@ -693,7 +693,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: "80%"
                                 color: Theme.bg
-                                font.pixelSize: 8
+                                font.pixelSize: Theme.text2xs
                                 font.bold: true
                             }
                         }
@@ -713,13 +713,13 @@ Item {
                             Text {
                                 text: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
                                 color: islandRight.volMuted ? Theme.error : Theme.accent
-                                font.pixelSize: 14
+                                font.pixelSize: Theme.textLg
                             }
 
                             Text {
                                 text: islandRight.volMuted ? "Muet" : (islandRight.volPercent + "%")
                                 color: islandRight.volMuted ? Theme.error : Theme.fg
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.textSm
                             }
                         }
 
@@ -758,13 +758,13 @@ Item {
                             Text {
                                 text: "󰃟"
                                 color: Theme.accent
-                                font.pixelSize: 14
+                                font.pixelSize: Theme.textLg
                             }
 
                             Text {
                                 text: islandRight.briPercent + "%"
                                 color: Theme.fg
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.textSm
                             }
                         }
 
@@ -802,7 +802,7 @@ Item {
                     anchors.centerIn: parent
                     text: "⌨"
                     color: Theme.accent
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.textLg
                 }
 
                 MouseArea {
@@ -911,13 +911,25 @@ Item {
                     width: parent.width
                     height: 26
 
-                    Text {
+                    Row {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "📶 Réseaux WiFi disponibles"
-                        color: Theme.fg
-                        font.pixelSize: 14
-                        font.bold: true
+                        spacing: Theme.space2
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "wifi"
+                            size: Theme.iconSm
+                            color: Theme.accent
+                            opacityLevel: 1
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Réseaux disponibles"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textLg
+                            font.bold: true
+                        }
                     }
 
                     Rectangle {
@@ -932,7 +944,7 @@ Item {
                             anchors.centerIn: parent
                             text: islandRight.wifiScanning ? "Scan..." : "↻ Scan"
                             color: rescanMa.containsMouse ? Theme.bg : Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
 
@@ -962,7 +974,7 @@ Item {
                         anchors.centerIn: parent
                         text: islandRight.connectingStatus
                         color: Theme.fg
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         elide: Text.ElideRight
                         width: parent.width - 12
                         horizontalAlignment: Text.AlignHCenter
@@ -988,7 +1000,7 @@ Item {
                             visible: !islandRight.wifiScanning && islandRight.wifiNetworks.length === 0
                             text: "Aucun réseau WiFi détecté."
                             color: Qt.alpha(Theme.fg, 0.7)
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.italic: true
                         }
 
@@ -1029,7 +1041,7 @@ Item {
                                             color: netItemCol.modelData.signal >= 60
                                                 ? Theme.success
                                                 : (netItemCol.modelData.signal >= 30 ? Theme.warn : Theme.error)
-                                            font.pixelSize: 15
+                                            font.pixelSize: Theme.textLg
                                         }
 
                                         // Network SSID
@@ -1037,7 +1049,7 @@ Item {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: netItemCol.modelData.ssid
                                             color: Theme.fg
-                                            font.pixelSize: 12
+                                            font.pixelSize: Theme.textSm
                                             font.bold: netItemCol.modelData.in_use
                                             elide: Text.ElideRight
                                             width: 175
@@ -1057,15 +1069,16 @@ Item {
                                                 ? "Connecté"
                                                 : (netItemCol.modelData.signal + "%")
                                             color: netItemCol.modelData.in_use ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                                            font.pixelSize: 10
+                                            font.pixelSize: Theme.textXs
                                             font.bold: netItemCol.modelData.in_use
                                         }
 
-                                        Text {
+                                        Icon {
                                             visible: Boolean(netItemCol.modelData.secured)
                                             anchors.verticalCenter: parent.verticalCenter
-                                            text: "🔒"
-                                            font.pixelSize: 10
+                                            glyph: "lock"
+                                            size: 10
+                                            color: Theme.fg
                                         }
                                     }
 
@@ -1125,7 +1138,7 @@ Item {
                                                 anchors.leftMargin: 8
                                                 text: "Mot de passe WiFi (ou vide si connu)..."
                                                 color: Qt.alpha(Theme.fg, 0.45)
-                                                font.pixelSize: 11
+                                                font.pixelSize: Theme.textXs
                                             }
 
                                             TextInput {
@@ -1138,7 +1151,7 @@ Item {
                                                 focus: netItemCol.isExpanded
                                                 selectByMouse: true
                                                 color: Theme.fg
-                                                font.pixelSize: 12
+                                                font.pixelSize: Theme.textSm
                                                 clip: true
                                                 onAccepted: islandRight.connectToWifi(netItemCol.modelData.ssid, passInput.text)
                                                 Keys.onEscapePressed: islandRight.expandedSsid = ""
@@ -1161,7 +1174,7 @@ Item {
                                                 anchors.centerIn: parent
                                                 text: "Joindre"
                                                 color: Theme.bg
-                                                font.pixelSize: 11
+                                                font.pixelSize: Theme.textXs
                                                 font.bold: true
                                             }
 
@@ -1214,11 +1227,23 @@ Item {
                 anchors.margins: 14
                 spacing: 14
 
-                Text {
-                    text: "⚡ Contrôles Système (" + islandRight.hostName + ")"
-                    color: Theme.fg
-                    font.pixelSize: 14
-                    font.bold: true
+                Row {
+                    spacing: Theme.space2
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "cog"
+                        size: Theme.iconSm
+                        color: Theme.accent
+                        opacityLevel: 1
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Contrôles système · " + islandRight.hostName
+                        color: Theme.fg
+                        font.pixelSize: Theme.textLg
+                        font.bold: true
+                    }
                 }
 
                 // 1. Volume Slider Control
@@ -1233,14 +1258,14 @@ Item {
                             anchors.left: parent.left
                             text: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted) + "  Volume Audio"
                             color: Theme.fg
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.bold: true
                         }
                         Text {
                             anchors.right: parent.right
                             text: islandRight.volMuted ? "Muet (Cliquer pour activer)" : (islandRight.volPercent + "%")
                             color: islandRight.volMuted ? Theme.error : Theme.accent
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                             MouseArea {
                                 anchors.fill: parent
@@ -1291,14 +1316,14 @@ Item {
                             anchors.left: parent.left
                             text: "󰃟  Luminosité de l'écran"
                             color: Theme.fg
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.bold: true
                         }
                         Text {
                             anchors.right: parent.right
                             text: islandRight.briPercent + "%"
                             color: Theme.accent
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                     }
@@ -1358,13 +1383,25 @@ Item {
                             width: parent.width
                             height: 20
 
-                            Text {
+                            Row {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "🔋 Batterie : " + islandRight.batPercent + "% (" + islandRight.batStatus + ")"
-                                color: Theme.fg
-                                font.pixelSize: 12
-                                font.bold: true
+                                spacing: Theme.space1
+
+                                Icon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    glyph: "battery"
+                                    size: Theme.iconSm
+                                    color: Theme.fg
+                                    opacityLevel: 0.9
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Batterie : " + islandRight.batPercent + "% (" + islandRight.batStatus + ")"
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.textSm
+                                    font.bold: true
+                                }
                             }
                         }
 
@@ -1377,7 +1414,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Limiter la charge à 80% (Santé)"
                                 color: Qt.alpha(Theme.fg, 0.9)
-                                font.pixelSize: 11
+                                font.pixelSize: Theme.textXs
                             }
 
                             // 80% Limiter Toggle Button
@@ -1395,7 +1432,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: islandRight.batLimit80 ? "80% ON" : "100%"
                                     color: islandRight.batLimit80 ? Theme.bg : Theme.fg
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                     font.bold: true
                                 }
 
@@ -1447,7 +1484,7 @@ Item {
                 Text {
                     text: "⏻ Session & Alimentation"
                     color: Theme.error
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.textLg
                     font.bold: true
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
@@ -1460,11 +1497,11 @@ Item {
 
                 Repeater {
                     model: [
-                        { icon: "🔒", title: "Verrouiller la session", sub: "Protéger l'écran actif", cmd: "hyprlock || loginctl lock-session", danger: false },
-                        { icon: "🚪", title: "Fermer la session", sub: "Quitter Hyprland", cmd: "hyprctl dispatch 'hl.dsp.exit()' || hyprctl dispatch exit", danger: false },
-                        { icon: "💤", title: "Mise en veille", sub: "Suspendre en mémoire", cmd: "systemctl suspend", danger: false },
-                        { icon: "🔄", title: "Redémarrer", sub: "Relancer la machine " + islandRight.hostName, cmd: "systemctl reboot", danger: true },
-                        { icon: "🔴", title: "Extinction", sub: "Arrêter complètement le système", cmd: "systemctl poweroff", danger: true }
+                        { icon: "lock", title: "Verrouiller la session", sub: "Protéger l'écran actif", cmd: "hyprlock || loginctl lock-session", danger: false },
+                        { icon: "logout", title: "Fermer la session", sub: "Quitter Hyprland", cmd: "hyprctl dispatch 'hl.dsp.exit()' || hyprctl dispatch exit", danger: false },
+                        { icon: "sleep", title: "Mise en veille", sub: "Suspendre en mémoire", cmd: "systemctl suspend", danger: false },
+                        { icon: "restart", title: "Redémarrer", sub: "Relancer la machine " + islandRight.hostName, cmd: "systemctl reboot", danger: true },
+                        { icon: "power", title: "Extinction", sub: "Arrêter complètement le système", cmd: "systemctl poweroff", danger: true }
                     ]
 
                     Rectangle {
@@ -1487,10 +1524,12 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 12
 
-                            Text {
+                            Icon {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: pwrItem.modelData.icon
-                                font.pixelSize: 18
+                                glyph: pwrItem.modelData.icon
+                                size: Theme.iconMd
+                                color: pwrItem.modelData.danger ? Theme.error : Theme.fg
+                                opacityLevel: 1
                             }
 
                             Column {
@@ -1500,14 +1539,14 @@ Item {
                                 Text {
                                     text: pwrItem.modelData.title
                                     color: pwrItem.modelData.danger ? Theme.error : Theme.fg
-                                    font.pixelSize: 13
+                                    font.pixelSize: Theme.textMd
                                     font.bold: true
                                 }
 
                                 Text {
                                     text: pwrItem.modelData.sub
                                     color: Qt.alpha(Theme.fg, 0.65)
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                 }
                             }
                         }
@@ -1560,13 +1599,25 @@ Item {
                     width: parent.width
                     height: 24
 
-                    Text {
+                    Row {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "🔔 Notifications (" + islandRight.notificationsList.length + ")"
-                        color: Theme.fg
-                        font.pixelSize: 14
-                        font.bold: true
+                        spacing: Theme.space2
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "bell"
+                            size: Theme.iconSm
+                            color: Theme.accent
+                            opacityLevel: 1
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Notifications (" + islandRight.notificationsList.length + ")"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textLg
+                            font.bold: true
+                        }
                     }
 
                     Text {
@@ -1575,7 +1626,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Tout effacer"
                         color: Theme.error
-                        font.pixelSize: 11
+                        font.pixelSize: Theme.textXs
                         font.bold: true
                         MouseArea {
                             anchors.fill: parent
@@ -1601,7 +1652,7 @@ Item {
                             visible: islandRight.notificationsList.length === 0
                             text: "Aucune notification récente."
                             color: Qt.alpha(Theme.fg, 0.65)
-                            font.pixelSize: 12
+                            font.pixelSize: Theme.textSm
                             font.italic: true
                         }
 
@@ -1633,14 +1684,16 @@ Item {
                                             anchors.left: parent.left
                                             text: modelData.appName + " · " + modelData.time
                                             color: Theme.accentMuted
-                                            font.pixelSize: 10
+                                            font.pixelSize: Theme.textXs
                                             font.bold: true
                                         }
-                                        Text {
+                                        Icon {
                                             anchors.right: parent.right
-                                            text: "✕"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            glyph: "close"
+                                            size: 10
                                             color: Theme.fg
-                                            font.pixelSize: 10
+                                            opacityLevel: 0.7
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
@@ -1657,7 +1710,7 @@ Item {
                                         width: parent.width
                                         text: modelData.summary
                                         color: Theme.fg
-                                        font.pixelSize: 12
+                                        font.pixelSize: Theme.textSm
                                         font.bold: true
                                         wrapMode: Text.WordWrap
                                     }
@@ -1667,7 +1720,7 @@ Item {
                                         width: parent.width
                                         text: modelData.body
                                         color: Qt.alpha(Theme.fg, 0.85)
-                                        font.pixelSize: 11
+                                        font.pixelSize: Theme.textXs
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -1710,18 +1763,30 @@ Item {
                 anchors.margins: 10
                 spacing: 3
 
-                Text {
-                    text: "🔔 " + (islandRight.latestToast ? islandRight.latestToast.appName : "")
-                    color: Theme.warn
-                    font.pixelSize: 10
-                    font.bold: true
+                Row {
+                    spacing: Theme.space1
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "bell"
+                        size: 10
+                        color: Theme.warn
+                        opacityLevel: 1
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: islandRight.latestToast ? islandRight.latestToast.appName : ""
+                        color: Theme.warn
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
                 }
 
                 Text {
                     width: parent.width
                     text: islandRight.latestToast ? islandRight.latestToast.summary : ""
                     color: Theme.fg
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.textSm
                     font.bold: true
                     wrapMode: Text.WordWrap
                 }
@@ -1731,7 +1796,7 @@ Item {
                     width: parent.width
                     text: islandRight.latestToast ? islandRight.latestToast.body : ""
                     color: Qt.alpha(Theme.fg, 0.85)
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.textXs
                     wrapMode: Text.WordWrap
                 }
             }

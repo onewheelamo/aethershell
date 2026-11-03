@@ -130,7 +130,7 @@ Item {
                     anchors.centerIn: parent
                     text: "−"
                     color: Theme.accent
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.textLg
                     font.bold: true
                 }
 
@@ -171,7 +171,7 @@ Item {
                         return root.prefix + vStr + root.suffix
                     }
                     color: Theme.fg
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.textXs
                     font.bold: true
                 }
             }
@@ -193,7 +193,7 @@ Item {
                     anchors.centerIn: parent
                     text: "+"
                     color: Theme.accent
-                    font.pixelSize: 14
+                    font.pixelSize: Theme.textLg
                     font.bold: true
                 }
 

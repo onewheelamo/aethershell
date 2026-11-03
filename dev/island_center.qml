@@ -18,7 +18,7 @@ import Quickshell.Services.Mpris
 
 Item {
     id: islandCenter
-    implicitWidth: contentRow.implicitWidth + 28
+    implicitWidth: contentRow.implicitWidth + Theme.padH * 2
     implicitHeight: Theme.barHeight
     height: Theme.barHeight
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -135,7 +135,7 @@ Item {
 
     readonly property string hoverDisplayText: {
         if (activeMediaInfo && activeMediaInfo.label) {
-            return "🎵 " + activeMediaInfo.label
+            return activeMediaInfo.label
         }
         return hoverDateText
     }
@@ -374,7 +374,7 @@ Item {
                 id: clockText
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg
-                font.pixelSize: 14
+                font.pixelSize: Theme.textLg
                 font.bold: true
                 Timer {
                     interval: 1000
@@ -413,7 +413,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "·"
                         color: Theme.accent
-                        font.pixelSize: 14
+                        font.pixelSize: Theme.textLg
                         font.bold: true
                     }
 
@@ -429,7 +429,7 @@ Item {
                             anchors.fill: parent
                             text: islandCenter.hoverDisplayText
                             color: islandCenter.activeMediaInfo ? Theme.accent : Theme.accentMuted
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.textMd
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -466,11 +466,12 @@ Item {
                         ? Theme.accent
                         : (gearMa.containsMouse ? Theme.surfaceVariant : "transparent")
 
-                    Text {
+                    Icon {
                         anchors.centerIn: parent
-                        text: "⚙"
+                        glyph: "cog"
+                        size: Theme.iconMd
                         color: Theme.configPanelVisible ? Theme.bg : Theme.fg
-                        font.pixelSize: 14
+                        opacityLevel: 1
                     }
 
                     MouseArea {
@@ -575,7 +576,7 @@ Item {
                             anchors.centerIn: parent
                             text: "◀"
                             color: Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                         }
 
                         MouseArea {
@@ -598,7 +599,7 @@ Item {
                         Text {
                             text: islandCenter.monthNamesFr[islandCenter.viewDate.getMonth()] + " " + islandCenter.viewYear
                             color: titleResetMa.containsMouse ? Theme.accent : Theme.fg
-                            font.pixelSize: 14
+                            font.pixelSize: Theme.textLg
                             font.bold: true
 
                             MouseArea {
@@ -622,7 +623,7 @@ Item {
                                 : islandCenter.syncStatus === "loading"
                                     ? Theme.info
                                     : Theme.warn
-                            font.pixelSize: 13
+                            font.pixelSize: Theme.textMd
 
                             MouseArea {
                                 anchors.fill: parent
@@ -647,7 +648,7 @@ Item {
                             anchors.centerIn: parent
                             text: "▶"
                             color: Theme.fg
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                         }
 
                         MouseArea {
@@ -676,7 +677,7 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             text: modelData
                             color: Theme.accentMuted
-                            font.pixelSize: 11
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                         }
                     }
@@ -728,7 +729,7 @@ Item {
                                         : dayCell.modelData.inMonth
                                             ? Theme.fg
                                             : Qt.alpha(Theme.fg, 0.35)
-                                    font.pixelSize: 12
+                                    font.pixelSize: Theme.textSm
                                     font.bold: dayCell.modelData.isToday || dayCell.modelData.hasEvents
                                 }
 
@@ -783,13 +784,25 @@ Item {
                         width: parent.width
                         height: 24
 
-                        Text {
+                        Row {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "📅 " + islandCenter.selectedDateStr
-                            color: Theme.accent
-                            font.pixelSize: 12
-                            font.bold: true
+                            spacing: Theme.space1
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: "calendar"
+                                size: Theme.iconSm
+                                color: Theme.accent
+                                opacityLevel: 1
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: islandCenter.selectedDateStr
+                                color: Theme.accent
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
                         }
 
                         Row {
@@ -811,7 +824,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: islandCenter.addingEvent ? "Annuler" : "+ Ajouter"
                                     color: (islandCenter.addingEvent || addEvToggleMa.containsMouse) ? Theme.bg : Theme.fg
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                     font.bold: true
                                 }
 
@@ -833,11 +846,12 @@ Item {
                                 radius: Theme.globalRadius
                                 color: closeDayMa.containsMouse ? Theme.surfaceVariant : "transparent"
 
-                                Text {
+                                Icon {
                                     anchors.centerIn: parent
-                                    text: "✕"
+                                    glyph: "close"
+                                    size: 11
                                     color: Theme.fg
-                                    font.pixelSize: 11
+                                    opacityLevel: 1
                                 }
 
                                 MouseArea {
@@ -869,7 +883,7 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             text: islandCenter.addEventStatus
                             color: Theme.fg
-                            font.pixelSize: 10
+                            font.pixelSize: Theme.textXs
                             elide: Text.ElideRight
                         }
                     }
@@ -918,7 +932,7 @@ Item {
                                     anchors.leftMargin: 8
                                     text: "Titre de l'événement..."
                                     color: Qt.alpha(Theme.fg, 0.45)
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                 }
 
                                 TextInput {
@@ -930,7 +944,7 @@ Item {
                                     focus: islandCenter.addingEvent
                                     selectByMouse: true
                                     color: Theme.fg
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                     clip: true
                                     KeyNavigation.tab: evStartInput
                                     onAccepted: islandCenter.submitNewEvent(evTitleInput.text, evStartInput.text, evEndInput.text, evLocInput.text)
@@ -964,7 +978,7 @@ Item {
                                         anchors.leftMargin: 8
                                         text: "Début (ex: 14:00)"
                                         color: Qt.alpha(Theme.fg, 0.45)
-                                        font.pixelSize: 10
+                                        font.pixelSize: Theme.textXs
                                     }
 
                                     TextInput {
@@ -975,7 +989,7 @@ Item {
                                         verticalAlignment: TextInput.AlignVCenter
                                         selectByMouse: true
                                         color: Theme.fg
-                                        font.pixelSize: 11
+                                        font.pixelSize: Theme.textXs
                                         clip: true
                                         KeyNavigation.tab: evEndInput
                                         onAccepted: islandCenter.submitNewEvent(evTitleInput.text, evStartInput.text, evEndInput.text, evLocInput.text)
@@ -1004,7 +1018,7 @@ Item {
                                     anchors.leftMargin: 8
                                     text: "Fin (ex: 15:00)"
                                     color: Qt.alpha(Theme.fg, 0.45)
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                 }
 
                                 TextInput {
@@ -1015,7 +1029,7 @@ Item {
                                     verticalAlignment: TextInput.AlignVCenter
                                     selectByMouse: true
                                     color: Theme.fg
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                     clip: true
                                     KeyNavigation.tab: evLocInput
                                     onAccepted: islandCenter.submitNewEvent(evTitleInput.text, evStartInput.text, evEndInput.text, evLocInput.text)
@@ -1050,7 +1064,7 @@ Item {
                                     anchors.leftMargin: 8
                                     text: "Lieu (optionnel)..."
                                     color: Qt.alpha(Theme.fg, 0.45)
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                 }
 
                                 TextInput {
@@ -1061,7 +1075,7 @@ Item {
                                     verticalAlignment: TextInput.AlignVCenter
                                     selectByMouse: true
                                     color: Theme.fg
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                     clip: true
                                     KeyNavigation.tab: evTitleInput
                                     onAccepted: islandCenter.submitNewEvent(evTitleInput.text, evStartInput.text, evEndInput.text, evLocInput.text)
@@ -1087,7 +1101,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: islandCenter.addEventBusy ? "..." : "Créer"
                                     color: islandCenter.addEventBusy ? Theme.fg : Theme.bg
-                                    font.pixelSize: 11
+                                    font.pixelSize: Theme.textXs
                                     font.bold: true
                                 }
 
@@ -1114,7 +1128,7 @@ Item {
                         ? "Synchronisation Nextcloud en cours..."
                         : "Aucun événement Nextcloud prévu ce jour."
                     color: Qt.alpha(Theme.fg, 0.7)
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.textXs
                     font.italic: true
                 }
 
@@ -1151,7 +1165,7 @@ Item {
                                 Text {
                                     text: modelData.time || ""
                                     color: Theme.accentMuted
-                                    font.pixelSize: 10
+                                    font.pixelSize: Theme.textXs
                                     font.bold: true
                                 }
                             }
@@ -1160,18 +1174,31 @@ Item {
                                 width: parent.width
                                 text: modelData.summary || "Événement"
                                 color: Theme.fg
-                                font.pixelSize: 12
+                                font.pixelSize: Theme.textSm
                                 font.bold: true
                                 wrapMode: Text.WordWrap
                             }
 
-                            Text {
+                            Row {
                                 visible: Boolean(modelData.location && modelData.location !== "")
                                 width: parent.width
-                                text: "📍 " + (modelData.location || "")
-                                color: Qt.alpha(Theme.fg, 0.8)
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
+                                spacing: Theme.space1
+
+                                Icon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    glyph: "map-marker"
+                                    size: 10
+                                    color: Qt.alpha(Theme.fg, 0.8)
+                                    opacityLevel: 1
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 14
+                                    text: modelData.location || ""
+                                    color: Qt.alpha(Theme.fg, 0.8)
+                                    font.pixelSize: Theme.textXs
+                                    elide: Text.ElideRight
+                                }
                             }
                         }
                     }

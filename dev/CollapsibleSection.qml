@@ -49,24 +49,26 @@ Item {
             Behavior on color { ColorAnimation { duration: 120 } }
 
             Row {
-                anchors.left: parent.left
-                anchors.leftMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 10
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.padH
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Theme.space2
 
-                Text {
-                    visible: root.icon !== ""
-                    text: root.icon
-                    font.pixelSize: 13
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: root.title
-                    color: root.titleColor
-                    font.pixelSize: 13
-                    font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+            Icon {
+                visible: root.icon !== ""
+                glyph: root.icon
+                size: Theme.iconSm
+                color: Theme.accent
+                opacityLevel: 1
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: root.title
+                color: root.titleColor
+                font.pixelSize: Theme.textMd
+                font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
+            }
             }
 
             Text {
@@ -75,7 +77,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.expanded ? "▼" : "▶"
                 color: Theme.accent
-                font.pixelSize: 11
+                font.pixelSize: Theme.textXs
             }
 
             MouseArea {

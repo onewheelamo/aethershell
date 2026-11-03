@@ -32,6 +32,34 @@ QtObject {
     property string wallpaperDir: "$HOME/Images/wallpapers/"
 
     // ────────────────────────────────────────────────────────────────────────
+    // SECTION 1B: DESIGN TOKENS (TYPOGRAPHIE, RYTHME, ICÔNES)
+    // ────────────────────────────────────────────────────────────────────────
+    // Une seule échelle typographique : les îles et le panneau ne doivent plus
+    // utiliser de pixelSize littéral.
+    readonly property string fontUi: "Inter"
+    readonly property string fontIcon: "0xProto Nerd Font"
+
+    readonly property int text2xs: 9   // exposants, unités
+    readonly property int textXs: 11   // métadonnées, unités
+    readonly property int textSm: 12   // corps
+    readonly property int textMd: 13   // emphase, libellés de section
+    readonly property int textLg: 14   // horloge compacte, titres d'île
+    readonly property int textXl: 18   // heure principale
+    readonly property int textXxl: 22  // OSD, grands chiffres
+
+    readonly property int iconSm: 13
+    readonly property int iconMd: 15
+
+    // Rythme : multiples de 4, gouttière d'écran = 8
+    readonly property int space1: 4
+    readonly property int space2: 8
+    readonly property int space3: 12
+    readonly property int space4: 16
+    readonly property int padH: 12     // padding horizontal interne d'une île
+    readonly property int gutter: 8    // marge entre les îles et les bords
+    readonly property int pillRadius: Math.min(globalRadius, Math.round(barHeight / 2))
+
+    // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: HYPRLAND LAYOUT & BLUR METRICS
     // ────────────────────────────────────────────────────────────────────────
     // Synchronized with hyprland.lua / general.lua and live-updated
