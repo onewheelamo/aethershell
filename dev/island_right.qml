@@ -839,7 +839,7 @@ Item {
                 Icon {
                     anchors.centerIn: parent
                     glyph: "power"
-                    size: Math.max(11, Math.round(powerBtn.btnSize * 0.55))
+                    size: Theme.iconSm
                     color: Theme.activePopup === "power"
                         ? Theme.bg
                         : (powerMa.containsMouse ? Theme.error : Theme.fg)
