@@ -1,0 +1,24 @@
+# Build and transient files
+*.new
+*.upstream
+*.bak
+*.old
+*.swp
+*.kate-swp
+*~
+
+# Python cache & logs
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Sensitive information
+dev/core/secrets.json
+secrets.json
+
+# Environment backups
+backups_env/
+
+# Third-party inspiration repos (nested git clones)
+inspirations/

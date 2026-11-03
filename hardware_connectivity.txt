@@ -1,0 +1,4 @@
+Contexte matériel et connectivité :
+- Machine : Lenovo Yoga 720-15IKB (hôte: portable).
+- Usage nomade : Gestion fluide du passage entre différents réseaux WiFi.
+- Affichage : Gestion du branchement sur écrans TV (résolutions, sorties).

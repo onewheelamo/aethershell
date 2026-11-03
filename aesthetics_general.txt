@@ -1,0 +1,11 @@
+Besoin : Esthétique Générale
+- Gestion des Couleurs : Utilisation de Matugen pour générer dynamiquement une palette de couleurs basée sur le fond d'écran actuel.
+- Mise en œuvre : Les couleurs générées par Matugen doivent être injectées dans Quickshell et Hyprland.
+- Gaps, Bordures et Animations : Conservation et application des paramètres déjà définis dans le fichier /home/utilisateur/.config/hypr/hyprland.lua.
+- Cohérence : L'interface Quickshell doit s'aligner sur les arrondis et le style visuel de Hyprland pour une expérience unifiée.
+- Lanceur d'applications : Utilisation de Rofi, avec un thème de couleur synchronisé dynamiquement via Matugen.
+- Gestion du Wallpaper : Utilisation de hyprquickpaper (iamsurjog).
+- Configuration Wallpaper : Application des tweaks de 43PR (dépôt cloné localement dans /home).
+- Gestion de l'Opacité :
+  - Opacité générale : 0.85 pour la majorité des fenêtres.
+  - Exceptions (Opacité 1.0) : Firefox, OnlyOffice et toute application de lecture vidéo.

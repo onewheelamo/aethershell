@@ -1,0 +1,17 @@
+Besoin : Gestion du WiFi via le systray (Quickshell).
+- Interaction : L'icône du systray doit être cliquable et ouvrir un panneau.
+- Contenu du panneau : Liste des réseaux WiFi disponibles.
+- Détails par ligne : 
+  - Icône dynamique en début de ligne indiquant la force du signal.
+  - Nom du réseau.
+- Authentification : 
+  - Cliquer sur le nom d'un réseau fait apparaître un champ de saisie pour le mot de passe juste en dessous.
+- Zone de Notifications : Le systray doit intégrer un espace pour afficher les notifications système.
+- Applications d'arrière-plan : Support et affichage des icônes des programmes tournant en background (ex: Steam, ProtonVPN, etc.).
+- Interaction Icônes : Toutes les icônes du systray doivent être cliquables et ouvrir le menu respectif de l'application correspondante.
+- Section Système (Visuellement séparée du Systray et du Réseau) :
+  - Batterie : Affichage du niveau + Option de limitation de charge à 80%.
+  - Audio & Luminosité : Contrôles du volume sonore et de la clarté de l'écran.
+  - Menu Alimentation (Extrémité Droite) :
+    - Interaction : Clic sur l'icône d'alimentation -> Ouverture d'un sous-menu de taille généreuse.
+    - Options : Extinction, Mise en veille, Redémarrage, Fermeture de session, Verrouillage de session.

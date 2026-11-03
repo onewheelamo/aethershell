@@ -1,0 +1,906 @@
+"""
+═══════════════════════════════════════════════════════════════════════════════
+CONFIGURATION MANAGER BACKEND (config_manager.py)
+═══════════════════════════════════════════════════════════════════════════════
+Core backend service bridging Quickshell QML interfaces and Hyprland's modular
+Lua configurations (~/.config/hypr/*.lua).
+
+Architecture Overview:
+  • Section 1: Constants, Paths, Color Keys, Matugen Schemes & Keysyms
+  • Section 2: Core Utility Functions & Safe Lua String/Identifier Serializers
+  • Section 3: Keyboard Layout & First-Run Onboarding (input.lua & binds.lua)
+  • Section 4: Appearance & Styling (style_vars.json, general.lua, Matugen)
+  • Section 5: System & Display Management (monitors.lua, HDMI/eDP profiles)
+  • Section 6: Keybindings Management (binds.lua parsing & AST updates)
+  • Section 7: Dynamic Variables & Applications (app_vars.json <-> programs.lua)
+  • Section 8: Autostart Management (autostart.json <-> exec.lua)
+  • Section 9: Full State Aggregator & CLI Entry Point
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import monitor_utils  # noqa: E402
+import tablet_mode_daemon  # noqa: E402
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1: CONSTANTS, PATHS, SCHEMES & KEYSYMS
+# ─────────────────────────────────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEV_ROOT = os.path.dirname(BASE_DIR)
+STYLE_FILE = os.path.join(BASE_DIR, "style_vars.json")
+APP_VARS_FILE = os.path.join(BASE_DIR, "app_vars.json")
+AUTOSTART_FILE = os.path.join(BASE_DIR, "autostart.json")
+ROFI_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_rofi_theme.sh")
+COLORS_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_colors.sh")
+SYSTEM_SERVICE = os.path.join(BASE_DIR, "system_service.py")
+
+# Detect whether we are running in ~/.config/quickshell/core or in dev/core
+if BASE_DIR.startswith(os.path.expanduser("~/.config/quickshell")):
+    HYPR_DIR = os.path.expanduser("~/.config/hypr")
+else:
+    HYPR_DIR = os.path.join(DEV_ROOT, "hypr_modular")
+
+COLOR_KEYS = {"bg", "fg", "accent", "accent_muted", "surface", "surface_variant", "error", "warn", "info", "success"}
+
+# Matugen color-scheme types accepted by `matugen image -t`
+MATUGEN_SCHEMES = {
+    "scheme-tonal-spot", "scheme-vibrant", "scheme-expressive",
+    "scheme-neutral", "scheme-monochrome", "scheme-fruit-salad",
+    "scheme-content", "scheme-fidelity", "scheme-rainbow",
+}
+
+# Explicit Workspace 1..10 keysym nomenclature per keyboard layout
+WORKSPACE_KEYS_BY_LAYOUT = {
+    "fr": ["ampersand", "eacute", "quotedbl", "apostrophe", "parenleft", "minus", "egrave", "underscore", "ccedilla", "agrave"],
+    "be": ["ampersand", "eacute", "quotedbl", "apostrophe", "parenleft", "section", "egrave", "exclam", "ccedilla", "agrave"],
+    "us": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    "gb": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    "de": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    "es": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    "ch": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+}
+
+
+LUA_KEYWORDS = {
+    "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in",
+    "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
+}
+KEY_COMBO_RE = re.compile(r"^[A-Za-z0-9_:+ -]{1,60}$")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 2: UTILITY FUNCTIONS & SAFE LUA SERIALIZERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def lua_str(value):
+    """Return `value` as a safe double-quoted Lua string literal."""
+    out = []
+    for ch in str(value):
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ord(ch) < 32 or ord(ch) == 127:
+            continue
+        else:
+            out.append(ch)
+    return '"' + "".join(out) + '"'
+
+
+def lua_ident(alias):
+    """Turn an app alias into a valid, non-reserved Lua identifier ('' if impossible)."""
+    ident = re.sub(r"[^a-z0-9_]", "_", str(alias).strip().lower()).strip("_")
+    if not ident:
+        return ""
+    if ident[0].isdigit():
+        ident = "app_" + ident
+    if ident in LUA_KEYWORDS:
+        ident = "app_" + ident
+    return ident
+
+
+def load_json(path):
+    if not os.path.exists(path):
+        return {}
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def save_json(path, data):
+    tmp_path = f"{path}.tmp.{os.getpid()}"
+    try:
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
+def run_cmd(cmd):
+    try:
+        if isinstance(cmd, list):
+            return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        return subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8").strip()
+    except Exception:
+        return ""
+
+
+def get_hostname():
+    try:
+        if os.path.exists("/etc/hostname"):
+            with open("/etc/hostname", "r") as f:
+                h = f.read().strip()
+                if h:
+                    return h.lower()
+    except Exception:
+        pass
+    out = run_cmd(["uname", "-n"])
+    return out.lower() if out else "station"
+
+
+def is_laptop_system():
+    if len(glob.glob("/sys/class/power_supply/BAT*")) > 0:
+        return True
+    return get_hostname() == "portable"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 3: KEYBOARD LAYOUT & FIRST-RUN ONBOARDING (input.lua & binds.lua)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_kb_layout():
+    """Read current kb_layout from input.lua (default: 'fr')."""
+    input_path = os.path.join(HYPR_DIR, "input.lua")
+    if os.path.exists(input_path):
+        try:
+            with open(input_path, "r") as f:
+                txt = f.read()
+            m = re.search(r'kb_layout\s*=\s*"([^"]+)"', txt)
+            if m:
+                return m.group(1).strip().lower()
+        except Exception:
+            pass
+    style_data = load_json(STYLE_FILE)
+    return style_data.get("kb_layout", "fr")
+
+
+def set_kb_layout(layout, mark_first_run_done=True):
+    """
+    Update kb_layout in input.lua AND convert workspace 1..5 explicit key names in binds.lua
+    so that AZERTY ('fr'/'be') uses ampersand..parenleft and QWERTY ('us', etc.) uses 1..5.
+    """
+    clean_layout = re.sub(r"[^a-zA-Z_-]", "", str(layout).strip().lower()) or "fr"
+    ws_keys = WORKSPACE_KEYS_BY_LAYOUT.get(clean_layout, WORKSPACE_KEYS_BY_LAYOUT["us"])
+
+    # 1. Update input.lua
+    input_path = os.path.join(HYPR_DIR, "input.lua")
+    if os.path.exists(input_path):
+        try:
+            with open(input_path, "r") as f:
+                txt = f.read()
+            txt = re.sub(r'(kb_layout\s*=\s*")[^"]+(")', rf"\g<1>{clean_layout}\g<2>", txt)
+            with open(input_path, "w") as f:
+                f.write(txt)
+        except Exception as e:
+            print(f"Error updating input.lua: {e}")
+
+    # 2. Update explicit workspace key names in binds.lua while preserving exact nomenclature format
+    binds_path = os.path.join(HYPR_DIR, "binds.lua")
+    if os.path.exists(binds_path):
+        try:
+            with open(binds_path, "r") as f:
+                btxt = f.read()
+            for idx, new_key in enumerate(ws_keys, start=1):
+                # Focus workspace idx
+                btxt = re.sub(
+                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.focus\(\{{\s*workspace\s*=\s*{idx}\s*\}}\)\s*\))',
+                    rf"\g<1>{new_key}\g<2>",
+                    btxt,
+                )
+                # Move silent workspace idx (CTRL)
+                btxt = re.sub(
+                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*CTRL\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.window\.move\(\{{\s*workspace\s*=\s*{idx}\s*,\s*silent\s*=\s*true\s*\}}\)\s*\))',
+                    rf"\g<1>{new_key}\g<2>",
+                    btxt,
+                )
+                # Move follow workspace idx (ALT)
+                btxt = re.sub(
+                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*ALT\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.window\.move\(\{{\s*workspace\s*=\s*{idx}\s*\}}\)\s*\))',
+                    rf"\g<1>{new_key}\g<2>",
+                    btxt,
+                )
+            with open(binds_path, "w") as f:
+                f.write(btxt)
+        except Exception as e:
+            print(f"Error updating workspace binds in binds.lua: {e}")
+
+    # 3. Persist state in style_vars.json (watched by Theme.qml)
+    style_data = load_json(STYLE_FILE)
+    style_data["kb_layout"] = clean_layout
+    if mark_first_run_done:
+        style_data["first_run_completed"] = True
+    save_json(STYLE_FILE, style_data)
+
+    # 4. Apply live in Hyprland (Lua config evaluation + reload for binds)
+    subprocess.run(
+        ["hyprctl", "eval", f'hl.config({{ input = {{ kb_layout = "{clean_layout}" }} }})'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    subprocess.run(
+        ["hyprctl", "reload"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return True
+
+
+def complete_first_run():
+    style_data = load_json(STYLE_FILE)
+    style_data["first_run_completed"] = True
+    if "kb_layout" not in style_data:
+        style_data["kb_layout"] = get_kb_layout()
+    save_json(STYLE_FILE, style_data)
+    return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4: APPEARANCE & STYLING (Gaps, Rounding, Wallpaper, Matugen, Opacity)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_hypr_gaps():
+    """Read current gaps_in, gaps_out, border_size from general.lua."""
+    gen_path = os.path.join(HYPR_DIR, "general.lua")
+    res = {"gaps_in": 2, "gaps_out": 8, "border_size": 2}
+    if not os.path.exists(gen_path):
+        return res
+    try:
+        with open(gen_path, "r") as f:
+            txt = f.read()
+        for key in ("gaps_in", "gaps_out", "border_size"):
+            m = re.search(rf"{key}\s*=\s*(\d+)", txt)
+            if m:
+                res[key] = int(m.group(1))
+    except Exception:
+        pass
+    return res
+
+
+def get_hypr_rounding():
+    """Read current decoration.rounding from general.lua or style_vars.json."""
+    gen_path = os.path.join(HYPR_DIR, "general.lua")
+    if os.path.exists(gen_path):
+        try:
+            with open(gen_path, "r") as f:
+                txt = f.read()
+            m = re.search(r"\brounding\s*=\s*(\d+)", txt)
+            if m:
+                return int(m.group(1))
+        except Exception:
+            pass
+    style_data = load_json(STYLE_FILE)
+    return int(style_data.get("hypr_rounding", 2))
+
+
+def update_hypr_gaps(key, val):
+    """Update gaps_in, gaps_out, or border_size in general.lua and apply live via hyprctl eval."""
+    if key not in ("gaps_in", "gaps_out", "border_size"):
+        return False
+    ival = max(0, min(60, int(float(val))))
+    gen_path = os.path.join(HYPR_DIR, "general.lua")
+    if os.path.exists(gen_path):
+        try:
+            with open(gen_path, "r") as f:
+                txt = f.read()
+            txt = re.sub(rf"({key}\s*=\s*)\d+", rf"\g<1>{ival}", txt)
+            with open(gen_path, "w") as f:
+                f.write(txt)
+        except Exception as e:
+            print(f"Error updating general.lua: {e}")
+
+    subprocess.run(
+        ["hyprctl", "eval", f"hl.config({{ general = {{ {key} = {ival} }} }})"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return True
+
+
+def get_wallpaper_dir():
+    """Return configured wallpaper directory (default: '$HOME/Images/wallpapers/')."""
+    style_data = load_json(STYLE_FILE)
+    wdir = str(style_data.get("wallpaper_dir", "")).strip()
+    if wdir:
+        return wdir
+    for cfg in (
+        os.path.expanduser("~/.config/quickshell/hyprquickpaper/config.json"),
+        os.path.join(DEV_ROOT, "hyprquickpaper", "config.json"),
+    ):
+        if os.path.exists(cfg):
+            try:
+                val = str(load_json(cfg).get("wallpaper_path", "")).strip()
+                if val:
+                    return val
+            except Exception:
+                pass
+    return "$HOME/Images/wallpapers/"
+
+
+def set_wallpaper_dir(path_str):
+    """Persist wallpaper directory in style_vars.json AND sync hyprquickpaper/config.json."""
+    raw = str(path_str).strip()
+    if not raw:
+        return False
+    # Normalize ~ at the start into $HOME for compatibility with hyprquickpaper/config.json
+    if raw == "~":
+        clean_dir = "$HOME/"
+    elif raw.startswith("~/"):
+        clean_dir = "$HOME/" + raw[2:]
+    else:
+        clean_dir = raw
+    if not clean_dir.endswith("/"):
+        clean_dir += "/"
+
+    style_data = load_json(STYLE_FILE)
+    style_data["wallpaper_dir"] = clean_dir
+    save_json(STYLE_FILE, style_data)
+
+    for cfg_path in (
+        os.path.join(DEV_ROOT, "hyprquickpaper", "config.json"),
+        os.path.expanduser("~/.config/quickshell/hyprquickpaper/config.json"),
+    ):
+        if os.path.exists(cfg_path):
+            try:
+                cfg = load_json(cfg_path)
+                cfg["wallpaper_path"] = clean_dir
+                save_json(cfg_path, cfg)
+            except Exception as e:
+                print(f"Error updating {cfg_path}: {e}", file=sys.stderr)
+    return True
+
+
+def set_panel_section(name, expanded):
+    data = load_json(STYLE_FILE)
+    sections = data.get("panel_sections", {})
+    sections[name] = bool(expanded)
+    data["panel_sections"] = sections
+    save_json(STYLE_FILE, data)
+
+
+def update_style_var(key, value):
+    if key == "wallpaper_dir":
+        return set_wallpaper_dir(value)
+    data = load_json(STYLE_FILE)
+    if key == "global_radius":
+        data[key] = max(0, min(30, int(float(value))))
+    elif key == "hypr_rounding":
+        ival = max(0, min(35, int(float(value))))
+        data[key] = ival
+        gen_path = os.path.join(HYPR_DIR, "general.lua")
+        if os.path.exists(gen_path):
+            try:
+                with open(gen_path, "r") as f:
+                    txt = f.read()
+                txt = re.sub(r"(\brounding\s*=\s*)\d+", rf"\g<1>{ival}", txt)
+                with open(gen_path, "w") as f:
+                    f.write(txt)
+            except Exception as e:
+                print(f"Error updating general.lua: {e}")
+        subprocess.run(
+            ["hyprctl", "eval", f"hl.config({{ decoration = {{ rounding = {ival} }} }})"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    elif key == "global_opacity":
+        data[key] = round(max(0.3, min(1.0, float(value))), 2)
+    elif key == "bar_height":
+        data[key] = max(28, min(60, int(float(value))))
+    elif key == "resize_step":
+        data[key] = max(1, min(200, int(float(value))))
+        save_json(STYLE_FILE, data)
+        # binds.lua lit resize_step au chargement : il faut recharger Hyprland
+        subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        return True
+    elif key == "show_config_button":
+        if isinstance(value, bool):
+            data[key] = value
+        else:
+            data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "matugen_scheme" and str(value) in MATUGEN_SCHEMES:
+        data["matugen_scheme"] = str(value)
+    elif key == "matugen_contrast":
+        data["matugen_contrast"] = max(-1.0, min(1.0, float(value)))
+    elif key == "blur_enabled":
+        data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "blur_size":
+        data[key] = max(1, min(20, int(float(value))))
+    elif key == "blur_passes":
+        data[key] = max(1, min(8, int(float(value))))
+    elif key == "blur_vibrancy":
+        data[key] = max(0.0, min(1.0, float(value)))
+    elif key == "active_theme" and value in data.get("palette", {}):
+        data["active_theme"] = value
+    elif key in COLOR_KEYS:
+        active = data.get("active_theme", "dynamic")
+        val_str = str(value).strip()
+        if not val_str.startswith("#"):
+            val_str = "#" + val_str
+        if re.match(r"^#[0-9a-fA-F]{6}$", val_str):
+            data.setdefault("palette", {}).setdefault(active, {})[key] = val_str.lower()
+    save_json(STYLE_FILE, data)
+    if os.path.exists(ROFI_GEN_SCRIPT):
+        subprocess.run(["bash", ROFI_GEN_SCRIPT], check=False)
+    return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 5: SYSTEM & DISPLAY MANAGEMENT (Monitors, Resolutions, Refresh Rates)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_monitors_info():
+    """Return active Hyprland monitors, available modes, hardware profile, and timezone/NTP info."""
+    monitors = []
+    out = run_cmd(["hyprctl", "monitors", "-j"])
+    if out:
+        try:
+            raw = json.loads(out)
+            for m in raw:
+                avail = m.get("availableModes") or []
+                # Pick top clean modes (deduplicated) for easy mouse selection
+                clean_modes = []
+                for mode_entry in avail:
+                    mode_short = mode_entry.replace(".00Hz", "").replace("Hz", "")
+                    if mode_short not in clean_modes:
+                        clean_modes.append(mode_short)
+                monitors.append(
+                    {
+                        "name": m.get("name", ""),
+                        "description": m.get("description", ""),
+                        "width": m.get("width", 1920),
+                        "height": m.get("height", 1080),
+                        "refreshRate": int(round(float(m.get("refreshRate", 60)))),
+                        "x": m.get("x", 0),
+                        "y": m.get("y", 0),
+                        "scale": m.get("scale", 1.0),
+                        "transform": m.get("transform", 0),
+                        "availableModes": clean_modes[:8],
+                    }
+                )
+        except Exception:
+            pass
+
+    tz = run_cmd(["timedatectl", "show", "-p", "Timezone", "--value"]) or "Europe/Paris"
+    ntp = run_cmd(["timedatectl", "show", "-p", "NTPSynchronized", "--value"]) == "yes"
+    return {
+        "hostname": get_hostname(),
+        "is_laptop": is_laptop_system(),
+        "monitors": monitors,
+        "timezone": tz,
+        "ntp": ntp,
+    }
+
+
+def set_monitor_profile(profile):
+    """
+    Apply multi-monitor / TV presets for Lenovo Yoga (eDP-1) + External TV (DP-1):
+      - 'dual'   : TV (DP-1 1920x1080@60 at 0x0) + Laptop (eDP-1 preferred at 1920x0)
+      - 'tv'     : TV only (disable eDP-1, enable DP-1 at 0x0)
+      - 'laptop' : Laptop only (enable eDP-1 preferred at 0x0)
+    """
+    if profile == "dual":
+        cmds = [
+            'hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })',
+            'hl.monitor({ output = "eDP-1", mode = "preferred", position = "1920x0", scale = 1, transform = 0 })',
+        ]
+    elif profile == "tv":
+        cmds = [
+            'hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })',
+            'hl.monitor({ output = "eDP-1", mode = "disable" })',
+        ]
+    elif profile == "laptop":
+        cmds = [
+            'hl.monitor({ output = "eDP-1", mode = "preferred", position = "0x0", scale = 1, transform = 0 })',
+        ]
+    else:
+        return False
+
+    for c in cmds:
+        subprocess.run(["hyprctl", "eval", c], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    return True
+
+
+def _update_monitor_block(txt, output_name, mode_str, scale):
+    """Update `mode` and `scale` independently inside the hl.monitor({...}) block of `output_name`."""
+    block_re = re.compile(
+        rf'hl\.monitor\(\{{[^{{}}]*?output\s*=\s*"{re.escape(output_name)}"[^{{}}]*?\}}\)'
+    )
+
+    def fix(m):
+        block = m.group(0)
+        if re.search(r'\bmode\s*=\s*"[^"]*"', block):
+            block = re.sub(r'(\bmode\s*=\s*)"[^"]*"', lambda x: f'{x.group(1)}"{mode_str}"', block, count=1)
+        if re.search(r'\bscale\s*=\s*[0-9.]+', block):
+            block = re.sub(r'(\bscale\s*=\s*)[0-9.]+', lambda x: f"{x.group(1)}{scale}", block, count=1)
+        else:
+            block = re.sub(r'\s*\}\)$', f", scale = {scale} }})", block)
+        return block
+
+    return block_re.sub(fix, txt)
+
+
+def set_monitor_mode(output_name, mode_str, scale="1"):
+    """Set resolution/refresh rate for a specific output (e.g. HDMI-A-1 or DP-1) and persist in hardware-<host>.lua.
+
+    The current position of the monitor is preserved (never reset to 0x0).
+    """
+    scale = str(scale)
+    if not monitor_utils.apply_monitor(output_name, mode=mode_str, scale=scale):
+        return False
+
+    host = get_hostname()
+    hw_path = os.path.join(HYPR_DIR, f"hardware-{host}.lua")
+    if not os.path.exists(hw_path):
+        hw_path = os.path.join(HYPR_DIR, "hardware-station.lua")
+
+    if os.path.exists(hw_path):
+        try:
+            with open(hw_path, "r") as f:
+                txt = f.read()
+            txt = _update_monitor_block(txt, output_name, mode_str, scale)
+            with open(hw_path, "w") as f:
+                f.write(txt)
+        except Exception:
+            pass
+    return True
+
+
+def set_screen_rotation(transform_id):
+    """Rotate internal screen eDP-1 (0=Normal, 1=90°, 2=180°, 3=270°). Shares its logic with the tablet daemon."""
+    tablet_mode_daemon.set_mode(None, int(transform_id) % 4)
+    return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 6: KEYBINDINGS MANAGEMENT (binds.lua)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_binds_list():
+    """Parse binds.lua and return a list of {mod, key, dispatcher, target}."""
+    path = os.path.join(HYPR_DIR, "binds.lua")
+    binds = []
+    if not os.path.exists(path):
+        return binds
+
+    pattern = re.compile(
+        r'hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*([^"]+)"\s*,\s*(hl\.dsp\.[a-zA-Z0-9_.]+)\((.*)\)\s*\)'
+    )
+    try:
+        with open(path, "r") as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("--"):
+                    continue
+                m = pattern.search(s)
+                if m:
+                    key_combo, dsp_fn, arg = m.groups()
+                    arg_clean = arg.strip().strip('"').strip("'")
+                    binds.append(
+                        {
+                            "mod": "SUPER",
+                            "key": key_combo.strip(),
+                            "dispatcher": dsp_fn,
+                            "target": arg_clean or dsp_fn.replace("hl.dsp.", ""),
+                        }
+                    )
+    except Exception:
+        pass
+    return binds
+
+
+def set_keybind(key_combo, command_or_var):
+    """Update or add a SUPER + <key_combo> shortcut in binds.lua."""
+    path = os.path.join(HYPR_DIR, "binds.lua")
+    key_clean = key_combo.strip()
+    cmd_clean = command_or_var.strip()
+    if not key_clean or not cmd_clean:
+        return False
+    if not KEY_COMBO_RE.match(key_clean):
+        print(f"Invalid key combo: {key_clean!r}", file=sys.stderr)
+        return False
+
+    known_vars = {"terminal", "music_player", "browser1", "browser2", "file_explorer", "editor"}
+    app_data = load_json(APP_VARS_FILE)
+    for k in app_data:
+        ident = lua_ident(k)
+        if ident:
+            known_vars.add(ident)
+
+    if cmd_clean in known_vars:
+        rhs = f"hl.dsp.exec_cmd({cmd_clean})"
+    else:
+        rhs = f"hl.dsp.exec_cmd({lua_str(cmd_clean)})"
+
+    new_line = f'hl.bind(mainMod .. " + {key_clean}", {rhs})\n'
+    lhs_prefix = f'hl.bind(mainMod .. " + {key_clean}"'
+
+    try:
+        lines = []
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                lines = f.readlines()
+        updated = False
+        for i, line in enumerate(lines):
+            if lhs_prefix in line:
+                lines[i] = new_line
+                updated = True
+                break
+        if not updated:
+            lines.append(new_line)
+        with open(path, "w") as f:
+            f.writelines(lines)
+        subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        return True
+    except Exception as e:
+        print(f"Error updating bind: {e}")
+        return False
+
+
+def remove_keybind(key_combo):
+    """Remove a SUPER + <key_combo> shortcut from binds.lua."""
+    if not KEY_COMBO_RE.match(key_combo.strip()):
+        return False
+    path = os.path.join(HYPR_DIR, "binds.lua")
+    lhs_prefix = f'hl.bind(mainMod .. " + {key_combo.strip()}"'
+    if not os.path.exists(path):
+        return False
+    try:
+        with open(path, "r") as f:
+            lines = f.readlines()
+        new_lines = [l for l in lines if lhs_prefix not in l]
+        with open(path, "w") as f:
+            f.writelines(new_lines)
+        subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        return True
+    except Exception:
+        return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 7: DYNAMIC VARIABLES & APPLICATIONS (app_vars.json <-> programs.lua)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def set_app_var(alias, command):
+    if not lua_ident(alias) or not command.strip():
+        print(f"Invalid app alias or empty command: {alias!r}", file=sys.stderr)
+        return False
+    data = load_json(APP_VARS_FILE)
+    data[alias.strip()] = command.strip()
+    save_json(APP_VARS_FILE, data)
+    sync_programs_lua(data)
+    return True
+
+
+def remove_app_var(alias):
+    data = load_json(APP_VARS_FILE)
+    if alias in data:
+        del data[alias]
+        save_json(APP_VARS_FILE, data)
+        sync_programs_lua(data)
+    return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 8: AUTOSTART MANAGEMENT (autostart.json <-> autostart_cmds.txt)
+# ─────────────────────────────────────────────────────────────────────────────
+DEFAULT_AUTOSTART = [
+    {"name": "Quickshell (barre)", "cmd": "sh -c 'pgrep -x quickshell >/dev/null || exec quickshell' &", "enabled": True},
+    {"name": "Hypridle (inactivité)", "cmd": "sh -c 'pgrep -x hypridle >/dev/null || exec hypridle' &", "enabled": True},
+    {"name": "awww-daemon (wallpaper, si Noctalia absent)", "cmd": "sh -c 'pgrep -x awww-daemon >/dev/null || exec awww-daemon' &", "enabled": True},
+    {"name": "Agent Polkit", "cmd": "sh -c 'for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
+]
+
+
+def get_autostart():
+    if not os.path.exists(AUTOSTART_FILE):
+        return DEFAULT_AUTOSTART
+    data = load_json(AUTOSTART_FILE)
+    return data if isinstance(data, list) else DEFAULT_AUTOSTART
+
+
+def set_autostart(name, enabled=None, cmd=None):
+    entries = get_autostart()
+    changed = False
+    for e in entries:
+        if e.get("name") == name:
+            if enabled is not None:
+                e["enabled"] = bool(enabled)
+                changed = True
+            if cmd is not None and cmd.strip():
+                e["cmd"] = cmd.strip()
+                changed = True
+    if not changed:
+        return False
+    save_json(AUTOSTART_FILE, entries)
+    return sync_autostart_lua(entries)
+
+
+def add_autostart(name, cmd):
+    if not name.strip() or not cmd.strip():
+        return False
+    entries = get_autostart()
+    for e in entries:
+        if e.get("name") == name.strip():
+            return False
+    entries.append({"name": name.strip(), "cmd": cmd.strip(), "enabled": True})
+    save_json(AUTOSTART_FILE, entries)
+    return sync_autostart_lua(entries)
+
+
+def remove_autostart(name):
+    entries = get_autostart()
+    kept = [e for e in entries if e.get("name") != name]
+    if len(kept) == len(entries):
+        return False
+    save_json(AUTOSTART_FILE, kept)
+    return sync_autostart_lua(kept)
+
+
+def sync_autostart_lua(entries):
+    """Régénère ~/.config/hypr/autostart_cmds.txt (une commande par ligne).
+    Lu ligne à ligne par exec.lua dans hl.on("hyprland.start").
+    Les programmes désactivés sont préfixés par '#' pour garder la trace."""
+    out_path = os.path.join(HYPR_DIR, "autostart_cmds.txt")
+    lines = ["# Généré par core/config_manager.py — ne pas éditer à la main.",
+             "# Source de vérité : core/autostart.json (modifiable depuis le panneau)."]
+    for e in entries:
+        line = e["cmd"].strip()
+        if line:
+            lines.append(line if e.get("enabled", True) else "# " + line)
+    try:
+        os.makedirs(HYPR_DIR, exist_ok=True)
+        with open(out_path, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        return True
+    except Exception as ex:
+        print(f"Error writing {out_path}: {ex}", file=sys.stderr)
+        return False
+
+
+def sync_programs_lua(app_data):
+    """Synchronize core/app_vars.json with Hyprland's programs.lua."""
+    programs_path = os.path.join(HYPR_DIR, "programs.lua")
+    mapping = {
+        "terminal": app_data.get("Terminal", "kitty"),
+        "music_player": app_data.get("Music", "strawberry"),
+        "browser1": app_data.get("Browser", "firefox"),
+        "browser2": app_data.get("Browser2", "zen-browser"),
+        "file_explorer": app_data.get("Files", "thunar"),
+        "editor": app_data.get("Editor", "code"),
+    }
+    lines = ["-- ~/.config/hypr/programs.lua\n-- Generated from core/app_vars.json by config_manager.py\n"]
+    for k, v in mapping.items():
+        lines.append(f"{k} = {lua_str(v)}\n")
+    for alias, cmd in app_data.items():
+        safe_key = lua_ident(alias)
+        if safe_key and safe_key not in mapping:
+            lines.append(f"{safe_key} = {lua_str(cmd)}\n")
+    try:
+        with open(programs_path, "w") as f:
+            f.writelines(lines)
+    except Exception as e:
+        print(f"Error syncing programs.lua: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 9: FULL STATE AGGREGATION & CLI DISPATCHER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_full_config_state():
+    style_data = load_json(STYLE_FILE)
+    kb = get_kb_layout()
+    return {
+        "hostname": get_hostname(),
+        "is_laptop": is_laptop_system(),
+        "kb_layout": kb,
+        "workspace_keys": WORKSPACE_KEYS_BY_LAYOUT.get(kb, WORKSPACE_KEYS_BY_LAYOUT["us"]),
+        "first_run_completed": bool(style_data.get("first_run_completed", False)),
+        "show_config_button": bool(style_data.get("show_config_button", True)),
+        "bar_height": int(style_data.get("bar_height", 40)),
+        "global_radius": int(style_data.get("global_radius", 2)),
+        "hypr_rounding": get_hypr_rounding(),
+        "wallpaper_dir": get_wallpaper_dir(),
+        "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),
+        "matugen_contrast": float(style_data.get("matugen_contrast", 0)),
+        "blur_enabled": bool(style_data.get("blur_enabled", True)),
+        "blur_size": int(style_data.get("blur_size", 3)),
+        "blur_passes": int(style_data.get("blur_passes", 3)),
+        "blur_vibrancy": float(style_data.get("blur_vibrancy", 0.1696)),
+        "resize_step": int(style_data.get("resize_step", 15)),
+        "panel_sections": style_data.get("panel_sections", {}),
+        "gaps": get_hypr_gaps(),
+        "display": get_monitors_info(),
+        "binds": get_binds_list(),
+        "apps": load_json(APP_VARS_FILE),
+        "autostart": get_autostart(),
+    }
+
+
+if __name__ == "__main__":
+    action = sys.argv[1] if len(sys.argv) > 1 else "state"
+    if action == "state":
+        print(json.dumps(get_full_config_state()))
+    elif action == "kb_layout" and len(sys.argv) > 2:
+        set_kb_layout(sys.argv[2], mark_first_run_done=True)
+        print(json.dumps(get_full_config_state()))
+    elif action == "complete_first_run":
+        complete_first_run()
+        print(json.dumps(get_full_config_state()))
+    elif action == "panel_section" and len(sys.argv) > 3:
+        set_panel_section(sys.argv[2], sys.argv[3] == "true")
+        print(json.dumps(get_full_config_state()))
+    elif action == "style" and len(sys.argv) > 3:
+        update_style_var(sys.argv[2], sys.argv[3])
+        print(json.dumps(get_full_config_state()))
+    elif action == "gaps" and len(sys.argv) > 3:
+        update_hypr_gaps(sys.argv[2], sys.argv[3])
+        print(json.dumps(get_full_config_state()))
+    elif action == "monitor_profile" and len(sys.argv) > 2:
+        set_monitor_profile(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
+    elif action == "monitor_mode" and len(sys.argv) > 3:
+        scale = sys.argv[4] if len(sys.argv) > 4 else "1"
+        set_monitor_mode(sys.argv[2], sys.argv[3], scale)
+        print(json.dumps(get_full_config_state()))
+    elif action == "rotate" and len(sys.argv) > 2:
+        set_screen_rotation(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
+    elif action == "bind_set" and len(sys.argv) > 3:
+        set_keybind(sys.argv[2], " ".join(sys.argv[3:]))
+        print(json.dumps(get_full_config_state()))
+    elif action == "bind_del" and len(sys.argv) > 2:
+        remove_keybind(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
+    elif action == "app_set" and len(sys.argv) > 3:
+        set_app_var(sys.argv[2], " ".join(sys.argv[3:]))
+        print(json.dumps(get_full_config_state()))
+    elif action == "app_del" and len(sys.argv) > 2:
+        remove_app_var(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
+    elif action == "autostart_set" and len(sys.argv) > 3:
+        set_autostart(sys.argv[2], enabled=(sys.argv[3] == "true"))
+        print(json.dumps(get_full_config_state()))
+    elif action == "autostart_add" and len(sys.argv) > 3:
+        add_autostart(sys.argv[2], " ".join(sys.argv[3:]))
+        print(json.dumps(get_full_config_state()))
+    elif action == "autostart_del" and len(sys.argv) > 2:
+        remove_autostart(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
+    elif action == "battery" and len(sys.argv) > 2:
+        subprocess.run(["python3", SYSTEM_SERVICE, "limit", sys.argv[2]], check=False)
+        print(json.dumps(get_full_config_state()))
+    else:
+        print(json.dumps(get_full_config_state()))

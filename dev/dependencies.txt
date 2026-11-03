@@ -1,0 +1,15 @@
+quickshell
+hyprland
+fuzzel
+rofi
+matugen
+brightnessctl
+wpctl
+nmcli
+powerprofilesctl
+monitor-sensor
+jq
+magick
+awww
+hyprshot
+slurp

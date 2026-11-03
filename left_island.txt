@@ -1,0 +1,16 @@
+Besoin : Îlot de gauche (Gestion des Workspaces).
+- Affichage : Liste des workspaces permanents (1 à 5 : 一, 二, 三, 四, 五) + workspaces dynamiques éventuels.
+- Source : Basé sur la configuration Hyprland (/home/utilisateur/.config/hypr/hyprland.lua et keybindings.lua).
+- Workspaces détectés :
+  - Workspace 1 : permanent, nom par défaut "一"
+  - Workspace 2 : permanent, nom par défaut "二" (Firefox assigné par défaut)
+  - Workspace 3 : permanent, nom par défaut "三"
+  - Workspace 4 : permanent, nom par défaut "四"
+  - Workspace 5 : permanent, nom par défaut "五"
+
+- Raccourcis extraits (Disposition AZERTY) :
+  - SUPER + & (ampersand)  : Aller au Workspace 1 (+ CTRL : déplacer fenêtre silencieusement, + ALT : déplacer et suivre)
+  - SUPER + é (eacute)     : Aller au Workspace 2 (+ CTRL : déplacer fenêtre silencieusement, + ALT : déplacer et suivre)
+  - SUPER + " (quotedbl)   : Aller au Workspace 3 (+ CTRL : déplacer fenêtre silencieusement, + ALT : déplacer et suivre)
+  - SUPER + ' (apostrophe) : Aller au Workspace 4 (+ CTRL : déplacer fenêtre silencieusement, + ALT : déplacer et suivre)
+  - SUPER + ( (parenleft)  : Aller au Workspace 5 (+ CTRL : déplacer fenêtre silencieusement, + ALT : déplacer et suivre)

@@ -1,0 +1,5 @@
+Structure Visuelle du Bureau (Layout) :
+- Distribution : 3 îlots distincts.
+  - GAUCHE : Îlot des Workspaces (encapsulation propre).
+  - CENTRE : Îlot de l'Heure et Date (encapsulation propre).
+  - DROITE : Îlot Système et Systray (encapsulation propre).

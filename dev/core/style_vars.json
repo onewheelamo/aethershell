@@ -1,0 +1,58 @@
+{
+    "active_theme": "dynamic",
+    "global_radius": 2,
+    "hypr_rounding": 2,
+    "global_opacity": 0.85,
+    "bar_height": 40,
+    "kb_layout": "fr",
+    "first_run_completed": false,
+    "wallpaper_dir": "$HOME/Images/wallpapers/",
+    "matugen_scheme": "scheme-tonal-spot",
+    "matugen_contrast": 0,
+    "blur_enabled": true,
+    "blur_size": 3,
+    "blur_passes": 3,
+    "blur_vibrancy": 0.1696,
+    "palette": {
+        "dynamic": {
+            "bg": "#090f0f",
+            "fg": "#dde4e3",
+            "accent": "#80d5d4",
+            "accent_muted": "#b0cccb",
+            "surface": "#0e1514",
+            "surface_variant": "#1a2121",
+            "error": "#ffb4ab",
+            "warn": "#b3c8e8",
+            "info": "#b0cccb",
+            "success": "#b3c8e8"
+        },
+        "tokyo-night": {
+            "bg": "#1a1b26",
+            "fg": "#a9b1d6",
+            "accent": "#7aa2f7",
+            "accent_muted": "#bb9af7",
+            "surface": "#24283b",
+            "surface_variant": "#414868",
+            "error": "#f7768e",
+            "warn": "#e0af68",
+            "info": "#7dcfff",
+            "success": "#9ece6a"
+        },
+        "catppuccin": {
+            "bg": "#1e1e2e",
+            "fg": "#cdd6f4",
+            "accent": "#cba6f7",
+            "accent_muted": "#f5c2e7",
+            "surface": "#313244",
+            "surface_variant": "#45475a",
+            "error": "#f38ba8",
+            "warn": "#fab387",
+            "info": "#89b4fa",
+            "success": "#a6e3a1"
+        }
+    },
+    "panel_sections": {
+        "esthetique_theme": false
+    },
+    "resize_step": 15
+}

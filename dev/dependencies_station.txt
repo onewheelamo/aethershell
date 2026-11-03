@@ -1,0 +1,11 @@
+quickshell
+hyprland
+fuzzel
+rofi
+matugen
+nmcli
+jq
+magick
+awww
+hyprshot
+slurp
