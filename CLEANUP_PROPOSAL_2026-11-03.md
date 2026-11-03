@@ -355,3 +355,77 @@ dans `nextcloud_service.py` et `system_service.py`), `core/tablet_mode_daemon.py
 `core/workspace_service.py`, `core/system_service.py`, `core/theme_manager.py`,
 `core/generate_colors.sh`, `core/generate_rofi_theme.sh`,
 `core/secrets.example.json` (modèle), `hyprland.lua`, `exec.lua`, `windows.lua`.
+
+---
+
+## 6. Journal d'application (2026-11-03, 15:14–15:22)
+
+La proposition a été appliquée après validation externe, avec les écarts suivants.
+
+### 6.1 Ce qui a été fait
+
+| Volet | État | Détail |
+|---|---|---|
+| C.1 git | fait | dépôt initialisé dans `dev/quickshell_todo` ; 3 commits ; `inspirations/` et `dev/core/secrets.json` ignorés |
+| A nettoyage | fait | `dev/clean_targets.sh --apply` ; archive `backups_env/clean_20261103_151715/` (148 K, 10 `.new` archivés) ; `secrets.json.new` supprimé sans archivage |
+| B1 manifeste | partiel | pas de `deploy_manifest.tsv` : les manifestes sont construits à l'exécution (`ls` de `dev/hypr_modular`, `dev/core`, `dev/*.qml`) |
+| B2 sync/prune | fait | `sync_file` (`.upstream` seulement si différence), `copy_dir_files`, `prune_target` |
+| B3 rustines | fait | bind screenshot et `sed dampening` retirés |
+| B4 générateur | fait | `generate_rofi_theme.sh` écrit directement dans `~/.config/{rofi,fuzzel}` |
+| C.2 backups | fait | `rotate_backups` conserve les 3 tarballs les plus récents |
+
+### 6.2 Écarts et corrections apportées à la proposition
+
+1. **Dépôt unifié** : les trois scripts (`deploy.sh`, `deploy_station.sh`,
+   `deploy_portable.sh`) sont devenus un seul `deploy.sh` + deux wrappers `exec`.
+   C'est mieux que la proposition : la divergence entre hôtes que j'avais
+   signalée ne peut plus se reproduire. Toute correction va dans `deploy.sh`.
+2. **`colors.lua` classé `generated`, pas `state`** : il est retiré de
+   `PRESERVE_HYPR`. La palette est réécrite par Matugen à chaque changement de
+   fond d'écran, donc la comparer produisait un `.upstream` à chaque déploiement.
+   Le déploiement le copie puis `generate_rofi_theme.sh` le régénère depuis
+   `style_vars.json` : le panneau reste maître du rendu final.
+3. **Prune archivable** : `prune_target` copie désormais chaque fichier dans
+   `backups_env/pruned_YYYYMMDD/` avant suppression, et refuse de supprimer si
+   l'archivage échoue. Un `rm -f` sec n'était pas acceptable.
+4. **`PRUNE_DRY=1`** ajouté à `prune_target` pour tester un déploiement sans
+   suppression.
+5. **`rotate.sh` et `sync_to_*.sh` protégés du prune** (tier 2 non tranché) : ils
+   ne doivent pas disparaître par effet de bord d'un déploiement.
+6. **`.new` → `.upstream`** : un seul fichier par cible, écrasé au passage suivant.
+
+### 6.3 Incident et reprise
+
+La première exécution de test a élagué `rotate.sh`, `sync_to_portable.sh` et
+`sync_to_station.sh` : le correctif avait été appliqué aux scripts d'origine
+alors qu'ils venaient d'être remplacés par des wrappers (édition concurrente),
+donc la protection n'était pas dans `deploy.sh`. Les trois fichiers ont été
+restaurés depuis `backups_env/backup_station_hn.tar.gz`, puis la protection a
+été reportée dans `deploy.sh` et vérifiée par un `PRUNE_DRY=1` (zéro prune).
+
+Leçon retenue dans la skill : après un patch dans ce dépôt, re-grep la chaîne
+patchée et `git diff` avant d'exécuter quoi que ce soit.
+
+### 6.4 Vérifications
+
+```bash
+diff -rq dev ~/.config/quickshell --exclude=core --exclude=hyprquickpaper ...   # vide
+diff -rq dev/hypr_modular ~/.config/hypr                                       # vide (hors protégés)
+find ~/.config/hypr ~/.config/quickshell -name '*.upstream' -o -name '*.new'   # 0
+hyprctl configerrors                                                           # vide
+pgrep quickshell                                                               # 79168
+```
+
+Déploiement relancé deux fois de suite : aucun `.upstream`, aucun prune,
+`colors.lua` identique. Le rice affiché est inchangé (capture de contrôle).
+
+### 6.5 Reste ouvert
+
+- **Tier 2** : `rotate.sh`, `sync_to_portable.sh`, `sync_to_station.sh` sont
+  conservés et protégés. À supprimer seulement sur décision explicite.
+- **`programs.lua` / `autostart_cmds.txt`** : générés par le panneau mais encore
+  dans `PRESERVE_HYPR` ; ils produiront un `.upstream` le jour où le panneau les
+  modifie. Les basculer en `generated` quand `autostart.json` / `app_vars.json`
+  seront la seule source.
+- **Refonte UI du panneau** (`TODO_panel_sections.md`) : hors périmètre.
+
