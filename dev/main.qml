@@ -4,7 +4,10 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
-ShellRoot {
+// Racine du contenu : un Item, instancié par le Loader de shell.qml. Garder ici
+// un ShellRoot créerait un ShellRoot imbriqué, et un ShellRoot à la place de ce
+// Item n'est pas nécessaire (ShellRoot est optionnel).
+Item {
     id: root
 
     property string pendingKbLayout: Theme.kbLayout || "fr"

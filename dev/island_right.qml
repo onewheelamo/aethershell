@@ -1887,7 +1887,7 @@ Item {
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "Sans apparition spontanée"
+                                text: "Notifications silencieuses"
                                 color: Qt.alpha(Theme.fg, 0.45)
                                 font.pixelSize: Theme.text2xs
                             }
