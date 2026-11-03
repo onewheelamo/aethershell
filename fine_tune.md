@@ -25,6 +25,7 @@ Fait et déployé :
 | 6 | Liseré dégradé sur le workspace actif, avec repli fond plein sous 3:1 de contraste | `island_left.qml`, `Theme.qml` (`wsActiveOutline`) |
 | 4 | Dynamic island : zone média au survol, popup MPRIS, routeur de clics (heure inerte, date → calendrier) | `island_center.qml`, `Theme.qml` (`activePopup` = `media`) |
 | 12 | OSD unique : volume et luminosité hors de la barre, barre de progression 2 px | `main.qml`, `island_right.qml` |
+| 14 | Notifications en cartes : liseré d'application 2 px, survol, corps à 3 lignes, « Tout effacer » discret | `island_right.qml` (§7.4 et §7.5) |
 | 13 | Lock screen cohérent : fond flouté 24 px, Inter, heure tabulaire, ligne média, boutons MDI | `hypr_modular/hyprlock.conf`, `core/generate_rofi_theme.sh` §5 |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
@@ -60,6 +61,14 @@ dans le panneau système de l'île droite. Le popup s'appuie sur `mediaPlayer` (
 piste, même en pause) et non sur `activePlayer` (en lecture seule), sinon appuyer
 sur pause le refermait ; un `onPlayerChanged` le ferme si le lecteur disparaît.
 
+Note 14 : les cartes du centre de notifications portent un liseré de 2 px à gauche,
+franc sur la plus récente et effacé sur les anciennes — c'est la seule hiérarchie
+de couleur, le fond ne change qu'au survol. Le nom d'application est en accent et
+tronqué, l'heure en chiffres tabulaires, le corps limité à 3 lignes avec ellipse.
+« Tout effacer » est neutre au repos et ne passe en `error` qu'au survol : le rouge
+est un signal. Le toast (§7.5) reprend le même liseré et perd sa bordure `warn` —
+une notification n'est pas une alerte.
+
 Note 13 : `hyprlock.conf` est désormais **dans le dépôt** (`dev/hypr_modular/`,
 copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 `~/.config/hypr/hyprlock-colors.conf`, régénéré depuis `style_vars.json` par
@@ -67,7 +76,7 @@ copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
 jusqu'à l'écran de verrouillage. Le fond est `path = screenshot` flouté à 24 px :
 rien à maintenir côté wallpaper, et le verrou reprend ce que la session affichait.
 
-Reste : 7, 9, 10, 11, 14, 15, plus les réserves du §4.
+Reste : 7, 9, 10, 11, 15, plus les réserves du §4.
 
 ---
 
@@ -138,13 +147,6 @@ Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
 tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
 `Icon` étant en place, l'essentiel est de la mise en page.
 
-### 14. Notifications en cartes — M
-
-Fichier. `island_right.qml` (1 811 l.).
-
-Objectif. Cartes empilées, liseré accent de 2 px par application, titres sans
-emoji, action « tout effacer » discrète.
-
 ### 15. Écran de connexion SDDM cohérent — M, décision d'installation à prendre
 
 Objectif. L'écran de connexion ne doit pas casser l'unité visuelle : même fond
@@ -210,13 +212,11 @@ second demande de passer la ligne par `Icon` + `Text`, deux lignes.
 
 ## 5. Ordre conseillé
 
-Deux lots vérifiables d'un coup, un chantier séparé, une décision.
+Un lot, un chantier clavier, une décision.
 
-- **Lot C — 14 puis 11 — M, puis L.** Les deux derniers murs de texte. 14 est une
-  refonte de cartes déjà présentes (popup + toast existent dans
-  `island_right.qml`), donc plus court que sa fiche ne le laisse croire : c'est un
-  travail de forme, pas de plomberie. 11 est un vrai chantier de mise en page
-  (2 482 lignes de panneau à redistribuer en tiroir à onglets).
+- **Lot C — 11 (tiroir de réglages) — L.** Le dernier mur de texte : 2 482 lignes
+  de panneau à redistribuer en tiroir à onglets avec recherche. Les tokens,
+  `CollapsibleSection` et `Icon` sont en place, l'essentiel est de la mise en page.
 - **Lot D — 9 et 10 — M chacun.** Interaction clavier. 10 coûte plus que sa fiche :
   aucun `submap` n'existe aujourd'hui dans `binds.lua`, il faut d'abord créer les
   sous-cartes puis exporter les binds, avant d'afficher quoi que ce soit.
@@ -312,3 +312,16 @@ Deux lots vérifiables d'un coup, un chantier séparé, une décision.
   et la zone média dépendait de « en lecture », or `isPlaying` tombe entre deux
   pistes : la zone clignotait et la pilule se rétractait. Elle suit maintenant
   `mediaPlayer` (toute piste), le survol étant déjà la condition d'affichage.
+- 2026-11-03 : 14 livré — notifications en cartes. Liseré d'application de 2 px à
+  gauche (franc sur la plus récente, effacé sur les anciennes), fond
+  `surfaceVariant` sans bordure qui s'éclaircit au survol, nom d'app en accent,
+  heure tabulaire, corps limité à 3 lignes avec ellipse, croix en `error` au
+  survol seulement. En-tête : compteur en accent au lieu de « Notifications (3) » ;
+  « Tout effacer » neutre au repos, rouge au survol. Le toast perd sa bordure
+  `warn` et prend le même liseré : une notification n'est pas une alerte. État vide
+  centré avec cloche barrée. Mesures : survol de carte +4/+6/+7 par canal au pixel ;
+  « Tout effacer » ne rougit qu'au survol (255,180,171, la couleur `error` de la
+  palette) ; nom d'app long tronqué sans toucher la croix ; corps coupé à 3 lignes.
+  Piège de méthode : détruire le périphérique `/dev/uinput` entre deux positions
+  casse le `HyprlandFocusGrab` et referme le popup — les survols se vérifient par
+  petits déplacements internes, ou au pixel entre deux captures.
