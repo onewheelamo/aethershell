@@ -41,6 +41,14 @@ hl.config({
     misc = { force_default_wallpaper = -1, disable_hyprland_logo = false },
 })
 
+-- Flou derrière les surfaces Quickshell (barre, OSD, panneau).
+-- Sans ces règles, une surface layer-shell translucide laisse passer le texte
+-- des fenêtres net : le flou Kawase ne s'applique qu'aux fenêtres par défaut.
+hl.layer_rule({ match = { namespace = "portable-bar" },     blur = true })
+hl.layer_rule({ match = { namespace = "portable-osd" },     blur = true })
+hl.layer_rule({ match = { namespace = "portable-config" },  blur = true })
+hl.layer_rule({ match = { namespace = "portable-onboarding" }, blur = true })
+
 -- Courbes et animations
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
 hl.curve("easeInOutCubic", { type = "bezier", points = { {0.65, 0.05}, {0.36, 1}    } })
