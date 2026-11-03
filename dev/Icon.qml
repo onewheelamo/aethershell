@@ -19,7 +19,7 @@ Item {
     property string glyph: ""
     property real size: Theme.iconSm
     property color color: Theme.fg
-    property real opacityLevel: 0.78
+    property real opacityLevel: 1
 
     implicitWidth: Math.ceil(size)
     implicitHeight: Math.ceil(size)
@@ -77,6 +77,30 @@ Item {
         "pause": "\u{F03E4}",
         "next": "\u{F04AD}",
         "previous": "\u{F04AE}",
+        // marque + états dynamiques (wifi / batterie / volume / réseau)
+        "arch": "\u{F08C7}",
+        "wifi-none": "\u{F092D}",
+        "wifi-low": "\u{F091F}",
+        "wifi-medium": "\u{F0922}",
+        "wifi-high": "\u{F0925}",
+        "wifi-full": "\u{F0928}",
+        "battery-charging": "\u{F0084}",
+        "battery-full": "\u{F0079}",
+        "battery-70": "\u{F0080}",
+        "battery-50": "\u{F007E}",
+        "battery-25": "\u{F007C}",
+        "battery-10": "\u{F007A}",
+        "battery-outline": "\u{F008E}",
+        "volume-off": "\u{F036D}",
+        "volume-low": "\u{F057F}",
+        "volume-medium": "\u{F0580}",
+        "bell-off": "\u{F009C}",
+        "ethernet": "\u{F0200}",
+        "chevron-left": "\u{F0141}",
+        "chevron-right": "\u{F0142}",
+        "refresh": "\u{F0450}",
+        "cloud": "\u{F015F}",
+        "cloud-check": "\u{F0160}",
         "palette": "\u{F03D8}",
         "image": "\u{F02E9}",
         "bell": "\u{F009A}"

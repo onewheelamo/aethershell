@@ -27,7 +27,9 @@ Item {
     // SECTION 1: WORKSPACE MODEL & STATE PROPERTIES
     // ────────────────────────────────────────────────────────────────────────
     // Permanent workspaces defined in ~/.config/hypr/hyprland.lua
-    readonly property var permanentNames: ["一", "二", "三", "四", "五"]
+    // Chiffres arabes : les kanji venaient d'une fonte de repli CJK et juraient
+    // avec l'échelle typographique du reste de la barre.
+    readonly property var permanentNames: ["1", "2", "3", "4", "5"]
 
     // Active workspace tracked live via Quickshell.Hyprland (with fallback to workspace_service.py)
     property int fallbackActiveId: 1
@@ -185,12 +187,11 @@ Item {
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
-                Text {
+                Icon {
                     anchors.centerIn: parent
-                    text: "󰣇"
+                    glyph: "arch"
+                    size: Theme.iconMd
                     color: Theme.bg
-                    font.pixelSize: Theme.textLg
-                    font.bold: true
                 }
 
                 MouseArea {
@@ -266,6 +267,7 @@ Item {
                                 : wsDelegate.isOccupied
                                     ? Theme.fg
                                     : Qt.alpha(Theme.fg, 0.65)
+                            font.family: Theme.fontUi
                             font.pixelSize: Theme.textXs
                             font.bold: wsDelegate.isActive || wsDelegate.isOccupied
                         }

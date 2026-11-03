@@ -572,11 +572,12 @@ Item {
                         border.color: Theme.surfaceVariant
                         border.width: 1
 
-                        Text {
+                        Icon {
                             anchors.centerIn: parent
-                            text: "◀"
+                            glyph: "chevron-left"
+                            size: Theme.iconSm
                             color: Theme.fg
-                            font.pixelSize: Theme.textXs
+                            opacityLevel: 0.8
                         }
 
                         MouseArea {
@@ -615,15 +616,18 @@ Item {
                         }
 
                         // Nextcloud sync status / refresh button
-                        Text {
+                        Icon {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: islandCenter.syncStatus === "loading" ? "⟳" : "☁"
+                            glyph: islandCenter.syncStatus === "ok"
+                                ? "cloud-check"
+                                : islandCenter.syncStatus === "loading" ? "refresh" : "cloud"
                             color: islandCenter.syncStatus === "ok"
                                 ? Theme.success
                                 : islandCenter.syncStatus === "loading"
                                     ? Theme.info
                                     : Theme.warn
-                            font.pixelSize: Theme.textMd
+                            size: Theme.iconMd
+                            opacityLevel: 0.9
 
                             MouseArea {
                                 anchors.fill: parent
@@ -644,11 +648,12 @@ Item {
                         border.color: Theme.surfaceVariant
                         border.width: 1
 
-                        Text {
+                        Icon {
                             anchors.centerIn: parent
-                            text: "▶"
+                            glyph: "chevron-right"
+                            size: Theme.iconSm
                             color: Theme.fg
-                            font.pixelSize: Theme.textXs
+                            opacityLevel: 0.8
                         }
 
                         MouseArea {

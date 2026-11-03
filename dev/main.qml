@@ -122,13 +122,13 @@ ShellRoot {
                 anchors.centerIn: parent
                 spacing: 14
 
-                Text {
+                Icon {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Theme.osdKind === "brightness" ? "󰃟"
-                        : Theme.osdKind === "mute" ? "󰍭"
-                        : (Theme.osdValue <= 0 ? "󰕿" : Theme.osdValue < 50 ? "󰖀" : "󰕾")
+                    glyph: Theme.osdKind === "brightness" ? "brightness"
+                        : Theme.osdKind === "mute" ? "volume-off"
+                        : (Theme.osdValue <= 0 ? "mute" : Theme.osdValue < 50 ? "volume-medium" : "volume-high")
+                    size: Theme.textXxl
                     color: Theme.accent
-                    font.pixelSize: Theme.textXxl
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter

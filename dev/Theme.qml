@@ -47,8 +47,8 @@ QtObject {
     readonly property int textXl: 18   // heure principale
     readonly property int textXxl: 22  // OSD, grands chiffres
 
-    readonly property int iconSm: 13
-    readonly property int iconMd: 15
+    readonly property int iconSm: 14
+    readonly property int iconMd: 16
 
     // Rythme : multiples de 4, gouttière d'écran = 8
     readonly property int space1: 4

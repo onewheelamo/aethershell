@@ -91,29 +91,31 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: HELPER FUNCTIONS & FORMATTERS
     // ────────────────────────────────────────────────────────────────────────
+    // Renvoient un NOM d'icône (Icon.qml), plus un glyphe brut : c'est ce qui
+    // garantit une seule famille, une seule taille et un seul centrage.
     function signalIconFor(sig, connected) {
-        if (!connected && sig <= 0) return "󰤭"
-        if (sig >= 75) return "󰤨"
-        if (sig >= 50) return "󰤥"
-        if (sig >= 25) return "󰤢"
-        return "󰤟"
+        if (!connected && sig <= 0) return "wifi-none"
+        if (sig >= 75) return "wifi-full"
+        if (sig >= 50) return "wifi-high"
+        if (sig >= 25) return "wifi-medium"
+        return "wifi-low"
     }
 
     function batteryIconFor(pct, status) {
-        if (status === "Charging" || status === "Full") return "󰂄"
-        if (pct >= 90) return "󰁹"
-        if (pct >= 70) return "󰂀"
-        if (pct >= 50) return "󰁾"
-        if (pct >= 25) return "󰁼"
-        if (pct >= 10) return "󰁺"
-        return "󰂎"
+        if (status === "Charging" || status === "Full") return "battery-charging"
+        if (pct >= 90) return "battery-full"
+        if (pct >= 70) return "battery-70"
+        if (pct >= 50) return "battery-50"
+        if (pct >= 25) return "battery-25"
+        if (pct >= 10) return "battery-10"
+        return "battery-outline"
     }
 
     function volumeIconFor(pct, muted) {
-        if (muted || pct <= 0) return "󰝟"
-        if (pct < 35) return "󰕿"
-        if (pct < 70) return "󰖀"
-        return "󰕾"
+        if (muted || pct <= 0) return "mute"
+        if (pct < 35) return "volume-low"
+        if (pct < 70) return "volume-medium"
+        return "volume-high"
     }
 
     function applySystemInfo(data) {
@@ -436,12 +438,13 @@ Item {
                         anchors.centerIn: parent
                         spacing: 4
 
-                        Text {
-                            text: islandRight.notificationsList.length > 0 ? "󰂚" : "󰂜"
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: islandRight.notificationsList.length > 0 ? "bell" : "bell-off"
+                            size: Theme.iconSm
                             color: Theme.activePopup === "notifications"
                                 ? Theme.bg
                                 : (islandRight.notificationsList.length > 0 ? Theme.warn : Theme.fg)
-                            font.pixelSize: Theme.textLg
                         }
 
                         Text {
@@ -482,15 +485,12 @@ Item {
                         anchors.centerIn: parent
                         spacing: 4
 
-                        Image {
+                        Icon {
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 16
-                            height: 16
-                            sourceSize: Qt.size(16, 16)
-                            smooth: true
-                            source: islandRight.pendingUpdatesCount > 0
-                                ? "file:///usr/share/icons/hicolor/scalable/apps/arch-update_updates-available-blue.svg"
-                                : "file:///usr/share/icons/hicolor/scalable/apps/arch-update-blue.svg"
+                            glyph: "arch"
+                            size: Theme.iconSm
+                            color: islandRight.pendingUpdatesCount > 0 ? Theme.warn : Theme.fg
+                            opacityLevel: islandRight.pendingUpdatesCount > 0 ? 1 : 0.6
                         }
 
                         Text {
@@ -594,14 +594,15 @@ Item {
                     anchors.centerIn: parent
                     spacing: 6
 
-                    Text {
-                        text: islandRight.netType === "ethernet"
-                            ? "󰈀"
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: islandRight.netType === "ethernet"
+                            ? "ethernet"
                             : islandRight.signalIconFor(islandRight.wifiSignal, islandRight.wifiConnected)
+                        size: Theme.iconSm
                         color: Theme.activePopup === "wifi"
                             ? Theme.bg
                             : (islandRight.wifiConnected ? Theme.accent : Theme.error)
-                        font.pixelSize: Theme.textLg
                     }
 
                     Text {
@@ -667,12 +668,13 @@ Item {
                         spacing: 4
                         anchors.verticalCenter: parent.verticalCenter
 
-                        Text {
-                            text: islandRight.batteryIconFor(islandRight.batPercent, islandRight.batStatus)
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: islandRight.batteryIconFor(islandRight.batPercent, islandRight.batStatus)
+                            size: Theme.iconSm
                             color: (islandRight.batPercent <= 15 && islandRight.batStatus !== "Charging")
                                 ? Theme.error
                                 : (islandRight.batStatus === "Charging" ? Theme.success : Theme.accent)
-                            font.pixelSize: Theme.textLg
                         }
 
                         Text {
@@ -710,10 +712,11 @@ Item {
                             anchors.centerIn: parent
                             spacing: 4
 
-                            Text {
-                                text: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
+                                size: Theme.iconSm
                                 color: islandRight.volMuted ? Theme.error : Theme.accent
-                                font.pixelSize: Theme.textLg
                             }
 
                             Text {
@@ -755,10 +758,11 @@ Item {
                             anchors.centerIn: parent
                             spacing: 4
 
-                            Text {
-                                text: "󰃟"
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: "brightness"
+                                size: Theme.iconSm
                                 color: Theme.accent
-                                font.pixelSize: Theme.textLg
                             }
 
                             Text {
@@ -798,11 +802,11 @@ Item {
                 border.color: Theme.accent
                 border.width: 1
 
-                Text {
+                Icon {
                     anchors.centerIn: parent
-                    text: "⌨"
+                    glyph: "keyboard"
+                    size: Theme.iconSm
                     color: Theme.accent
-                    font.pixelSize: Theme.textLg
                 }
 
                 MouseArea {
@@ -825,19 +829,21 @@ Item {
                 radius: Math.min(Theme.globalRadius, Math.round(btnSize / 2))
                 color: Theme.activePopup === "power"
                     ? Theme.error
-                    : (powerMa.containsMouse ? Qt.alpha(Theme.error, 0.25) : Theme.surfaceVariant)
-                border.color: Theme.error
+                    : (powerMa.containsMouse ? Qt.alpha(Theme.error, 0.16) : "transparent")
+                border.color: Theme.activePopup === "power" ? Theme.error : "transparent"
                 border.width: 1
 
                 Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                Text {
+                Icon {
                     anchors.centerIn: parent
-                    text: "⏻"
-                    color: Theme.activePopup === "power" ? Theme.bg : Theme.error
-                    font.pixelSize: Math.max(10, Math.round(powerBtn.btnSize * 0.50))
-                    font.bold: true
+                    glyph: "power"
+                    size: Math.max(11, Math.round(powerBtn.btnSize * 0.55))
+                    color: Theme.activePopup === "power"
+                        ? Theme.bg
+                        : (powerMa.containsMouse ? Theme.error : Theme.fg)
+                    opacityLevel: Theme.activePopup === "power" ? 1 : 0.85
                 }
 
                 MouseArea {
@@ -1035,13 +1041,13 @@ Item {
                                         spacing: 10
 
                                         // Dynamic signal strength icon at start of line
-                                        Text {
+                                        Icon {
                                             anchors.verticalCenter: parent.verticalCenter
-                                            text: islandRight.signalIconFor(netItemCol.modelData.signal, true)
+                                            glyph: islandRight.signalIconFor(netItemCol.modelData.signal, true)
+                                            size: Theme.iconSm
                                             color: netItemCol.modelData.signal >= 60
                                                 ? Theme.success
                                                 : (netItemCol.modelData.signal >= 30 ? Theme.warn : Theme.error)
-                                            font.pixelSize: Theme.textLg
                                         }
 
                                         // Network SSID
@@ -1254,12 +1260,24 @@ Item {
                     Item {
                         width: parent.width
                         height: 18
-                        Text {
+                        Row {
                             anchors.left: parent.left
-                            text: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted) + "  Volume Audio"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.space2
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
+                                size: Theme.iconSm
+                                color: islandRight.volMuted ? Theme.error : Theme.accent
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Volume audio"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
                         }
                         Text {
                             anchors.right: parent.right
@@ -1312,12 +1330,24 @@ Item {
                     Item {
                         width: parent.width
                         height: 18
-                        Text {
+                        Row {
                             anchors.left: parent.left
-                            text: "󰃟  Luminosité de l'écran"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.space2
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: "brightness"
+                                size: Theme.iconSm
+                                color: Theme.accent
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Luminosité de l'écran"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
                         }
                         Text {
                             anchors.right: parent.right
