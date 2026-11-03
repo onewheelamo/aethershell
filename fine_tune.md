@@ -351,3 +351,22 @@ Un lot, un chantier clavier, une décision.
   `F009C`, qui est `bell-outline` (cloche simple, sans barre) — le glyphe
   « barré » ne l'était pas, corrigé en `F009B` (l'état vide de la barre et du
   centre affichait donc une cloche normale).
+- 2026-11-03 : fenêtre blanche par instance de quickshell — corrigé. Chaque
+  instance ouvrait une fenêtre toplevel vide (`class: org.quickshell`,
+  `title: quickshell`) tuilée par le compositeur : trois instances donnaient trois
+  barres empilées **et** deux fenêtres blanches (la première instance en avait une
+  aussi, elle passait inaperçue). Cause : `shell.qml` était un `Loader` **à la
+  racine** (`Loader { source: "main.qml" }`). Les fenêtres chargées n'ont alors pas
+  de racine de shell, et Quickshell les héberge dans un `ProxyFloatingWindow`, qui
+  se matérialise en toplevel vide (les avertissements « QML ProxyFloatingWindow:
+  Setting width is deprecated » dans le log en étaient la seule trace). Réduit à
+  un cas minimal en trois essais : `Loader` racine → 1 fenêtre blanche ;
+  `ShellRoot { Loader }` avec un `Item` chargé → 0 ; `ShellRoot` direct → 0.
+  Correctif : `shell.qml` devient `ShellRoot { Loader { source: "main.qml" } }` et
+  la racine de `main.qml` passe de `ShellRoot` à `Item` (`ShellRoot` est
+  optionnel). Vérifié : 1 instance → 0 fenêtre blanche, 0 avertissement proxy ;
+  3 instances → 3 barres (normal, une par instance), **0** fenêtre blanche ; le
+  toast, le centre de notifications et le pied « Notifications silencieuses »
+  fonctionnent toujours. Piste complémentaire non appliquée : lancer
+  `quickshell -n` (--no-duplicate) dans l'autostart pour empiler zéro barre au
+  lieu de trois.
