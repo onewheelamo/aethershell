@@ -341,10 +341,12 @@ Variante `acrylic` du flou. `decoration.blur.variant = "acrylic"` avec
 `clarity 0.82`, `refraction 24`. Attention : le variant est global, il change
 aussi le flou des fenêtres flottantes. À essayer seul, avec mesure GPU.
 
-Dette signalée dans `CLEANUP_PROPOSAL_2026-11-03.md` : `programs.lua` et
-`autostart_cmds.txt` sont encore traités comme préservés alors qu'ils sont
-générés ; ils produiront un `.upstream` dès que le panneau les modifiera. À
-basculer en fichiers générés.
+~~Dette `programs.lua` / `autostart_cmds.txt`~~ — **livré**. Ils sont retirés de
+`PRESERVE_HYPR` et réécrits après la copie par
+`config_manager.py sync_generated` (depuis `app_vars.json` et `autostart.json`,
+eux préservés). Aucun `.upstream` ne peut plus apparaître pour eux ; vérifié en
+ajoutant un alias dans le panneau puis en déployant : l'alias survit dans
+`programs.lua` et aucun `.upstream` n'est créé.
 
 Deux symboles échappent encore au jeu d'icônes, trouvés par l'avertissement ajouté
 à `Icon.qml` : `icon: "⏻"` sur un en-tête de section de `config_panel.qml` (donc

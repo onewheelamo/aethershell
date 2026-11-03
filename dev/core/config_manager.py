@@ -1005,6 +1005,11 @@ if __name__ == "__main__":
     elif action == "bind_del" and len(sys.argv) > 2:
         remove_keybind(sys.argv[2])
         print(json.dumps(get_full_config_state()))
+    elif action == "sync_generated":
+        # Régénère programs.lua et autostart_cmds.txt depuis les JSON préservés.
+        sync_programs_lua(load_json(APP_VARS_FILE))
+        sync_autostart_lua(get_autostart())
+        print(json.dumps({"ok": True}))
     elif action == "app_set" and len(sys.argv) > 3:
         set_app_var(sys.argv[2], " ".join(sys.argv[3:]))
         print(json.dumps(get_full_config_state()))

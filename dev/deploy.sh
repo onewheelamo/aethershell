@@ -71,7 +71,10 @@ MARKER="$CURRENT_HYPR/.quickshell_managed"
 PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
-PRESERVE_HYPR="input.lua binds.lua programs.lua general.lua"
+# programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et
+# autostart_cmds.txt depuis core/autostart.json : ils ne sont ni préservés ni
+# comparés, et sont réécrits juste après la copie (aucun .upstream possible).
+PRESERVE_HYPR="input.lua binds.lua general.lua"
 
 is_preserved() {
     local name="$1" list="$2" item
@@ -285,6 +288,13 @@ deploy_new_env() {
     # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
     if [ -f "$CORE_DIR/app_index.py" ]; then
         python3 "$CORE_DIR/app_index.py" --quiet || true
+    fi
+
+    # Fichiers générés à partir des JSON préservés (app_vars.json, autostart.json) :
+    # la copie ci-dessus peut poser la version du dépôt, on réécrit la vraie.
+    if [ -f "$CORE_DIR/config_manager.py" ]; then
+        python3 "$CORE_DIR/config_manager.py" sync_generated >/dev/null 2>&1 \
+            || echo "  ⚠️  régénération de programs.lua / autostart_cmds.txt impossible"
     fi
     if [ ! -f "$CORE_DIR/secrets.json" ] && [ -f "$CORE_DIR/secrets.example.json" ]; then
         cp "$CORE_DIR/secrets.example.json" "$CORE_DIR/secrets.json"
