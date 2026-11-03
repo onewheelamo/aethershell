@@ -296,6 +296,7 @@ deploy_new_env() {
     cp "$DEV_DIR/config_panel.qml" "$QS_DIR/config_panel.qml"
     cp "$DEV_DIR/CollapsibleSection.qml" "$QS_DIR/CollapsibleSection.qml"
     cp "$DEV_DIR/Stepper.qml" "$QS_DIR/Stepper.qml"
+    cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"
     cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
 
     local qs_manifest

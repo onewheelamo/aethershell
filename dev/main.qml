@@ -228,6 +228,10 @@ Item {
         Loader {
             id: configLoader
             anchors.centerIn: parent
+            width: 620
+            // Hauteur bornée : le panneau flotte au centre au lieu de coller à
+            // la barre et au bas de l'écran.
+            height: Math.min(parent.height - Theme.barHeight - Theme.gutter * 4, 900)
             source: "config_panel.qml"
         }
     }

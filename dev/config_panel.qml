@@ -29,12 +29,146 @@ import Quickshell.Io
 
 Rectangle {
     id: root
-    width: 680
-    height: 560
+    width: 620
+    height: parent ? parent.height : 600
     color: Theme.surfaceBg
     radius: Theme.globalRadius
     border.color: Theme.accent
     border.width: 1
+
+    // Recherche : requête courante, alimentée par le champ de la §3.
+    property string searchQuery: ""
+    // Résultats calculés (label, tab, section, target) — voir searchIndex.
+    property var searchResults: []
+
+    // Index d'ancres : une entrée par réglage notable. Le champ redirige vers
+    // l'onglet et la section, puis fait défiler jusqu'à la ligne ciblée.
+    readonly property var searchIndex: [
+        { label: "Thème et fond d'écran", words: "theme fond ecran wallpaper couleur",
+          tab: 0, section: "esthetique_theme", target: "secTheme" },
+        { label: "Jeux de couleurs Matugen", words: "matugen palette preset couleurs saturation",
+          tab: 0, section: "esthetique_theme", target: "matugenRow" },
+        { label: "Palette hexadécimale", words: "hex couleur personnalisee accent",
+          tab: 0, section: "esthetique_theme", target: "secTheme" },
+        { label: "Dossier des fonds d'écran", words: "dossier wallpaper repertoire images",
+          tab: 0, section: "esthetique_theme", target: "wallpaperDirRow" },
+        { label: "Gaps internes et externes", words: "gaps espacement interieur exterieur marge",
+          tab: 0, section: "esthetique_aspect", target: "gapsRow" },
+        { label: "Bordures des fenêtres", words: "bordure border epaisseur",
+          tab: 0, section: "esthetique_aspect", target: "borderRow" },
+        { label: "Arrondis des fenêtres", words: "arrondi rounding rayon fenetre",
+          tab: 0, section: "esthetique_aspect", target: "roundingWinRow" },
+        { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
+          tab: 0, section: "esthetique_aspect", target: "roundingIslandRow" },
+        { label: "Hauteur de la barre", words: "hauteur barre taille bar",
+          tab: 0, section: "esthetique_aspect", target: "barHeightRow" },
+        { label: "Pas de redimensionnement", words: "pas redimensionnement resize step",
+          tab: 0, section: "esthetique_aspect", target: "resizeRow" },
+        { label: "Opacité des fenêtres", words: "opacite fenetres transparence hyprland",
+          tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
+        { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
+          tab: 0, section: "esthetique_aspect", target: "shellOpacityRow" },
+        { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
+          tab: 0, section: "esthetique_aspect", target: "blurRow" },
+        { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
+          tab: 0, section: "esthetique_aspect", target: "shellBlurRow" },
+        { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
+          tab: 1, section: "", target: "monitorsRow" },
+        { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
+          tab: 1, section: "", target: "timezoneRow" },
+        { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",
+          tab: 2, section: "", target: "kbdRow" },
+        { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
+          tab: 2, section: "", target: "bindsCol" },
+        { label: "Programmes par défaut des raccourcis", words: "programmes defaut terminal navigateur editeur fichiers",
+          tab: 3, section: "apps_programs", target: "secApps" },
+        { label: "Programmes lancés au démarrage", words: "autostart demarrage lancement daemon",
+          tab: 3, section: "apps_autostart", target: "secAutostart" }
+    ]
+
+    // Redirige vers l'onglet et la section du réglage, puis défile jusqu'à lui.
+    function jumpToResult(entry) {
+        if (!entry) return
+        root.currentTab = entry.tab
+        if (entry.section && entry.section !== "") root.setPanelSection(entry.section, true)
+        root.searchQuery = ""
+        searchInput.text = ""
+        // Une frame pour laisser la section se déplier et le Flickable se
+        // recalculer avant de mesurer la position de la cible.
+        // Le dépliage de la section et le changement d'onglet ne sont pas
+        // encore mesurables à la frame suivante : on réessaie trois fois.
+        scrollTargetName = entry.target
+        scrollTries = 0
+        scrollTimer.restart()
+    }
+
+    function updateSearch(query) {
+        const q = String(query).toLowerCase().trim()
+        if (q.length < 2) { root.searchResults = []; return }
+        const hits = []
+        for (let i = 0; i < root.searchIndex.length; ++i) {
+            const e = root.searchIndex[i]
+            const hay = (e.label + " " + e.words).toLowerCase()
+            if (hay.indexOf(q) >= 0) hits.push(e)
+            if (hits.length >= 6) break
+        }
+        root.searchResults = hits
+    }
+
+    // Cibles d'ancrage de la recherche : QML n'expose pas QObject::findChild,
+    // donc on tient la table id -> item à la main.
+    readonly property var targetMap: ({
+        "secTheme": secTheme,
+        "matugenRow": matugenRow,
+        "wallpaperDirRow": wallpaperDirRow,
+        "gapsRow": gapsRow,
+        "borderRow": borderRow,
+        "roundingWinRow": roundingWinRow,
+        "roundingIslandRow": roundingIslandRow,
+        "barHeightRow": barHeightRow,
+        "resizeRow": resizeRow,
+        "winOpacityRow": winOpacityRow,
+        "shellOpacityRow": shellOpacityRow,
+        "blurRow": blurRow,
+        "shellBlurRow": shellBlurRow,
+        "monitorsRow": monitorsRow,
+        "timezoneRow": timezoneRow,
+        "kbdRow": kbdRow,
+        "bindsCol": bindsCol,
+        "secApps": secApps,
+        "secAutostart": secAutostart
+    })
+
+    function scrollToAnchor(name) {
+        const target = root.targetMap[name]
+        if (!target) return
+        const y = target.mapToItem(mainFlickable.contentItem, 0, 0).y
+        const maxY = Math.max(0, mainFlickable.contentHeight - mainFlickable.height)
+        mainFlickable.contentY = Math.max(0, Math.min(y - 12, maxY))
+    }
+
+    property string scrollTargetName: ""
+    property int scrollTries: 0
+    Timer {
+        id: scrollTimer
+        interval: 90
+        repeat: true
+        onTriggered: {
+            root.scrollToAnchor(root.scrollTargetName)
+            root.scrollTries += 1
+            if (root.scrollTries >= 3) running = false
+        }
+    }
+
+    property string highlightTarget: ""
+    Timer { id: highlightTimer; interval: 700; onTriggered: root.highlightTarget = "" }
+
+    // Sections dépliées par défaut : tout est visible sous le champ de recherche,
+    // sauf ce que l'utilisateur a explicitement replié.
+    function sectionOpen(name, fallback) {
+        const v = root.panelSections[name]
+        return (typeof v === "boolean") ? v : fallback
+    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1: BACKEND IPC & STATE PROPERTIES
@@ -271,15 +405,15 @@ Rectangle {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.topMargin: 20
-        anchors.leftMargin: 20
-        anchors.rightMargin: 20
+        anchors.topMargin: Theme.space4
+        anchors.leftMargin: Theme.space4
+        anchors.rightMargin: Theme.space4
         height: 30
 
         Text {
-            text: "Panneau de configuration — " + root.hostName
+            text: "Réglages · " + root.hostName
             color: Theme.fg
-            font.pixelSize: Theme.textXl
+            font.pixelSize: Theme.textLg
             font.bold: true
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -314,18 +448,162 @@ Rectangle {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // SECTION 3: NAVIGATION TABS BAR
+    // SECTION 3: RECHERCHE & RAIL DE NAVIGATION
     // ────────────────────────────────────────────────────────────────────────
-    Row {
-        id: panelTabs
+    Rectangle {
+        id: searchBar
         anchors.top: panelHeader.bottom
-        anchors.topMargin: 14
+        anchors.topMargin: Theme.space3
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 20
-        anchors.rightMargin: 20
+        anchors.leftMargin: Theme.space4
+        anchors.rightMargin: Theme.space4
         height: 34
-        spacing: 8
+        radius: Theme.globalRadius
+        color: Theme.surfaceVariant
+        border.color: searchInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.08)
+        border.width: 1
+
+        Icon {
+            id: searchIcon
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.space2
+            anchors.verticalCenter: parent.verticalCenter
+            glyph: "search"
+            size: Theme.iconSm
+            color: Theme.accent
+            opacityLevel: 0.9
+        }
+
+        TextInput {
+            id: searchInput
+            anchors.left: searchIcon.right
+            anchors.leftMargin: Theme.space2
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.space2
+            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            verticalAlignment: TextInput.AlignVCenter
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            selectByMouse: true
+            clip: true
+
+            onTextChanged: {
+                root.searchQuery = text
+                root.updateSearch(text)
+            }
+
+            // Le tiroir s'ouvre pour chercher : le champ prend le focus clavier
+            // dès l'affichage, sinon la surface layer n'obtient jamais
+            // l'interactivité clavier (WlrKeyboardFocus.OnDemand).
+            Connections {
+                target: Theme
+                function onConfigPanelVisibleChanged() {
+                    if (Theme.configPanelVisible) searchInput.forceActiveFocus()
+                }
+            }
+
+            Component.onCompleted: {
+                if (Theme.configPanelVisible) forceActiveFocus()
+            }
+
+            Keys.onEscapePressed: {
+                if (text !== "") { text = ""; root.searchResults = [] }
+                else Theme.configPanelVisible = false
+            }
+            Keys.onDownPressed: {
+                if (root.searchResults.length > 0) searchResultsCol.currentIndex = 0
+            }
+            // TextInput consomme la touche Entrée (signal accepted) : c'est ici
+            // qu'il faut sauter au premier résultat, pas dans Keys.onReturnPressed.
+            onAccepted: {
+                if (root.searchResults.length > 0) root.jumpToResult(root.searchResults[0])
+            }
+        }
+
+        Text {
+            visible: searchInput.text === ""
+            anchors.left: searchInput.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Rechercher un réglage…"
+            color: Qt.alpha(Theme.fg, 0.4)
+            font.pixelSize: Theme.textSm
+        }
+    }
+
+    // Résultats de recherche, posés sous le champ, par-dessus le contenu.
+    Rectangle {
+        id: searchResultsCol
+        property int currentIndex: -1
+        anchors.top: searchBar.bottom
+        anchors.topMargin: Theme.space1
+        anchors.left: searchBar.left
+        anchors.right: searchBar.right
+        height: resultsCol.height + 8
+        radius: Theme.globalRadius
+        color: Theme.surfaceVariant
+        border.color: Theme.accentMuted
+        border.width: 1
+        z: 20
+        visible: root.searchResults.length > 0
+
+        Column {
+            id: resultsCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 4
+            spacing: 1
+
+            Repeater {
+                model: root.searchResults
+
+                Rectangle {
+                    required property var modelData
+                    required property int index
+                    readonly property bool active: resultMa.containsMouse || searchResultsCol.currentIndex === index
+
+                    width: parent.width
+                    height: 28
+                    radius: Theme.globalRadius
+                    color: active ? Theme.accent : "transparent"
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.space2
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - Theme.space4
+                        text: modelData.label
+                        color: parent.active ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                        elide: Text.ElideRight
+                    }
+
+                    MouseArea {
+                        id: resultMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.jumpToResult(modelData)
+                    }
+                }
+            }
+        }
+    }
+
+    // Rail vertical d'onglets : 4 icônes, libellé au survol.
+    Column {
+        id: navRail
+        anchors.top: searchBar.bottom
+        anchors.topMargin: Theme.space3
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.space3
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.space4
+        width: 40
+        spacing: Theme.space2
+        z: 5
 
         Repeater {
             model: [
@@ -336,61 +614,37 @@ Rectangle {
             ]
 
             Rectangle {
-                id: tabBtn
+                id: railBtn
                 required property int index
                 required property var modelData
                 readonly property bool active: root.currentTab === index
 
-                width: (parent.width - 24) / 4
-                height: 34
+                width: 40
+                height: 36
                 radius: Theme.globalRadius
                 color: active
                     ? Theme.accent
-                    : (tabMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.55))
+                    : (railMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.55))
                 border.color: active ? Theme.accent : Theme.surfaceVariant
                 border.width: 1
 
-                Row {
+                Icon {
                     anchors.centerIn: parent
-                    spacing: 6
-
-                    Icon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        glyph: tabBtn.modelData.icon
-                        size: Theme.iconSm
-                        color: tabBtn.active ? Theme.bg : Theme.fg
-                        opacityLevel: tabBtn.active ? 1 : 0.78
-                    }
-
-                    Text {
-                        text: tabBtn.modelData.label
-                        color: tabBtn.active ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textSm
-                        font.bold: tabBtn.active
-                    }
+                    glyph: railBtn.modelData.icon
+                    size: Theme.iconMd
+                    color: railBtn.active ? Theme.bg : Theme.fg
+                    opacityLevel: railBtn.active ? 1 : 0.78
                 }
 
                 MouseArea {
-                    id: tabMa
+                    id: railMa
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.currentTab = tabBtn.index
+                    onClicked: root.currentTab = railBtn.index
                 }
             }
         }
-    }
-
-    Rectangle {
-        id: panelDivider
-        anchors.top: panelTabs.bottom
-        anchors.topMargin: 14
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: 20
-        anchors.rightMargin: 20
-        height: 1
-        color: Theme.surfaceVariant
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -398,14 +652,13 @@ Rectangle {
     // ────────────────────────────────────────────────────────────────────────
     Item {
         id: tabContentArea
-        anchors.top: panelDivider.bottom
-        anchors.topMargin: 14
-        anchors.left: parent.left
+        anchors.top: navRail.top
+        anchors.left: navRail.right
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 20
-        anchors.rightMargin: 20
-        anchors.bottomMargin: 20
+        anchors.leftMargin: Theme.space3
+        anchors.rightMargin: Theme.space4
+        anchors.bottomMargin: Theme.space4
         clip: true
 
         Flickable {
@@ -441,9 +694,10 @@ Rectangle {
                 // 1+2. Thème & Fond d'écran (jeux de couleurs, wallpaper, matugen, palette hex custom)
             CollapsibleSection {
                 id: secTheme
+                objectName: "secTheme"
                 title: "Thème & Fond d'écran"
                 icon: "palette"
-                expanded: root.panelSections["esthetique_theme"] === true
+                expanded: root.sectionOpen("esthetique_theme", true)
                 onToggled: expanded => root.setPanelSection("esthetique_theme", expanded)
 
                 Text {
@@ -454,9 +708,13 @@ Rectangle {
                     width: parent.width
                 }
 
-            Row {
-                spacing: 8
+            Column {
                 width: parent.width
+                spacing: 8
+
+            Row {
+                width: parent.width
+                spacing: 8
 
                 Repeater {
                     model: ["dynamic", "tokyo-night", "catppuccin"]
@@ -464,7 +722,7 @@ Rectangle {
                         required property string modelData
                         readonly property bool isCurrent: Theme.activeTheme === modelData
 
-                        width: 115
+                        width: 100
                         height: 32
                         radius: Theme.globalRadius
                         color: isCurrent ? Theme.accent : Theme.surfaceVariant
@@ -490,6 +748,11 @@ Rectangle {
                         }
                     }
                 }
+            }
+
+            Row {
+                width: parent.width
+                spacing: 8
 
                 Rectangle {
                     width: 135
@@ -552,108 +815,121 @@ Rectangle {
                     }
                 }
             }
+            }
 
             // Matugen scheme & contrast (regenerates the dynamic palette from the current wallpaper)
-            Row {
-                spacing: 8
+            Column {
+                id: matugenRow   // ancre de recherche
+                objectName: "matugenRow"
                 width: parent.width
+                spacing: 6
 
                 Text {
-                    width: 132
-                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
                     text: "Schéma Matugen :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
-                Repeater {
-                    model: [
-                        { id: "scheme-tonal-spot", label: "Doux" },
-                        { id: "scheme-vibrant", label: "Vif" },
-                        { id: "scheme-expressive", label: "Expressif" },
-                        { id: "scheme-neutral", label: "Neutre" },
-                        { id: "scheme-fruit-salad", label: "Fruité" },
-                        { id: "scheme-monochrome", label: "Mono" }
-                    ]
-                    Rectangle {
-                        required property var modelData
-                        readonly property bool active: root.matugenScheme === modelData.id
-                        width: 74; height: 24
-                        radius: Theme.globalRadius
-                        color: active ? Theme.accent : Theme.surfaceVariant
-                        Text {
-                            anchors.centerIn: parent
-                            text: parent.modelData.label
-                            color: parent.active ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: parent.active
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.matugenScheme = parent.modelData.id
-                                root.runConfigCmd(["style", "matugen_scheme", parent.modelData.id])
-                                Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
-                            }
-                        }
-                    }
-                }
-            }
+                Row {
+                    width: parent.width
+                    spacing: 8
 
-            Row {
-                spacing: 6
+                Repeater {
+                                    model: [
+                                        { id: "scheme-tonal-spot", label: "Doux" },
+                                        { id: "scheme-vibrant", label: "Vif" },
+                                        { id: "scheme-expressive", label: "Expressif" },
+                                        { id: "scheme-neutral", label: "Neutre" },
+                                        { id: "scheme-fruit-salad", label: "Fruité" },
+                                        { id: "scheme-monochrome", label: "Mono" }
+                                    ]
+                                    Rectangle {
+                                        required property var modelData
+                                        readonly property bool active: root.matugenScheme === modelData.id
+                                        width: 74; height: 24
+                                        radius: Theme.globalRadius
+                                        color: active ? Theme.accent : Theme.surfaceVariant
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: parent.modelData.label
+                                            color: parent.active ? Theme.bg : Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                            font.bold: parent.active
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                root.matugenScheme = parent.modelData.id
+                                                root.runConfigCmd(["style", "matugen_scheme", parent.modelData.id])
+                                                Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
+                                            }
+                                        }
+                                    }
+                                }
+                }
+}
+
+            Column {
                 width: parent.width
+                spacing: 6
 
                 Text {
-                    width: 132
-                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
                     text: "Contraste :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
+                Row {
+                    width: parent.width
+                    spacing: 8
+
                 Repeater {
-                    model: [
-                        // Les libellés décrivent la saturation : Pastel = moins saturé (+0.8),
-                        // Max = plus saturé (-0.8).
-                        { v: 0.8, label: "Pastel" },
-                        { v: 0.6, label: "Doux-" },
-                        { v: 0.3, label: "Standard" },
-                        { v: 0.0, label: "Foncé+" },
-                        { v: -0.4, label: "Contrasté" },
-                        { v: -0.8, label: "Max" }
-                    ]
-                    Rectangle {
-                        required property var modelData
-                        readonly property bool active: Math.abs(root.matugenContrast - modelData.v) < 0.05
-                        width: 62; height: 24
-                        radius: Theme.globalRadius
-                        color: active ? Theme.accent : Theme.surfaceVariant
-                        Text {
-                            anchors.centerIn: parent
-                            text: parent.modelData.label
-                            color: parent.active ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: parent.active
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.matugenContrast = parent.modelData.v
-                                root.runConfigCmd(["style", "matugen_contrast", String(parent.modelData.v)])
-                                Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
-                            }
-                        }
-                    }
+                                    model: [
+                                        // Les libellés décrivent la saturation : Pastel = moins saturé (+0.8),
+                                        // Max = plus saturé (-0.8).
+                                        { v: 0.8, label: "Pastel" },
+                                        { v: 0.6, label: "Doux-" },
+                                        { v: 0.3, label: "Standard" },
+                                        { v: 0.0, label: "Foncé+" },
+                                        { v: -0.4, label: "Contrasté" },
+                                        { v: -0.8, label: "Max" }
+                                    ]
+                                    Rectangle {
+                                        required property var modelData
+                                        readonly property bool active: Math.abs(root.matugenContrast - modelData.v) < 0.05
+                                        width: 62; height: 24
+                                        radius: Theme.globalRadius
+                                        color: active ? Theme.accent : Theme.surfaceVariant
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: parent.modelData.label
+                                            color: parent.active ? Theme.bg : Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                            font.bold: parent.active
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                root.matugenContrast = parent.modelData.v
+                                                root.runConfigCmd(["style", "matugen_contrast", String(parent.modelData.v)])
+                                                Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
+                                            }
+                                        }
+                                    }
+                                }
                 }
-            }
+}
 
             // Wallpaper Directory Path
             Row {
+                id: wallpaperDirRow   // ancre de recherche
+                objectName: "wallpaperDirRow"
                 spacing: 8
                 width: parent.width
 
@@ -667,7 +943,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 394
+                    width: parent.width - 145 - 85 - 2 * 8
                     height: 28
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -721,16 +997,17 @@ Rectangle {
 
             // 2. Active Palette Swatches & Custom Color Override
             Text {
-                text: "Palette active (cliquer sur une pastille pour ajuster sa couleur hex)"
+                width: parent.width
+                text: "Palette active — cliquer une pastille pour ajuster son hex"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
-                width: parent.width
+                elide: Text.ElideRight
             }
 
             Row {
-                spacing: 8
                 width: parent.width
+                spacing: 8
 
                 Repeater {
                     model: [
@@ -776,61 +1053,60 @@ Rectangle {
                     }
                 }
 
-                // Inline Hex Editor for selected swatch
-                Column {
-                    spacing: 4
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    Text {
-                        text: "Clé : " + root.selectedColorKey
-                        color: Theme.accentMuted
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    Row {
-                        spacing: 4
-                        Rectangle {
-                            width: 85
-                            height: 26
-                            color: Theme.bg
-                            radius: Theme.globalRadius
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            TextInput {
-                                id: hexInput
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                verticalAlignment: TextInput.AlignVCenter
-                                text: "#b4befe"
-                                color: Theme.fg
-                                font.pixelSize: Theme.textXs
-                                onAccepted: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
-                            }
-                        }
-
-                        Rectangle {
-                            width: 36
-                            height: 26
-                            radius: Theme.globalRadius
-                            color: Theme.accent
-                            Text {
-                                anchors.centerIn: parent
-                                text: "OK"
-                                color: Theme.bg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
-                            }
-                        }
-                    }
-                }
             }
+
+                    Column {
+                        spacing: 4
+
+                        Text {
+                            text: "Clé : " + root.selectedColorKey
+                            color: Theme.accentMuted
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        Row {
+                            spacing: 4
+                            Rectangle {
+                                width: 85
+                                height: 26
+                                color: Theme.bg
+                                radius: Theme.globalRadius
+                                border.color: Theme.accent
+                                border.width: 1
+
+                                TextInput {
+                                    id: hexInput
+                                    anchors.fill: parent
+                                    anchors.margins: 4
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: "#b4befe"
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                    onAccepted: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
+                                }
+                            }
+
+                            Rectangle {
+                                width: 36
+                                height: 26
+                                radius: Theme.globalRadius
+                                color: Theme.accent
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "OK"
+                                    color: Theme.bg
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: true
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
+                                }
+                            }
+                        }
+                    }
             }   // end CollapsibleSection secTheme
 
             // 3. Desktop Aspect: Gaps, Borders, Rounding, Opacity, Blur, Bar (catégorie technique)
@@ -838,7 +1114,7 @@ Rectangle {
                 id: secAspect
                 title: "Aspect technique du bureau"
                 icon: "cog"
-                expanded: root.panelSections["esthetique_aspect"] === true
+                expanded: root.sectionOpen("esthetique_aspect", true)
                 onToggled: expanded => root.setPanelSection("esthetique_aspect", expanded)
 
             Text {
@@ -851,17 +1127,19 @@ Rectangle {
 
             Grid {
                 width: parent.width
-                columns: 2
+                columns: 1
                 columnSpacing: 14
                 rowSpacing: 12
 
                 // 1. Gaps In
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: gapsRow   // ancre de recherche
+                    objectName: "gapsRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Gaps internes (in) :"
                         color: Theme.fg
@@ -885,11 +1163,11 @@ Rectangle {
 
                 // 2. Gaps Out
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Gaps externes (out) :"
                         color: Theme.fg
@@ -897,7 +1175,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.gapsOut
                         minimumValue: 0
@@ -913,11 +1191,13 @@ Rectangle {
 
                 // 3. Bordures fenêtres
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: borderRow   // ancre de recherche
+                    objectName: "borderRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Bordures fenêtres :"
                         color: Theme.fg
@@ -941,11 +1221,13 @@ Rectangle {
 
                 // 4. Arrondis fenêtres (Hyprland)
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: roundingWinRow   // ancre de recherche
+                    objectName: "roundingWinRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Arrondis fenêtres :"
                         color: Theme.fg
@@ -953,7 +1235,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.hyprRounding
                         minimumValue: 0
@@ -969,11 +1251,13 @@ Rectangle {
 
                 // 5. Arrondis îlots (Quickshell)
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: roundingIslandRow   // ancre de recherche
+                    objectName: "roundingIslandRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Arrondis îlots (QS) :"
                         color: Theme.fg
@@ -981,7 +1265,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.globalRadius
                         minimumValue: 0
@@ -996,11 +1280,13 @@ Rectangle {
 
                 // 6. Hauteur de barre
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: barHeightRow   // ancre de recherche
+                    objectName: "barHeightRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Hauteur de barre :"
                         color: Theme.fg
@@ -1008,7 +1294,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.barHeight
                         minimumValue: 28
@@ -1023,11 +1309,13 @@ Rectangle {
 
                 // 7. Pas de redimensionnement clavier
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: resizeRow   // ancre de recherche
+                    objectName: "resizeRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Pas redimensionnement :"
                         color: Theme.fg
@@ -1035,7 +1323,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.resizeStep
                         minimumValue: 5
@@ -1063,17 +1351,19 @@ Rectangle {
 
             Grid {
                 width: parent.width
-                columns: 2
+                columns: 1
                 columnSpacing: 14
                 rowSpacing: 12
 
                 // 8. Opacité des fenêtres (decoration.active_opacity)
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: winOpacityRow   // ancre de recherche
+                    objectName: "winOpacityRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Opacité fenêtres :"
                         color: Theme.fg
@@ -1081,7 +1371,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.globalOpacity
                         minimumValue: 0.30
@@ -1097,11 +1387,13 @@ Rectangle {
 
                 // 9. Taille du flou
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: blurRow   // ancre de recherche
+                    objectName: "blurRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Taille du flou :"
                         color: Theme.fg
@@ -1109,7 +1401,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.blurSize
                         minimumValue: 1
@@ -1125,11 +1417,11 @@ Rectangle {
 
                 // 10. Passes du flou
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Passes du flou :"
                         color: Theme.fg
@@ -1152,11 +1444,11 @@ Rectangle {
 
                 // 11. Flou des fenêtres (Actif / Désactivé)
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Flou Hyprland :"
                         color: Theme.fg
@@ -1166,7 +1458,7 @@ Rectangle {
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 140
+                        width: 160
                         height: 26
                         radius: Theme.globalRadius
                         color: root.blurEnabled ? Theme.accent : Theme.surfaceVariant
@@ -1206,17 +1498,19 @@ Rectangle {
 
             Grid {
                 width: parent.width
-                columns: 2
+                columns: 1
                 columnSpacing: 14
                 rowSpacing: 12
 
                 // 12. Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: shellOpacityRow   // ancre de recherche
+                    objectName: "shellOpacityRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Opacité surfaces :"
                         color: Theme.fg
@@ -1224,7 +1518,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.shellOpacity
                         minimumValue: 0.20
@@ -1240,11 +1534,13 @@ Rectangle {
 
                 // 13. Flou des surfaces du shell (barre, OSD, panneau)
                 Row {
-                    width: (parent.width - 14) / 2
+                    id: shellBlurRow   // ancre de recherche
+                    objectName: "shellBlurRow"
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Flou Quickshell :"
                         color: Theme.fg
@@ -1254,7 +1550,7 @@ Rectangle {
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 140
+                        width: 160
                         height: 26
                         radius: Theme.globalRadius
                         color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
@@ -1282,11 +1578,11 @@ Rectangle {
 
                 // 14. Seuil de transparence (ignore_alpha)
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Seuil de flou :"
                         color: Theme.fg
@@ -1294,7 +1590,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Stepper {
+                    Slider {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.shellBlurAlpha
                         minimumValue: 0.05
@@ -1310,11 +1606,11 @@ Rectangle {
 
                 // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Flou des popups :"
                         color: Theme.fg
@@ -1324,7 +1620,7 @@ Rectangle {
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 140
+                        width: 160
                         height: 26
                         radius: Theme.globalRadius
                         color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
@@ -1366,18 +1662,18 @@ Rectangle {
 
             Grid {
                 width: parent.width
-                columns: 2
+                columns: 1
                 columnSpacing: 14
                 rowSpacing: 12
                 topPadding: 12
 
                 // 16. Bouton central (engrenage) — bascule d'affichage
                 Row {
-                    width: (parent.width - 14) / 2
+                    width: parent.width
                     spacing: 8
 
                     Text {
-                        width: 140
+                        width: 160
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Bouton central :"
                         color: Theme.fg
@@ -1387,7 +1683,7 @@ Rectangle {
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 140
+                        width: 160
                         height: 26
                         radius: Theme.globalRadius
                         color: Theme.showConfigButton ? Theme.accent : Theme.surfaceVariant
@@ -1423,14 +1719,18 @@ Rectangle {
             spacing: 12
 
             Text {
-                text: "Moniteurs détectés (" + root.hostName + ") — Cliquer pour sélectionner un écran"
+                width: parent.width
+                text: "Moniteurs détectés (" + root.hostName + ") — cliquer pour sélectionner un écran"
                 color: Theme.accent
                 font.pixelSize: Theme.textLg
                 font.bold: true
+                wrapMode: Text.WordWrap
             }
 
             // Dynamic list of connected monitors (e.g. HDMI-A-1 on Station, DP-1 / eDP-1 on Portable)
             Row {
+                id: monitorsRow   // ancre de recherche
+                objectName: "monitorsRow"
                 spacing: 10
                 width: parent.width
 
@@ -1441,7 +1741,8 @@ Rectangle {
                         id: monCard
                         required property var modelData
                         readonly property bool isSel: root.selectedMonitorName === modelData.name
-                        width: Math.min(310, (parent.width - 10) / Math.max(1, root.monitorsList.length))
+                        width: (parent.width - 10 * Math.max(0, root.monitorsList.length - 1))
+                               / Math.max(1, root.monitorsList.length)
                         height: 54
                         radius: Theme.globalRadius
                         color: isSel ? Qt.alpha(Theme.accent, 0.22) : Theme.surfaceVariant
@@ -1453,10 +1754,13 @@ Rectangle {
                             spacing: 2
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
+                                width: monCard.width - 16
+                                horizontalAlignment: Text.AlignHCenter
                                 text: monCard.modelData.name + " (" + monCard.modelData.width + "x" + monCard.modelData.height + "@" + monCard.modelData.refreshRate + "Hz)"
                                 color: monCard.isSel ? Theme.accent : Theme.fg
                                 font.pixelSize: Theme.textSm
                                 font.bold: true
+                                elide: Text.ElideRight
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1480,13 +1784,17 @@ Rectangle {
 
             // Resolution & Refresh Rate selector for selected monitor
             Text {
+                width: parent.width
                 text: "Résolution & Fréquence pour « " + root.selectedMonitorName + " » (persistant dans hardware-" + root.hostName.toLowerCase() + ".lua)"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
+                wrapMode: Text.WordWrap
             }
 
             Flow {
+
+                height: childrenRect.height
                 width: parent.width
                 spacing: 8
 
@@ -1529,9 +1837,11 @@ Rectangle {
                 spacing: 10
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - (3 * 58 + 3 * 10 + 8)
                     text: "Mise à l'échelle (Scale) de " + root.selectedMonitorName + " :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
+                    elide: Text.ElideRight
                 }
 
                 Repeater {
@@ -1652,12 +1962,14 @@ Rectangle {
             }
 
             // System Time, Network Shortcut (& Battery 80% Limiter if Laptop)
-            Row {
+            Column {
+                id: timezoneRow   // ancre de recherche
+                objectName: "timezoneRow"
                 width: parent.width
-                spacing: 14
+                spacing: 8
 
                 Rectangle {
-                    width: root.isLaptop ? 230 : 320
+                    width: parent.width
                     height: 46
                     radius: Theme.globalRadius
                     color: Theme.surfaceVariant
@@ -1680,7 +1992,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: root.isLaptop ? 190 : 300
+                    width: parent.width
                     height: 46
                     radius: Theme.globalRadius
                     color: openWifiMa.containsMouse ? Theme.accent : Theme.surfaceVariant
@@ -1709,7 +2021,7 @@ Rectangle {
 
                 Rectangle {
                     visible: root.isLaptop
-                    width: 180
+                    width: parent.width
                     height: 46
                     radius: Theme.globalRadius
                     color: root.batLimit80 ? Theme.success : Theme.surfaceVariant
@@ -1747,6 +2059,8 @@ Rectangle {
 
             // Top bar: Current Keyboard Layout + Button to reopen First-Run Keyboard Selector
             Rectangle {
+                id: kbdRow   // ancre de recherche
+                objectName: "kbdRow"
                 width: parent.width
                 height: 42
                 radius: Theme.globalRadius
@@ -1757,27 +2071,23 @@ Rectangle {
                 Row {
                     anchors.left: parent.left
                     anchors.leftMargin: 12
+                    anchors.right: parent.right
+                    anchors.rightMargin: 156
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "⌨ Disposition active : " + root.kbLayout.toUpperCase()
+                        width: parent.width
+                        text: "Disposition active : " + root.kbLayout.toUpperCase()
                         color: Theme.accent
                         font.pixelSize: Theme.textMd
                         font.bold: true
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "(Workspaces 1..10 : " + root.workspaceKeys.slice(0, 5).join(", ") + " …)"
-                        color: Qt.alpha(Theme.fg, 0.8)
-                        font.pixelSize: Theme.textXs
+                        elide: Text.ElideRight
                     }
                 }
 
                 Rectangle {
-                    width: 215
+                    width: 140
                     height: 28
                     anchors.right: parent.right
                     anchors.rightMargin: 8
@@ -1789,7 +2099,7 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Assistant langue du clavier"
+                        text: "Assistant clavier"
                         color: reopenKbMa.containsMouse ? Theme.bg : Theme.accent
                         font.pixelSize: Theme.textXs
                         font.bold: true
@@ -1809,10 +2119,12 @@ Rectangle {
             }
 
             Text {
-                text: "Raccourcis Clavier Hyprland (cliquer sur une ligne pour l'éditer)"
+                width: parent.width
+                text: "Raccourcis Hyprland — cliquer une ligne pour l'éditer"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
+                elide: Text.ElideRight
             }
 
             Flickable {
@@ -1824,6 +2136,7 @@ Rectangle {
 
                 Column {
                     id: bindsCol
+                    objectName: "bindsCol"
                     width: parent.width
                     spacing: 6
 
@@ -1839,12 +2152,14 @@ Rectangle {
 
                             Row {
                                 anchors.left: parent.left
-                                anchors.leftMargin: 10
+                                anchors.leftMargin: 8
+                                anchors.right: parent.right
+                                anchors.rightMargin: 36
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 12
+                                spacing: 10
 
                                 Rectangle {
-                                    width: 170
+                                    width: 118
                                     height: 22
                                     radius: Theme.globalRadius
                                     color: Theme.bg
@@ -1862,9 +2177,11 @@ Rectangle {
 
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 118 - 24
                                     text: "→  " + modelData.target
                                     color: Theme.fg
                                     font.pixelSize: Theme.textSm
+                                    elide: Text.ElideRight
                                 }
                             }
 
@@ -1911,54 +2228,85 @@ Rectangle {
             }
 
             // Add / Update Keybind Bar
-            Row {
-                spacing: 8
+            Column {
                 width: parent.width
+                spacing: 8
 
-                Rectangle {
-                    width: 75
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: Theme.surfaceVariant
-                    Text {
-                        anchors.centerIn: parent
-                        text: "SUPER +"
+                Row {
+                    width: parent.width
+                    spacing: 8
+
+                    Rectangle {
+                        width: 66
+                        height: 32
+                        radius: Theme.globalRadius
+                        color: Theme.surfaceVariant
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "SUPER +"
+                            color: Theme.accent
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width - 66 - 84 - 2 * 8
+                        height: 32
+                        radius: Theme.globalRadius
+                        color: Theme.bg
+                        border.color: bindKeyInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+                        border.width: 1
+
+                        Text {
+                            visible: bindKeyInput.text.length === 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 8
+                            text: "Touche (ex: Return, M)"
+                            color: Qt.alpha(Theme.fg, 0.45)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        TextInput {
+                            id: bindKeyInput
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                        }
+                    }
+
+                    Rectangle {
+                        width: 84
+                        height: 32
+                        radius: Theme.globalRadius
                         color: Theme.accent
-                        font.pixelSize: Theme.textSm
-                        font.bold: true
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Ajouter"
+                            color: Theme.bg
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (bindKeyInput.text !== "" && bindCmdInput.text !== "") {
+                                    root.runConfigCmd(["bind_set", bindKeyInput.text, bindCmdInput.text])
+                                }
+                            }
+                        }
                     }
                 }
 
                 Rectangle {
-                    width: 150
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: Theme.bg
-                    border.color: bindKeyInput.activeFocus ? Theme.accent : Theme.surfaceVariant
-                    border.width: 1
-
-                    Text {
-                        visible: bindKeyInput.text.length === 0
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        anchors.leftMargin: 8
-                        text: "Touche (ex: Return, M)"
-                        color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: Theme.textXs
-                    }
-
-                    TextInput {
-                        id: bindKeyInput
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        verticalAlignment: TextInput.AlignVCenter
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                    }
-                }
-
-                Rectangle {
-                    width: 280
+                    width: parent.width
                     height: 32
                     radius: Theme.globalRadius
                     color: Theme.bg
@@ -1989,31 +2337,6 @@ Rectangle {
                         }
                     }
                 }
-
-                Rectangle {
-                    width: 110
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: Theme.accent
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Enregistrer"
-                        color: Theme.bg
-                        font.pixelSize: Theme.textSm
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (bindKeyInput.text !== "" && bindCmdInput.text !== "") {
-                                root.runConfigCmd(["bind_set", bindKeyInput.text, bindCmdInput.text])
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -2029,9 +2352,10 @@ Rectangle {
             // Programs par défaut des raccourcis (app_vars.json <-> programs.lua)
             CollapsibleSection {
                 id: secApps
+                objectName: "secApps"
                 title: "Programmes par défaut des raccourcis"
                 icon: "rocket"
-                expanded: root.panelSections["apps_programs"] === true
+                expanded: root.sectionOpen("apps_programs", true)
                 onToggled: expanded => root.setPanelSection("apps_programs", expanded)
 
             Text {
@@ -2065,7 +2389,7 @@ Rectangle {
 
                             // Variable Name (Alias)
                             Rectangle {
-                                width: 170
+                                width: 84
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2076,16 +2400,18 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left: parent.left
                                     anchors.leftMargin: 10
+                                    width: parent.width - 16
                                     text: appRow.modelData.alias
                                     color: Theme.fg
                                     font.bold: true
                                     font.pixelSize: Theme.textSm
+                                    elide: Text.ElideRight
                                 }
                             }
 
                             // Editable Command Field
                             Rectangle {
-                                width: 360
+                                width: appRow.width - 84 - 32 - 32 - 3 * 8
                                 height: 32
                                 color: Theme.bg
                                 radius: Theme.globalRadius
@@ -2107,7 +2433,7 @@ Rectangle {
 
                             // Save Button
                             Rectangle {
-                                width: 36
+                                width: 32
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2131,7 +2457,7 @@ Rectangle {
 
                             // Delete Button
                             Rectangle {
-                                width: 36
+                                width: 32
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2163,7 +2489,7 @@ Rectangle {
                 width: parent.width
 
                 Rectangle {
-                    width: 170
+                    width: 84
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2191,7 +2517,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 340
+                    width: parent.width - 84 - 84 - 2 * 10
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2226,7 +2552,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 110
+                    width: 84
                     height: 34
                     radius: Theme.globalRadius
                     color: Theme.accent
@@ -2257,9 +2583,10 @@ Rectangle {
             // Autostart géré par le panneau (autostart.json -> autostart_managed.lua)
             CollapsibleSection {
                 id: secAutostart
+                objectName: "secAutostart"
                 title: "Programmes lancés au démarrage"
-                icon: "⏻"
-                expanded: root.panelSections["apps_autostart"] === true
+                icon: "power"
+                expanded: root.sectionOpen("apps_autostart", true)
                 onToggled: expanded => root.setPanelSection("apps_autostart", expanded)
 
             Text {
@@ -2292,7 +2619,7 @@ Rectangle {
                             width: autostartList.width
 
                             Rectangle {
-                                width: 40
+                                width: 32
                                 height: 32
                                 radius: Theme.globalRadius
                                 color: asRow.modelData.enabled ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.4)
@@ -2315,7 +2642,7 @@ Rectangle {
                             }
 
                             Rectangle {
-                                width: 200
+                                width: 96
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2326,15 +2653,17 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left: parent.left
                                     anchors.leftMargin: 10
+                                    width: parent.width - 16
                                     text: asRow.modelData.name
                                     color: Theme.fg
                                     font.bold: true
                                     font.pixelSize: Theme.textSm
+                                    elide: Text.ElideRight
                                 }
                             }
 
                             Rectangle {
-                                width: 330
+                                width: asRow.width - 32 - 96 - 32 - 3 * 10
                                 height: 32
                                 color: Theme.bg
                                 radius: Theme.globalRadius
@@ -2355,7 +2684,7 @@ Rectangle {
                             }
 
                             Rectangle {
-                                width: 36
+                                width: 32
                                 height: 32
                                 color: Theme.surfaceVariant
                                 radius: Theme.globalRadius
@@ -2386,7 +2715,7 @@ Rectangle {
                 width: parent.width
 
                 Rectangle {
-                    width: 190
+                    width: 96
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2414,7 +2743,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 320
+                    width: parent.width - 96 - 84 - 2 * 10
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2449,7 +2778,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 110
+                    width: 84
                     height: 34
                     radius: Theme.globalRadius
                     color: Theme.accent
