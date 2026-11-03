@@ -80,9 +80,9 @@ Rectangle {
           tab: 2, section: "", target: "kbdRow" },
         { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
           tab: 2, section: "", target: "bindsCol" },
-        { label: "Programmes par défaut des raccourcis", words: "programmes defaut terminal navigateur editeur fichiers",
+        { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
           tab: 3, section: "apps_programs", target: "secApps" },
-        { label: "Programmes lancés au démarrage", words: "autostart demarrage lancement daemon",
+        { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
           tab: 3, section: "apps_autostart", target: "secAutostart" }
     ]
 
@@ -2411,7 +2411,7 @@ Rectangle {
 
                             // Editable Command Field
                             Rectangle {
-                                width: appRow.width - 84 - 32 - 32 - 3 * 8
+                                width: appRow.width - 84 - 32 - 32 - 3 * 10 - 4
                                 height: 32
                                 color: Theme.bg
                                 radius: Theme.globalRadius
@@ -2489,7 +2489,7 @@ Rectangle {
                 width: parent.width
 
                 Rectangle {
-                    width: 84
+                    width: 110
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2501,7 +2501,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        text: "Nom (ex: Mail)"
+                        text: "Nom"
                         color: Qt.alpha(Theme.fg, 0.45)
                         font.pixelSize: Theme.textXs
                     }
@@ -2517,7 +2517,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: parent.width - 84 - 84 - 2 * 10
+                    width: parent.width - 110 - 84 - 2 * 10
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2529,7 +2529,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        text: "Programme (ex: thunderbird)"
+                        text: "Programme"
                         color: Qt.alpha(Theme.fg, 0.45)
                         font.pixelSize: Theme.textXs
                     }
@@ -2715,7 +2715,7 @@ Rectangle {
                 width: parent.width
 
                 Rectangle {
-                    width: 96
+                    width: 110
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2727,7 +2727,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        text: "Nom (ex: Discord)"
+                        text: "Nom"
                         color: Qt.alpha(Theme.fg, 0.45)
                         font.pixelSize: Theme.textXs
                     }
@@ -2743,7 +2743,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: parent.width - 96 - 84 - 2 * 10
+                    width: parent.width - 110 - 84 - 2 * 10
                     height: 34
                     color: Theme.bg
                     radius: Theme.globalRadius
@@ -2755,7 +2755,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 10
-                        text: "Commande (ex: discord &)"
+                        text: "Commande"
                         color: Qt.alpha(Theme.fg, 0.45)
                         font.pixelSize: Theme.textXs
                     }
