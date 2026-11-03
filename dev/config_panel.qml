@@ -926,6 +926,9 @@ Rectangle {
                 }
 }
 
+            // Même respiration de 10 px que devant les barres d'ajout.
+            Item { width: 1; height: 10 }
+
             // Wallpaper Directory Path
             Row {
                 id: wallpaperDirRow   // ancre de recherche
@@ -994,6 +997,8 @@ Rectangle {
                     }
                 }
             }
+
+            Item { width: 1; height: 10 }
 
             // 2. Active Palette Swatches & Custom Color Override
             Text {
