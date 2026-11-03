@@ -75,7 +75,7 @@ spontanément et vont directement au centre. La liste vit dans
 `core/style_vars.json` (`quiet_notif_apps`) via
 `config_manager.py notif_quiet <true|false> <nom d'app…>`, donc elle survit aux
 redéploiements et au redémarrage. Le centre rappelle les applications écartées
-dans un pied discret (« Sans apparition spontanée ») où chaque pastille se retire
+dans un pied discret (« Notifications silencieuses ») où chaque pastille se retire
 d'un clic : le choix reste réversible sans repasser par un toast. La liste étant
 relue par le `FileView` de `Theme.qml`, l'effet est immédiat dans les deux sens.
 
@@ -151,7 +151,7 @@ Objectif. Remplacer le panneau actuel (mur de lignes) par un tiroir de 380 px :
 onglets, recherche, curseurs de 1 px.
 
 Fichiers. `config_panel.qml` (2 482 l.) côté QML ; `core/config_manager.py`
-(986 l.) ne bouge pas, c'est le backend.
+(1 023 l.) ne bouge pas, c'est le backend.
 
 Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
 tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
