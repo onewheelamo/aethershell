@@ -69,7 +69,9 @@ esac
 # 3. Preservation logic
 MARKER="$CURRENT_HYPR/.quickshell_managed"
 PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json"
-PRESERVE_HYPR="input.lua binds.lua programs.lua general.lua colors.lua"
+# colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
+# il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
+PRESERVE_HYPR="input.lua binds.lua programs.lua general.lua"
 
 is_preserved() {
     local name="$1" list="$2" item

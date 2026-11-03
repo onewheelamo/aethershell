@@ -6,7 +6,7 @@ hl.config({
     general = {
         col = {
             active_border   = "rgba(d8c3abee)",
-            inactive_border = "rgba(272422aa)",
+            inactive_border = "rgba(221f1daa)",
         },
     },
     decoration = {
