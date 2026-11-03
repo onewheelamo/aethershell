@@ -21,6 +21,14 @@ hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpot
 hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"))
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"))
 
+-- Sortie de l'aperçu plein écran du greeter (fenêtre de test SDDM). Le mode
+-- test n'a aucun socket d'authentification et n'obéit pas à Qt.quit() : la
+-- fenêtre est plein écran et avale le clavier, donc Échap est traité par le
+-- compositeur. non_consuming : Échap continue d'atteindre la fenêtre focalisée,
+-- l'utilisateur garde son Échap habituel dans les autres applications.
+hl.bind("Escape", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/greeter_preview.sh stop"),
+        { non_consuming = true, description = "fermer l'aperçu du greeter" })
+
 -- Capture d'écran interactive (SUPER + SHIFT + S) : sélection de zone/fenêtre, presse-papier & fichier
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"))
 

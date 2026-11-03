@@ -75,6 +75,62 @@ def presets():
     return out
 
 
+# Ajouté à la seule copie jetable de l'aperçu, jamais au thème installé.
+# Le mode test n'a aucun socket d'authentification : la fenêtre ne peut pas
+# ouvrir de session, mais elle est plein écran, identique au vrai greeter, et un
+# mot de passe tapé dedans se perd sans le moindre message. Le bandeau le dit ;
+# la sortie au clavier, elle, ne peut pas venir de QML (`Qt.quit()` s'exécute
+# sans arrêter sddm-greeter) mais du compositeur : binds.lua lie Échap à
+# core/greeter_preview.sh stop.
+PREVIEW_ESCAPE = """
+    // Aperçu du panneau : ne fait pas partie du thème installé.
+    Rectangle {
+        id: previewHint
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        width: previewHintLabel.implicitWidth + 28
+        height: previewHintLabel.implicitHeight + 14
+        radius: 8
+        color: "#e6050b12"
+        border.width: 1
+        border.color: "#40f0f5ff"
+
+        Text {
+            id: previewHintLabel
+            anchors.centerIn: parent
+            text: "Aperçu — la connexion est désactivée · Échap pour fermer"
+            color: "#f0f5ff"
+            font.pixelSize: 13
+        }
+    }
+"""
+
+
+def inject_preview_escape(theme_dir):
+    """Insère le bandeau + le raccourci Échap dans le Main.qml de la copie.
+
+    L'insertion se fait juste avant l'accolade qui ferme l'objet racine
+    (`Pane`), donc au même niveau que ses autres enfants. Échec silencieux
+    volontaire : un aperçu sans bandeau reste préférable à un aperçu qui ne
+    s'ouvre pas — mais l'équilibre des accolades est vérifié pour éviter
+    d'écrire un fichier que QML refuserait de charger.
+    """
+    main = Path(theme_dir) / "Main.qml"
+    try:
+        text = main.read_text()
+    except OSError:
+        return False
+    end = text.rstrip()
+    if not end.endswith("}"):
+        return False
+    patched = end[:-1] + PREVIEW_ESCAPE + "}\n"
+    if patched.count("{") != patched.count("}"):
+        return False
+    main.write_text(patched)
+    return True
+
+
 def preview(ident):
     """Ouvre le greeter en mode test sur une copie jetable du thème.
 
@@ -96,16 +152,16 @@ def preview(ident):
             line = f"ConfigFile=Themes/{ident}.conf"
         lines.append(line)
     meta.write_text("\n".join(lines) + "\n")
+    inject_preview_escape(tmp)
 
     env = dict(os.environ)
     env["QT_QPA_PLATFORM"] = "wayland"
-    # Fenêtre plein écran 1920×1080 ; `timeout` la referme seule et la copie
-    # jetable est supprimée avec elle.
-    script = (
-        f"timeout 45 sddm-greeter-qt6 --test-mode --theme {tmp}; "
-        f"rm -rf {tmp}"
-    )
-    subprocess.Popen(["sh", "-c", script], env=env, start_new_session=True,
+    # Le lancement passe par core/greeter_preview.sh : il enregistre le PID pour
+    # que Échap (lié dans binds.lua) puisse refermer la fenêtre, et il supprime
+    # la copie jetable. Le délai reste le filet si personne n'appuie.
+    wrapper = Path(__file__).with_name("greeter_preview.sh")
+    subprocess.Popen(["sh", str(wrapper), "start", str(tmp), "45"], env=env,
+                     start_new_session=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(json.dumps({"ok": True, "preview": ident}))
 

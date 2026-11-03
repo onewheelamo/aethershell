@@ -72,4 +72,4 @@ echo "fond    : $THEME/Backgrounds/wallpaper.png"
 [ "$MODE" = "full" ] && echo "sélect. : $CONFD/10-sddm-theme.conf (Current=sddm-astronaut-theme)"
 echo "sauveg. : $BACKUP"
 echo
-echo "test    : QT_QPA_PLATFORM=wayland sddm-greeter-qt6 --test-mode --theme $THEME"
+echo "test    : QT_QPA_PLATFORM=wayland sddm-greeter-qt6 --test-mode --theme $THEME  (Échap pour fermer ; la connexion y est désactivée)"
