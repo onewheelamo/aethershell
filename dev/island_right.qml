@@ -340,6 +340,21 @@ Item {
         onTriggered: islandRight.refreshSystemInfo()
     }
 
+    // Les touches média changent le volume via osd.sh : l'OSD est le seul signal
+    // disponible, on s'en sert pour rafraîchir l'icône tout de suite au lieu
+    // d'attendre le prochain sondage de 5 s. On ne teste pas `osdVisible` :
+    // showOsd() écrit kind puis valeur avant de passer visible, donc au moment
+    // du signal la surface est encore masquée.
+    Connections {
+        target: Theme
+        function onOsdValueChanged() {
+            if (Theme.osdKind === "volume" || Theme.osdKind === "mute") islandRight.refreshSystemInfo()
+        }
+        function onOsdKindChanged() {
+            if (Theme.osdKind === "volume" || Theme.osdKind === "mute") islandRight.refreshSystemInfo()
+        }
+    }
+
     Connections {
         target: Theme
         function onActivePopupChanged() {
@@ -703,15 +718,42 @@ Item {
 
                     // Entrée unique vers le panneau système (volume, luminosité, batterie).
                     // Les pourcentages ont quitté la barre : volume et luminosité passent par
-                    // l'OSD (bas-centre) et par les curseurs du panneau. L'icône ne garde que
-                    // l'état muet, qui doit rester lisible d'un coup d'œil.
-                    Icon {
+                    // l'OSD (bas-centre) et par les curseurs du panneau. L'icône garde l'état
+                    // muet, et la molette y règle le volume comme le font les touches média.
+                    Item {
+                        width: 20
+                        height: 24
                         anchors.verticalCenter: parent.verticalCenter
-                        glyph: islandRight.volMuted
-                            ? "volume-off"
-                            : islandRight.volumeIconFor(islandRight.volPercent, false)
-                        size: Theme.iconSm
-                        color: islandRight.volMuted ? Theme.error : Theme.accent
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
+                            size: Theme.iconSm
+                            color: islandRight.volMuted ? Theme.error : Theme.accent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton) {
+                                    islandRight.volMuted = !islandRight.volMuted
+                                    islandRight.runSysAction(["mute"])
+                                    Theme.showOsd("volume", islandRight.volMuted ? 0 : islandRight.volPercent)
+                                } else {
+                                    Theme.togglePopup("system")
+                                }
+                            }
+                            onWheel: wheel => {
+                                const step = wheel.angleDelta.y > 0 ? 5 : -5
+                                const nextVol = Math.max(0, Math.min(150, islandRight.volPercent + step))
+                                islandRight.volPercent = nextVol
+                                islandRight.volMuted = false
+                                islandRight.runSysAction(["volume", String(nextVol)])
+                                Theme.showOsd("volume", nextVol)
+                            }
+                        }
                     }
                 }
             }

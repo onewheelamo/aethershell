@@ -269,12 +269,15 @@ Item {
                                 const ctx = getContext("2d")
                                 const w = width
                                 const h = height
-                                const r = Math.min(wsDelegate.radius, h / 2)
                                 const i = 0.75
+                                // Rayon borné par les DEUX dimensions, sinon les côtés
+                                // droits deviennent des segments de longueur négative et
+                                // QML dessine deux ergots verticaux de chaque côté.
+                                const r = Math.max(0.5, Math.min(wsDelegate.radius, (w - 2 * i) / 2, (h - 2 * i) / 2))
                                 ctx.reset()
                                 const grad = ctx.createLinearGradient(0, 0, w, 0)
                                 grad.addColorStop(0, Qt.alpha(Theme.accent, 0.95))
-                                grad.addColorStop(1, Qt.alpha(Theme.accent, 0.10))
+                                grad.addColorStop(1, Qt.alpha(Theme.accent, 0.30))
                                 ctx.strokeStyle = grad
                                 ctx.lineWidth = 1.5
                                 ctx.beginPath()

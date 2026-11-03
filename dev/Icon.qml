@@ -34,6 +34,15 @@ Item {
         renderType: Text.NativeRendering
     }
 
+    // Un nom absent de la table rendait une icône vide, sans le moindre message :
+    // « volume-high » manquait et le haut-parleur disparaissait au-dessus de 70 %.
+    // On prévient une fois par nom inconnu, sans casser le rendu.
+    onGlyphChanged: {
+        if (root.glyph !== "" && root.glyphs[root.glyph] === undefined) {
+            console.warn("Icon.qml: glyphe inconnu '" + root.glyph + "'")
+        }
+    }
+
     readonly property var glyphs: ({
         "cog": "\u{F0493}",
         "close": "\u{F0156}",
@@ -94,6 +103,7 @@ Item {
         "volume-off": "\u{F036D}",
         "volume-low": "\u{F057F}",
         "volume-medium": "\u{F0580}",
+        "volume-high": "\u{F057E}",
         "bell-off": "\u{F009C}",
         "ethernet": "\u{F0200}",
         "chevron-left": "\u{F0141}",
