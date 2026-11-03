@@ -6,8 +6,8 @@ import Quickshell.Wayland
 // ─────────────────────────────────────────────────────────────────────────────
 // 9. SPOTLIGHT PILL — launcher bas-centre qui remplace fuzzel
 // ─────────────────────────────────────────────────────────────────────────────
-// Chargée par la PanelWindow `portable-spotlight` de main.qml, elle-même pilotée
-// par Theme.spotlightVisible (IPC `quickshell ipc call portable toggleSpotlight`).
+// Chargée par la PanelWindow `shell-spotlight` de main.qml, elle-même pilotée
+// par Theme.spotlightVisible (IPC `quickshell ipc call shell toggleSpotlight`).
 //
 // Trois sources, une seule liste de résultats :
 //   • applications — core/app_index.json (core/app_index.py)

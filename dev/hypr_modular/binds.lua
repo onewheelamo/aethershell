@@ -17,8 +17,8 @@ hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd(browser2))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer))
 
 -- Lanceur Fuzzel, Panneau de Configuration Quickshell & Sélecteur de Fond d'écran
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call portable toggleSpotlight"))
-hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call portable toggleConfig"))
+hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpotlight"))
+hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"))
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"))
 
 -- Capture d'écran interactive (SUPER + SHIFT + S) : sélection de zone/fenêtre, presse-papier & fichier

@@ -7,7 +7,7 @@ import Quickshell.Io
 // ═══════════════════════════════════════════════════════════════════════════════
 // - Grille de miniatures (une capture réelle par configuration du thème)
 // - Clic sur une miniature : sélection + aperçu plein écran (mode test SDDM)
-// - « Appliquer » écrit la sélection via /usr/local/bin/portable-greeter (polkit)
+// - « Appliquer » écrit la sélection via /usr/local/bin/greeter-palette (polkit)
 // Le backend est core/greeter_manager.py ; les miniatures vivent dans
 // ~/.cache/quickshell/greeter-thumbs et se régénèrent à la demande.
 Item {

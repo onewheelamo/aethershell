@@ -10,7 +10,7 @@ import os
 def runtime_dir():
     base = os.environ.get("XDG_RUNTIME_DIR")
     if base and os.path.isdir(base) and os.access(base, os.W_OK):
-        path = os.path.join(base, "quickshell-portable")
+        path = os.path.join(base, "quickshell-session")
     else:
         path = os.path.join(os.path.expanduser("~/.cache"), "quickshell")
     try:

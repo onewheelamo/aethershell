@@ -8,7 +8,7 @@ Actions (toutes en JSON sur stdout) :
   refresh              — régénère palette + fond depuis style_vars.json puis applique
   thumbnails [ids…]    — (re)génère les miniatures
 
-L'écriture système passe par /usr/local/bin/portable-greeter (root, polkit) ;
+L'écriture système passe par /usr/local/bin/greeter-palette (root, polkit) ;
 tout ce qui est calcul ou aperçu reste sans privilège.
 """
 
@@ -22,14 +22,14 @@ from pathlib import Path
 
 HOME = Path.home()
 THEME = Path("/usr/share/sddm/themes/sddm-astronaut-theme")
-HELPER = "/usr/local/bin/portable-greeter"
+HELPER = "/usr/local/bin/greeter-palette"
 THUMBS = HOME / ".cache/quickshell/greeter-thumbs"
 GENERATE = HOME / "dev/quickshell_todo/dev/sddm/generate.py"
 DEV_SDDM = HOME / "dev/quickshell_todo/dev/sddm"
 
 # Libellés : les identifiants viennent des noms de fichiers du thème.
 LABELS = {
-    "portable": "Portable (palette Matugen)",
+    "palette": "Palette de la session",
     "astronaut": "Astronaut",
     "black_hole": "Trou noir",
     "cyberpunk": "Cyberpunk",
@@ -70,8 +70,8 @@ def presets():
             "thumb": str(thumb) if thumb.exists() else "",
             "active": ident == active_id(),
         })
-    # « portable » en tête : c'est la palette de la session.
-    out.sort(key=lambda p: (p["id"] != "portable", p["name"].lower()))
+    # « palette » en tête : c'est la palette de la session.
+    out.sort(key=lambda p: (p["id"] != "palette", p["name"].lower()))
     return out
 
 
@@ -85,7 +85,7 @@ def preview(ident):
     if not conf.exists():
         fail(f"configuration inconnue : {ident}")
     # Même volume que /usr, sinon `cp -al` échoue (liens durs inter-périphériques).
-    tmp = Path(tempfile.mkdtemp(prefix="portable-greeter-preview-", dir="/var/tmp"))
+    tmp = Path(tempfile.mkdtemp(prefix="greeter-preview-", dir="/var/tmp"))
     # Liens durs impossibles (fichiers root, fs.protected_hardlinks=1) : copie
     # réelle, reflink quand le volume est en copy-on-write.
     subprocess.run(["cp", "-a", "--reflink=auto", f"{THEME}/.", str(tmp)], check=True)
@@ -118,13 +118,13 @@ def helper(*args):
 def apply(ident):
     if not (THEME / "Themes" / f"{ident}.conf").exists():
         fail(f"configuration inconnue : {ident}")
-    if ident == "portable":
+    if ident == "palette":
         # La palette peut avoir changé depuis la dernière installation.
         gen = subprocess.run([sys.executable, str(GENERATE)], capture_output=True, text=True)
         if gen.returncode != 0:
             fail(f"génération impossible : {gen.stderr.strip()[:200]}")
-        ok, out = helper("set-palette", str(DEV_SDDM / "out/Themes/portable.conf"),
-                         str(DEV_SDDM / "out/Backgrounds/portable.png"))
+        ok, out = helper("set-palette", str(DEV_SDDM / "out/Themes/palette.conf"),
+                         str(DEV_SDDM / "out/Backgrounds/wallpaper.png"))
         if not ok:
             fail(f"installation de la palette refusée : {out[:200]}")
     ok, out = helper("apply", ident)
@@ -159,7 +159,7 @@ def main():
     elif action == "apply" and len(sys.argv) > 2:
         apply(sys.argv[2])
     elif action == "refresh":
-        apply("portable")
+        apply("palette")
     elif action == "thumbnails":
         thumbnails(sys.argv[2:])
     else:

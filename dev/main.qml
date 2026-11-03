@@ -65,7 +65,7 @@ Item {
         WlrLayershell.keyboardFocus: (Theme.activePopup === "wifi" || Theme.activePopup === "calendar")
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-bar"
+        WlrLayershell.namespace: "shell-bar"
 
         Item {
             id: barContainer
@@ -163,7 +163,7 @@ Item {
         aboveWindows: true
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-osd"
+        WlrLayershell.namespace: "shell-osd"
 
         Rectangle {
             id: osdBox
@@ -242,7 +242,7 @@ Item {
         aboveWindows: true
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: Theme.configPanelVisible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-config"
+        WlrLayershell.namespace: "shell-config"
 
         MouseArea {
             anchors.fill: parent
@@ -275,7 +275,7 @@ Item {
         aboveWindows: true
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: Theme.spotlightVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-spotlight"
+        WlrLayershell.namespace: "shell-spotlight"
 
         // Un clic hors de la pilule ferme la surface — sauf juste après
         // l'ouverture, où le relâchement du clic d'invocation arrive ici.
@@ -318,7 +318,7 @@ Item {
         // elle, la capsule s'efface.
         WlrLayershell.layer: root.desktopClear ? WlrLayer.Top : WlrLayer.Bottom
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-spotlight-rest"
+        WlrLayershell.namespace: "shell-spotlight-rest"
 
         Rectangle {
             anchors.fill: parent
@@ -371,7 +371,7 @@ Item {
         aboveWindows: true
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "portable-onboarding"
+        WlrLayershell.namespace: "shell-onboarding"
 
         Rectangle {
             id: onboardingCard

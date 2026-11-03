@@ -26,4 +26,4 @@ case "$KIND" in
 esac
 
 [ -z "$val" ] && exit 0
-quickshell ipc call portable osd "$KIND" "$val" 2>/dev/null || true
+quickshell ipc call shell osd "$KIND" "$val" 2>/dev/null || true

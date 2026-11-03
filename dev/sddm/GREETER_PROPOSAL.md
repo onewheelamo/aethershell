@@ -41,7 +41,7 @@ Installé en `92.abb3163-1`, dans `/usr/share/sddm/themes/sddm-astronaut-theme`
 
 ```
 dev/sddm/
-  generate.py    # style_vars.json + `awww query` → out/Themes/portable.conf + out/Backgrounds/portable.png
+  generate.py    # style_vars.json + `awww query` → out/Themes/palette.conf + out/Backgrounds/wallpaper.png
   install.sh     # génère puis installe (une invite polkit) ; --colors-only pour la palette seule
   out/           # sorties générées, hors dépôt (.gitignore)
 ```
@@ -50,10 +50,10 @@ dev/sddm/
   réellement affiché (`awww query`) — jamais une valeur recopiée à la main.
 - Fond : recadré 1920×1080 puis `-modulate 55` → luminance moyenne **44,0** contre
   **79,2** à la source, mesurée sur le fichier installé.
-- `install.sh` copie `Themes/portable.conf` et `Backgrounds/portable.png` dans le
-  thème, patche `metadata.desktop` (`ConfigFile=Themes/portable.conf`), neutralise les
+- `install.sh` copie `Themes/palette.conf` et `Backgrounds/wallpaper.png` dans le
+  thème, patche `metadata.desktop` (`ConfigFile=Themes/palette.conf`), neutralise les
   `Current=` concurrents (sauvegardés dans `~/.config/backups_env/sddm_*`) et écrit
-  `/etc/sddm.conf.d/10-portable.conf` (`Current=sddm-astronaut-theme`). Vérifié :
+  `/etc/sddm.conf.d/10-sddm-theme.conf` (`Current=sddm-astronaut-theme`). Vérifié :
   **un seul** `Current=` actif dans `/etc/sddm.conf.d/`.
 
 ### Correspondance des couleurs

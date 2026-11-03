@@ -603,7 +603,7 @@ def add_calendar_event(date_str, summary, start_time="", end_time="", location="
     ics_lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Portable-Station Quickshell//CalDAV Client//FR",
+        "PRODID:-//Quickshell//CalDAV Client//FR",
         "BEGIN:VEVENT",
         f"UID:{uid}",
         f"DTSTAMP:{now_utc}",

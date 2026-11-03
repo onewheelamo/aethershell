@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Génère le thème de connexion portable (sddm-astronaut re-coloré).
+"""Génère le thème de connexion de la session (sddm-astronaut re-coloré).
 
 Sorties, dans dev/sddm/out/ :
-  Themes/portable.conf    — configuration complète du thème (couleurs Matugen)
-  Backgrounds/portable.png — wallpaper courant assombri, 1920×1080
+  Themes/palette.conf    — configuration complète du thème (couleurs Matugen)
+  Backgrounds/wallpaper.png — wallpaper courant assombri, 1920×1080
 
 Sources, jamais dupliquées :
   ~/.config/quickshell/core/style_vars.json  (palette active)
@@ -134,7 +134,7 @@ def build_conf(palette):
         "",
         "#################### Fond ####################",
         "",
-        'Background="Backgrounds/portable.png"',
+        'Background="Backgrounds/wallpaper.png"',
         'BackgroundPlaceholder=""',
         'BackgroundSpeed="1.0"',
         'PauseBackground=""',
@@ -201,7 +201,7 @@ def build_background():
     if not shutil.which("magick"):
         print("generate.py: magick absent, fond inchangé", file=sys.stderr)
         return False
-    dst = OUT / "Backgrounds/portable.png"
+    dst = OUT / "Backgrounds/wallpaper.png"
     dst.parent.mkdir(parents=True, exist_ok=True)
     w, h = SCREEN
     # Recadré à l'écran puis assombri à ~55 % : le formulaire doit rester lisible.
@@ -218,7 +218,7 @@ def main():
     name, palette = load_palette()
     themes = OUT / "Themes"
     themes.mkdir(parents=True, exist_ok=True)
-    conf = themes / "portable.conf"
+    conf = themes / "palette.conf"
     conf.write_text(build_conf(palette))
     print(f"palette : {name}")
     print(f"conf    : {conf.relative_to(DEV)}")

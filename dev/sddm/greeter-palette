@@ -1,8 +1,8 @@
 #!/bin/bash
-# Helper privilégié du greeter portable.
+# Helper privilégié du greeter de connexion.
 #
 # Seul programme autorisé sans mot de passe par
-# /etc/polkit-1/rules.d/50-portable-greeter.rules — il est donc volontairement
+# /etc/polkit-1/rules.d/50-greeter-palette.rules — il est donc volontairement
 # minuscule, sans shell évalué, et il valide tout ce qu'il reçoit :
 #   - `apply <id>`              choisit un thème déjà présent dans le thème
 #   - `set-palette <conf> <bg>` remplace la palette générée et le fond
@@ -12,10 +12,10 @@
 set -euo pipefail
 
 THEME="/usr/share/sddm/themes/sddm-astronaut-theme"
-SDDM_CONF="/etc/sddm.conf.d/10-portable.conf"
+SDDM_CONF="/etc/sddm.conf.d/10-sddm-theme.conf"
 MARKER="# Généré par dev/sddm/generate.py"
 
-die() { echo "portable-greeter: $*" >&2; exit 2; }
+die() { echo "greeter-palette: $*" >&2; exit 2; }
 
 [ "$(id -u)" -eq 0 ] || die "à lancer via pkexec"
 [ -d "$THEME" ] || die "thème absent : $THEME"
@@ -57,9 +57,9 @@ set-palette)
     dims="$(identify -format '%wx%h' "$src_bg" 2>/dev/null || true)"
     [ "$dims" = "1920x1080" ] || die "fond: dimensions $dims au lieu de 1920x1080"
 
-    install -Dm644 "$src_conf" "$THEME/Themes/portable.conf"
-    install -Dm644 "$src_bg" "$THEME/Backgrounds/portable.png"
-    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/portable.conf|" "$THEME/metadata.desktop"
+    install -Dm644 "$src_conf" "$THEME/Themes/palette.conf"
+    install -Dm644 "$src_bg" "$THEME/Backgrounds/wallpaper.png"
+    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/palette.conf|" "$THEME/metadata.desktop"
     printf '[Theme]\nCurrent=sddm-astronaut-theme\n' > "$SDDM_CONF"
     echo "palette installée"
     ;;

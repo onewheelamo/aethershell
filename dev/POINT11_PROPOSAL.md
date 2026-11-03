@@ -12,7 +12,7 @@ manques, pas sur une réécriture du backend.
 
 | Élément | État actuel |
 |---|---|
-| Fenêtre | `main.qml` → `PanelWindow` plein écran (`portable-config`, Overlay), un `Loader` `anchors.centerIn` charge `config_panel.qml` |
+| Fenêtre | `main.qml` → `PanelWindow` plein écran (`shell-config`, Overlay), un `Loader` `anchors.centerIn` charge `config_panel.qml` |
 | Panneau | `Rectangle` 680 × 560, rayon `Theme.globalRadius`, bordure accent 1 px |
 | En-tête | titre + bouton de fermeture (croix) 32 × 32 |
 | Onglets | `Row` de 4 boutons 34 px : Esthétique, Système & Écrans, Contrôles, Applications |
@@ -45,7 +45,7 @@ les 4 onglets et leur contenu.
 
 ## 3. Géométrie
 
-- Fenêtre : `PanelWindow` inchangée (plein écran, Overlay, `portable-config`), le
+- Fenêtre : `PanelWindow` inchangée (plein écran, Overlay, `shell-config`), le
   clic hors du tiroir ferme toujours le panneau.
 - Loader : `anchors.centerIn` → ancrage à droite,
   `anchors.rightMargin: Theme.gutter`,
@@ -211,7 +211,7 @@ résultat. Les quatre volets tiennent dans un lot.
 qmllint dev/config_panel.qml dev/Slider.qml
 cd /home/utilisateur/dev/quickshell_todo && printf '1\ns\n' | bash dev/deploy.sh --station
 for p in $(pgrep -x quickshell); do kill $p; done; quickshell -d
-hyprctl layers | grep -c portable-config      # 1 quand le panneau est ouvert
+hyprctl layers | grep -c shell-config      # 1 quand le panneau est ouvert
 grim, puis recadrage zoomé du tiroir
 diff -q dev/config_panel.qml ~/.config/quickshell/config_panel.qml
 ```

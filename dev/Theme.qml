@@ -12,7 +12,7 @@ import Quickshell.Hyprland
 //   • Exposes global design tokens (palette, corner radii, opacities, heights)
 //   • Injects dynamic styling live into Hyprland via hyprctl eval (borders, blur, rounding)
 //   • Manages cross-island popups (ensuring mutual exclusivity)
-//   • Hosts the IPC interface ("portable") for external CLI commands and keybinds
+//   • Hosts the IPC interface ("shell") for external CLI commands and keybinds
 // ════════════════════════════════════════════════════════════════════════════
 
 QtObject {
@@ -295,13 +295,13 @@ QtObject {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // SECTION 8: IPC HANDLER ("portable")
+    // SECTION 8: IPC HANDLER ("shell")
     // ────────────────────────────────────────────────────────────────────────
     // Allows scripts, keybindings and sub-processes to control Quickshell:
-    //   qs -p /path/to/shell ipc portable toggleConfig
-    //   qs -p /path/to/shell ipc portable osd volume 75
+    //   qs -p /path/to/shell ipc shell toggleConfig
+    //   qs -p /path/to/shell ipc shell osd volume 75
     property IpcHandler ipc: IpcHandler {
-        target: "portable"
+        target: "shell"
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
         }
@@ -317,7 +317,7 @@ QtObject {
         function osd(kind: string, value: real) {
             root.showOsd(kind, value)
         }
-        // Permet de piloter les popups pour les tests : ipc call portable togglePopup calendar
+        // Permet de piloter les popups pour les tests : ipc call shell togglePopup calendar
         function togglePopup(name: string) {
             root.togglePopup(name)
         }

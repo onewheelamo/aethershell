@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Hyprquickpaper selection hook for Portable & Station:
+# Hyprquickpaper selection hook for the session:
 # 1. Resolves WALLPAPER_DIR from core/style_vars.json (configured in the Config Panel)
 # 2. Applies the chosen wallpaper (or picks one from $WALLPAPER_DIR if a relative name or none was passed)
 # 3. Triggers Matugen dynamic palette generation (Quickshell + Hyprland + Rofi)

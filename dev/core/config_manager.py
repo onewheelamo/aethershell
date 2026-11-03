@@ -337,8 +337,8 @@ def update_hypr_gaps(key, val):
 # ses marqueurs, puis recharge Hyprland. Les namespaces viennent de main.qml.
 SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
 SHELL_BLUR_END = "-- END shell-blur"
-SHELL_BLUR_NAMESPACES = ("portable-bar", "portable-osd", "portable-config", "portable-onboarding",
-                         "portable-spotlight", "portable-spotlight-rest")
+SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboarding",
+                         "shell-spotlight", "shell-spotlight-rest")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
 

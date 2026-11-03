@@ -4,7 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Qt.labs.folderlistmodel
 
-// HyprQuickPaper-style wallpaper selector for the portable/station shell.
+// HyprQuickPaper-style wallpaper selector for the shell.
 // Wallpaper directory is NOT read from config.json here: it comes from the
 // main shell's core/style_vars.json (single source of truth, editable from
 // the config panel). config.json only provides display/thumbnail settings.

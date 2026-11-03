@@ -3,7 +3,7 @@
 // l'utilisateur. Tout le reste passe toujours par une authentification.
 polkit.addRule(function (action, subject) {
     if (action.id == "org.freedesktop.policykit.exec" &&
-        action.lookup("program") == "/usr/local/bin/portable-greeter" &&
+        action.lookup("program") == "/usr/local/bin/greeter-palette" &&
         subject.user == "amo") {
         return polkit.Result.YES;
     }

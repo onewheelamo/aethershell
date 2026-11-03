@@ -2,7 +2,7 @@
 # Génère les miniatures du greeter : une capture 480×270 par configuration.
 #
 #   bash dev/sddm/thumbnails.sh               toutes les confs du thème
-#   bash dev/sddm/thumbnails.sh portable        une seule
+#   bash dev/sddm/thumbnails.sh palette       une seule
 #
 # Chaque conf est prévisualisée par sddm-greeter-qt6 en mode test, sur une copie
 # jetable du thème (liens durs), puis capturée avec grim. Les fenêtres du greeter
@@ -36,7 +36,7 @@ for id in "${ids[@]}"; do
 
     # /usr est sur un autre système de fichiers que /home : les liens durs
     # échouent depuis TMPDIR, d'où /var/tmp (même volume, mktemp crée en 700).
-    tmp="$(mktemp -d /var/tmp/portable-thumb-XXXXXX)"
+    tmp="$(mktemp -d /var/tmp/greeter-thumb-XXXXXX)"
     # Liens durs impossibles (fichiers root, fs.protected_hardlinks=1) : copie
     # réelle, en reflink quand le volume est en copy-on-write.
     cp -a --reflink=auto "$THEME/." "$tmp/"
