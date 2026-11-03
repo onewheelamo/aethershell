@@ -353,10 +353,10 @@ Item {
     Rectangle {
         id: background
         anchors.fill: parent
-        color: Theme.surfaceBg
+        color: Theme.barMerged ? "transparent" : Theme.surfaceBg
         radius: Theme.globalRadius
         border.color: islandCenter.calendarOpen ? Theme.accentMuted : Theme.accent
-        border.width: 1
+        border.width: Theme.barMerged ? 0 : 1
         clip: true
 
         Behavior on color { ColorAnimation { duration: 160 } }

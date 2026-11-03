@@ -148,10 +148,10 @@ Item {
     Rectangle {
         id: bgRect
         anchors.fill: parent
-        color: Theme.surfaceBg
+        color: Theme.barMerged ? "transparent" : Theme.surfaceBg
         radius: Theme.globalRadius
         border.color: Theme.accent
-        border.width: 1
+        border.width: Theme.barMerged ? 0 : 1
 
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }

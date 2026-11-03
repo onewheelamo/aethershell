@@ -60,6 +60,20 @@ ShellRoot {
             height: Theme.barHeight
             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
+            // 5a : surface unique derrière les trois groupes
+            Rectangle {
+                id: capsuleBg
+                visible: Theme.barMerged
+                anchors.fill: parent
+                radius: Theme.pillRadius
+                color: Theme.surfaceBg
+                border.color: Theme.accent
+                border.width: 1
+
+                Behavior on color { ColorAnimation { duration: 180 } }
+                Behavior on border.color { ColorAnimation { duration: 180 } }
+            }
+
             // LEFT ISLAND: Launcher + Workspaces
             Loader {
                 id: leftLoader
@@ -82,6 +96,26 @@ ShellRoot {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 source: "island_right.qml"
+            }
+
+            // Séparateurs de groupes : 6 % de la couleur de texte, 1 px
+            Rectangle {
+                visible: Theme.barMerged
+                width: 1
+                height: Theme.barHeight * 0.4
+                x: leftLoader.x + leftLoader.width + Theme.gutter
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.fg
+                opacity: 0.09
+            }
+            Rectangle {
+                visible: Theme.barMerged
+                width: 1
+                height: Theme.barHeight * 0.4
+                x: rightLoader.x - Theme.gutter - 1
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.fg
+                opacity: 0.09
             }
         }
     }

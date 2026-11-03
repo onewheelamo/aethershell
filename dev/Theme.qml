@@ -59,6 +59,10 @@ QtObject {
     readonly property int gutter: 8    // marge entre les îles et les bords
     readonly property int pillRadius: Math.min(globalRadius, Math.round(barHeight / 2))
 
+    // 5a "capsule continue" : les trois pilules fusionnent en une seule surface.
+    // Passer à false remet la barre à trois îlots indépendants.
+    readonly property bool barMerged: true
+
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: HYPRLAND LAYOUT & BLUR METRICS
     // ────────────────────────────────────────────────────────────────────────
