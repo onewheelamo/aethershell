@@ -44,10 +44,13 @@ hl.config({
 -- Flou derrière les surfaces Quickshell (barre, OSD, panneau).
 -- Sans ces règles, une surface layer-shell translucide laisse passer le texte
 -- des fenêtres net : le flou Kawase ne s'applique qu'aux fenêtres par défaut.
-hl.layer_rule({ match = { namespace = "portable-bar" },     blur = true })
-hl.layer_rule({ match = { namespace = "portable-osd" },     blur = true })
-hl.layer_rule({ match = { namespace = "portable-config" },  blur = true })
-hl.layer_rule({ match = { namespace = "portable-onboarding" }, blur = true })
+-- ignore_alpha : sans lui, Hyprland floute toute la surface layer (fenêtre
+-- plein largeur / plein écran) et pas seulement la capsule visible. Le seuil
+-- doit rester sous l'alpha des surfaces du thème (globalOpacity 0.7-0.85).
+hl.layer_rule({ match = { namespace = "portable-bar" },        blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ match = { namespace = "portable-osd" },        blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ match = { namespace = "portable-config" },     blur = true, ignore_alpha = 0.4 })
+hl.layer_rule({ match = { namespace = "portable-onboarding" }, blur = true, ignore_alpha = 0.4 })
 
 -- Courbes et animations
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })

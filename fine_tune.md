@@ -21,6 +21,11 @@ Fait et déployé :
 | 5a | Capsule continue : une seule surface derrière les trois groupes | `main.qml` + `Theme.barMerged` |
 | 8 | Flou derrière les surfaces layer-shell | `hypr_modular/general.lua` |
 
+Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
+surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
+et pas seulement la capsule visible. Le seuil doit rester sous l'alpha des
+surfaces du thème (`globalOpacity` 0.7–0.85).
+
 Reste : 4, 6, 7, 9, 10, 11, 12, 13, 14, plus deux idées en réserve (§4).
 
 ---
