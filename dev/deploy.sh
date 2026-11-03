@@ -281,6 +281,11 @@ deploy_new_env() {
     (cd "$DEV_DIR/core" && ls -1) > "$core_manifest"
     prune_target "$CORE_DIR" "$core_manifest" "$PRESERVE_CORE"
     rm -f "$core_manifest"
+    # Index des applications de la pilule spotlight : données de la machine,
+    # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
+    if [ -f "$CORE_DIR/app_index.py" ]; then
+        python3 "$CORE_DIR/app_index.py" --quiet || true
+    fi
     if [ ! -f "$CORE_DIR/secrets.json" ] && [ -f "$CORE_DIR/secrets.example.json" ]; then
         cp "$CORE_DIR/secrets.example.json" "$CORE_DIR/secrets.json"
     fi
@@ -294,6 +299,7 @@ deploy_new_env() {
     cp "$DEV_DIR/island_center.qml" "$QS_DIR/island_center.qml"
     cp "$DEV_DIR/island_right.qml" "$QS_DIR/island_right.qml"
     cp "$DEV_DIR/config_panel.qml" "$QS_DIR/config_panel.qml"
+    cp "$DEV_DIR/spotlight.qml" "$QS_DIR/spotlight.qml"
     cp "$DEV_DIR/CollapsibleSection.qml" "$QS_DIR/CollapsibleSection.qml"
     cp "$DEV_DIR/Stepper.qml" "$QS_DIR/Stepper.qml"
     cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"

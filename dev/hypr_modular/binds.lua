@@ -17,7 +17,7 @@ hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd(browser2))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer))
 
 -- Lanceur Fuzzel, Panneau de Configuration Quickshell & Sélecteur de Fond d'écran
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("pkill fuzzel || fuzzel"))
+hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call portable toggleSpotlight"))
 hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call portable toggleConfig"))
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"))
 
@@ -66,14 +66,6 @@ hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272",  hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273",  hl.dsp.window.resize(), { mouse = true })
-
--- Fermeture du launcher au clic extérieur.
--- Hyprland 0.57 ne retire pas le focus clavier d'une surface layer quand on
--- clique sur le bureau ou sur la fenêtre déjà active : fuzzel (qui quitte
--- pourtant sur perte de focus) reste affiché. Ce bind non-consommant laisse
--- passer le clic et ne fait rien quand aucun launcher n'est ouvert.
-hl.bind("mouse:272", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/launcher_click_close.sh"),
-        { mouse = true, non_consuming = true })
 
 
 -- Touches Multimédia Audio

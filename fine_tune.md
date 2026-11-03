@@ -133,14 +133,42 @@ est impossible ; la segmentation automatique (détourage de sujet) est un autre
 projet. Ne pas commencer le QML avant d'avoir choisi le format et deux images de
 test.
 
-### 9. Spotlight pill — M, après 5a
+### 9. Spotlight pill — LIVRÉ (v1 : applications)
 
-Objectif. Pilule bas-centre invoquée au clavier : launcher et commandes, Esc pour
-fermer, remplace visuellement fuzzel.
+Objectif. Pilule bas-centre invoquée au clavier : launcher d'applications, Échap
+pour fermer, remplace fuzzel.
 
-Approche. Nouvelle surface `PanelWindow` (`namespace: "portable-spotlight"`,
-`WlrLayer.Overlay`, focus clavier exclusif), champ de recherche, liste filtrée,
-navigation clavier. Réutiliser `Theme.pillRadius` et l'échelle typo.
+Livré. `dev/spotlight.qml` (pilule) + surface `PanelWindow`
+`namespace: "portable-spotlight"` dans `main.qml` (`WlrLayer.Overlay`, focus
+clavier exclusif, `ExclusionMode.Ignore`, fond transparent plein écran pour
+capter le clic extérieur). `Theme.spotlightVisible` + IPC `toggleSpotlight`,
+`showSpotlight`, `hideSpotlight`, `spotlightState`. Bind `SUPER + R`.
+Index des applications : `core/app_index.py` → `core/app_index.json`
+(noms `Name[fr]`, `Exec` nettoyé des `%f/%u/%U…`, icône, catégorie), régénéré au
+déploiement et à chaque ouverture ; données de la machine, hors dépôt
+(`.gitignore`). Icônes via `image://icon/<nom>`, repli sur l'initiale.
+
+Pièges mesurés.
+- `Loader` **impose sa taille à son item** : `height: item.height` sur le Loader
+  crée une boucle et la pilule déborde par le bas. Le Loader remplit la fenêtre
+  (`anchors.fill`) et c'est la pilule qui s'ancre (`bottom`, marge 44).
+- Une zone inerte de la pilule (pied, marges) laisse passer le clic jusqu'au fond
+  cliquable → fermeture inattendue. `MouseArea { anchors.fill: parent }` déclaré
+  **avant** le contenu absorbe ces clics.
+- `image://qsicon/` n'existe pas : le fournisseur est `image://icon/`.
+- Le texte enrichi QML ne comprend pas `<span style=…>` pour la surlignure :
+  `<font color=…><u>…</u></font>`.
+- Ouverture sans requête = pilule repliée (comme la maquette) : la liste ne
+  s'affiche qu'à la première frappe.
+- Les tout premiers caractères tapés < ~1 s après l'ouverture peuvent se perdre
+  (le grab clavier exclusive arrive après le map) : sans incidence à la main,
+  visible avec un outil qui tape instantanément.
+- Flou : ajouter `portable-spotlight` à `SHELL_BLUR_NAMESPACES`
+  (`core/config_manager.py`) **et** au bloc `shell-blur` de `general.lua`.
+
+Reste (v2). Préfixe `>` pour les commandes shell, alias d'applications,
+historique des lancements. Le contournement fuzzel (bind `mouse:272` +
+`launcher_click_close.sh`) est **retiré** : la surface se ferme elle-même.
 
 ### 10. Which-key par submap — M
 
@@ -409,3 +437,7 @@ Un lot, un chantier clavier, une décision.
   continue vers la fenêtre en dessous. Mesuré : ~20 ms par clic quand fuzzel est
   fermé (le `pgrep` précède tout appel `hyprctl`), et le bind `SUPER + mouse:272`
   de déplacement de fenêtre reste prioritaire (modmask 64 vs 0).
+  **Périmé depuis le point 9** : la pilule spotlight remplace fuzzel, le bind
+  `mouse:272` et `core/launcher_click_close.sh` sont supprimés (la surface gère
+  son propre clic extérieur). Le journal reste comme trace de la limite
+  d'Hyprland 0.57 sur le focus des surfaces layer.

@@ -137,6 +137,10 @@ QtObject {
     // ────────────────────────────────────────────────────────────────────────
     // Guarantees only one popup is open at a time across all three islands
     property bool configPanelVisible: false
+
+    // Pilule spotlight (launcher bas-centre) : surface montée à la demande,
+    // fermée par Échap, par un clic hors de la pilule ou après lancement.
+    property bool spotlightVisible: false
     property string activePopup: "" // "", "weather", "calendar", "media", "wifi", "power", "system", "notifications"
 
     // Applications dont les notifications n'apparaissent pas en toast (elles vont
@@ -276,6 +280,18 @@ QtObject {
         // Permet de piloter les popups pour les tests : ipc call portable togglePopup calendar
         function togglePopup(name: string) {
             root.togglePopup(name)
+        }
+        function toggleSpotlight() {
+            root.spotlightVisible = !root.spotlightVisible
+        }
+        function showSpotlight() {
+            root.spotlightVisible = true
+        }
+        function hideSpotlight() {
+            root.spotlightVisible = false
+        }
+        function spotlightState(): bool {
+            return root.spotlightVisible
         }
     }
 }

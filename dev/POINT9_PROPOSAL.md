@@ -1,4 +1,8 @@
-# 9 — Spotlight pill (maquette)
+# 9 — Spotlight pill — MAQUETTE + IMPLÉMENTATION
+
+> État : **livré (v1, applications)** dans `dev/spotlight.qml`. Cette fiche garde
+> la géométrie et la palette validées ; les écarts réels et les pièges sont
+> consignés dans `fine_tune.md` §9.
 
 Maquette statique de la pilule bas-centre qui remplacerait fuzzel.
 Rendus : `spotlight_typing.png` (frappe), `spotlight_idle.png` (repliée),

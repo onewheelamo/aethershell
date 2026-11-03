@@ -236,6 +236,36 @@ Item {
         }
     }
 
+    // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
+    PanelWindow {
+        id: spotlightWindow
+        visible: Theme.spotlightVisible
+        anchors {
+            top: true
+            bottom: true
+            left: true
+            right: true
+        }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        aboveWindows: true
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: Theme.spotlightVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "portable-spotlight"
+
+        // Un clic hors de la pilule ferme la surface.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Theme.spotlightVisible = false
+        }
+
+        Loader {
+            id: spotlightLoader
+            anchors.fill: parent
+            source: "spotlight.qml"
+        }
+    }
+
     // First-Run Keyboard Layout Selection Window (100% Mouse Operated)
     PanelWindow {
         id: firstRunOverlayWindow
