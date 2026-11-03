@@ -154,6 +154,27 @@ QtObject {
         activePopup = (activePopup === name) ? "" : name
     }
 
+    // ── Barre au repos / réveillée ────────────────────────────────────────────
+    // Au repos la capsule est à peine posée (0.2) : sous le seuil `ignore_alpha`
+    // de la règle de flou (0.30), Hyprland ne floute donc rien derrière elle.
+    // Un clic sur la barre, un popup ouvert ou la pilule la réveillent : elle
+    // reprend l'opacité des autres surfaces du shell et le flou avec.
+    property real barRestOpacity: 0.2
+    property bool barAroused: false
+    readonly property bool barAwake: barAroused || activePopup !== "" || spotlightVisible
+    readonly property real barOpacity: barAwake ? shellOpacity : barRestOpacity
+    readonly property color barBg: Qt.alpha(surface, barOpacity)
+
+    property Timer barSleepTimer: Timer {
+        interval: 2600
+        onTriggered: root.barAroused = false
+    }
+
+    function wakeBar() {
+        root.barAroused = true
+        root.barSleepTimer.restart()
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 6: LIVE HYPRLAND LOOK INJECTION (hyprctl eval)
     // ────────────────────────────────────────────────────────────────────────

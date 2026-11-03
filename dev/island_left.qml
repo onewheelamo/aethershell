@@ -148,13 +148,21 @@ Item {
     Rectangle {
         id: bgRect
         anchors.fill: parent
-        color: Theme.barMerged ? "transparent" : Theme.surfaceBg
+        color: Theme.barMerged ? "transparent" : Theme.barBg
         radius: Theme.globalRadius
         border.color: Theme.accent
         border.width: Theme.barMerged ? 0 : 1
 
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
+
+        // Un clic sur la capsule la réveille (opacité des popups + flou) pour
+        // quelques secondes ; au repos elle retombe à barRestOpacity.
+        MouseArea {
+            anchors.fill: parent
+            onPressed: Theme.wakeBar()
+        }
+
 
         // Scroll anywhere on the left island to switch to previous/next workspace
         WheelHandler {
@@ -173,44 +181,7 @@ Item {
             spacing: Theme.space2
 
             // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 4.1: FUZZEL APPLICATION LAUNCHER BUTTON
-            // ────────────────────────────────────────────────────────────────
-            Rectangle {
-                id: launcherBtn
-                width: 26
-                height: 26
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: launcherMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: "arch"
-                    size: Theme.iconSm
-                    color: Theme.bg
-                }
-
-                MouseArea {
-                    id: launcherMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Quickshell.execDetached(["sh", "-c", "pkill fuzzel || fuzzel"])
-                }
-            }
-
-            // Separator between launcher and workspaces
-            Rectangle {
-                width: 1
-                height: 18
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.surfaceVariant
-            }
-
-            // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 4.2: WORKSPACES REPEATER (Permanent + Dynamic)
+            // SUB-SECTION 4.1: WORKSPACES REPEATER (Permanent + Dynamic)
             // ────────────────────────────────────────────────────────────────
             Row {
                 id: workspaceRow
@@ -339,7 +310,10 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: islandLeft.focusWorkspace(wsDelegate.wsId)
+                            onClicked: {
+                                Theme.wakeBar()
+                                islandLeft.focusWorkspace(wsDelegate.wsId)
+                            }
                         }
                     }
                 }

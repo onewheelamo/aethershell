@@ -69,12 +69,19 @@ Item {
                 visible: Theme.barMerged
                 anchors.fill: parent
                 radius: Theme.pillRadius
-                color: Theme.surfaceBg
+                color: Theme.barBg
                 border.color: Theme.accent
                 border.width: 1
 
                 Behavior on color { ColorAnimation { duration: 180 } }
                 Behavior on border.color { ColorAnimation { duration: 180 } }
+
+                // Un clic sur la capsule la réveille quelques secondes (opacité
+                // des popups + flou) ; déclaré avant les îlots pour rester dessous.
+                MouseArea {
+                    anchors.fill: parent
+                    onPressed: Theme.wakeBar()
+                }
             }
 
             // LEFT ISLAND: Launcher + Workspaces

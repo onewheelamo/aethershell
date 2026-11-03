@@ -191,6 +191,36 @@ Pièges v2.
   `border.color: success/error` + `radius: Theme.globalRadius` ; un fond teinté à
   15 % paraît délavé à côté des autres lignes.
 
+### 9bis. Barre au repos / réveillée — LIVRÉ
+
+Objectif. La barre reste affichée mais effacée au repos ; elle prend l'allure d'un
+popup quand on l'utilise.
+
+Livré. `Theme.barRestOpacity = 0.2`, `Theme.barBg = Qt.alpha(surface, barOpacity)`
+avec `barOpacity = barAwake ? shellOpacity : barRestOpacity`. `barAwake` est vrai
+si la barre vient d'être cliquée (`barAroused`, 2,6 s), si un popup est ouvert
+(`activePopup`) ou si la pilule est visible. La transition passe par le
+`Behavior on color` existant (180 ms).
+
+Pas de flou au repos, sans rien ajouter : la règle `layer_rule` porte
+`ignore_alpha = 0.30`, donc Hyprland ne floute pas une surface à 0,2 ; à 0,7 le
+flou de la règle s'applique à nouveau. Mesuré à la luminance moyenne de la
+capsule : 77,1 au repos, 58,6 réveillée, retour à 77,1 après 3,4 s.
+
+Piège. La barre est en mode fusionné (`barMerged = true`) : les trois îlots sont
+transparents et la seule surface visible est `capsuleBg` dans `main.qml`. C'est
+**elle** qu'il faut brancher sur `Theme.barBg` — changer les fonds d'îlots ne
+produit rien de visible.
+
+### 9ter. Îlot gauche sans lanceur — LIVRÉ
+
+L'icône Arch et son séparateur sont retirés : l'îlot ne contient plus que les
+workspaces (la largeur suit le contenu, `implicitWidth`). Le bind fuzzel était
+déjà remplacé par `SUPER + R` → pilule ; `~/.config/fuzzel` est supprimé et
+`core/generate_rofi_theme.sh` ne régénère plus de `fuzzel.ini` (section retirée,
+sections renumérotées). Le paquet lui-même reste à désinstaller avec un mot de
+passe root : `sudo pacman -Rns fuzzel`.
+
 ### 10. Which-key par submap — M
 
 Objectif. Overlay deux colonnes listant les binds du submap courant, disparition

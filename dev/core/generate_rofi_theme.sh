@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Rofi, Hyprland (colors.lua) & Hyprquickpaper Theme Generator synchronized with style_vars.json
+# Fuzzel a été retiré : la pilule spotlight (spotlight.qml) fait office de lanceur.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEV_ROOT="$(dirname "$SCRIPT_DIR")"
 STYLE_VARS="$SCRIPT_DIR/style_vars.json"
 ROFI_DIR="$HOME/.config/rofi"
 ROFI_CONFIG="$ROFI_DIR/config.rasi"
-FUZZEL_DIR="$HOME/.config/fuzzel"
-FUZZEL_CONFIG="$FUZZEL_DIR/fuzzel.ini"
 
 if [ ! -f "$STYLE_VARS" ]; then
     echo "style_vars.json not found at $STYLE_VARS"
@@ -214,49 +213,7 @@ button selected {
 EOF
 fi
 
-# 2. Generate Fuzzel configuration directly into ~/.config/fuzzel/fuzzel.ini
-mkdir -p "$FUZZEL_DIR" 2>/dev/null || true
-BG_NOHASH="${BG#\#}"
-FG_NOHASH="${FG#\#}"
-SURFACE_NOHASH="${SURFACE#\#}"
-OPACITY_HEX=$(python3 -c "import sys; op = float(sys.argv[1]); print(f'{int(round(op * 255)):02x}')" "$OPACITY" 2>/dev/null || echo "e6")
-
-if [ -d "$FUZZEL_DIR" ]; then
-cat <<EOF > "$FUZZEL_CONFIG"
-[main]
-font=Noto Sans:size=12
-prompt="  "
-placeholder=Rechercher une application...
-terminal=kitty
-lines=10
-width=38
-horizontal-pad=20
-vertical-pad=12
-inner-pad=8
-image-size-ratio=0.5
-layer=overlay
-exit-on-keyboard-focus-loss=yes
-
-[border]
-width=2
-radius=${RADIUS}
-selection-radius=${RADIUS}
-
-[colors]
-background=${BG_NOHASH}${OPACITY_HEX}
-text=${FG_NOHASH}ff
-prompt=${ACCENT_NOHASH}ff
-placeholder=${SURFACE_VAR_NOHASH}cc
-input=${FG_NOHASH}ff
-match=${ACCENT_NOHASH}ff
-selection=${SURFACE_NOHASH}${OPACITY_HEX}
-selection-text=${ACCENT_NOHASH}ff
-selection-match=${ACCENT_NOHASH}ff
-border=${ACCENT_NOHASH}ff
-EOF
-fi
-
-# 3. Generate Hyprland Lua colors file (colors.lua)
+# 2. Generate Hyprland Lua colors file (colors.lua)
 HYPR_COLORS_TARGET="$DEV_ROOT/hypr_modular/colors.lua"
 if [[ "$SCRIPT_DIR" == "$HOME/.config/quickshell"* ]]; then
     HYPR_COLORS_TARGET="$HOME/.config/hypr/colors.lua"
@@ -284,12 +241,12 @@ hl.config({
 EOF
 fi
 
-# 4. Sync live configs if target directories exist or running from deployed location
+# 3. Sync live configs if target directories exist or running from deployed location
 if [ -d "$HOME/.config/quickshell/hyprquickpaper" ]; then
     (printf '{\n    "border_color": "%s"\n}\n' "$ACCENT" > "$HOME/.config/quickshell/hyprquickpaper/colors.json") 2>/dev/null || true
 fi
 
-# 5. Generate Hyprlock palette (~/.config/hypr/hyprlock-colors.conf)
+# 4. Generate Hyprlock palette (~/.config/hypr/hyprlock-colors.conf)
 # hyprlock ne lit ni le Lua de Hyprland ni le JSON du shell : la palette lui est
 # donc écrite en variables hyprlang. hyprlock.conf ne contient que les noms de
 # variables, jamais une couleur en dur, et ce fichier est régénéré à chaque

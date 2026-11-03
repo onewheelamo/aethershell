@@ -437,13 +437,21 @@ Item {
     Rectangle {
         id: islandBg
         anchors.fill: parent
-        color: Theme.barMerged ? "transparent" : Theme.surfaceBg
+        color: Theme.barMerged ? "transparent" : Theme.barBg
         radius: Theme.globalRadius
         border.color: Theme.accent
         border.width: Theme.barMerged ? 0 : 1
 
         Behavior on color { ColorAnimation { duration: 160 } }
         Behavior on border.color { ColorAnimation { duration: 160 } }
+
+        // Un clic sur la capsule la réveille (opacité des popups + flou) pour
+        // quelques secondes ; au repos elle retombe à barRestOpacity.
+        MouseArea {
+            anchors.fill: parent
+            onPressed: Theme.wakeBar()
+        }
+
 
         Row {
             id: mainRow
