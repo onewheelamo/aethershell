@@ -607,8 +607,8 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        // Libellés d'origine (Pastel → Max), valeurs conservées dans l'ordre
-                        // actuel (+0.8 → -0.8).
+                        // Les libellés décrivent la saturation : Pastel = moins saturé (+0.8),
+                        // Max = plus saturé (-0.8).
                         { v: 0.8, label: "Pastel" },
                         { v: 0.6, label: "Doux-" },
                         { v: 0.3, label: "Standard" },
