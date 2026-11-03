@@ -84,8 +84,10 @@ Item {
         "sun": "\u{F05A8}",
         "play": "\u{F040A}",
         "pause": "\u{F03E4}",
+        // pas de doublon « skip-* » : les glyphes existent déjà en « previous » / « next »
         "next": "\u{F04AD}",
         "previous": "\u{F04AE}",
+        "music": "\u{F075A}",
         // marque + états dynamiques (wifi / batterie / volume / réseau)
         "arch": "\u{F08C7}",
         "wifi-none": "\u{F092D}",

@@ -47,6 +47,10 @@ Item {
     property real expandProgress: hovered ? 1.0 : 0.0
     Behavior on expandProgress { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     readonly property bool calendarOpen: Theme.activePopup === "calendar"
+    readonly property bool mediaOpen: Theme.activePopup === "media"
+    // La position MPRIS n'est pas réactive : il faut redemander sa lecture pour que
+    // la barre de progression avance (voir le Timer de la SECTION 3).
+    property int mediaProgressTick: 0
 
     // Calendar navigation & Nextcloud sync state
     property int monthOffset: 0
@@ -100,15 +104,26 @@ Item {
     property bool mediaPollTick: false
     Timer {
         interval: 1000
-        running: islandCenter.hovered
+        // aussi quand le popup média est ouvert : titre, état et boutons doivent suivre
+        running: islandCenter.hovered || islandCenter.mediaOpen
         repeat: true
         triggeredOnStart: true
         onTriggered: islandCenter.mediaPollTick = !islandCenter.mediaPollTick
     }
 
-    readonly property var activeMediaInfo: {
+    // Position de lecture : MPRIS ne la pousse pas, il faut la relire pour animer
+    // la barre de progression du popup.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: islandCenter.mediaOpen
+        onTriggered: islandCenter.mediaProgressTick++
+    }
+
+    // Tout lecteur ayant une piste, en lecture ou non : c'est lui que pilote le
+    // popup (sinon mettre en pause fermerait le popup, faute de joueur).
+    readonly property var mediaPlayer: {
         const _ = islandCenter.mediaPollTick
-        const __ = islandCenter.hovered
         const list = (Mpris.players && Mpris.players.values) ? Mpris.players.values : []
         for (let i = 0; i < list.length; i++) {
             const p = list[i]
@@ -120,24 +135,27 @@ Item {
                 || ident.indexOf("brave") >= 0) {
                 continue
             }
-            if (p.isPlaying && p.trackTitle) {
-                const title = p.trackTitle.trim()
-                const artist = (p.trackArtist || p.trackAlbumArtist || "").trim()
-                return {
-                    title: title,
-                    artist: artist,
-                    label: artist ? (artist + " — " + title) : title
-                }
-            }
+            if (p.trackTitle) return p
         }
         return null
     }
 
-    readonly property string hoverDisplayText: {
-        if (activeMediaInfo && activeMediaInfo.label) {
-            return activeMediaInfo.label
+    // Celui qui joue réellement : seule condition pour élargir la pilule au survol.
+    readonly property var activePlayer: {
+        const p = islandCenter.mediaPlayer
+        return (p && p.isPlaying) ? p : null
+    }
+
+    readonly property var activeMediaInfo: {
+        const p = islandCenter.activePlayer
+        if (!p) return null
+        const title = (p.trackTitle || "").trim()
+        const artist = (p.trackArtist || p.trackAlbumArtist || "").trim()
+        return {
+            title: title,
+            artist: artist,
+            label: artist ? (artist + " — " + title) : title
         }
-        return hoverDateText
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -148,6 +166,15 @@ Item {
         const ms = String(m1).padStart(2, "0")
         const ds = String(d).padStart(2, "0")
         return ys + "-" + ms + "-" + ds
+    }
+
+    // Durée de lecture au format m:ss (popup média).
+    function formatPlaybackTime(sec) {
+        if (!isFinite(sec) || sec < 0) sec = 0
+        const total = Math.floor(sec)
+        const m = Math.floor(total / 60)
+        const s = total % 60
+        return m + ":" + (s < 10 ? "0" + s : String(s))
     }
 
     // 42 cells (6 weeks x 7 days, Monday-first)
@@ -417,7 +444,41 @@ Item {
                         font.bold: true
                     }
 
+                    // Zone média : le clic ouvre le popup MPRIS. Elle n'existe que
+                    // lorsqu'une piste joue ; sinon la date occupe seule la place.
                     Item {
+                        id: mediaZone
+                        visible: islandCenter.activeMediaInfo !== null
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: visible ? Math.min(mediaText.implicitWidth, 200) : 0
+                        implicitHeight: mediaText.implicitHeight
+                        width: implicitWidth
+                        height: implicitHeight
+                        clip: true
+
+                        Text {
+                            id: mediaText
+                            anchors.fill: parent
+                            text: islandCenter.activeMediaInfo ? islandCenter.activeMediaInfo.label : ""
+                            color: Theme.accent
+                            font.pixelSize: Theme.textMd
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Text {
+                        id: mediaSep
+                        visible: islandCenter.activeMediaInfo !== null
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "·"
+                        color: Theme.accent
+                        font.pixelSize: Theme.textLg
+                        font.bold: true
+                    }
+
+                    Item {
+                        id: dateZone
                         anchors.verticalCenter: parent.verticalCenter
                         implicitWidth: Math.min(dateText.implicitWidth, 340)
                         implicitHeight: dateText.implicitHeight
@@ -427,8 +488,8 @@ Item {
                         Text {
                             id: dateText
                             anchors.fill: parent
-                            text: islandCenter.hoverDisplayText
-                            color: islandCenter.activeMediaInfo ? Theme.accent : Theme.accentMuted
+                            text: islandCenter.hoverDateText
+                            color: Theme.accentMuted
                             font.pixelSize: Theme.textMd
                             font.bold: true
                             elide: Text.ElideRight
@@ -499,10 +560,22 @@ Item {
             onEntered: islandCenter.hovered = true
             onExited: islandCenter.hovered = false
             onClicked: {
-                if (!islandCenter.calendarOpen) {
-                    islandCenter.monthOffset = 0
+                const pt = mapToItem(islandCenter, mouse.x, mouse.y)
+                // zone média : seulement quand la boîte est ouverte et qu'une piste joue
+                if (islandCenter.activeMediaInfo !== null && islandCenter.expandProgress > 0.5) {
+                    const mz = mediaZone.mapToItem(islandCenter, 0, 0)
+                    if (pt.x >= mz.x && pt.x <= mz.x + mediaZone.width) {
+                        Theme.togglePopup("media")
+                        return
+                    }
                 }
-                Theme.togglePopup("calendar")
+                // zone date : ouvre le calendrier (seule zone qui le fait encore)
+                const dz = dateZone.mapToItem(islandCenter, 0, 0)
+                if (pt.x >= dz.x && pt.x <= dz.x + dateZone.width) {
+                    if (!islandCenter.calendarOpen) islandCenter.monthOffset = 0
+                    Theme.togglePopup("calendar")
+                }
+                // l'heure et les marges ne font rien
             }
         }
     }
@@ -511,11 +584,221 @@ Item {
     // SECTION 7: HYPRLAND OUTSIDE CLICK / FOCUS GRAB
     // ────────────────────────────────────────────────────────────────────────
     HyprlandFocusGrab {
-        active: islandCenter.calendarOpen
-        windows: [calendarPopup, islandCenter.QsWindow.window]
+        active: islandCenter.calendarOpen || islandCenter.mediaOpen
+        windows: [calendarPopup, mediaPopup, islandCenter.QsWindow.window]
         onCleared: {
-            if (Theme.activePopup === "calendar") {
+            if (Theme.activePopup === "calendar" || Theme.activePopup === "media") {
                 Theme.activePopup = ""
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SECTION 7B: MEDIA POPUP (MPRIS CONTROLS)
+    // ────────────────────────────────────────────────────────────────────────
+    // Ouvre sous la pilule quand on clique la zone média. Les contrôles passent
+    // directement par l'objet du joueur (Services.Mpris), sans process externe.
+    PopupWindow {
+        id: mediaPopup
+        readonly property var player: islandCenter.mediaPlayer
+        // Le lecteur disparaît (fermé, piste stoppée) : on referme le popup plutôt
+        // que de laisser un grab de focus sans fenêtre.
+        onPlayerChanged: {
+            if (player === null && islandCenter.mediaOpen) Theme.activePopup = ""
+        }
+        readonly property real posNow: { islandCenter.mediaProgressTick; return player ? Math.max(0, player.position) : 0 }
+        readonly property real durNow: player ? Math.max(0, player.length) : 0
+        readonly property real ratio: durNow > 0 ? Math.min(1, posNow / durNow) : 0
+        readonly property string artSource: {
+            const u = player && player.trackArtUrl ? player.trackArtUrl : ""
+            if (u === "") return ""
+            if (u.indexOf("file://") === 0 || u.indexOf("http") === 0) return u
+            return "file://" + u
+        }
+
+        anchor.item: islandCenter
+        anchor.rect.x: (islandCenter.width - implicitWidth) / 2
+        anchor.rect.y: islandCenter.popupY(islandCenter)
+        anchor.adjustment: PopupAdjustment.All
+        anchor.onAnchoring: anchor.rect = Qt.rect(islandCenter.clampPopupX(islandCenter, (islandCenter.width - implicitWidth) / 2, implicitWidth), islandCenter.popupY(islandCenter), anchor.rect.width, anchor.rect.height)
+        implicitWidth: 300
+        implicitHeight: mediaCol.implicitHeight + 24
+        color: "transparent"
+        visible: islandCenter.mediaOpen && player !== null
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.surfaceBg
+            radius: Theme.globalRadius
+            border.color: Theme.accent
+            border.width: 1
+
+            Column {
+                id: mediaCol
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: 12
+                spacing: 10
+
+                Row {
+                    width: parent.width
+                    spacing: 10
+
+                    Rectangle {
+                        width: 40
+                        height: 40
+                        radius: 3
+                        color: Theme.surfaceVariant
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            source: mediaPopup.artSource
+                            visible: mediaPopup.artSource !== ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                        }
+
+                        Icon {
+                            anchors.centerIn: parent
+                            visible: mediaPopup.artSource === ""
+                            glyph: "music"
+                            size: Theme.iconMd
+                            color: Theme.accentMuted
+                            opacityLevel: 0.7
+                        }
+                    }
+
+                    Column {
+                        width: parent.width - 50
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 2
+
+                        Text {
+                            width: parent.width
+                            text: mediaPopup.player ? mediaPopup.player.trackTitle : ""
+                            color: Theme.fg
+                            font.pixelSize: Theme.textMd
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: {
+                                if (!mediaPopup.player) return ""
+                                const artist = mediaPopup.player.trackArtist || mediaPopup.player.trackAlbumArtist || ""
+                                const album = mediaPopup.player.trackAlbum || ""
+                                if (artist && album) return artist + " · " + album
+                                return artist || album
+                            }
+                            color: Theme.accentMuted
+                            font.pixelSize: Theme.textXs
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                // Barre de progression : 2 px, même épaisseur que l'OSD
+                Item {
+                    width: parent.width
+                    height: 10
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        height: 2
+                        radius: 1
+                        color: Theme.surfaceVariant
+
+                        Rectangle {
+                            width: parent.width * mediaPopup.ratio
+                            height: parent.height
+                            radius: 1
+                            color: Theme.accent
+                            Behavior on width { NumberAnimation { duration: 900; easing.type: Easing.Linear } }
+                        }
+                    }
+                }
+
+                Row {
+                    width: parent.width
+
+                    Text {
+                        text: islandCenter.formatPlaybackTime(mediaPopup.posNow)
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        font.pixelSize: Theme.text2xs
+                        font.features: { "tnum": 1 }
+                    }
+
+                    Item { width: parent.width - 72; height: 1 }
+
+                    Text {
+                        text: "-" + islandCenter.formatPlaybackTime(mediaPopup.durNow - mediaPopup.posNow)
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        font.pixelSize: Theme.text2xs
+                        font.features: { "tnum": 1 }
+                    }
+                }
+
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 14
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "previous"
+                        size: Theme.iconMd
+                        color: Theme.fg
+                        opacityLevel: mediaPopup.player && mediaPopup.player.canGoPrevious ? 0.9 : 0.3
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: mediaPopup.player && mediaPopup.player.canGoPrevious ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (mediaPopup.player && mediaPopup.player.canGoPrevious) mediaPopup.player.previous()
+                        }
+                    }
+
+                    Rectangle {
+                        width: 30
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: playMa.containsMouse ? Theme.surfaceVariant : "transparent"
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: mediaPopup.player && mediaPopup.player.isPlaying ? "pause" : "play"
+                            size: Theme.iconMd
+                            color: Theme.accent
+                            opacityLevel: mediaPopup.player && mediaPopup.player.canTogglePlaying ? 1 : 0.3
+                        }
+
+                        MouseArea {
+                            id: playMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (mediaPopup.player && mediaPopup.player.canTogglePlaying) mediaPopup.player.togglePlaying()
+                        }
+                    }
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "next"
+                        size: Theme.iconMd
+                        color: Theme.fg
+                        opacityLevel: mediaPopup.player && mediaPopup.player.canGoNext ? 0.9 : 0.3
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: mediaPopup.player && mediaPopup.player.canGoNext ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (mediaPopup.player && mediaPopup.player.canGoNext) mediaPopup.player.next()
+                        }
+                    }
+                }
             }
         }
     }

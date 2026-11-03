@@ -136,7 +136,7 @@ QtObject {
     // ────────────────────────────────────────────────────────────────────────
     // Guarantees only one popup is open at a time across all three islands
     property bool configPanelVisible: false
-    property string activePopup: "" // "", "weather", "calendar", "wifi", "power", "system", "notifications"
+    property string activePopup: "" // "", "weather", "calendar", "media", "wifi", "power", "system", "notifications"
 
     function togglePopup(name) {
         activePopup = (activePopup === name) ? "" : name

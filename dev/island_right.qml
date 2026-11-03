@@ -1804,7 +1804,13 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: islandRight.latestToast = null
+                cursorShape: Qt.PointingHandCursor
+                // Le clic ouvre le centre de notifications ; le toast s'efface ensuite
+                // de lui-même (timer d'expiration).
+                onClicked: {
+                    islandRight.latestToast = null
+                    Theme.activePopup = "notifications"
+                }
             }
         }
     }
