@@ -1,6 +1,6 @@
 # Généré par core/config_manager.py — ne pas éditer à la main.
 # Source de vérité : core/autostart.json (modifiable depuis le panneau).
 sh -c 'pgrep -x quickshell >/dev/null || exec quickshell' &
-sh -c 'pgrep -x hypridle >/dev/null || exec hypridle' &
+systemctl --user start hypridle
 sh -c 'pgrep -x awww-daemon >/dev/null || exec awww-daemon' &
 sh -c 'for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x "$agent" ]; then exec "$agent"; fi; done' &

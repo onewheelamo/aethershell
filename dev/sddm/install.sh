@@ -43,7 +43,7 @@ trap 'rm -rf "$STAGE"' EXIT
     echo "install -Dm644 '$DEV/out/Backgrounds/wallpaper.png' '$THEME/Backgrounds/wallpaper.png'"
     # Reprise d'un renommage : la nomenclature précédente portait le nom de
     # l'hôte du laptop, on retire les artefacts qu'elle a laissés.
-    echo "rm -f /usr/local/bin/portable-greeter /etc/polkit-1/rules.d/50-portable-greeter.rules '$THEME/Themes/portable.conf' '$THEME/Backgrounds/portable.png' '$CONFD/10-portable.conf'"
+    echo "rm -f /usr/local/bin/portable-greeter /etc/polkit-1/rules.d/50-portable-greeter.rules '$THEME/Themes/portable.conf' '$THEME/Backgrounds/portable.png'"
     if [ "$MODE" = "full" ]; then
         # Sauvegarde puis neutralisation des Current= locaux : sans ça trois
         # fichiers se contredisent et l'ordre lexical décide du thème affiché.
@@ -53,9 +53,12 @@ trap 'rm -rf "$STAGE"' EXIT
         for f in "$CONFD"/*.conf; do
             [ -e "$f" ] || continue
             [ "$(basename "$f")" = "10-sddm-theme.conf" ] && continue
-            echo "cp -n '$f' '$BACKUP/$(basename "$f")'"
+            echo "cp -n '$f' '$BACKUP/$(basename "$f")' 2>/dev/null || true"
             echo "sed -i 's|^Current=|# désactivé par dev/sddm/install.sh — Current=|' '$f'"
         done
+        # Nomenclature précédente : supprimée après sauvegarde, sinon SDDM lit
+        # deux Current= et l'ordre lexical décide.
+        echo "rm -f '$CONFD/10-portable.conf'"
         echo "cat > '$CONFD/10-sddm-theme.conf' <<'CONF'"
         echo '[Theme]'
         echo 'Current=sddm-astronaut-theme'
