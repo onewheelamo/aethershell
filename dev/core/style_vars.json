@@ -1,30 +1,29 @@
 {
     "active_theme": "dynamic",
-    "global_radius": 2,
-    "hypr_rounding": 2,
-    "global_opacity": 0.85,
-    "bar_height": 40,
+    "global_radius": 18,
+    "global_opacity": 0.7,
+    "bar_height": 36,
     "kb_layout": "fr",
-    "first_run_completed": false,
+    "first_run_completed": true,
     "wallpaper_dir": "$HOME/Images/wallpapers/",
-    "matugen_scheme": "scheme-tonal-spot",
-    "matugen_contrast": 0,
+    "matugen_scheme": "scheme-neutral",
+    "matugen_contrast": 0.3,
     "blur_enabled": true,
-    "blur_size": 3,
+    "blur_size": 4,
     "blur_passes": 3,
     "blur_vibrancy": 0.1696,
     "palette": {
         "dynamic": {
-            "bg": "#090f0f",
-            "fg": "#dde4e3",
-            "accent": "#80d5d4",
-            "accent_muted": "#b0cccb",
-            "surface": "#0e1514",
-            "surface_variant": "#1a2121",
+            "bg": "#0c0a08",
+            "fg": "#faf3ef",
+            "accent": "#d8c3ab",
+            "accent_muted": "#d3c4b4",
+            "surface": "#151311",
+            "surface_variant": "#272422",
             "error": "#ffb4ab",
-            "warn": "#b3c8e8",
-            "info": "#b0cccb",
-            "success": "#b3c8e8"
+            "warn": "#ddc2a1",
+            "info": "#d3c4b4",
+            "success": "#ddc2a1"
         },
         "tokyo-night": {
             "bg": "#1a1b26",
@@ -52,7 +51,11 @@
         }
     },
     "panel_sections": {
-        "esthetique_theme": false
+        "esthetique_theme": true,
+        "esthetique_aspect": true,
+        "apps_autostart": true
     },
-    "resize_step": 15
+    "resize_step": 10,
+    "show_config_button": false,
+    "hypr_rounding": 0
 }

@@ -74,8 +74,11 @@ do_rm() {
         else
             echo "  [archive & rm] $p"
             mkdir -p "$ARC"
-            cp -a "$p" "$ARC/" 2>/dev/null || true
-            rm -rf "$p"
+            if cp -a "$p" "$ARC/"; then
+                rm -rf "$p"
+            else
+                echo "  ⚠️  archive impossible — $p conservé" >&2
+            fi
         fi
     done
 }
@@ -101,12 +104,26 @@ shopt -u nullglob
 if [ "${#NEW_FILES[@]}" -gt 0 ]; then
     echo "=== Fichiers *.new détectés (${#NEW_FILES[@]}) ==="
     for nf in "${NEW_FILES[@]}"; do
+        # Les copies de secrets ne sont jamais archivées : suppression directe.
+        if [ "$(basename "$nf")" = "secrets.json.new" ]; then
+            if [ "$DRY" -eq 1 ]; then
+                echo "  [dry-run] rm (secret, non archivé) $nf"
+            else
+                echo "  [rm] $nf (copie de secret, non archivée)"
+                rm -f "$nf"
+            fi
+            continue
+        fi
         if [ "$DRY" -eq 1 ]; then
             echo "  [dry-run] archiver & supprimer $nf"
         else
             echo "  [archive & rm] $nf"
             mkdir -p "$ARC/new_files"
-            mv "$nf" "$ARC/new_files/" 2>/dev/null || rm -f "$nf"
+            if mv "$nf" "$ARC/new_files/"; then
+                :
+            else
+                echo "  ⚠️  déplacement impossible — $nf conservé" >&2
+            fi
         fi
     done
 fi

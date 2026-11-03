@@ -5,13 +5,13 @@
 hl.config({
     general = {
         col = {
-            active_border   = "rgba(80d5d4ee)",
-            inactive_border = "rgba(1a2121aa)",
+            active_border   = "rgba(d8c3abee)",
+            inactive_border = "rgba(272422aa)",
         },
     },
     decoration = {
-        rounding         = 2,
-        active_opacity   = 0.85,
-        inactive_opacity = 0.85,
+        rounding         = 18,
+        active_opacity   = 0.7,
+        inactive_opacity = 0.7,
     },
 })
