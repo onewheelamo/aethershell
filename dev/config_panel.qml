@@ -2486,8 +2486,9 @@ Rectangle {
                 }
             }
 
-            // Respiration entre la dernière ligne et la barre d'ajout.
-            Item { width: 1; height: 4 }
+            // Respiration entre la dernière ligne et la barre d'ajout : un peu
+            // plus que l'écart entre deux lignes (8 px) pour séparer le groupe.
+            Item { width: 1; height: 10 }
 
             // Add New Application Variable Row
             Row {
@@ -2716,7 +2717,7 @@ Rectangle {
                 }
             }
 
-            Item { width: 1; height: 4 }
+            Item { width: 1; height: 10 }
 
             Row {
                 spacing: 10
