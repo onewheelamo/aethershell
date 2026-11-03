@@ -145,17 +145,33 @@ il faut donc d'abord décider quelles touches passent en sous-carte (gestion de
 fenêtre ? redimensionnement ?) et les y déclarer, sinon l'overlay n'a rien à
 montrer. L'affichage lui-même est trivial ensuite.
 
-### 11. Tiroir de réglages à droite — M/L
+### 11. Panneau de réglages centré, 620 px — LIVRÉ
 
-Objectif. Remplacer le panneau actuel (mur de lignes) par un tiroir de 380 px :
-onglets, recherche, curseurs de 1 px.
+Objectif initial. Remplacer le panneau « mur de lignes » par un tiroir à droite
+de 380 px : onglets, recherche, curseurs de 1 px.
 
-Fichiers. `config_panel.qml` (2 482 l.) côté QML ; `core/config_manager.py`
-(1 023 l.) ne bouge pas, c'est le backend.
+Ce qui a été fait (commit `de8bdb7`). Le panneau reste **centré** (largeur 620,
+hauteur bornée à 900 px au lieu de coller à la barre et au bas de l'écran), avec
+un rail vertical d'icônes 44 px, un champ de recherche en haut et les sections
+dépliées par défaut dessous. `Slider.qml` remplace les 9 `Stepper` (même API,
+écriture backend au relâchement seulement). Toutes les rangées sont passées en
+largeurs fluides : pastilles thème/schéma/contraste sur des lignes dédiées,
+palette en `Flow`, carte de moniteur pleine largeur, raccourcis et variables
+d'applications éllipsés, barre d'ajout de bind sur deux lignes.
 
-Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
-tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
-`Icon` étant en place, l'essentiel est de la mise en page.
+Pièges rencontrés et solutions.
+- La recherche saute à l'ancre : QML n'expose pas `QObject::findChild`, d'où la
+  table `id -> item` (`targetMap`) ; le scroll se refait sur trois passes parce
+  que le dépliage d'une section n'est pas mesurable à la frame suivante.
+- Un `TextInput` consomme la touche Entrée : le saut doit être dans `onAccepted`,
+  pas dans `Keys.onReturnPressed`.
+- `WlrKeyboardFocus.OnDemand` ne donne jamais le clavier sans un
+  `forceActiveFocus()` explicite à l'ouverture du panneau.
+- Une carte de résultats en `anchors.fill` du parent circulaire se réduit à 8 px :
+  ancre `top/left/right` seulement, hauteur = hauteur du contenu.
+- Un `Flow` qui passe à la ligne n'agrandit pas toujours son `implicitHeight` :
+  préférer des `Row` dédiées, ou une hauteur explicite.
+
 
 ### 15. Écran de connexion SDDM cohérent — M, décision d'installation à prendre
 
