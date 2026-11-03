@@ -120,8 +120,11 @@ Item {
         onTriggered: islandCenter.mediaProgressTick++
     }
 
-    // Tout lecteur ayant une piste, en lecture ou non : c'est lui que pilote le
-    // popup (sinon mettre en pause fermerait le popup, faute de joueur).
+    // Tout lecteur ayant une piste, en lecture ou non. Il pilote le popup (sinon
+    // une pause le refermerait) **et** la zone média de la pilule : lier celle-ci à
+    // « en lecture » la faisait disparaître entre deux pistes, la pilule se
+    // rétractait puis se rouvrait. La zone n'apparaissant qu'au survol, montrer
+    // une piste en pause ne gêne pas.
     readonly property var mediaPlayer: {
         const _ = islandCenter.mediaPollTick
         const list = (Mpris.players && Mpris.players.values) ? Mpris.players.values : []
@@ -140,14 +143,8 @@ Item {
         return null
     }
 
-    // Celui qui joue réellement : seule condition pour élargir la pilule au survol.
-    readonly property var activePlayer: {
-        const p = islandCenter.mediaPlayer
-        return (p && p.isPlaying) ? p : null
-    }
-
     readonly property var activeMediaInfo: {
-        const p = islandCenter.activePlayer
+        const p = islandCenter.mediaPlayer
         if (!p) return null
         const title = (p.trackTitle || "").trim()
         const artist = (p.trackArtist || p.trackAlbumArtist || "").trim()
@@ -612,7 +609,10 @@ Item {
         readonly property string artSource: {
             const u = player && player.trackArtUrl ? player.trackArtUrl : ""
             if (u === "") return ""
-            if (u.indexOf("file://") === 0 || u.indexOf("http") === 0) return u
+            // mpv-mpris sert la pochette en data: base64 ; d'autres lecteurs en
+            // file:// ou https. Seul un chemin nu a besoin du préfixe.
+            if (u.indexOf("file://") === 0 || u.indexOf("http") === 0
+                || u.indexOf("data:") === 0 || u.indexOf("image://") === 0) return u
             return "file://" + u
         }
 
@@ -621,8 +621,8 @@ Item {
         anchor.rect.y: islandCenter.popupY(islandCenter)
         anchor.adjustment: PopupAdjustment.All
         anchor.onAnchoring: anchor.rect = Qt.rect(islandCenter.clampPopupX(islandCenter, (islandCenter.width - implicitWidth) / 2, implicitWidth), islandCenter.popupY(islandCenter), anchor.rect.width, anchor.rect.height)
-        implicitWidth: 300
-        implicitHeight: mediaCol.implicitHeight + 24
+        implicitWidth: 360
+        implicitHeight: mediaCol.implicitHeight + 28
         color: "transparent"
         visible: islandCenter.mediaOpen && player !== null
 
@@ -638,17 +638,17 @@ Item {
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.margins: 12
-                spacing: 10
+                anchors.margins: 14
+                spacing: 12
 
                 Row {
                     width: parent.width
-                    spacing: 10
+                    spacing: Theme.space3
 
                     Rectangle {
-                        width: 40
-                        height: 40
-                        radius: 3
+                        width: 80
+                        height: 80
+                        radius: 5
                         color: Theme.surfaceVariant
                         clip: true
 
@@ -664,22 +664,22 @@ Item {
                             anchors.centerIn: parent
                             visible: mediaPopup.artSource === ""
                             glyph: "music"
-                            size: Theme.iconMd
+                            size: Theme.iconLg
                             color: Theme.accentMuted
                             opacityLevel: 0.7
                         }
                     }
 
                     Column {
-                        width: parent.width - 50
+                        width: parent.width - 80 - Theme.space3
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 2
+                        spacing: Theme.space1
 
                         Text {
                             width: parent.width
                             text: mediaPopup.player ? mediaPopup.player.trackTitle : ""
                             color: Theme.fg
-                            font.pixelSize: Theme.textMd
+                            font.pixelSize: Theme.textLg
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -694,21 +694,22 @@ Item {
                                 return artist || album
                             }
                             color: Theme.accentMuted
-                            font.pixelSize: Theme.textXs
+                            font.pixelSize: Theme.textSm
                             elide: Text.ElideRight
                         }
                     }
                 }
 
-                // Barre de progression : 2 px, même épaisseur que l'OSD
+                // Barre de progression : 3 px, même famille que l'OSD (2 px) mais
+                // lisible à la taille du popup agrandi
                 Item {
                     width: parent.width
-                    height: 10
+                    height: 14
 
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
-                        height: 2
+                        height: 3
                         radius: 1
                         color: Theme.surfaceVariant
 
@@ -728,49 +729,49 @@ Item {
                     Text {
                         text: islandCenter.formatPlaybackTime(mediaPopup.posNow)
                         color: Qt.alpha(Theme.fg, 0.7)
-                        font.pixelSize: Theme.text2xs
+                        font.pixelSize: Theme.textXs
                         font.features: { "tnum": 1 }
                     }
 
-                    Item { width: parent.width - 72; height: 1 }
+                    Item { width: parent.width - 90; height: 1 }
 
                     Text {
                         text: "-" + islandCenter.formatPlaybackTime(mediaPopup.durNow - mediaPopup.posNow)
                         color: Qt.alpha(Theme.fg, 0.7)
-                        font.pixelSize: Theme.text2xs
+                        font.pixelSize: Theme.textXs
                         font.features: { "tnum": 1 }
                     }
                 }
 
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 14
+                    spacing: 20
 
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: "previous"
-                        size: Theme.iconMd
+                        size: Theme.iconLg
                         color: Theme.fg
                         opacityLevel: mediaPopup.player && mediaPopup.player.canGoPrevious ? 0.9 : 0.3
 
                         MouseArea {
                             anchors.fill: parent
-                            anchors.margins: -6
+                            anchors.margins: -8
                             cursorShape: mediaPopup.player && mediaPopup.player.canGoPrevious ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: if (mediaPopup.player && mediaPopup.player.canGoPrevious) mediaPopup.player.previous()
                         }
                     }
 
                     Rectangle {
-                        width: 30
-                        height: 26
+                        width: 40
+                        height: 34
                         radius: Theme.globalRadius
                         color: playMa.containsMouse ? Theme.surfaceVariant : "transparent"
 
                         Icon {
                             anchors.centerIn: parent
                             glyph: mediaPopup.player && mediaPopup.player.isPlaying ? "pause" : "play"
-                            size: Theme.iconMd
+                            size: Theme.iconLg
                             color: Theme.accent
                             opacityLevel: mediaPopup.player && mediaPopup.player.canTogglePlaying ? 1 : 0.3
                         }
@@ -787,13 +788,13 @@ Item {
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: "next"
-                        size: Theme.iconMd
+                        size: Theme.iconLg
                         color: Theme.fg
                         opacityLevel: mediaPopup.player && mediaPopup.player.canGoNext ? 0.9 : 0.3
 
                         MouseArea {
                             anchors.fill: parent
-                            anchors.margins: -6
+                            anchors.margins: -8
                             cursorShape: mediaPopup.player && mediaPopup.player.canGoNext ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: if (mediaPopup.player && mediaPopup.player.canGoNext) mediaPopup.player.next()
                         }

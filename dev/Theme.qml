@@ -52,6 +52,7 @@ QtObject {
 
     readonly property int iconSm: 14
     readonly property int iconMd: 16
+    readonly property int iconLg: 22
 
     // Rythme : multiples de 4, gouttière d'écran = 8
     readonly property int space1: 4
