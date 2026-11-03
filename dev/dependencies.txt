@@ -1,6 +1,5 @@
 quickshell
 hyprland
-fuzzel
 rofi
 matugen
 brightnessctl

@@ -273,6 +273,64 @@ Item {
         }
     }
 
+
+    // Lanceur au repos : la même capsule, toujours posée en bas au centre, à 0,2.
+    // Fenêtre étroite (720 px) et non plein écran : hors de la capsule les clics
+    // continuent d'aller à la fenêtre en dessous. Un clic dessus ouvre la pilule.
+    PanelWindow {
+        id: spotlightRestWindow
+        visible: !Theme.spotlightVisible
+        anchors {
+            bottom: true
+            left: true
+        }
+        margins.left: Math.round(((screen ? screen.width : 1920) - 720) / 2)
+        margins.bottom: 44
+        implicitWidth: 720
+        implicitHeight: 62
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        aboveWindows: true
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        WlrLayershell.namespace: "portable-spotlight-rest"
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 26
+            color: Theme.spotlightRestBg
+            border.color: Qt.alpha(Theme.accent, 0.16)
+            border.width: 1
+
+            Icon {
+                id: restLens
+                anchors.left: parent.left
+                anchors.leftMargin: 22
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "search"
+                size: Theme.iconMd
+                color: Theme.accent
+                opacityLevel: 0.35
+            }
+
+            Text {
+                anchors.left: restLens.right
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Rechercher une application…"
+                color: Qt.alpha(Theme.fg, 0.30)
+                font.pixelSize: Theme.textLg
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Theme.spotlightVisible = true
+            }
+        }
+    }
+
     // First-Run Keyboard Layout Selection Window (100% Mouse Operated)
     PanelWindow {
         id: firstRunOverlayWindow

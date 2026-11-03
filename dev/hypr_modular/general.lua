@@ -59,7 +59,7 @@ local shell_blur = {
     popups  = true,  -- flou derrière les popups ancrés (calendrier, wifi…)
 }
 if shell_blur.enabled then
-    for _, ns in ipairs({ "portable-bar", "portable-osd", "portable-config", "portable-onboarding", "portable-spotlight" }) do
+    for _, ns in ipairs({ "portable-bar", "portable-osd", "portable-config", "portable-onboarding", "portable-spotlight", "portable-spotlight-rest" }) do
         hl.layer_rule({
             match        = { namespace = ns },
             blur         = true,

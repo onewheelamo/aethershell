@@ -170,6 +170,13 @@ QtObject {
         onTriggered: root.barAroused = false
     }
 
+    // ── Lanceur au repos ──────────────────────────────────────────────────────
+    // La pilule reste posée en bas au centre, en veille à 0.2 (donc sans flou :
+    // sous ignore_alpha 0.30). Elle ne prend l'opacité des surfaces Quickshell
+    // (et le flou) qu'à l'état de frappe, ouverte par SUPER + R ou par un clic.
+    property real spotlightRestOpacity: 0.2
+    readonly property color spotlightRestBg: Qt.alpha(surface, spotlightRestOpacity)
+
     function wakeBar() {
         root.barAroused = true
         root.barSleepTimer.restart()

@@ -212,6 +212,27 @@ transparents et la seule surface visible est `capsuleBg` dans `main.qml`. C'est
 **elle** qu'il faut brancher sur `Theme.barBg` — changer les fonds d'îlots ne
 produit rien de visible.
 
+### 9quater. Lanceur toujours posé en veille — LIVRÉ
+
+La pilule n'est plus une surface qui apparaît : c'est une capsule permanente en
+bas au centre, à 0,2 (`Theme.spotlightRestOpacity` / `spotlightRestBg`), donc
+sans flou par la même règle `ignore_alpha`. Un clic dessus ou `SUPER + R`
+l'ouvre : elle prend l'opacité des surfaces Quickshell (`Theme.surfaceBg`,
+`shell_opacity`) et le flou de la règle `layer_rule`.
+
+Deux fenêtres, pas une :
+- `portable-spotlight-rest` — 720 × 62, ancrée en bas, centrée par
+  `margins.left = (largeur écran − 720) / 2` et `margins.bottom = 44`, focus
+  clavier `None`, visible dès que la pilule est fermée. Étroite **exprès** :
+  une surface layer consomme les clics sur toute sa zone, un plein écran au
+  repos mangerait tous les clics de l'écran.
+- `portable-spotlight` — plein écran, focus clavier exclusif, uniquement pendant
+  la frappe (fond cliquable pour fermer au clic extérieur).
+
+Les `margins` d'une `PanelWindow` fonctionnent bien ici (position mesurée :
+`xywh 600 974 720 62` pour un écran de 1920 et une marge basse de 44) — le
+commentaire de l'OSD qui les disait inopérants ne concerne que son cas.
+
 ### 9ter. Îlot gauche sans lanceur — LIVRÉ
 
 L'icône Arch et son séparateur sont retirés : l'îlot ne contient plus que les
