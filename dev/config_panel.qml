@@ -82,6 +82,8 @@ Rectangle {
           tab: 2, section: "", target: "bindsCol" },
         { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
           tab: 3, section: "apps_programs", target: "secApps" },
+        { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
+          tab: 3, section: "apps_programs", target: "launchHistoryRow" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
           tab: 3, section: "apps_autostart", target: "secAutostart" }
     ]
@@ -136,6 +138,7 @@ Rectangle {
         "kbdRow": kbdRow,
         "bindsCol": bindsCol,
         "secApps": secApps,
+        "launchHistoryRow": launchHistoryRow,
         "secAutostart": secAutostart
     })
 
@@ -201,6 +204,7 @@ Rectangle {
     property string matugenScheme: "scheme-tonal-spot"
     property real matugenContrast: 0
     property bool blurEnabled: true
+    property bool launchHistory: false
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.17
@@ -241,6 +245,16 @@ Rectangle {
         cmdQueue = q
     }
 
+    // Vide core/launch_history.json (bouton « Vider » du panneau).
+    Process {
+        id: clearHistoryProc
+        command: ["python3", Quickshell.shellPath("core/launch_history.py"), "clear"]
+    }
+
+    function clearLaunchHistory() {
+        if (!clearHistoryProc.running) clearHistoryProc.running = true
+    }
+
     function applyStateJson(data) {
         if (!data) return
         if (typeof data.hostname === "string" && data.hostname.length > 0) {
@@ -268,6 +282,7 @@ Rectangle {
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
         if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
         if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
+        if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
         if (typeof data.resize_step === "number") root.resizeStep = data.resize_step
         if (data.panel_sections) root.panelSections = data.panel_sections
         if (Array.isArray(data.workspace_keys)) {
@@ -2366,6 +2381,81 @@ Rectangle {
                 icon: "rocket"
                 expanded: root.sectionOpen("apps_programs", true)
                 onToggled: expanded => root.setPanelSection("apps_programs", expanded)
+
+            // Historique des lancements de la pilule (style_vars.json : launch_history)
+            Row {
+                id: launchHistoryRow
+                width: parent.width
+                spacing: 10
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 32 - 10
+                           - (clearHistBtn.visible ? clearHistBtn.width + 10 : 0)
+                    text: "Mémoriser les lancements récents dans la pilule"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    elide: Text.ElideRight
+                }
+
+                Rectangle {
+                    id: clearHistBtn
+                    visible: root.launchHistory
+                    width: visible ? clearHistText.implicitWidth + 22 : 0
+                    height: 32
+                    radius: Theme.globalRadius
+                    color: Theme.surfaceVariant
+                    border.color: Theme.accentMuted
+                    border.width: 1
+
+                    Text {
+                        id: clearHistText
+                        anchors.centerIn: parent
+                        text: "Vider"
+                        color: Theme.accent
+                        font.pixelSize: Theme.textSm
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.clearLaunchHistory()
+                    }
+                }
+
+                Rectangle {
+                    width: 32
+                    height: 32
+                    radius: Theme.globalRadius
+                    color: Theme.surfaceVariant
+                    border.color: root.launchHistory ? Theme.success : Theme.error
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.launchHistory ? "✓" : "✕"
+                        color: root.launchHistory ? Theme.success : Theme.error
+                        font.pixelSize: root.launchHistory ? Theme.textMd : Theme.textSm
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.runConfigCmd(["style", "launch_history",
+                                                      String(!root.launchHistory)])
+                    }
+                }
+
+            }
+
+            Text {
+                text: "Les alias ci-dessous sont aussi proposés par la pilule ; « > » y lance une commande shell."
+                color: Qt.alpha(Theme.fg, 0.55)
+                font.pixelSize: Theme.textSm
+                width: parent.width
+                wrapMode: Text.WordWrap
+            }
 
             Text {
                 text: "Variables d'Applications par défaut (Synchronisées à la volée avec Hyprland)"

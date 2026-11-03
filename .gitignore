@@ -15,6 +15,7 @@ __pycache__/
 
 # Données générées (index des applications de la pilule)
 dev/core/app_index.json
+dev/core/launch_history.json
 
 # Sensitive information
 dev/core/secrets.json

@@ -8,19 +8,28 @@ import Quickshell.Wayland
 // ─────────────────────────────────────────────────────────────────────────────
 // Chargée par la PanelWindow `portable-spotlight` de main.qml, elle-même pilotée
 // par Theme.spotlightVisible (IPC `quickshell ipc call portable toggleSpotlight`).
-// Les applications viennent de core/app_index.json (core/app_index.py), pas d'un
-// parseur .desktop en QML.
+//
+// Trois sources, une seule liste de résultats :
+//   • applications — core/app_index.json (core/app_index.py)
+//   • alias        — core/app_vars.json, les mêmes que les raccourcis Hyprland
+//   • commandes    — préfixe « > », passées telles quelles à sh
+// Et, si `launch_history` est activé dans le panneau, les lancements récents
+// (core/launch_history.json) affichés à l'ouverture dans le champ vide.
 Item {
     id: root
 
     // Remplit la PanelWindow : c'est la pilule qui se pose en bas au centre.
     property var appIndex: []
+    property var aliases: ({})
+    property var history: []
     property string query: ""
+    property string mode: "apps"    // "apps" | "cmd"
     property var results: []
     property int sel: 0
 
     readonly property int maxResults: 6
     readonly property int rowHeight: 46
+    readonly property bool cmdMode: mode === "cmd"
 
     // ── index des applications ───────────────────────────────────────────────
     FileView {
@@ -36,7 +45,43 @@ Item {
                 console.warn("spotlight: app_index.json illisible:", e)
                 root.appIndex = []
             }
-            root.filterApps()
+            root.build()
+        }
+    }
+
+    // ── alias d'applications (partagés avec les raccourcis Hyprland) ─────────
+    FileView {
+        id: aliasFile
+        path: Quickshell.shellPath("core/app_vars.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.aliases = (parsed && typeof parsed === "object") ? parsed : ({})
+            } catch (e) {
+                root.aliases = ({})
+            }
+            root.build()
+        }
+    }
+
+    // ── historique des lancements ────────────────────────────────────────────
+    FileView {
+        id: historyFile
+        path: Quickshell.shellPath("core/launch_history.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.history = Array.isArray(parsed) ? parsed : []
+            } catch (e) {
+                root.history = []
+            }
+            root.build()
         }
     }
 
@@ -48,56 +93,111 @@ Item {
         onExited: indexFile.reload()
     }
 
-    // ── filtrage ─────────────────────────────────────────────────────────────
-    function filterApps() {
-        const q = String(root.query).toLowerCase().trim()
+    // ── construction de la liste ─────────────────────────────────────────────
+    function entry(kind, name, exec, icon, tag) {
+        return { kind: kind, name: name, exec: exec, icon: icon, tag: tag }
+    }
+
+    function build() {
+        const q = String(root.query).trim()
+
+        // Mode commande : tout ce qui suit « > » part tel quel dans sh.
+        if (q.indexOf(">") === 0) {
+            root.mode = "cmd"
+            const cmd = q.substring(1).trim()
+            root.results = cmd === "" ? [] : [root.entry("cmd", cmd, cmd, "", "commande")]
+            root.sel = 0
+            return
+        }
+        root.mode = "apps"
+
+        // Champ vide : les lancements récents, si l'historique est activé.
         if (q === "") {
-            // Comme la maquette : la pilule reste repliée tant qu'on n'a rien tapé.
-            root.results = []
+            root.results = Theme.launchHistory
+                    ? root.history.slice(0, root.maxResults).map(h => root.entry(
+                          "recent", h.name, h.exec, h.icon || "", "récent"))
+                    : []
             root.sel = 0
             return
         }
 
+        const needle = q.toLowerCase()
         const scored = []
+
+        for (const name in root.aliases) {
+            const cmd = String(root.aliases[name] || "")
+            if (cmd === "") continue
+            const low = name.toLowerCase()
+            let score = -1
+            if (low.indexOf(needle) === 0) score = 95 - low.length
+            else if (low.indexOf(" " + needle) >= 0) score = 70 - low.length
+            else if (low.indexOf(needle) >= 0) score = 50 - low.length
+            if (score >= 0) {
+                scored.push({
+                    entry: root.entry("alias", name, cmd,
+                                      cmd.trim().split(/\s+/)[0], "alias"),
+                    score: score,
+                })
+            }
+        }
+
         for (let i = 0; i < root.appIndex.length; ++i) {
             const app = root.appIndex[i]
-            const name = app.name.toLowerCase()
+            const low = String(app.name).toLowerCase()
             let score = -1
-            if (name.indexOf(q) === 0) score = 100 - name.length
-            else if (name.indexOf(" " + q) >= 0) score = 60 - name.length
-            else if (name.indexOf(q) >= 0) score = 40 - name.length
-            else if (String(app.comment || "").toLowerCase().indexOf(q) >= 0) score = 10
-            if (score >= 0) scored.push({ app: app, score: score })
+            if (low.indexOf(needle) === 0) score = 100 - low.length
+            else if (low.indexOf(" " + needle) >= 0) score = 60 - low.length
+            else if (low.indexOf(needle) >= 0) score = 40 - low.length
+            else if (String(app.comment || "").toLowerCase().indexOf(needle) >= 0) score = 10
+            if (score >= 0) {
+                scored.push({
+                    entry: root.entry("app", app.name, app.exec, app.icon || "",
+                                      app.category || ""),
+                    score: score,
+                })
+            }
         }
-        scored.sort((a, b) => b.score - a.score || a.app.name.localeCompare(b.app.name))
-        root.results = scored.slice(0, root.maxResults).map(x => x.app)
+
+        scored.sort((a, b) => b.score - a.score
+                    || a.entry.name.localeCompare(b.entry.name))
+        root.results = scored.slice(0, root.maxResults).map(x => x.entry)
         root.sel = 0
     }
 
-    // Souligne la sous-chaîne trouvée, dans la couleur passée.
+    // Souligne la sous-chaîne trouvée (texte enrichi QML : pas de <span style>).
     function markup(name, highlightColor) {
         const q = String(root.query).trim()
-        if (q === "") return name.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        if (q === "" || q.indexOf(">") === 0) return esc(name)
         const at = name.toLowerCase().indexOf(q.toLowerCase())
-        if (at < 0) return name.replace(/&/g, "&amp;").replace(/</g, "&lt;")
-        const before = name.substring(0, at).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-        const hit = name.substring(at, at + q.length).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-        const after = name.substring(at + q.length).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-        return before + "<font color=\"" + highlightColor + "\"><u>" + hit + "</u></font>" + after
+        if (at < 0) return esc(name)
+        return esc(name.substring(0, at))
+             + "<font color=\"" + highlightColor + "\"><u>"
+             + esc(name.substring(at, at + q.length))
+             + "</u></font>"
+             + esc(name.substring(at + q.length))
     }
 
     // ── actions ──────────────────────────────────────────────────────────────
-    function launch(entry) {
+    function run(entry) {
         if (!entry) return
         // `cd $HOME` : un lanceur démarre dans le dossier personnel, pas dans
         // celui du shell (hérité de Quickshell).
-        Quickshell.execDetached(["setsid", "sh", "-c", "cd \"$HOME\" && exec " + entry.exec])
+        const shell = entry.kind === "cmd"
+                ? "cd \"$HOME\" && " + entry.exec
+                : "cd \"$HOME\" && exec " + entry.exec
+        Quickshell.execDetached(["setsid", "sh", "-c", shell])
+        if (Theme.launchHistory) {
+            Quickshell.execDetached(["python3",
+                Quickshell.shellPath("core/launch_history.py"),
+                "add", entry.name, entry.exec, entry.icon || ""])
+        }
         Theme.spotlightVisible = false
     }
 
-    function launchSelected() {
+    function runSelected() {
         if (root.results.length === 0) return
-        root.launch(root.results[root.sel])
+        root.run(root.results[root.sel])
     }
 
     function move(delta) {
@@ -106,7 +206,7 @@ Item {
     }
 
     function complete() {
-        if (root.results.length === 0) return
+        if (root.results.length === 0 || root.cmdMode) return
         searchInput.text = root.results[root.sel].name
         searchInput.cursorPosition = searchInput.text.length
     }
@@ -147,7 +247,7 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: 22
                 anchors.verticalCenter: parent.verticalCenter
-                glyph: "search"
+                glyph: root.cmdMode ? "chevron-right" : "search"
                 size: Theme.iconMd
                 color: Theme.accent
                 opacityLevel: 1
@@ -164,19 +264,20 @@ Item {
                 verticalAlignment: TextInput.AlignVCenter
                 color: Theme.fg
                 font.pixelSize: Theme.textLg
+                font.family: root.cmdMode ? "monospace" : Qt.application.font.family
                 selectByMouse: true
                 clip: true
                 focus: Theme.spotlightVisible
 
                 onTextChanged: {
                     root.query = text
-                    root.filterApps()
+                    root.build()
                 }
-                onAccepted: root.launchSelected()
+                onAccepted: root.runSelected()
                 Keys.onEscapePressed: {
                     if (text !== "") {
                         text = ""
-                        root.filterApps()
+                        root.build()
                     } else {
                         Theme.spotlightVisible = false
                     }
@@ -190,7 +291,7 @@ Item {
                 visible: searchInput.text === ""
                 anchors.left: searchInput.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Rechercher une application…"
+                text: "Rechercher une application…   (> pour une commande)"
                 color: Qt.alpha(Theme.fg, 0.42)
                 font.pixelSize: Theme.textLg
             }
@@ -253,7 +354,7 @@ Item {
                             spacing: 12
 
                             // Pastille d'icône : l'icône du thème si elle existe,
-                            // sinon l'initiale de l'application.
+                            // sinon l'initiale — ou « > » pour une commande.
                             Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 28
@@ -264,7 +365,9 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: modelData.name.charAt(0).toUpperCase()
+                                    text: modelData.kind === "cmd"
+                                          ? ">"
+                                          : String(modelData.name).charAt(0).toUpperCase()
                                     color: root.sel === index ? Theme.bg : Theme.accent
                                     font.pixelSize: Theme.textSm
                                     font.bold: true
@@ -284,19 +387,20 @@ Item {
 
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                width: parent.width - 28 - 12 - kindLabel.implicitWidth - 12
+                                width: parent.width - 28 - 12 - tagText.implicitWidth - 12
                                 textFormat: Text.StyledText
                                 text: root.markup(modelData.name,
                                                   root.sel === index ? Theme.bg : Theme.accentMuted)
                                 color: root.sel === index ? Theme.bg : Theme.fg
                                 font.pixelSize: Theme.textLg
+                                font.family: modelData.kind === "cmd" ? "monospace" : Qt.application.font.family
                                 elide: Text.ElideRight
                             }
 
                             Text {
-                                id: kindLabel
+                                id: tagText
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: modelData.category ? modelData.category.toUpperCase() : ""
+                                text: modelData.tag ? String(modelData.tag).toUpperCase() : ""
                                 color: root.sel === index ? Qt.alpha(Theme.bg, 0.75)
                                                           : Qt.alpha(Theme.fg, 0.34)
                                 font.pixelSize: Theme.textXs
@@ -309,7 +413,7 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onEntered: root.sel = index
-                            onClicked: root.launch(modelData)
+                            onClicked: root.run(modelData)
                         }
                     }
                 }
@@ -325,7 +429,9 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: "Aucun résultat pour « " + root.query + " »"
+                text: root.cmdMode
+                      ? "Tapez une commande après « > »"
+                      : "Aucun résultat pour « " + root.query + " »"
                 color: Qt.alpha(Theme.fg, 0.45)
                 font.pixelSize: Theme.textSm
             }
@@ -364,9 +470,14 @@ Item {
                     spacing: 6
                     anchors.verticalCenter: parent.verticalCenter
                     Text { text: "Entrée"; color: Qt.alpha(Theme.fg, 0.55); font.pixelSize: Theme.textXs }
-                    Text { text: "lancer"; color: Qt.alpha(Theme.fg, 0.40); font.pixelSize: Theme.textXs }
+                    Text {
+                        text: root.cmdMode ? "exécuter" : "lancer"
+                        color: Qt.alpha(Theme.fg, 0.40)
+                        font.pixelSize: Theme.textXs
+                    }
                 }
                 Row {
+                    visible: !root.cmdMode
                     spacing: 6
                     anchors.verticalCenter: parent.verticalCenter
                     Text { text: "Tab"; color: Qt.alpha(Theme.fg, 0.55); font.pixelSize: Theme.textXs }
@@ -378,7 +489,9 @@ Item {
                 anchors.right: parent.right
                 anchors.rightMargin: 22
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.results.length + (root.results.length > 1 ? " résultats" : " résultat")
+                text: root.cmdMode
+                      ? "shell"
+                      : root.results.length + (root.results.length > 1 ? " résultats" : " résultat")
                 color: Qt.alpha(Theme.fg, 0.28)
                 font.pixelSize: Theme.textXs
             }
@@ -392,11 +505,18 @@ Item {
             if (!Theme.spotlightVisible) return
             searchInput.text = ""
             root.query = ""
+            root.mode = "apps"
             root.sel = 0
             indexFile.reload()
-            root.filterApps()
+            aliasFile.reload()
+            historyFile.reload()
+            root.build()
             searchInput.forceActiveFocus()
             indexProc.running = true
+        }
+        // Activer/désactiver l'historique depuis le panneau agit tout de suite.
+        function onLaunchHistoryChanged() {
+            root.build()
         }
     }
 

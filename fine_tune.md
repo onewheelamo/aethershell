@@ -133,7 +133,7 @@ est impossible ; la segmentation automatique (détourage de sujet) est un autre
 projet. Ne pas commencer le QML avant d'avoir choisi le format et deux images de
 test.
 
-### 9. Spotlight pill — LIVRÉ (v1 : applications)
+### 9. Spotlight pill — LIVRÉ (v1 apps + v2 alias, commandes, historique)
 
 Objectif. Pilule bas-centre invoquée au clavier : launcher d'applications, Échap
 pour fermer, remplace fuzzel.
@@ -166,9 +166,30 @@ Pièges mesurés.
 - Flou : ajouter `portable-spotlight` à `SHELL_BLUR_NAMESPACES`
   (`core/config_manager.py`) **et** au bloc `shell-blur` de `general.lua`.
 
-Reste (v2). Préfixe `>` pour les commandes shell, alias d'applications,
-historique des lancements. Le contournement fuzzel (bind `mouse:272` +
-`launcher_click_close.sh`) est **retiré** : la surface se ferme elle-même.
+v2 (livrée). Trois sources dans la même liste :
+- **alias** — `core/app_vars.json`, les mêmes variables que les raccourcis
+  Hyprland ; ajout/suppression déjà possible dans le panneau (onglet
+  Applications), elles apparaissent donc dans la pilule sans doublon de config ;
+- **commandes** — préfixe `>` : tout ce qui suit part dans `sh -c`, une seule
+  ligne « COMMANDE », `Entrée` exécute ;
+- **historique** — désactivé par défaut, activé par `launch_history` dans
+  `style_vars.json` (ligne ✓/✕ + bouton « Vider » dans l'onglet Applications,
+  trouvable par la recherche du panneau). Écrit par `core/launch_history.py`
+  (`core/launch_history.json`, 25 entrées max, dédoublonnées par commande) ;
+  champ vide = les 6 derniers lancements, étiquetés « RÉCENT ».
+
+Le contournement fuzzel (bind `mouse:272` + `launcher_click_close.sh`) est
+**retiré** : la surface se ferme elle-même.
+
+Pièges v2.
+- `get_full_config_state()` doit exposer chaque nouveau réglage, sinon le panneau
+  ne voit jamais la valeur (elle reste à son défaut dans l'UI).
+- Un bouton conditionnel placé à droite du libellé décale le toggle quand il
+  apparaît : garder l'élément permanent contre le bord (ici « Vider » à gauche du
+  ✓, le ✓ collé au bord).
+- Les styles de boutons du panneau : `color: Theme.surfaceVariant` +
+  `border.color: success/error` + `radius: Theme.globalRadius` ; un fond teinté à
+  15 % paraît délavé à côté des autres lignes.
 
 ### 10. Which-key par submap — M
 

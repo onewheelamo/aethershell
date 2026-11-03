@@ -502,6 +502,8 @@ def update_style_var(key, value):
         data["matugen_scheme"] = str(value)
     elif key == "matugen_contrast":
         data["matugen_contrast"] = max(-1.0, min(1.0, float(value)))
+    elif key == "launch_history":
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "blur_enabled":
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "blur_size":
@@ -954,6 +956,7 @@ def get_full_config_state():
         "shell_blur_enabled": bool(style_data.get("shell_blur_enabled", True)),
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.4)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
+        "launch_history": bool(style_data.get("launch_history", False)),
         "resize_step": int(style_data.get("resize_step", 15)),
         "panel_sections": style_data.get("panel_sections", {}),
         "gaps": get_hypr_gaps(),

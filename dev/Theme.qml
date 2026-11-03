@@ -136,6 +136,9 @@ QtObject {
     // SECTION 5: POPUP COORDINATION ACROSS ISLANDS
     // ────────────────────────────────────────────────────────────────────────
     // Guarantees only one popup is open at a time across all three islands
+    // Historique des lancements de la pilule (désactivé par défaut).
+    property bool launchHistory: false
+
     property bool configPanelVisible: false
 
     // Pilule spotlight (launcher bas-centre) : surface montée à la demande,
@@ -215,6 +218,7 @@ QtObject {
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = Math.max(0, Math.min(1, data.blur_vibrancy))
         if (typeof data.kb_layout === "string") root.kbLayout = data.kb_layout
         if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
+        if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
         if (typeof data.first_run_completed === "boolean") {
             root.firstRunCompleted = data.first_run_completed
             if (!data.first_run_completed) {
@@ -292,6 +296,9 @@ QtObject {
         }
         function spotlightState(): bool {
             return root.spotlightVisible
+        }
+        function launchHistoryState(): bool {
+            return root.launchHistory
         }
     }
 }
