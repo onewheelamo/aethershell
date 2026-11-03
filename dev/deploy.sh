@@ -130,7 +130,7 @@ prune_target() {
         [ -n "$preserve_list" ] && is_preserved "$name" "$preserve_list" && continue
         case "$name" in
             *.upstream) continue ;;
-            hypridle.conf|hyprlock.conf|autostart_cmds.txt|.quickshell_managed) continue ;;
+            hypridle.conf|hyprlock.conf|hyprlock-colors.conf|autostart_cmds.txt|.quickshell_managed) continue ;;
             secrets.json) continue ;;
             # Outils manuels hors périmètre du déploiement : jamais élagués.
             rotate.sh|sync_to_*.sh) continue ;;

@@ -39,12 +39,14 @@ print(",".join([
     norm("surface_variant", "#45475a"),
     norm("error", "#f38ba8"),
     str(radius),
-    str(opacity)
+    str(opacity),
+    norm("warn", "#fab387"),
+    norm("accent_muted", "#89b4fa")
 ]))
 EOF
 )
 
-IFS=',' read -r BG FG ACCENT SURFACE SURFACE_VAR ERROR RADIUS OPACITY <<< "$COLORS"
+IFS=',' read -r BG FG ACCENT SURFACE SURFACE_VAR ERROR RADIUS OPACITY WARN ACCENT_MUTED <<< "$COLORS"
 ACCENT_NOHASH="${ACCENT#\#}"
 SURFACE_VAR_NOHASH="${SURFACE_VAR#\#}"
 
@@ -285,4 +287,38 @@ fi
 # 4. Sync live configs if target directories exist or running from deployed location
 if [ -d "$HOME/.config/quickshell/hyprquickpaper" ]; then
     (printf '{\n    "border_color": "%s"\n}\n' "$ACCENT" > "$HOME/.config/quickshell/hyprquickpaper/colors.json") 2>/dev/null || true
+fi
+
+# 5. Generate Hyprlock palette (~/.config/hypr/hyprlock-colors.conf)
+# hyprlock ne lit ni le Lua de Hyprland ni le JSON du shell : la palette lui est
+# donc écrite en variables hyprlang. hyprlock.conf ne contient que les noms de
+# variables, jamais une couleur en dur, et ce fichier est régénéré à chaque
+# déploiement comme à chaque changement de palette dans le panneau.
+HYPRLOCK_DIR="$HOME/.config/hypr"
+HYPRLOCK_COLORS="$HYPRLOCK_DIR/hyprlock-colors.conf"
+if [ -d "$HYPRLOCK_DIR" ]; then
+    FG_NH="${FG#\#}"
+    ACCENT_NH="${ACCENT#\#}"
+    ACCENT_MUTED_NH="${ACCENT_MUTED#\#}"
+    SURFACE_NH="${SURFACE#\#}"
+    ERROR_NH="${ERROR#\#}"
+    WARN_NH="${WARN#\#}"
+    BG_NH="${BG#\#}"
+    # Suffixes d'alpha : b3 = 0,70 · 8c = 0,55 · e5 = 0,90 · 80 = 0,50
+    cat <<EOF > "$HYPRLOCK_COLORS"
+# Généré par core/generate_rofi_theme.sh depuis style_vars.json — ne pas éditer.
+# Lu par hyprlock.conf : source = ~/.config/hypr/hyprlock-colors.conf
+
+\$bg = rgb(${BG_NH})
+\$fg = rgb(${FG_NH})
+\$fg_soft = rgba(${FG_NH}b3)
+\$fg_dim = rgba(${FG_NH}80)
+\$accent = rgb(${ACCENT_NH})
+\$accent_muted = rgb(${ACCENT_MUTED_NH})
+\$surface = rgb(${SURFACE_NH})
+\$surface_glass = rgba(${SURFACE_NH}8c)
+\$outline = rgba(${ACCENT_NH}59)
+\$error = rgb(${ERROR_NH})
+\$warn = rgb(${WARN_NH})
+EOF
 fi

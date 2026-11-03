@@ -24,6 +24,7 @@ Fait et déployé :
 | 8c | Opacité shell séparée de l'opacité des fenêtres | `Theme.qml` (`shellOpacity`), `config_panel.qml`, `config_manager.py` |
 | 6 | Liseré dégradé sur le workspace actif, avec repli fond plein sous 3:1 de contraste | `island_left.qml`, `Theme.qml` (`wsActiveOutline`) |
 | 12 | OSD unique : volume et luminosité hors de la barre, barre de progression 2 px | `main.qml`, `island_right.qml` |
+| 13 | Lock screen cohérent : fond flouté 24 px, Inter, heure tabulaire, ligne média, boutons MDI | `hypr_modular/hyprlock.conf`, `core/generate_rofi_theme.sh` §5 |
 
 Note 8 : sans `ignore_alpha = 0.4` dans la règle, Hyprland floute toute la
 surface layer (fenêtre pleine largeur pour la barre, plein écran pour le panneau)
@@ -50,7 +51,14 @@ luminosité ne s'affichent plus que dans l'OSD bas-centre, déclenché par
 Sur un poste sans batterie, cette icône est le seul contenu de la boîte : la
 supprimer rendrait le panneau système inaccessible.
 
-Reste : 4, 7, 9, 10, 11, 13, 14, plus les réserves du §4.
+Note 13 : `hyprlock.conf` est désormais **dans le dépôt** (`dev/hypr_modular/`,
+copié par `deploy.sh`) et ne contient aucune couleur en dur : il source
+`~/.config/hypr/hyprlock-colors.conf`, régénéré depuis `style_vars.json` par
+`generate_rofi_theme.sh`. Un changement de palette dans le panneau suit donc
+jusqu'à l'écran de verrouillage. Le fond est `path = screenshot` flouté à 24 px :
+rien à maintenir côté wallpaper, et le verrou reprend ce que la session affichait.
+
+Reste : 4, 7, 9, 10, 11, 14, plus les réserves du §4.
 
 ---
 
@@ -150,13 +158,6 @@ Approche. Reprendre la structure des sections (`CollapsibleSection.qml`) mais en
 tiroir plein hauteur, avec un index de recherche sur les libellés. Les tokens et
 `Icon` étant en place, l'essentiel est de la mise en page.
 
-### 13. Lock screen — S
-
-Fichier. `~/.config/hypr/hyprlock.conf` (2,8 Ko, préservé au déploiement).
-
-Objectif. Fond flouté 24 px, horloge à la même échelle typographique, une ligne
-média, pas de paroles de chanson.
-
 ### 14. Notifications en cartes — M
 
 Fichier. `island_right.qml` (1 840 l.).
@@ -164,6 +165,49 @@ Fichier. `island_right.qml` (1 840 l.).
 Objectif. Cartes empilées, liseré accent de 2 px par application, titres sans
 emoji, action « tout effacer » discrète.
 
+15 — Écran de connexion SDDM cohérent
+     avec le bureau » :
+
+         Objectif : l'écran de connexion ne doit pas casser l'unité visuelle — même
+     fond
+         que le bureau, même accent, même typographie. Aujourd'hui SDDM est resté en
+         configuration par défaut, donc en rupture complète.
+
+         À faire
+         - Choisir le fond : le wallpaper courant, ou une variante assombrie. Un fond
+     clair
+           et chargé passe mal sous un formulaire translucide ; l'assombrir d'environ
+     40 %
+           suffit en général et garde le lien avec le bureau.
+         - Choisir un thème Qt Quick pilotable par fichier (sddm-astronaut, Sugar
+     Candy,
+           Corners) : ils exposent Background, Font, AccentColor,
+           FormBackgroundColor, donc réglables sans toucher au QML du thème.
+         - Ne pas écrire les couleurs à la main : les dériver de
+     dev/core/style_vars.json
+           (palette dynamic) au moment du déploiement, comme config_manager.py le fait
+           déjà pour les layer rules. Un changement de palette doit se propager au
+     bureau,
+           à hyprlock et à SDDM en une seule opération.
+
+         Contraintes
+         - SDDM tourne avant la session : ni Quickshell, ni variables d'environnement
+     du
+           shell. Tout doit être écrit sur disque à chaque changement de palette.
+         - /etc/sddm.conf.d/ demande sudo : soit deploy.sh gagne un mode explicite,
+     soit
+           les fichiers vivent dans dev/sddm/ avec une commande d'installation
+     séparée.
+           Même arbitrage que pour hyprlock.conf au point 13 — à trancher ensemble.
+         - Ne pas tester en redémarrant le service : systemctl restart sddm tue la
+     session
+           en cours. Passer par un TTY (Ctrl+Alt+F2) ou par
+           sddm-greeter --test-mode --theme <chemin>.
+
+         Vérification : capture du greeter en --test-mode, puis comparaison des
+         couleurs dominantes avec la palette du bureau (accent et fond), et contrôle
+     que le
+         changement de palette se répercute sans édition manuelle.
 ---
 
 ## 4. Idées en réserve
@@ -187,16 +231,29 @@ basculer en fichiers générés.
 
 ## 5. Ordre conseillé
 
-1. 13 (lock screen) — S, indépendant, gain immédiat.
-2. 4 (dynamic island + routeur de popups) — le plus gros gain visuel, dépend de la
+1. 4 (dynamic island + routeur de popups) — le plus gros gain visuel, dépend de la
    règle de popups déjà arbitrée.
-3. 14 puis 11 — les deux derniers murs de texte.
-4. 9 et 10 — interaction clavier ; 10 commence par l'export des binds.
-5. 7 — chantier séparé, en attente des wallpapers en calques.
+2. 14 puis 11 — les deux derniers murs de texte.
+3. 9 et 10 — interaction clavier ; 10 commence par l'export des binds.
+4. 7 — chantier séparé, en attente des wallpapers en calques.
 
 ---
 
 ## 6. Journal
+
+- 2026-11-03 : 13 livré — écran de verrouillage cohérent. `hyprlock.conf` entre
+  dans le dépôt (`dev/hypr_modular/`, copié par `deploy.sh`) et source une palette
+  générée (`hyprlock-colors.conf`, section 5 de `generate_rofi_theme.sh`) : plus
+  aucune couleur en dur, et `~/.config/Brain_Shell/matugen/colors.conf` — disparu
+  depuis la refonte, donc labels sans couleur — n'est plus référencé. Fond
+  `path = screenshot` flouté 24 px, Inter 100 px avec chiffres tabulaires, date en
+  toutes lettres, champ capsule 320×50, une ligne média, trois glyphes MDI
+  cliquables. Pièges rencontrés : (a) hyprlang rejette `{{…}}` dans `text`
+  (« Invalid expression type ») et le label retombe alors sur « Sample Text » —
+  d'où `core/lock_media.sh` pour le format playerctl ; (b) dans `position`, un y
+  positif place le widget **au-dessus** du centre ; (c) `pkill -USR1 hyprlock`
+  déverrouille mais inscrit un échec dans `pam_faillock` (3 → 10 minutes de
+  blocage du compte, à purger avec `faillock --user amo --reset`).
 
 - 2026-11-03 : création du fichier. Points 1, 2, 3, 5a, 8 livrés et déployés.
   Commits : `16478d8` (fondations), `0d0dd46` (échappements `\u{…}`), `99d55cf`
