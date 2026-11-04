@@ -165,6 +165,49 @@ commande **fixe** (pitfall 89). Réglage `weather_place` / `weather_lat` /
 pluie, la neige, le brouillard et l'orage (vérifiés dans `glyphnames.json`).
 
 
+### 3.7 Déplacement à la souris
+
+Décision : placement **libre**, au glisser. Le point dur est en amont, il faut le
+trancher avant d'écrire le bind.
+
+**Une surface layer n'est pas une fenêtre.** Ni `hl.dsp.window.drag()` ni
+`hl.dsp.window.move()` ne la déplacent : le compositeur ne connaît pas les
+couches comme des fenêtres. Le glisser doit donc vivre **dans le QML** du widget
+(le pointer qui bouge = la marge qui change), et le dépôt final passe par le
+backend (`widget_move id x y`).
+
+**Le conflit de raccourci.** `SUPER + mouse:272` est déjà pris :
+
+    hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
+    hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+
+`window.drag()` déplace la fenêtre **focalisée**, où qu'elle soit sous le
+pointeur. Rebinder le même accord pour attraper un widget ferait donc deux
+choses à la fois (déplacer le widget *et* la fenêtre focalisée), et l'ordre de
+priorité entre deux binds de même modmask n'est pas documenté : à éviter.
+
+Trois issues, par ordre de préférence :
+
+1. **`SUPER + SHIFT + glisser`** — accord libre, même geste, `non_consuming`
+   pour que le clic atteigne le widget, `SUPER + glisser` reste aux fenêtres.
+2. **`SUPER + clic du milieu`** (`mouse:274`), libre aussi, moins naturel.
+3. **Mode placement** armé au clavier (`SUPER + W` par exemple) : les widgets
+   s'entourent, un glisser simple les déplace, `Échap` sort du mode. Zéro
+   conflit, mais un état de plus à gérer et à afficher.
+
+Mécanique retenue dans les trois cas :
+
+- le bind arme un horodatage dans `Theme` (même famille que pitfall 86 :
+  `widgetGrabAt = Date.now()`), et le widget ne démarre le glisser que si un
+  press arrive dans les ~400 ms qui suivent — sinon un clic normal sur le widget
+  (ouvrir le calendrier, plus tard) serait avalé par le déplacement ;
+- pendant le glisser, les marges suivent le pointeur, bornées à l'écran
+  (`x ∈ [gutter, W − w − gutter]`, idem en y) ;
+- au relâchement seulement, une écriture : `config_manager.py widget_move …`,
+  jamais à chaque pixel (même raison que la pitfall sur `Slider.qml`) ;
+- un relâchement sans mouvement = pas d'écriture, donc aucun bruit dans
+  `widgets.json`.
+
 ## 4. Contraintes et risques connus
 
 1. **Zone morte des clics.** Une surface layer consomme les clics sur toute son
