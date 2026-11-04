@@ -1,4 +1,0 @@
-
-  4. Variables Dynamiques & Applications :
-     - Gestion des programmes par défaut : Possibilité de définir quel programme est lancé par un raccourci (ex: Terminal, Musique).
-     - Flexibilité : Interface permettant d'ajouter, modifier ou supprimer ces variables à la volée sans éditer les fichiers de config manuellement.
