@@ -368,6 +368,84 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // ÉCRAN DES RACCOURCIS (SUPER + K) — surface fixe, centrée, comme le panneau
+    // de configuration. La liste vient de binds.lua (via config_manager.py state)
+    // et ne retient que les binds qui portent une `description` : rien n'est
+    // dupliqué ici, un raccourci ajouté dans le Lua apparaît tel quel.
+    // ────────────────────────────────────────────────────────────────────────
+    property var cheatsheetBinds: []
+
+    Process {
+        id: cheatsheetProc
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "state"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text)
+                    if (d && Array.isArray(d.binds))
+                        root.cheatsheetBinds = d.binds
+                } catch (e) {
+                    console.warn("Cheatsheet: état illisible:", e)
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Theme
+        function onCheatsheetVisibleChanged() {
+            // Relire à chaque ouverture : un bind ajouté dans binds.lua apparaît
+            // sans redémarrer la coquille.
+            if (Theme.cheatsheetVisible)
+                cheatsheetProc.running = true
+        }
+    }
+
+    PanelWindow {
+        id: cheatsheetWindow
+        screen: topBarWindow.screen
+        visible: Theme.cheatsheetVisible
+        anchors { top: true; bottom: true; left: true; right: true }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        // Exclusif tant qu'il est ouvert : sans ça Échap part à la fenêtre en
+        // dessous et l'écran ne se ferme qu'au clic. La sortie est garantie par
+        // le handler ci-dessous (piège classique : une surface qui avale le
+        // clavier sans porte de sortie testée).
+        WlrLayershell.keyboardFocus: Theme.cheatsheetVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-cheatsheet"
+
+        Item {
+            anchors.fill: parent
+            focus: Theme.cheatsheetVisible
+            Keys.onEscapePressed: Theme.cheatsheetVisible = false
+        }
+
+        // Fond cliquable : se referme comme le panneau.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Theme.cheatsheetVisible = false
+        }
+
+        Loader {
+            anchors.centerIn: parent
+            source: Theme.cheatsheetVisible ? "Cheatsheet.qml" : ""
+            onLoaded: {
+                if (item) {
+                    // Liaisons, pas des affectations : le Process peut répondre
+                    // APRÈS le chargement du composant, et une affectation
+                    // laisserait la liste vide pour toujours.
+                    item.binds = Qt.binding(function () { return root.cheatsheetBinds })
+                    item.surfaceColor = Qt.binding(function () {
+                        return Qt.alpha(Theme.surface, Theme.cheatsheetOpacity)
+                    })
+                }
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // WIDGETS DE BUREAU — une surface layer par entrée de core/widgets.json.
     // Couche `Bottom`, jamais le clavier : le widget vit derrière les fenêtres et
     // n'est cliquable que là où rien ne le couvre. Sa taille suit son contenu :

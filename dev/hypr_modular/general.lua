@@ -59,7 +59,7 @@ local shell_blur = {
     popups  = true,  -- flou derrière les popups ancrés (calendrier, wifi…)
 }
 if shell_blur.enabled then
-    for _, ns in ipairs({ "shell-bar", "shell-osd", "shell-config", "shell-onboarding", "shell-spotlight", "shell-spotlight-rest" }) do
+    for _, ns in ipairs({ "shell-bar", "shell-osd", "shell-config", "shell-onboarding", "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet" }) do
         hl.layer_rule({
             match        = { namespace = ns },
             blur         = true,

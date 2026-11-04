@@ -339,7 +339,7 @@ def update_hypr_gaps(key, val):
 SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
 SHELL_BLUR_END = "-- END shell-blur"
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboarding",
-                         "shell-spotlight", "shell-spotlight-rest")
+                         "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :
@@ -506,6 +506,8 @@ def update_style_var(key, value):
     elif key == "global_opacity":
         data[key] = round(max(0.3, min(1.0, float(value))), 2)
     elif key == "shell_opacity":
+        data[key] = round(max(0.2, min(1.0, float(value))), 2)
+    elif key == "cheatsheet_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
         data[key] = max(28, min(60, int(float(value))))
@@ -847,33 +849,52 @@ def set_screen_rotation(transform_id):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_binds_list():
-    """Parse binds.lua and return a list of {mod, key, dispatcher, target}."""
+    """Parse binds.lua and return a list of shortcut dicts.
+
+    Chaque entrée porte `mod`, `key`, `dispatcher`, `target`, plus `description`
+    (option `{ description = "…" }` du bind, vide si absente) et `category`
+    (dernier commentaire de section). L'écran des raccourcis ne montre que les
+    binds qui ont une description : c'est la liste « des plus utiles », entretenue
+    dans binds.lua et jamais dupliquée ailleurs.
+    """
     path = os.path.join(HYPR_DIR, "binds.lua")
     binds = []
     if not os.path.exists(path):
         return binds
 
-    pattern = re.compile(
-        r'hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*([^"]+)"\s*,\s*(hl\.dsp\.[a-zA-Z0-9_.]+)\((.*)\)\s*\)'
-    )
+    category = ""
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             for line in f:
-                s = line.strip()
-                if not s or s.startswith("--"):
+                raw = line.rstrip("\n")
+                stripped = raw.strip()
+                if stripped.startswith("--:"):
+                    # Convention explicite : « --: Catégorie » est un en-tête de
+                    # section, tout autre commentaire est de la prose et ne doit
+                    # pas changer la catégorie du prochain bind.
+                    category = stripped[3:].strip()
                     continue
-                m = pattern.search(s)
-                if m:
-                    key_combo, dsp_fn, arg = m.groups()
-                    arg_clean = arg.strip().strip('"').strip("'")
-                    binds.append(
-                        {
-                            "mod": "SUPER",
-                            "key": key_combo.strip(),
-                            "dispatcher": dsp_fn,
-                            "target": arg_clean or dsp_fn.replace("hl.dsp.", ""),
-                        }
-                    )
+                if stripped.startswith("--"):
+                    continue
+                if not stripped.startswith("hl.bind("):
+                    continue
+                key_m = re.search(r'"\s*\+\s*([^"]+)"', stripped)
+                key = key_m.group(1).strip() if key_m else ""
+                if not key:
+                    continue
+                dsp_m = re.search(r"hl\.dsp\.([a-zA-Z0-9_.]+)\(", stripped)
+                desc_m = re.search(r'description\s*=\s*"([^"]*)"', stripped)
+                arg_m = re.search(r"hl\.dsp\.[a-zA-Z0-9_.]+\((.*)\)", stripped)
+                target = (arg_m.group(1).strip().strip('"').strip("'") if arg_m else "")
+                target = re.split(r",\s*\{", target)[0].strip()
+                binds.append({
+                    "mod": "SUPER",
+                    "key": key,
+                    "dispatcher": dsp_m.group(1) if dsp_m else "",
+                    "target": target or "",
+                    "description": desc_m.group(1) if desc_m else "",
+                    "category": category,
+                })
     except Exception:
         pass
     return binds
@@ -1189,6 +1210,7 @@ def get_full_config_state():
         "global_radius": int(style_data.get("global_radius", 2)),
         "global_opacity": float(style_data.get("global_opacity", 0.7)),
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
+        "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
         "hypr_rounding": get_hypr_rounding(),
         "wallpaper_dir": get_wallpaper_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),

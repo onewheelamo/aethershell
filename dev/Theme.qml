@@ -154,6 +154,9 @@ QtObject {
     property bool launchHistory: false
 
     property bool configPanelVisible: false
+    // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
+    property bool cheatsheetVisible: false
+    property real cheatsheetOpacity: 0.88
 
     // Pilule spotlight (launcher bas-centre) : surface montée à la demande,
     // fermée par Échap, par un clic hors de la pilule ou après lancement.
@@ -250,6 +253,7 @@ QtObject {
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.launcher_position === "string" && data.launcher_position.length > 0) root.launcherPosition = data.launcher_position
         if (Array.isArray(data.widgets)) root.widgets = data.widgets
+        if (typeof data.cheatsheet_opacity === "number") root.cheatsheetOpacity = Math.max(0.2, Math.min(1.0, data.cheatsheet_opacity))
         if (typeof data.primary_monitor === "string") root.primaryMonitor = data.primary_monitor
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir
         if (typeof data.blur_enabled === "boolean") root.blurEnabled = data.blur_enabled
@@ -345,6 +349,20 @@ QtObject {
         }
         function toggleSpotlight() {
             root.spotlightVisible = !root.spotlightVisible
+        }
+        // Écran des raccourcis (SUPER + K) : show/hide idempotents à côté du
+        // toggle, pour les tests scriptés (un toggle qui perd un appel dérive).
+        function toggleCheatsheet() {
+            root.cheatsheetVisible = !root.cheatsheetVisible
+        }
+        function showCheatsheet() {
+            root.cheatsheetVisible = true
+        }
+        function hideCheatsheet() {
+            root.cheatsheetVisible = false
+        }
+        function cheatsheetState(): bool {
+            return root.cheatsheetVisible
         }
         function showSpotlight() {
             root.spotlightVisible = true

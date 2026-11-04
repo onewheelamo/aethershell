@@ -64,5 +64,6 @@
     "shell_blur_popups": true,
     "shell_opacity": 0.5,
     "primary_monitor": "DP-1",
-    "launcher_position": "bas-centre"
+    "launcher_position": "bas-centre",
+    "cheatsheet_opacity": 0.88
 }

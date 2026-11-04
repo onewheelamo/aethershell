@@ -3,23 +3,24 @@
 
 local mainMod = "SUPER"
 
--- Système & Fenêtres
-hl.bind(mainMod .. " + Q", hl.dsp.window.close())
-hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
-hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+--: Système & Fenêtres
+hl.bind(mainMod .. " + Q", hl.dsp.window.close(), { description = "fermer la fenêtre" })
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "terminal" })
+hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }), { description = "fenêtre flottante" })
+hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }), { description = "plein écran" })
+hl.bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }), { description = "maximiser" })
 
--- Applications (issues de programs.lua)
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(music_player))
-hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser1))
-hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd(browser2))
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer))
+--: Applications
+hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(music_player), { description = "musique" })
+hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser1), { description = "navigateur" })
+hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd(browser2), { description = "navigateur secondaire" })
+hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer), { description = "fichiers" })
 
--- Lanceur Fuzzel, Panneau de Configuration Quickshell & Sélecteur de Fond d'écran
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpotlight"))
-hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"))
-hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"))
+--: Lanceur & panneau
+hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpotlight"), { description = "lanceur" })
+hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"), { description = "panneau de réglages" })
+hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
+hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc call shell toggleCheatsheet"), { description = "raccourcis" })
 
 -- Sortie de l'aperçu plein écran du greeter (fenêtre de test SDDM). Le mode
 -- test n'a aucun socket d'authentification et n'obéit pas à Qt.quit() : la
@@ -29,23 +30,27 @@ hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshel
 hl.bind("Escape", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/greeter_preview.sh stop"),
         { non_consuming = true, description = "fermer l'aperçu du greeter" })
 
--- Capture d'écran interactive (SUPER + SHIFT + S) : sélection de zone/fenêtre, presse-papier & fichier
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"))
+--: Capture
+-- Sélection de zone ou de fenêtre, presse-papier et fichier.
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"), { description = "capture d'écran" })
 
--- Déplacement du focus (SUPER + Flèches)
-hl.bind(mainMod .. " + Left",  hl.dsp.focus({ direction = "left" }))
-hl.bind(mainMod .. " + Right", hl.dsp.focus({ direction = "right" }))
-hl.bind(mainMod .. " + Up",    hl.dsp.focus({ direction = "up" }))
-hl.bind(mainMod .. " + Down",  hl.dsp.focus({ direction = "down" }))
+--: Focus
+-- Déplacement du focus avec SUPER + Flèches.
+hl.bind(mainMod .. " + Left",  hl.dsp.focus({ direction = "left" }), { description = "focus à gauche" })
+hl.bind(mainMod .. " + Right", hl.dsp.focus({ direction = "right" }), { description = "focus à droite" })
+hl.bind(mainMod .. " + Up",    hl.dsp.focus({ direction = "up" }), { description = "focus en haut" })
+hl.bind(mainMod .. " + Down",  hl.dsp.focus({ direction = "down" }), { description = "focus en bas" })
 
--- Déplacement/échange de la fenêtre active avec sa voisine (SUPER + CTRL + Flèches)
+--: Fenêtres
+-- Échange de la fenêtre active avec sa voisine (SUPER + CTRL + Flèches).
 -- swap échange les positions sur le MÊME workspace (pas de changement de workspace).
-hl.bind(mainMod .. " + CTRL + Left",  hl.dsp.window.swap({ direction = "l" }))
-hl.bind(mainMod .. " + CTRL + Right", hl.dsp.window.swap({ direction = "r" }))
-hl.bind(mainMod .. " + CTRL + Up",    hl.dsp.window.swap({ direction = "u" }))
-hl.bind(mainMod .. " + CTRL + Down",  hl.dsp.window.swap({ direction = "d" }))
+hl.bind(mainMod .. " + CTRL + Left",  hl.dsp.window.swap({ direction = "l" }), { description = "échanger avec la gauche" })
+hl.bind(mainMod .. " + CTRL + Right", hl.dsp.window.swap({ direction = "r" }), { description = "échanger avec la droite" })
+hl.bind(mainMod .. " + CTRL + Up",    hl.dsp.window.swap({ direction = "u" }), { description = "échanger avec le haut" })
+hl.bind(mainMod .. " + CTRL + Down",  hl.dsp.window.swap({ direction = "d" }), { description = "échanger avec le bas" })
 
--- Redimensionnement des fenêtres (SUPER + SHIFT + Flèches)
+--: Fenêtres
+-- Redimensionnement (SUPER + SHIFT + Flèches).
 -- relative = true est OBLIGATOIRE : sans lui, x/y sont interprétés comme une
 -- taille absolue (d'où l'erreur « invalid size » à chaque appui).
 -- Le pas est lu dans core/style_vars.json ("resize_step"), modifiable depuis
@@ -64,19 +69,21 @@ local function read_resize_step()
 end
 local RESIZE_STEP = read_resize_step()
 
-hl.bind(mainMod .. " + SHIFT + Left",  hl.dsp.window.resize({ x = -RESIZE_STEP, y = 0, relative = true }), { repeating = true })
-hl.bind(mainMod .. " + SHIFT + Right", hl.dsp.window.resize({ x = RESIZE_STEP,  y = 0, relative = true }), { repeating = true })
-hl.bind(mainMod .. " + SHIFT + Up",    hl.dsp.window.resize({ x = 0,   y = -RESIZE_STEP, relative = true }), { repeating = true })
-hl.bind(mainMod .. " + SHIFT + Down",  hl.dsp.window.resize({ x = 0,   y = RESIZE_STEP, relative = true }), { repeating = true })
+hl.bind(mainMod .. " + SHIFT + Left",  hl.dsp.window.resize({ x = -RESIZE_STEP, y = 0, relative = true }), { repeating = true }, { description = "rétrécir" })
+hl.bind(mainMod .. " + SHIFT + Right", hl.dsp.window.resize({ x = RESIZE_STEP,  y = 0, relative = true }), { repeating = true }, { description = "élargir" })
+hl.bind(mainMod .. " + SHIFT + Up",    hl.dsp.window.resize({ x = 0,   y = -RESIZE_STEP, relative = true }), { repeating = true }, { description = "baisser" })
+hl.bind(mainMod .. " + SHIFT + Down",  hl.dsp.window.resize({ x = 0,   y = RESIZE_STEP, relative = true }), { repeating = true }, { description = "rehausser" })
 
--- Contrôles à la souris (Déplacement, Redimensionnement & Changement de Workspace à la molette)
+--: Souris
+-- Déplacement et redimensionnement à la souris, molette pour changer de workspace.
 hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
 hl.bind(mainMod .. " + mouse:272",  hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273",  hl.dsp.window.resize(), { mouse = true })
 
 
--- Touches Multimédia Audio
+--: Média
+-- Touches multimédia audio.
 -- Chaque touche règle le volume puis affiche l'OSD Quickshell via core/osd.sh
 local osd = "$HOME/.config/quickshell/core/osd.sh"
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+ && " .. osd .. " volume"), { locked = true, repeating = true })
@@ -88,33 +95,35 @@ hl.bind("XF86AudioPause",       hl.dsp.exec_cmd("playerctl play-pause"),        
 hl.bind("XF86AudioPlay",        hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
 hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("playerctl previous"),                               { locked = true })
 
--- Gestion des Workspaces 1 à 5 (Nomenclature explicite : AZERTY par défaut, adaptable via Quickshell)
+--: Workspaces
+-- Workspaces permanents 1 à 5 (AZERTY).
 -- Workspace 1 (& / 1)
-hl.bind(mainMod .. " + ampersand",        hl.dsp.focus({ workspace = 1 }))
+hl.bind(mainMod .. " + ampersand",        hl.dsp.focus({ workspace = 1 }), { description = "workspace 1" })
 hl.bind(mainMod .. " + CTRL + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
 hl.bind(mainMod .. " + ALT + ampersand",  hl.dsp.window.move({ workspace = 1 }))
 
 -- Workspace 2 (é / 2)
-hl.bind(mainMod .. " + eacute",        hl.dsp.focus({ workspace = 2 }))
+hl.bind(mainMod .. " + eacute",        hl.dsp.focus({ workspace = 2 }), { description = "workspace 2" })
 hl.bind(mainMod .. " + CTRL + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
 hl.bind(mainMod .. " + ALT + eacute",  hl.dsp.window.move({ workspace = 2 }))
 
 -- Workspace 3 (" / 3)
-hl.bind(mainMod .. " + quotedbl",        hl.dsp.focus({ workspace = 3 }))
+hl.bind(mainMod .. " + quotedbl",        hl.dsp.focus({ workspace = 3 }), { description = "workspace 3" })
 hl.bind(mainMod .. " + CTRL + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
 hl.bind(mainMod .. " + ALT + quotedbl",  hl.dsp.window.move({ workspace = 3 }))
 
 -- Workspace 4 (' / 4)
-hl.bind(mainMod .. " + apostrophe",        hl.dsp.focus({ workspace = 4 }))
+hl.bind(mainMod .. " + apostrophe",        hl.dsp.focus({ workspace = 4 }), { description = "workspace 4" })
 hl.bind(mainMod .. " + CTRL + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
 hl.bind(mainMod .. " + ALT + apostrophe",  hl.dsp.window.move({ workspace = 4 }))
 
 -- Workspace 5 (( / 5)
-hl.bind(mainMod .. " + parenleft",        hl.dsp.focus({ workspace = 5 }))
+hl.bind(mainMod .. " + parenleft",        hl.dsp.focus({ workspace = 5 }), { description = "workspace 5" })
 hl.bind(mainMod .. " + CTRL + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
 hl.bind(mainMod .. " + ALT + parenleft",  hl.dsp.window.move({ workspace = 5 }))
 
--- Workspaces dynamiques non-permanents 6 à 10 (Rangée supérieure AZERTY / QWERTY)
+--: Workspaces
+-- Workspaces dynamiques 6 à 10.
 -- Workspace 6 (- / 6)
 hl.bind(mainMod .. " + minus",        hl.dsp.focus({ workspace = 6 }))
 hl.bind(mainMod .. " + CTRL + minus", hl.dsp.window.move({ workspace = 6, silent = true }))

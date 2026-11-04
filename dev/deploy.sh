@@ -325,6 +325,7 @@ deploy_new_env() {
     cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"
     cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
     cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
+    cp "$DEV_DIR/Cheatsheet.qml" "$QS_DIR/Cheatsheet.qml"
 
     # Widgets de bureau : un composant par type, chargés par URL depuis
     # `widgets/<type>.qml` — donc copiés en bloc, et sans entrée qmldir.
