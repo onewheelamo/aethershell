@@ -1877,7 +1877,8 @@ Rectangle {
                                         anchors.verticalCenter: parent.verticalCenter
                                         glyph: widgetCard.wtype === "date" ? "calendar"
                                                : (widgetCard.wtype === "meteo" ? "cloud"
-                                               : (widgetCard.wtype === "combo" ? "widgets" : "clock"))
+                                               : (widgetCard.wtype === "musique" ? "music"
+                                               : (widgetCard.wtype === "combo" ? "widgets" : "clock")))
                                         size: Theme.iconSm
                                         color: Theme.accent
                                     }
@@ -2134,7 +2135,8 @@ Rectangle {
                                 { type: "horloge", label: "Horloge" },
                                 { type: "date",    label: "Date" },
                                 { type: "meteo",   label: "Météo" },
-                                { type: "combo",   label: "Combo" }
+                                { type: "combo",   label: "Combo" },
+                                { type: "musique", label: "Musique" }
                             ]
 
                             Rectangle {

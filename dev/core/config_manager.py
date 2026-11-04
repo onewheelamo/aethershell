@@ -1120,7 +1120,7 @@ def sync_programs_lua(app_data):
 # ─────────────────────────────────────────────────────────────────────────────
 # Fichier d'état préservé au déploiement (PRESERVE_CORE). Chaque entrée devient
 # une surface layer `shell-widget` en couche Bottom, une par widget.
-WIDGET_TYPES = ("horloge", "date", "meteo", "combo")
+WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique")
 WIDGET_DEFAULT_OPACITY = 0.35
 
 

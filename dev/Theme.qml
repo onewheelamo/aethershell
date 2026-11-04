@@ -366,6 +366,32 @@ QtObject {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Variables d'application (core/app_vars.json)
+    // ────────────────────────────────────────────────────────────────────────
+    // Mêmes valeurs que les raccourcis Hyprland (programs.lua), réglables dans
+    // l'onglet Applications du panneau. `program("Music")` -> "strawberry".
+    property var appVars: ({})
+
+    property FileView appVarsFile: FileView {
+        path: Quickshell.shellPath("core/app_vars.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.appVars = (parsed && typeof parsed === "object") ? parsed : ({})
+            } catch (e) {
+                root.appVars = ({})
+            }
+        }
+    }
+
+    function program(name) {
+        return (root.appVars && root.appVars[name]) ? String(root.appVars[name]) : ""
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // SECTION 8: IPC HANDLER ("shell")
     // ────────────────────────────────────────────────────────────────────────
     // Allows scripts, keybindings and sub-processes to control Quickshell:
