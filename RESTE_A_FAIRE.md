@@ -37,6 +37,9 @@ décrivant les calques).
 segmentation automatique est un autre projet. Ne pas commencer le QML avant
 d'avoir choisi le format et deux images de test.
 
+Décision du 04/11 : on n'y touche pas pour l'instant, ni le QML ni le mode
+`depth` du carrousel.
+
 ### 2.2 Reporté par décision — Which-key par submap (fiche 10) — M
 
 Overlay deux colonnes listant les binds du submap courant. Rien à coder tant que
