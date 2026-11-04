@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """Météo des widgets de bureau — Open-Meteo, sans clé d'API.
 
-    weather_service.py [--city NOM] [--force]
+    weather_service.py [--city "Paris, France"] [--force]
 
-Une ligne JSON sur stdout, rien d'autre. Le résultat est mis en cache 10 minutes
-dans core/weather_cache.json : le widget interroge la service toutes les dix
-minutes, le cache évite une requête inutile quand deux widgets météo coexistent
-et rend une valeur — marquée `cached` — même si le réseau tombe.
+Une ligne JSON sur stdout, rien d'autre.
 
-Ordre de résolution de la ville : --city, puis `weather_city` dans
-style_vars.json (réglable par `config_manager.py style weather_city Lyon`), puis
-« Paris ». Le géocodage n'est fait qu'une fois : ses coordonnées sont mémorisées
-dans le cache.
+Résolution de la position, dans l'ordre :
+  1. --city
+  2. l'option `city` du widget (`widget_set meteo-1 city "Paris, Texas, usa"`)
+  3. `weather_city` de style_vars.json
+  4. à défaut : géolocalisation par IP — c'est le réglage par défaut
+
+Une ville peut porter le pays et/ou la région : « Paris, France » et
+« Paris, Texas, usa » désignent deux endroits différents. Le texte est découpé
+sur les virgules — premier segment = nom, le reste = indices (pays, région) — le
+géocodage est interrogé large (count=20) et les candidats sont départagés par
+pays, par région, puis par population.
+
+Cache de 10 minutes dans core/weather_cache.json : le widget interroge le
+service toutes les dix minutes, le cache évite une requête par cycle et sert la
+dernière valeur connue (`stale: true`) quand le réseau tombe. La géolocalisation
+IP suit le même cache : une requête IP toutes les dix minutes au plus.
 
 Sortie en cas d'échec : {"ok": false, "error": "..."} avec un code de retour 0 —
 le widget affiche alors un tiret plutôt que de disparaître.
@@ -30,7 +39,7 @@ STYLE_FILE = BASE_DIR / "style_vars.json"
 CACHE_FILE = BASE_DIR / "weather_cache.json"
 
 TTL = 600
-DEFAULT_CITY = "Paris"
+DEFAULT_CITY = ""  # vide = géolocalisation par IP
 
 # Codes WMO -> (libellé français, glyphe). Deux glyphes seulement : « sun » et
 # « cloud » existent dans Icon.qml, inutile d'inventer un nom que la police
@@ -66,6 +75,27 @@ WMO = {
     99: ("Orage avec grêle forte", "cloud"),
 }
 
+# Pays en toutes lettres ou en code ISO -> code ISO. Sert à départager deux
+# villes homonymes ; une abréviation de deux lettres est acceptée telle quelle.
+COUNTRY_ALIASES = {
+    "france": "FR", "fr": "FR",
+    "usa": "US", "us": "US", "etats-unis": "US", "états-unis": "US",
+    "united states": "US", "etats unis": "US",
+    "belgique": "BE", "belgium": "BE", "be": "BE",
+    "suisse": "CH", "switzerland": "CH", "ch": "CH",
+    "canada": "CA", "ca": "CA",
+    "allemagne": "DE", "germany": "DE", "de": "DE",
+    "espagne": "ES", "spain": "ES", "es": "ES",
+    "italie": "IT", "italy": "IT", "it": "IT",
+    "portugal": "PT", "pt": "PT",
+    "royaume-uni": "GB", "uk": "GB", "gb": "GB", "angleterre": "GB",
+    "luxembourg": "LU", "lu": "LU",
+    "pays-bas": "NL", "netherlands": "NL", "nl": "NL",
+    "maroc": "MA", "morocco": "MA", "ma": "MA",
+    "algerie": "DZ", "algérie": "DZ", "dz": "DZ",
+    "tunisie": "TN", "tn": "TN",
+}
+
 
 def read_json(path, default):
     try:
@@ -81,16 +111,79 @@ def http_json(url):
         return json.loads(resp.read().decode("utf-8", "replace"))
 
 
-def geocode(city):
+# ─────────────────────────────────────────────────────────────────────────────
+# Résolution de la position
+# ─────────────────────────────────────────────────────────────────────────────
+def parse_city_spec(spec):
+    """« Paris, Texas, usa » -> ("Paris", "US", ["texas"])."""
+    parts = [p.strip() for p in spec.split(",") if p.strip()]
+    if not parts:
+        return "", None, []
+    name, country, hints = parts[0], None, []
+    for token in parts[1:]:
+        low = token.lower()
+        if country is None and low in COUNTRY_ALIASES:
+            country = COUNTRY_ALIASES[low]
+        else:
+            hints.append(low)
+    return name, country, hints
+
+
+def geocode_city(spec):
+    name, country, hints = parse_city_spec(spec)
+    if not name:
+        raise RuntimeError("ville vide")
+
     url = ("https://geocoding-api.open-meteo.com/v1/search?name="
-           + urllib.parse.quote(city) + "&count=1&language=fr&format=json")
+           + urllib.parse.quote(name) + "&count=20&language=fr&format=json")
     results = http_json(url).get("results") or []
     if not results:
-        raise RuntimeError(f"ville introuvable : {city}")
-    hit = results[0]
-    return float(hit["latitude"]), float(hit["longitude"]), hit.get("name") or city
+        raise RuntimeError(f"ville introuvable : {spec}")
+
+    def score(hit):
+        value = 0.0
+        code = (hit.get("country_code") or "").upper()
+        admin = (hit.get("admin1") or "").lower()
+        country_name = (hit.get("country") or "").lower()
+
+        if country:
+            value += 100 if code == country else -50
+        for hint in hints:
+            if hint and (admin.startswith(hint) or hint in admin or hint in country_name):
+                value += 30
+        # À égalité, la ville la plus peuplée est celle qu'on cherche.
+        value += min(10.0, (hit.get("population") or 0) / 1_000_000.0)
+        return value
+
+    best = max(results, key=score)
+    return (float(best["latitude"]), float(best["longitude"]),
+            best.get("name") or name, (best.get("country_code") or "").upper())
 
 
+def ip_locate():
+    """Géolocalisation par IP : ipapi.co, puis ip-api.com en repli.
+
+    Deux services sans clé, appelés au plus une fois par cache : si les deux
+    échouent, le service remonte l'erreur et le widget garde sa dernière valeur.
+    """
+    try:
+        data = http_json("https://ipapi.co/json/")
+        if data.get("latitude") is not None and data.get("longitude") is not None:
+            return (float(data["latitude"]), float(data["longitude"]),
+                    data.get("city") or "—", (data.get("country_code") or "").upper())
+    except Exception:
+        pass
+
+    data = http_json("http://ip-api.com/json/?fields=status,city,countryCode,lat,lon")
+    if data.get("status") != "success" or data.get("lat") is None:
+        raise RuntimeError("géolocalisation par IP indisponible")
+    return (float(data["lat"]), float(data["lon"]),
+            data.get("city") or "—", (data.get("countryCode") or "").upper())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Météo
+# ─────────────────────────────────────────────────────────────────────────────
 def fetch(lat, lon):
     url = ("https://api.open-meteo.com/v1/forecast"
            f"?latitude={lat:.4f}&longitude={lon:.4f}"
@@ -120,46 +213,55 @@ def fetch(lat, lon):
     }
 
 
+def resolve_spec(argv):
+    """Ville demandée : --city, sinon style_vars.json, sinon vide (= IP)."""
+    if "--city" in argv:
+        idx = argv.index("--city")
+        if idx + 1 < len(argv) and argv[idx + 1].strip():
+            return argv[idx + 1].strip()
+    stored = str(read_json(STYLE_FILE, {}).get("weather_city") or "").strip()
+    return stored or DEFAULT_CITY
+
+
 def main():
     argv = sys.argv[1:]
     force = "--force" in argv
+    spec = resolve_spec(argv)
 
-    city = ""
-    if "--city" in argv:
-        idx = argv.index("--city")
-        if idx + 1 < len(argv):
-            city = argv[idx + 1].strip()
-    if not city:
-        city = str(read_json(STYLE_FILE, {}).get("weather_city") or "").strip()
-    if not city:
-        city = DEFAULT_CITY
-
+    key = spec.lower() if spec else "__auto__"
     cache = read_json(CACHE_FILE, {}) or {}
-    same_city = cache.get("city") == city and cache.get("lat") is not None
-    fresh = same_city and (time.time() - float(cache.get("fetched") or 0) < TTL)
+    same = cache.get("spec") == key and cache.get("lat") is not None
+    fresh = same and (time.time() - float(cache.get("fetched") or 0) < TTL)
 
     if fresh and not force:
         out = dict(cache.get("data") or {})
         out["ok"] = True
-        out["city"] = cache.get("label") or city
+        out["city"] = cache.get("label") or "—"
+        out["source"] = cache.get("source") or ("city" if spec else "ip")
         out["cached"] = True
         print(json.dumps(out, ensure_ascii=False))
         return 0
 
     try:
-        if same_city:
+        if same:
             lat, lon = float(cache["lat"]), float(cache["lon"])
-            label = cache.get("label") or city
+            label = cache.get("label") or "—"
+            source = cache.get("source") or ("city" if spec else "ip")
+        elif spec:
+            lat, lon, label, _ = geocode_city(spec)
+            source = "city"
         else:
-            lat, lon, label = geocode(city)
+            lat, lon, label, _ = ip_locate()
+            source = "ip"
 
         data = fetch(lat, lon)
         data["city"] = label
+        data["source"] = source
         data["cached"] = False
 
         try:
             CACHE_FILE.write_text(json.dumps({
-                "city": city, "label": label, "lat": lat, "lon": lon,
+                "spec": key, "label": label, "lat": lat, "lon": lon, "source": source,
                 "fetched": int(time.time()), "data": data,
             }, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
@@ -173,12 +275,13 @@ def main():
         if stale:
             out = dict(stale)
             out["ok"] = True
-            out["city"] = cache.get("label") or city
+            out["city"] = cache.get("label") or "—"
+            out["source"] = cache.get("source") or "?"
             out["cached"] = True
             out["stale"] = True
             print(json.dumps(out, ensure_ascii=False))
         else:
-            print(json.dumps({"ok": False, "error": str(exc), "city": city},
+            print(json.dumps({"ok": False, "error": str(exc), "city": spec or "—"},
                              ensure_ascii=False))
         return 0
 

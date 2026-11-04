@@ -2100,7 +2100,8 @@ Rectangle {
                                             anchors.leftMargin: 7
                                             anchors.verticalCenter: parent.verticalCenter
                                             visible: cityInput.text === ""
-                                            text: "Ville"
+                                            // Champ vide = géolocalisation par IP.
+                                            text: "Auto (IP)"
                                             color: Qt.alpha(Theme.fg, 0.42)
                                             font.pixelSize: Theme.textXs
                                         }
