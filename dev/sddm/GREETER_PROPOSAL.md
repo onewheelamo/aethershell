@@ -122,10 +122,29 @@ demande que des modules déjà présents : `SddmComponents 2.0`,
 
 ```
 dev/sddm/
+  setup.sh        # tout en une passe sur une machine neuve (Fedora/Arch)
   qylock.py       # catalogue + récupération à la demande (jamais versionnée)
   install.sh --qylock <nom…>   # pose dans /usr/share + helper polkit
   thumbnails.sh   # miniatures des deux familles (astronaut et qylock)
 ```
+
+`setup.sh` enchaîne prérequis → astronaut → qylock → aperçus → pose →
+déploiement du backend du panneau, avec le mot de passe demandé une seule fois
+(`sudo` sur Fedora, `pkexec` sur Arch). Utile surtout sur une machine neuve :
+
+```bash
+bash dev/sddm/setup.sh --check      # diagnostic seul
+bash dev/sddm/setup.sh --deps       # installe les paquets manquants
+bash dev/sddm/setup.sh              # tout
+bash dev/sddm/setup.sh --dry-run    # montre les étapes privilégiées
+```
+
+Ce que `setup.sh` vérifie et qui manque sur une Fedora fraîche : `sddm`
+(greeter + module `SddmComponents`), `qt6-qt5compat` (`Qt5Compat.GraphicalEffects`,
+importé par tous les thèmes qylock), `qt6-qtmultimedia` (fonds vidéo),
+`ImageMagick`, `grim`, `rsms-inter-fonts` — et il clone `sddm-astronaut-theme`
+depuis l'upstream puisqu'il n'y a pas d'AUR. `--distro fedora` rejoue la branche
+de l'autre machine sans y être.
 
 - `qylock.py list` / `fetch <nom…>` / `fetch --static` (refuse un fond vidéo) /
   `fetch --all`. Cache : `~/.local/share/qylock-themes/<nom>/`, arbre GitHub
@@ -149,12 +168,19 @@ dev/sddm/
 
 ### État mesuré le 04/11/2026
 
-Installés : `clockwork-orbital`, `clockwork-neo-orbital`, `clockwork-tape`,
-`field`, `material-you`, `material-you-dark`, `nothing` — plus `ryoku`, déjà
-présent dans `/usr/share/sddm/themes` et reconnu comme qylock via
-`Author=Darkkal44` dans sa metadata. Les sept variantes ont été rendues en mode
-test (Qt 6.12) avant installation, puis une capture depuis
-`/usr/share/sddm/themes/nothing` a confirmé que la copie root:root se rend.
+Le catalogue entier est récupéré et posé : **39 thèmes amont (42 dossiers une
+fois `clockwork` déplié en trois)** et 569 Mo dans `~/.local/share/qylock-themes`,
+autant dans `/usr/share/sddm/themes` (606 Mo au total avec astronaut). Tous ont
+une miniature ; aucun n'est en attente d'installation. `ryoku`, déjà présent,
+est reconnu comme qylock via `Author=Darkkal44` dans sa metadata.
+
+Les thèmes à fond vidéo (`bg.mp4`, jusqu'à 78 Mo) demandent
+`QtMultimedia` : `qt6-multimedia-ffmpeg` sur Arch, `qt6-qtmultimedia` sur Fedora
+— sans ça le fond reste noir, le reste du thème s'affiche.
+
+Les sept variantes d'origine ont été rendues en mode test (Qt 6.12) avant pose,
+puis une capture depuis `/usr/share/sddm/themes/nothing` a confirmé que la copie
+root:root se rend (0,98 % d'écart avec la miniature, seule l'heure change).
 
 Sélection vérifiée de bout en bout : `greeter_manager.py apply nothing` →
 `Current=nothing`, `list` renvoie `active=nothing` ; retour à `pixel_sakura`
@@ -163,9 +189,10 @@ alterne bien entre les deux familles.
 
 ## Autre machine que le desktop (Fedora)
 
-Rien de ce pipeline n'est joué par `deploy.sh` : il vit dans `dev/sddm/` et
-s'installe à la main, une fois par machine, avec `install.sh` (une invite
-polkit).
+Rien de ce pipeline n'est joué par `deploy.sh` : il vit dans `dev/sddm/`. Sur une
+machine neuve, `bash dev/sddm/setup.sh` fait tout (paquets, astronaut, thèmes
+qylock, aperçus, pose, backend du panneau) ; le reste du temps, `install.sh`
+suffit (`--colors-only` pour la palette seule).
 
 - **Taille d'écran.** `generate.py` lit `hyprctl monitors -j` (moniteur focalisé)
   et repasse en pixels physiques (`width × scale`) : le greeter s'affiche hors

@@ -90,12 +90,17 @@ fi
 [ -f "$DEV/generate.py" ] || die "generate.py introuvable"
 
 # La police est demandée en dur par palette.conf (Font="Inter") : sans elle le
-# thème se rabat sur une autre fonte, sans message.
-if ! fc-list 2>/dev/null | grep -qi 'inter'; then
-    echo "⚠ police Inter absente : le thème retombera sur une autre fonte" >&2
-    command -v pacman >/dev/null && echo "  Arch   : sudo pacman -S inter-font" >&2
-    command -v dnf    >/dev/null && echo "  Fedora : sudo dnf install rsms-inter-fonts" >&2
-fi
+# thème se rabat sur une autre fonte, sans message. fc-match plutôt que
+# `fc-list | grep -q` : sous `pipefail`, grep sort au premier succès et le
+# SIGPIPE de fc-list fait échouer le pipeline (faux « police absente »).
+case "$(fc-match -f '%{family}' Inter 2>/dev/null || true)" in
+    Inter*) : ;;
+    *)
+        echo "⚠ police Inter absente : le thème retombera sur une autre fonte" >&2
+        command -v pacman >/dev/null && echo "  Arch   : sudo pacman -S inter-font" >&2
+        command -v dnf    >/dev/null && echo "  Fedora : sudo dnf install rsms-inter-fonts" >&2
+        ;;
+esac
 
 echo "▶ génération depuis style_vars.json"
 python3 "$DEV/generate.py"
