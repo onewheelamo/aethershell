@@ -32,6 +32,8 @@ QtObject {
     property bool showKeyboardOnboarding: false
     property bool showConfigButton: true
     property int barHeight: 40
+    // Bordure de la barre du haut (capsule fusionnée et îlots) : réglable.
+    property bool barBorder: true
     // Position de la capsule du lanceur : six emplacements prédéfinis (§3.5 de
     // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
     // dans main.qml à partir de cette clé et de la largeur de la capsule.
@@ -251,6 +253,7 @@ QtObject {
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
+        if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.launcher_position === "string" && data.launcher_position.length > 0) root.launcherPosition = data.launcher_position
         if (Array.isArray(data.widgets)) root.widgets = data.widgets
         if (typeof data.cheatsheet_opacity === "number") root.cheatsheetOpacity = Math.max(0.2, Math.min(1.0, data.cheatsheet_opacity))

@@ -82,7 +82,7 @@ Item {
                 radius: Theme.pillRadius
                 color: Theme.barBg
                 border.color: Theme.accent
-                border.width: 1
+                border.width: Theme.barBorder ? 1 : 0
 
                 Behavior on color { ColorAnimation { duration: 180 } }
                 Behavior on border.color { ColorAnimation { duration: 180 } }
@@ -488,7 +488,7 @@ Item {
                 anchors.fill: parent
                 radius: Theme.globalRadius
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
-                border.width: 1
+                border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
 
                 Loader {

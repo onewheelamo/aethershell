@@ -507,6 +507,8 @@ def update_style_var(key, value):
         data[key] = round(max(0.3, min(1.0, float(value))), 2)
     elif key == "shell_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
+    elif key == "bar_border":
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "cheatsheet_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
@@ -1146,7 +1148,8 @@ def widget_add(wtype, workspace=1, x=120, y=160):
     items.append({
         "id": wid, "type": wtype, "workspace": int(workspace),
         "x": int(x), "y": int(y), "enabled": True,
-        "opacity": WIDGET_DEFAULT_OPACITY, "blur": True, "options": {},
+        "opacity": WIDGET_DEFAULT_OPACITY, "blur": True, "border": True,
+        "options": {},
     })
     save_widgets(items)
     return wid
@@ -1166,7 +1169,7 @@ def widget_set(wid, key, value):
     def mutate(w):
         if key in ("x", "y", "workspace"):
             w[key] = int(float(value))
-        elif key in ("enabled", "blur"):
+        elif key in ("enabled", "blur", "border"):
             w[key] = str(value).lower() in ("true", "1", "yes")
         elif key == "opacity":
             w[key] = round(max(0.0, min(1.0, float(value))), 2)
@@ -1211,6 +1214,7 @@ def get_full_config_state():
         "global_opacity": float(style_data.get("global_opacity", 0.7)),
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
+        "bar_border": bool(style_data.get("bar_border", True)),
         "hypr_rounding": get_hypr_rounding(),
         "wallpaper_dir": get_wallpaper_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),

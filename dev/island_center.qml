@@ -380,7 +380,7 @@ Item {
         color: Theme.barMerged ? "transparent" : Theme.barBg
         radius: Theme.globalRadius
         border.color: islandCenter.calendarOpen ? Theme.accentMuted : Theme.accent
-        border.width: Theme.barMerged ? 0 : 1
+        border.width: Theme.barMerged ? 0 : (Theme.barBorder ? 1 : 0)
         clip: true
 
         Behavior on color { ColorAnimation { duration: 160 } }

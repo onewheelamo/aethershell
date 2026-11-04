@@ -216,6 +216,7 @@ Rectangle {
     property real blurVibrancy: 0.17
     // Flou des surfaces layer-shell du shell (layer rules de general.lua)
     property bool shellBlurEnabled: true
+    property bool barBorder: true
     property real shellBlurAlpha: 0.4
     property bool shellBlurPopups: true
     property int resizeStep: 15
@@ -286,6 +287,7 @@ Rectangle {
         if (typeof data.blur_passes === "number") root.blurPasses = data.blur_passes
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = data.blur_vibrancy
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
+        if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
         if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
@@ -1635,6 +1637,50 @@ Rectangle {
                         onValueModified: newVal => {
                             root.shellBlurAlpha = newVal
                             root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
+                        }
+                    }
+                }
+
+                // 14b. Bordure de la barre du haut (capsule fusionnée et îlots)
+                Row {
+                    id: barBorderRow   // ancre de recherche
+                    objectName: "barBorderRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Bordure de la barre :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 160
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: root.barBorder ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.barBorder ? "✓ Bordure" : "✕ Sans bordure"
+                            color: root.barBorder ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.barBorder = !root.barBorder
+                                root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
+                            }
                         }
                     }
                 }

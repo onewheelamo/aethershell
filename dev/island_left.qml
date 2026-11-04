@@ -151,7 +151,7 @@ Item {
         color: Theme.barMerged ? "transparent" : Theme.barBg
         radius: Theme.globalRadius
         border.color: Theme.accent
-        border.width: Theme.barMerged ? 0 : 1
+        border.width: Theme.barMerged ? 0 : (Theme.barBorder ? 1 : 0)
 
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
