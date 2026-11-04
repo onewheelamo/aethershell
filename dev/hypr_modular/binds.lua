@@ -99,27 +99,27 @@ hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("playerctl previous"),          
 -- Workspaces permanents 1 à 5 (AZERTY).
 -- Workspace 1 (& / 1)
 hl.bind(mainMod .. " + ampersand",        hl.dsp.focus({ workspace = 1 }), { description = "workspace 1" })
-hl.bind(mainMod .. " + CTRL + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
+hl.bind(mainMod .. " + SHIFT + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
 hl.bind(mainMod .. " + ALT + ampersand",  hl.dsp.window.move({ workspace = 1 }))
 
 -- Workspace 2 (é / 2)
 hl.bind(mainMod .. " + eacute",        hl.dsp.focus({ workspace = 2 }), { description = "workspace 2" })
-hl.bind(mainMod .. " + CTRL + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
+hl.bind(mainMod .. " + SHIFT + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
 hl.bind(mainMod .. " + ALT + eacute",  hl.dsp.window.move({ workspace = 2 }))
 
 -- Workspace 3 (" / 3)
 hl.bind(mainMod .. " + quotedbl",        hl.dsp.focus({ workspace = 3 }), { description = "workspace 3" })
-hl.bind(mainMod .. " + CTRL + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
+hl.bind(mainMod .. " + SHIFT + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
 hl.bind(mainMod .. " + ALT + quotedbl",  hl.dsp.window.move({ workspace = 3 }))
 
 -- Workspace 4 (' / 4)
 hl.bind(mainMod .. " + apostrophe",        hl.dsp.focus({ workspace = 4 }), { description = "workspace 4" })
-hl.bind(mainMod .. " + CTRL + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
+hl.bind(mainMod .. " + SHIFT + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
 hl.bind(mainMod .. " + ALT + apostrophe",  hl.dsp.window.move({ workspace = 4 }))
 
 -- Workspace 5 (( / 5)
 hl.bind(mainMod .. " + parenleft",        hl.dsp.focus({ workspace = 5 }), { description = "workspace 5" })
-hl.bind(mainMod .. " + CTRL + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
+hl.bind(mainMod .. " + SHIFT + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
 hl.bind(mainMod .. " + ALT + parenleft",  hl.dsp.window.move({ workspace = 5 }))
 
 --: Workspaces
