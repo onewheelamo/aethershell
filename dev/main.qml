@@ -391,29 +391,41 @@ Item {
             anchors { top: true; left: true }
             margins.top: Number(w.y) || 0
             margins.left: Number(w.x) || 0
-            // La surface épouse le contenu : c'est le widget qui décide, pas la
-            // fenêtre (une surface plus grande rendrait le bureau incliquable).
-            implicitWidth: widgetLoader.implicitWidth
-            implicitHeight: widgetLoader.implicitHeight
+            // La carte : transparence propre à chaque widget (0,35 par défaut,
+            // donc au-dessus du seuil de flou 0,30). Le padding fait partie de
+            // la surface : il consomme les clics, il reste donc serré (18 px).
+            readonly property int pad: 18
+            readonly property real cardOpacity: Number(w.opacity) > 0 ? Number(w.opacity) : 0.35
+            implicitWidth: widgetLoader.implicitWidth + pad * 2
+            implicitHeight: widgetLoader.implicitHeight + pad * 2
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-            WlrLayershell.namespace: "shell-widget"
+            // Un namespace par widget : c'est lui qui porte la règle de flou
+            // (voir build_shell_blur_block dans core/config_manager.py).
+            WlrLayershell.namespace: "shell-widget-" + (w.id || "x")
 
-            Loader {
-                id: widgetLoader
-                // Surtout pas `anchors.fill: parent` : le Loader imposerait sa
-                // taille (1×1 au premier paint) au widget, qui resterait écrasé
-                // (pitfall 68). Ici le contenu garde sa taille implicite et la
-                // fenêtre suit.
-                anchors.top: parent.top
-                anchors.left: parent.left
-                source: widgetWindow.w.type ? ("widgets/" + widgetWindow.w.type + ".qml") : ""
-                onLoaded: {
-                    if (item) {
-                        item.options = widgetWindow.w.options || ({})
-                        item.widgetId = widgetWindow.w.id || ""
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.globalRadius
+                color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
+                border.width: 1
+                border.color: Qt.alpha(Theme.accent, 0.16)
+
+                Loader {
+                    id: widgetLoader
+                    // Surtout pas `anchors.fill: parent` : le Loader imposerait sa
+                    // taille (1×1 au premier paint) au widget, qui resterait écrasé
+                    // (pitfall 68). Ici le contenu garde sa taille implicite et la
+                    // fenêtre suit.
+                    anchors.centerIn: parent
+                    source: widgetWindow.w.type ? ("widgets/" + widgetWindow.w.type + ".qml") : ""
+                    onLoaded: {
+                        if (item) {
+                            item.options = widgetWindow.w.options || ({})
+                            item.widgetId = widgetWindow.w.id || ""
+                        }
                     }
                 }
             }

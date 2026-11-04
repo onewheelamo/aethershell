@@ -354,10 +354,18 @@ LAUNCHER_POSITIONS = (
 )
 
 
-def build_shell_blur_block(enabled, alpha, popups):
-    """Return the Lua block (markers included) for the given shell blur settings."""
+def build_shell_blur_block(enabled, alpha, popups, extra_namespaces=()):
+    """Return the Lua block (markers included) for the given shell blur settings.
+
+    `extra_namespaces` porte les widgets de bureau qui demandent le flou : un
+    widget = un namespace (`shell-widget-<id>`), donc un `layer_rule` à part. La
+    force du flou reste globale (decoration.blur.size/passes) ; par widget on ne
+    choisit que « flou ou pas », et l'opacité du widget doit rester au-dessus du
+    seuil `ignore_alpha`, sinon le flou disparaît (comportement voulu).
+    """
     flag = lambda b: "true" if b else "false"
-    namespaces = ", ".join(f'"{ns}"' for ns in SHELL_BLUR_NAMESPACES)
+    all_ns = list(SHELL_BLUR_NAMESPACES) + [ns for ns in extra_namespaces if ns not in SHELL_BLUR_NAMESPACES]
+    namespaces = ", ".join(f'"{ns}"' for ns in all_ns)
     return "\n".join((
         SHELL_BLUR_BEGIN,
         "local shell_blur = {",
@@ -385,6 +393,8 @@ def apply_shell_blur(data=None):
     enabled = bool(src.get("shell_blur_enabled", True))
     alpha = round(max(0.0, min(1.0, float(src.get("shell_blur_alpha", 0.4)))), 2)
     popups = bool(src.get("shell_blur_popups", True))
+    widget_namespaces = [f"shell-widget-{w.get('id')}" for w in load_widgets()
+                         if w.get("blur", True) and w.get("id")]
     path = os.path.join(HYPR_DIR, "general.lua")
     if not os.path.exists(path):
         return False
@@ -395,7 +405,7 @@ def apply_shell_blur(data=None):
         if not pattern.search(txt):
             print("shell blur block not found in general.lua", file=sys.stderr)
             return False
-        new_txt, count = pattern.subn(build_shell_blur_block(enabled, alpha, popups), txt)
+        new_txt, count = pattern.subn(build_shell_blur_block(enabled, alpha, popups, widget_namespaces), txt)
         if count and new_txt != txt:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_txt)
@@ -1081,6 +1091,7 @@ def sync_programs_lua(app_data):
 # Fichier d'état préservé au déploiement (PRESERVE_CORE). Chaque entrée devient
 # une surface layer `shell-widget` en couche Bottom, une par widget.
 WIDGET_TYPES = ("horloge", "date", "meteo", "combo")
+WIDGET_DEFAULT_OPACITY = 0.35
 
 
 def load_widgets():
@@ -1093,6 +1104,13 @@ def load_widgets():
 
 def save_widgets(items):
     save_json(WIDGETS_FILE, {"widgets": items})
+    # Le flou d'un widget est une règle de couche (par namespace) : la réécrire et
+    # recharger Hyprland à chaque changement, sinon le réglage ne prend pas avant
+    # le prochain démarrage.
+    try:
+        apply_shell_blur()
+    except Exception as e:
+        print(f"widgets: application du flou impossible: {e}", file=sys.stderr)
     return items
 
 
@@ -1106,7 +1124,8 @@ def widget_add(wtype, workspace=1, x=120, y=160):
         wid += "x"
     items.append({
         "id": wid, "type": wtype, "workspace": int(workspace),
-        "x": int(x), "y": int(y), "enabled": True, "options": {},
+        "x": int(x), "y": int(y), "enabled": True,
+        "opacity": WIDGET_DEFAULT_OPACITY, "blur": True, "options": {},
     })
     save_widgets(items)
     return wid
@@ -1126,8 +1145,10 @@ def widget_set(wid, key, value):
     def mutate(w):
         if key in ("x", "y", "workspace"):
             w[key] = int(float(value))
-        elif key == "enabled":
+        elif key in ("enabled", "blur"):
             w[key] = str(value).lower() in ("true", "1", "yes")
+        elif key == "opacity":
+            w[key] = round(max(0.0, min(1.0, float(value))), 2)
         elif key == "type":
             if str(value) not in WIDGET_TYPES:
                 raise SystemExit(f"type de widget inconnu: {value}")
