@@ -13,6 +13,17 @@ Item {
 
     property string pendingKbLayout: Theme.kbLayout || "fr"
 
+    // Certaines applications (ProtonVPN) ne se réenregistrent pas auprès d'un
+    // nouveau StatusNotifierWatcher : après un redémarrage du shell leur icône
+    // reste absente jusqu'au redémarrage de l'app. Ce gardien compare les services
+    // SNI vivants à la liste du watcher et ré-enregistre les absents (une fois par
+    // cycle, sans doublon). Il meurt avec le shell et se relance avec lui.
+    Process {
+        id: trayWatchdogProc
+        running: true
+        command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
+    }
+
     Process {
         id: applyKbProc
         stdout: StdioCollector {
