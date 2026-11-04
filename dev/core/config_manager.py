@@ -339,7 +339,8 @@ def update_hypr_gaps(key, val):
 SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
 SHELL_BLUR_END = "-- END shell-blur"
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboarding",
-                         "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet")
+                         "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet",
+                         "shell-tray-menu")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :

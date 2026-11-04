@@ -326,6 +326,7 @@ deploy_new_env() {
     cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
     cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
     cp "$DEV_DIR/Cheatsheet.qml" "$QS_DIR/Cheatsheet.qml"
+    cp "$DEV_DIR/TrayMenu.qml" "$QS_DIR/TrayMenu.qml"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).
     if [ -d "$DEV_DIR/assets/tray" ]; then

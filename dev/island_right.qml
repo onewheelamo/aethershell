@@ -556,7 +556,12 @@ Item {
                     }
                 }
 
-                // Background Application Icons (Steam, ProtonVPN, etc.) via StatusNotifierItem
+                // Menu contextuel des items du systray, rendu maison (TrayMenu.qml).
+    TrayMenu {
+        id: trayMenu
+    }
+
+    // Background Application Icons (Steam, ProtonVPN, etc.) via StatusNotifierItem
                 Repeater {
                     model: SystemTray.items
 
@@ -600,7 +605,9 @@ Item {
                                 const pt = win ? win.contentItem.mapFromItem(trayDelegate, 0, trayDelegate.height) : Qt.point(0, 0)
                                 if (mouse.button === Qt.RightButton || trayDelegate.modelData.onlyMenu) {
                                     if (trayDelegate.modelData.hasMenu && win) {
-                                        trayDelegate.modelData.display(win, pt.x, pt.y)
+                                        // Pas `display()` : la fenêtre interne de Quickshell
+                                        // rend un menu blanc sans nos tokens (TrayMenu.qml).
+                                        trayMenu.open(trayDelegate.modelData, pt.x, pt.y)
                                     }
                                 } else if (mouse.button === Qt.LeftButton) {
                                     trayDelegate.modelData.activate()
