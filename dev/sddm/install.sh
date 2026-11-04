@@ -4,6 +4,7 @@
 #
 #   bash dev/sddm/install.sh              installation complète (une invite polkit)
 #   bash dev/sddm/install.sh --colors-only # palette + fond seuls, après un changement
+#   ASK_SUDO=1 bash dev/sddm/install.sh   # machine sans agent polkit (sudo à la place)
 #
 # Prérequis : le thème sddm-astronaut installé dans /usr/share/sddm/themes/.
 #   Arch   : yay -S sddm-astronaut-theme   (ou pacman -U du paquet construit à la main)
@@ -23,6 +24,12 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP="$HOME/.config/backups_env/sddm_$STAMP"
 MODE="full"
 [ "${1:-}" = "--colors-only" ] && MODE="colors"
+
+# pkexec suppose un agent polkit dans la session. Sur une machine qui n'en a pas
+# (session fraîchement installée, session lancée par ssh), ASK_SUDO=1 passe par
+# sudo : même script root, une invite en terminal au lieu d'une boîte de dialogue.
+RUNNER="pkexec"
+[ "${ASK_SUDO:-0}" = "1" ] && RUNNER="sudo"
 
 die() { echo "install.sh: $*" >&2; exit 1; }
 
@@ -91,8 +98,8 @@ trap 'rm -rf "$STAGE"' EXIT
     fi
 } > "$STAGE/root.sh"
 
-echo "▶ installation (une invite polkit)"
-pkexec bash "$STAGE/root.sh"
+echo "▶ installation (une invite $RUNNER)"
+"$RUNNER" bash "$STAGE/root.sh"
 
 echo
 echo "thème   : $THEME/Themes/palette.conf"
