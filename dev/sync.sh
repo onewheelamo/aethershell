@@ -27,18 +27,32 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOCAL_HOST="$(cat /etc/hostname 2>/dev/null || uname -n 2>/dev/null || true)"
 LOCAL_HOST="$(echo "$LOCAL_HOST" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
 
+# Adresses des deux machines (surchargables par l'environnement : même dépôt
+# déployé ailleurs sans réécrire le script).
+PORTABLE_HOST="${SYNC_PORTABLE_HOST:-192.0.2.10}"
+STATION_HOST="${SYNC_STATION_HOST:-192.0.2.11}"
+
 if [[ "$LOCAL_HOST" =~ portable ]]; then
-    DEFAULT_REMOTE_HOST="192.0.2.11" # Station (Desktop)
+    DEFAULT_REMOTE_HOST="$STATION_HOST" # Station (Desktop)
     DEFAULT_REMOTE_NAME="Station (Desktop)"
 elif [[ "$LOCAL_HOST" =~ station ]]; then
-    DEFAULT_REMOTE_HOST="192.0.2.13" # Portable (Laptop)
+    DEFAULT_REMOTE_HOST="$PORTABLE_HOST" # Portable (Laptop)
     DEFAULT_REMOTE_NAME="Portable (Laptop)"
 else
-    DEFAULT_REMOTE_HOST="192.0.2.11"
+    DEFAULT_REMOTE_HOST="$STATION_HOST"
     DEFAULT_REMOTE_NAME="Machine distante"
 fi
 
+# Adresse de la machine courante, pour refuser un envoi vers soi-même.
+LOCAL_ADDR=""
+if [[ "$LOCAL_HOST" =~ portable ]]; then
+    LOCAL_ADDR="$PORTABLE_HOST"
+elif [[ "$LOCAL_HOST" =~ station ]]; then
+    LOCAL_ADDR="$STATION_HOST"
+fi
+
 REMOTE_HOST="${SYNC_REMOTE_HOST:-$DEFAULT_REMOTE_HOST}"
+REMOTE_NAME="$DEFAULT_REMOTE_NAME"
 REMOTE_USER="${SYNC_REMOTE_USER:-$USER}"
 REMOTE_DIR="${SYNC_REMOTE_DIR:-~/dev/quickshell_todo}"
 
@@ -49,6 +63,14 @@ EXTRA_ARGS=()
 # 2. Analyse des arguments CLI
 while [ $# -gt 0 ]; do
     case "$1" in
+        --portable)
+            REMOTE_HOST="$PORTABLE_HOST"
+            REMOTE_NAME="Portable (Laptop)"
+            ;;
+        --station)
+            REMOTE_HOST="$STATION_HOST"
+            REMOTE_NAME="Station (Desktop)"
+            ;;
         --push|push)
             DIRECTION="push"
             ;;
@@ -85,6 +107,11 @@ Directions :
   --push, push         Envoie les modifications locales vers la machine distante (défaut)
   --pull, pull         Récupère les modifications distantes vers la machine locale
 
+Machines :
+  --portable             Cible le laptop (192.0.2.10)
+  --station          Cible le desktop (192.0.2.11)
+  (sans option, la cible est l'autre machine, déduite du nom d'hôte local)
+
 Options :
   -n, --dry-run        Mode simulation (aucun fichier modifié)
   --delete             Supprime les fichiers orphelins sur la destination
@@ -95,14 +122,25 @@ Options :
 HELP
             exit 0
             ;;
+        -*)
+            echo "❌ Option inconnue : $1" >&2
+            echo "   Voir --help." >&2
+            exit 2
+            ;;
         *)
-            EXTRA_ARGS+=("$1")
+            echo "❌ Argument inconnu : $1" >&2
+            echo "   Voir --help." >&2
+            exit 2
             ;;
     esac
     shift
 done
 
 [ -n "$REMOTE_HOST" ] || { echo "❌ Erreur : Hôte distant non spécifié." >&2; exit 1; }
+if [ -n "$LOCAL_ADDR" ] && [ "$REMOTE_HOST" = "$LOCAL_ADDR" ]; then
+    echo "❌ Erreur : $REMOTE_HOST est cette machine ($LOCAL_HOST), rien à synchroniser." >&2
+    exit 1
+fi
 
 echo "══════════════════════════════════════════════════════════════════"
 if [ "$DIRECTION" = "push" ]; then
@@ -114,6 +152,7 @@ else
     SRC="$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
     DST="$PROJECT_ROOT/"
 fi
+echo "  Machine cible   : $REMOTE_NAME"
 echo "  Dossier local   : $PROJECT_ROOT"
 echo "  Dossier distant : $REMOTE_DIR"
 [ -n "$DRY_RUN" ] && echo "  Mode simulation : ACTIF (--dry-run, aucun fichier écrit)"
