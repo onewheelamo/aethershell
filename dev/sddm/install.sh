@@ -5,8 +5,14 @@
 #   bash dev/sddm/install.sh              installation complète (une invite polkit)
 #   bash dev/sddm/install.sh --colors-only # palette + fond seuls, après un changement
 #
-# Prérequis : paquet sddm-astronaut-theme installé (AUR).
-#   yay -S sddm-astronaut-theme      (ou pacman -U du paquet construit à la main)
+# Prérequis : le thème sddm-astronaut installé dans /usr/share/sddm/themes/.
+#   Arch   : yay -S sddm-astronaut-theme   (ou pacman -U du paquet construit à la main)
+#   Fedora : pas d'AUR — cloner https://github.com/Keyitdev/sddm-astronaut-theme
+#            dans /usr/share/sddm/themes/sddm-astronaut-theme
+# La police Inter doit exister : le thème la demande explicitement
+#   Arch : inter-font        Fedora : rsms-inter-fonts
+# La taille du greeter suit l'écran focalisé (hyprctl) ; hors session,
+# forcer avec GREETER_SCREEN=WxH.
 
 set -euo pipefail
 
@@ -20,8 +26,21 @@ MODE="full"
 
 die() { echo "install.sh: $*" >&2; exit 1; }
 
-[ -d "$THEME" ] || die "thème absent : installer le paquet sddm-astronaut-theme (AUR)"
+if [ ! -d "$THEME" ]; then
+    if command -v dnf >/dev/null; then
+        die "thème absent : pas d'AUR sur Fedora — cloner https://github.com/Keyitdev/sddm-astronaut-theme dans $THEME, puis relancer"
+    fi
+    die "thème absent : installer sddm-astronaut-theme (AUR : yay -S, ou pacman -U du paquet construit à la main)"
+fi
 [ -f "$DEV/generate.py" ] || die "generate.py introuvable"
+
+# La police est demandée en dur par palette.conf (Font="Inter") : sans elle le
+# thème se rabat sur une autre fonte, sans message.
+if ! fc-list 2>/dev/null | grep -qi 'inter'; then
+    echo "⚠ police Inter absente : le thème retombera sur une autre fonte" >&2
+    command -v pacman >/dev/null && echo "  Arch   : sudo pacman -S inter-font" >&2
+    command -v dnf    >/dev/null && echo "  Fedora : sudo dnf install rsms-inter-fonts" >&2
+fi
 
 echo "▶ génération depuis style_vars.json"
 python3 "$DEV/generate.py"
@@ -56,6 +75,12 @@ trap 'rm -rf "$STAGE"' EXIT
             echo "cp -n '$f' '$BACKUP/$(basename "$f")' 2>/dev/null || true"
             echo "sed -i 's|^Current=|# désactivé par dev/sddm/install.sh — Current=|' '$f'"
         done
+        # Fedora garde son Current=breeze dans /etc/sddm.conf, hors de conf.d :
+        # sans cette ligne deux Current= cohabitent après l'installation.
+        if [ -f /etc/sddm.conf ] && grep -q '^Current=' /etc/sddm.conf; then
+            echo "cp -n '/etc/sddm.conf' '$BACKUP/sddm.conf' 2>/dev/null || true"
+            echo "sed -i 's|^Current=|# désactivé par dev/sddm/install.sh — Current=|' '/etc/sddm.conf'"
+        fi
         # Nomenclature précédente : supprimée après sauvegarde, sinon SDDM lit
         # deux Current= et l'ordre lexical décide.
         echo "rm -f '$CONFD/10-portable.conf'"

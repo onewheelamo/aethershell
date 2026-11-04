@@ -3,19 +3,23 @@
 
 Sorties, dans dev/sddm/out/ :
   Themes/palette.conf    — configuration complète du thème (couleurs Matugen)
-  Backgrounds/wallpaper.png — wallpaper courant assombri, 1920×1080
+  Backgrounds/wallpaper.png — wallpaper courant assombri, à la taille de l'écran
 
 Sources, jamais dupliquées :
   ~/.config/quickshell/core/style_vars.json  (palette active)
   `awww query`                                (wallpaper réellement affiché)
+  `hyprctl monitors -j`                       (taille logique de l'écran focalisé)
 
 Aucun fichier n'est écrit hors de dev/sddm/out/ : l'installation dans
 /usr/share/sddm/themes/ est le rôle de install.sh (elle demande polkit).
 
 Usage : python3 dev/sddm/generate.py [--no-background]
+        GREETER_SCREEN=2880x1800 python3 dev/sddm/generate.py   (hors session)
 """
 
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -24,7 +28,44 @@ from pathlib import Path
 DEV = Path(__file__).resolve().parent
 OUT = DEV / "out"
 STYLE_VARS = Path.home() / ".config/quickshell/core/style_vars.json"
-SCREEN = (1920, 1080)
+SCREEN_FALLBACK = (1920, 1080)
+
+
+def screen_size():
+    """Taille logique de l'écran focalisé, pour que le greeter ne soit pas calé
+    sur le moniteur du desktop. `GREETER_SCREEN=WxH` force la valeur : hors
+    session (ssh, tty) Hyprland n'a aucun moniteur à interroger."""
+    forced = os.environ.get("GREETER_SCREEN", "").strip()
+    if re.fullmatch(r"[0-9]{3,5}x[0-9]{3,5}", forced):
+        w, h = forced.split("x")
+        return int(w), int(h)
+    if not shutil.which("hyprctl"):
+        return SCREEN_FALLBACK
+    try:
+        out = subprocess.run(["hyprctl", "monitors", "-j"],
+                             capture_output=True, text=True, timeout=5).stdout
+        monitors = json.loads(out or "[]")
+    except Exception:
+        return SCREEN_FALLBACK
+    if not monitors:
+        return SCREEN_FALLBACK
+    mon = next((m for m in monitors if m.get("focused")), monitors[0])
+    w, h = int(mon.get("width") or 0), int(mon.get("height") or 0)
+    if w <= 0 or h <= 0:
+        return SCREEN_FALLBACK
+    # `width`/`height` sont logiques : le greeter, lui, s'affiche hors
+    # compositeur et ne reçoit aucun facteur d'échelle, donc on repasse en
+    # pixels physiques (1920 logique à l'échelle 1,5 = 2880 réels).
+    try:
+        scale = float(mon.get("scale") or 1.0)
+    except (TypeError, ValueError):
+        scale = 1.0
+    if scale <= 0:
+        scale = 1.0
+    return round(w * scale), round(h * scale)
+
+
+SCREEN = screen_size()
 
 
 def die(msg):
@@ -221,6 +262,7 @@ def main():
     conf = themes / "palette.conf"
     conf.write_text(build_conf(palette))
     print(f"palette : {name}")
+    print(f"écran   : {SCREEN[0]}x{SCREEN[1]}")
     print(f"conf    : {conf.relative_to(DEV)}")
     if with_bg:
         build_background()

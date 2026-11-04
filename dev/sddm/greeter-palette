@@ -51,11 +51,19 @@ set-palette)
         die "conf: ligne non reconnue"
     fi
 
-    # Le fond doit être un PNG 1920×1080 (le greeter est calibré pour ça).
+    # Le fond doit être un PNG à la taille déclarée par la conf : le générateur
+    # suit l'écran de la machine (1920x1080 sur le desktop, la taille du panneau
+    # sur le laptop). Repli 1920x1080 si la conf ne les déclare pas.
     head -c 8 "$src_bg" | od -An -tx1 | tr -d ' \n' | grep -qx '89504e470d0a1a0a' \
         || die "fond: ce n'est pas un PNG"
+    want_w="$(awk -F'"' '/^ScreenWidth=/{print $2; exit}' "$src_conf")"
+    want_h="$(awk -F'"' '/^ScreenHeight=/{print $2; exit}' "$src_conf")"
+    want="1920x1080"
+    if [[ "${want_w:-}" =~ ^[0-9]+$ && "${want_h:-}" =~ ^[0-9]+$ ]]; then
+        want="${want_w}x${want_h}"
+    fi
     dims="$(identify -format '%wx%h' "$src_bg" 2>/dev/null || true)"
-    [ "$dims" = "1920x1080" ] || die "fond: dimensions $dims au lieu de 1920x1080"
+    [ "$dims" = "$want" ] || die "fond: dimensions $dims au lieu de $want"
 
     install -Dm644 "$src_conf" "$THEME/Themes/palette.conf"
     install -Dm644 "$src_bg" "$THEME/Backgrounds/wallpaper.png"

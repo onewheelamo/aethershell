@@ -108,3 +108,24 @@ cela tue la session en cours.
   pas le faire — il n'a aucun moyen de s'authentifier.
 - `magick` affiche un `ParseError missing >` en lisant le JPEG source : sans effet,
   le PNG généré est valide (dimensions et luminance contrôlées).
+
+## Autre machine que le desktop (Fedora)
+
+Rien de ce pipeline n'est joué par `deploy.sh` : il vit dans `dev/sddm/` et
+s'installe à la main, une fois par machine, avec `install.sh` (une invite
+polkit).
+
+- **Taille d'écran.** `generate.py` lit `hyprctl monitors -j` (moniteur focalisé)
+  et repasse en pixels physiques (`width × scale`) : le greeter s'affiche hors
+  compositeur, donc aucune échelle ne lui est appliquée. Repli 1920×1080 quand
+  il n'y a pas de session (ssh, tty) ; `GREETER_SCREEN=WxH` force la valeur.
+  `greeter-palette set-palette` vérifie ensuite le PNG contre `ScreenWidth` /
+  `ScreenHeight` de la conf, et non plus contre une taille codée en dur.
+- **Fedora.** Pas d'AUR : cloner `https://github.com/Keyitdev/sddm-astronaut-theme`
+  dans `/usr/share/sddm/themes/sddm-astronaut-theme`. Police Inter :
+  `rsms-inter-fonts` (`inter-font` sur Arch), `install.sh` prévient si elle
+  manque. Le `Current=` de base y vit dans `/etc/sddm.conf` et non dans
+  `conf.d/` : `install.sh` le neutralise aussi, sinon deux `Current=`
+  cohabitent.
+- **Prérequis** : `~/.config/quickshell/core/style_vars.json` doit exister sur la
+  machine (premier déploiement fait), sinon `generate.py` s'arrête.
