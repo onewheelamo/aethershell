@@ -117,6 +117,11 @@ Item {
         "cloud-check": "\u{F0160}",
         "palette": "\u{F03D8}",
         "image": "\u{F02E9}",
+        // barre de capture (SUPER + SHIFT + S)
+        "selection": "\u{F0489}",      // md-selection (sélection à la souris)
+        "screen-shot": "\u{F0E51}",    // md-monitor_screenshot (écran entier)
+        "record": "\u{F0EC3}",         // md-record_circle_outline (vidéo)
+        "stop": "\u{F04DB}",           // md-stop (arrêter l'enregistrement)
         "bell": "\u{F009A}"
     })
 }

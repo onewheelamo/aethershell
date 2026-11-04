@@ -547,6 +547,118 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // BARRE DE CAPTURE (SUPER + SHIFT + S) — surface plein écran transparente :
+    // elle attrape le clic extérieur et le clavier (Échap), tandis que la
+    // pastille, elle, glisse depuis le bord gauche sans prendre la hauteur.
+    // Le lancement de la capture attend que la surface ait disparu (340 ms),
+    // sinon la barre figurerait sur la capture d'écran.
+    // ────────────────────────────────────────────────────────────────────────
+    property string pendingCapture: ""
+
+    Timer {
+        id: captureLaunchTimer
+        interval: 340
+        onTriggered: {
+            if (root.pendingCapture === "") return
+            Quickshell.execDetached([
+                "bash", Quickshell.shellPath("core/screenshot.sh"), root.pendingCapture
+            ])
+            root.pendingCapture = ""
+        }
+    }
+
+    function requestCapture(mode) {
+        root.pendingCapture = mode
+        Theme.screenshotPickerVisible = false
+        captureLaunchTimer.restart()
+    }
+
+    PanelWindow {
+        id: screenshotPickerWindow
+        screen: topBarWindow.screen
+        // Reste montée le temps de la sortie (220 ms + marge) : sinon la
+        // pastille disparaîtrait d'un coup au lieu de rentrer à gauche.
+        visible: Theme.screenshotPickerVisible || closeTimer.running
+        anchors { top: true; bottom: true; left: true; right: true }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: Theme.screenshotPickerVisible
+            ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-shotbar"
+
+        property bool shown: false
+
+        Timer { id: closeTimer; interval: 300 }
+
+        // L'animation est armée une frame après le montage : la surface layer
+        // n'est pas encore mappée quand la visibilité bascule, et l'animation
+        // se jouerait dans le vide (première image déjà à l'arrivée).
+        Timer {
+            id: openTimer
+            interval: 40
+            onTriggered: screenshotPickerWindow.shown = true
+        }
+
+        Connections {
+            target: Theme
+            function onScreenshotPickerVisibleChanged() {
+                if (Theme.screenshotPickerVisible) {
+                    closeTimer.stop()
+                    openTimer.restart()
+                    shotBar.recordMode = false
+                    recordingCheckProc.running = true
+                } else {
+                    openTimer.stop()
+                    screenshotPickerWindow.shown = false
+                    closeTimer.restart()
+                }
+            }
+        }
+
+        Item {
+            anchors.fill: parent
+            focus: Theme.screenshotPickerVisible
+            Keys.onEscapePressed: Theme.screenshotPickerVisible = false
+        }
+
+        // Fond cliquable : se referme comme le panneau et l'écran des raccourcis.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Theme.screenshotPickerVisible = false
+        }
+
+        ScreenshotBar {
+            id: shotBar
+            anchors.verticalCenter: parent.verticalCenter
+            x: screenshotPickerWindow.shown ? 18 : -(width + 24)
+            Behavior on x {
+                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+            }
+
+            onRegionRequested: root.requestCapture("region")
+            onFullRequested: root.requestCapture("full")
+            // La vidéo demande un choix que la pastille ne peut pas afficher :
+            // on bascule sur la seconde page au lieu de fermer.
+            onRecordMenuRequested: shotBar.recordMode = true
+            onBackRequested: shotBar.recordMode = false
+            onRecordRegionRequested: root.requestCapture("record-region")
+            onRecordFullRequested: root.requestCapture("record-full")
+            onRecordStopRequested: root.requestCapture("record-stop")
+        }
+
+        // Un enregistrement peut être en cours depuis une ouverture précédente :
+        // dans ce cas l'entrée vidéo devient « arrêter ».
+        Process {
+            id: recordingCheckProc
+            command: ["pgrep", "-x", "wf-recorder"]
+            stdout: StdioCollector {
+                onStreamFinished: shotBar.recording = String(text).trim().length > 0
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // WIDGETS DE BUREAU — une surface layer par entrée de core/widgets.json.
     // Couche `Bottom`, jamais le clavier : le widget vit derrière les fenêtres et
     // n'est cliquable que là où rien ne le couvre. Sa taille suit son contenu :

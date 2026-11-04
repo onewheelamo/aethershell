@@ -62,6 +62,8 @@ Rectangle {
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Dossier des fonds d'écran", words: "dossier wallpaper repertoire images",
           tab: 0, section: "esthetique_theme", target: "wallpaperDirRow" },
+        { label: "Dossier des captures d'écran", words: "capture ecran screenshot dossier chemin enregistrement image",
+          tab: 0, section: "esthetique_theme", target: "screenshotsDirRow" },
         { label: "Gaps internes et externes", words: "gaps espacement interieur exterieur marge",
           tab: 0, section: "esthetique_aspect", target: "gapsRow" },
         { label: "Bordures des fenêtres", words: "bordure border epaisseur",
@@ -133,6 +135,7 @@ Rectangle {
         "secTheme": secTheme,
         "matugenRow": matugenRow,
         "wallpaperDirRow": wallpaperDirRow,
+        "screenshotsDirRow": screenshotsDirRow,
         "gapsRow": gapsRow,
         "borderRow": borderRow,
         "roundingWinRow": roundingWinRow,
@@ -191,6 +194,7 @@ Rectangle {
     // State synced with config_manager.py & FileViews
     property string hostName: "Station"
     property bool isLaptop: false
+    property string screenshotsDir: "$HOME/Images/Screenshots/"
     property string kbLayout: Theme.kbLayout || "fr"
     property var workspaceKeys: ["ampersand", "eacute", "quotedbl", "apostrophe", "parenleft"]
 
@@ -282,6 +286,9 @@ Rectangle {
         }
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) {
             root.wallpaperDir = data.wallpaper_dir
+        }
+        if (typeof data.screenshots_dir === "string" && data.screenshots_dir.length > 0) {
+            root.screenshotsDir = data.screenshots_dir
         }
         if (typeof data.matugen_scheme === "string" && data.matugen_scheme.length > 0) {
             root.matugenScheme = data.matugen_scheme
@@ -1035,6 +1042,75 @@ Rectangle {
                         onClicked: {
                             if (wpDirInput.text.trim() !== "") {
                                 root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Dossier des captures d'écran (lu par core/screenshot.sh)
+            Row {
+                id: screenshotsDirRow   // ancre de recherche
+                objectName: "screenshotsDirRow"
+                spacing: 8
+                width: parent.width
+
+                Text {
+                    width: 145
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Dossier captures :"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    font.bold: true
+                }
+
+                Rectangle {
+                    width: parent.width - 145 - 85 - 2 * 8
+                    height: 28
+                    color: Theme.bg
+                    radius: Theme.globalRadius
+                    border.color: shotsDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+                    border.width: 1
+                    clip: true
+
+                    TextInput {
+                        id: shotsDirInput
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        verticalAlignment: TextInput.AlignVCenter
+                        text: Theme.screenshotsDir || root.screenshotsDir
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        onAccepted: {
+                            if (shotsDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 85
+                    height: 28
+                    radius: Theme.globalRadius
+                    color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Appliquer"
+                        color: Theme.bg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: shotsDirSaveMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (shotsDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
                             }
                         }
                     }

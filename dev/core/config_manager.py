@@ -340,7 +340,7 @@ SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
 SHELL_BLUR_END = "-- END shell-blur"
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboarding",
                          "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet",
-                         "shell-tray-menu")
+                         "shell-tray-menu", "shell-shotbar")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :
@@ -476,6 +476,37 @@ def set_wallpaper_dir(path_str):
     return True
 
 
+def get_screenshots_dir():
+    """Return the configured screenshot directory (default: '$HOME/Images/Screenshots/')."""
+    style_data = load_json(STYLE_FILE)
+    sdir = str(style_data.get("screenshots_dir", "")).strip()
+    return sdir or "$HOME/Images/Screenshots/"
+
+
+def set_screenshots_dir(path_str):
+    """Persist the screenshot directory in style_vars.json (read by core/screenshot.sh).
+
+    Même normalisation que `wallpaper_dir` : `~` devient `$HOME`, le chemin finit
+    par un `/`, et la valeur reste lisible telle quelle dans le panneau.
+    """
+    raw = str(path_str).strip()
+    if not raw:
+        return False
+    if raw == "~":
+        clean_dir = "$HOME/"
+    elif raw.startswith("~/"):
+        clean_dir = "$HOME/" + raw[2:]
+    else:
+        clean_dir = raw
+    if not clean_dir.endswith("/"):
+        clean_dir += "/"
+
+    style_data = load_json(STYLE_FILE)
+    style_data["screenshots_dir"] = clean_dir
+    save_json(STYLE_FILE, style_data)
+    return True
+
+
 def set_panel_section(name, expanded):
     data = load_json(STYLE_FILE)
     sections = data.get("panel_sections", {})
@@ -487,6 +518,8 @@ def set_panel_section(name, expanded):
 def update_style_var(key, value):
     if key == "wallpaper_dir":
         return set_wallpaper_dir(value)
+    if key == "screenshots_dir":
+        return set_screenshots_dir(value)
     data = load_json(STYLE_FILE)
     shell_blur_changed = False
     if key == "global_radius":
@@ -1224,6 +1257,7 @@ def get_full_config_state():
         "bar_border": bool(style_data.get("bar_border", True)),
         "hypr_rounding": get_hypr_rounding(),
         "wallpaper_dir": get_wallpaper_dir(),
+        "screenshots_dir": get_screenshots_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),
         "matugen_contrast": float(style_data.get("matugen_contrast", 0)),
         "blur_enabled": bool(style_data.get("blur_enabled", True)),

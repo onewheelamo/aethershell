@@ -44,6 +44,7 @@ QtObject {
     property var widgets: []
     property string primaryMonitor: ""
     property string wallpaperDir: "$HOME/Images/wallpapers/"
+    property string screenshotsDir: "$HOME/Images/Screenshots/"
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1B: DESIGN TOKENS (TYPOGRAPHIE, RYTHME, ICÔNES)
@@ -163,6 +164,8 @@ QtObject {
     property bool configPanelVisible: false
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
+    // Barre de capture (SUPER + SHIFT + S) : pastille verticale à gauche.
+    property bool screenshotPickerVisible: false
     property real cheatsheetOpacity: 0.88
 
     // Pilule spotlight (launcher bas-centre) : surface montée à la demande,
@@ -264,6 +267,7 @@ QtObject {
         if (typeof data.cheatsheet_opacity === "number") root.cheatsheetOpacity = Math.max(0.2, Math.min(1.0, data.cheatsheet_opacity))
         if (typeof data.primary_monitor === "string") root.primaryMonitor = data.primary_monitor
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir
+        if (typeof data.screenshots_dir === "string" && data.screenshots_dir.length > 0) root.screenshotsDir = data.screenshots_dir
         if (typeof data.blur_enabled === "boolean") root.blurEnabled = data.blur_enabled
         if (typeof data.blur_size === "number") root.blurSize = Math.max(1, Math.min(20, data.blur_size))
         if (typeof data.blur_passes === "number") root.blurPasses = Math.max(1, Math.min(8, data.blur_passes))
@@ -455,6 +459,20 @@ QtObject {
         }
         function launchHistoryState(): bool {
             return root.launchHistory
+        }
+        // Barre de capture : toggle pour le bind SUPER + SHIFT + S (screenshot.sh
+        // sans argument), show/hide idempotents pour les tests scriptés.
+        function toggleScreenshotPicker() {
+            root.screenshotPickerVisible = !root.screenshotPickerVisible
+        }
+        function showScreenshotPicker() {
+            root.screenshotPickerVisible = true
+        }
+        function hideScreenshotPicker() {
+            root.screenshotPickerVisible = false
+        }
+        function screenshotPickerState(): bool {
+            return root.screenshotPickerVisible
         }
     }
 }

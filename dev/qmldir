@@ -5,4 +5,5 @@ Slider 1.0 Slider.qml
 Icon 1.0 Icon.qml
 GreeterTab 1.0 GreeterTab.qml
 Cheatsheet 1.0 Cheatsheet.qml
+ScreenshotBar 1.0 screenshot_bar.qml
 TrayMenu 1.0 TrayMenu.qml
