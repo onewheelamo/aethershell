@@ -1971,7 +1971,7 @@ Rectangle {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 56
-                                        text: "Opacité"
+                                        text: "Fond"
                                         color: Qt.alpha(Theme.fg, 0.75)
                                         font.pixelSize: Theme.textXs
                                     }
