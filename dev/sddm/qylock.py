@@ -26,6 +26,7 @@ QYLOCK_REFRESH=1 le rafraîchit après une mise à jour amont.
 import json
 import os
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import NoReturn
@@ -138,23 +139,31 @@ def fetch(name, entries, static_only):
     total = sum(e.get("size", 0) for e in entries)
     print(f"▶ {label(name)} — {len(entries)} fichiers, {human(total)}")
     dest = CACHE / name
+    failed = []
     for e in entries:
         rel = e["path"].split("/", 2)[2]
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() and target.stat().st_size == e.get("size", 0):
             continue
-        url = RAW_URL.format(path=e["path"])
+        # Les noms amont contiennent des espaces et des parenthèses (« A Glow
+        # (1).jpg ») : sans encodage urllib refuse l'URL. safe="/" garde les
+        # séparateurs de chemin.
+        url = RAW_URL.format(path=urllib.parse.quote(e["path"], safe="/"))
         try:
             with urllib.request.urlopen(url, timeout=60) as r:
                 target.write_bytes(r.read())
         except Exception as ex:
-            die(f"{e['path']} : {ex}")
+            # Un fichier amont manquant ne doit pas arrêter les 38 autres thèmes.
+            print(f"  ✗ {rel} : {ex}", file=sys.stderr)
+            failed.append(rel)
+            continue
         print(f"  {rel} ({human(e.get('size', 0))})")
     for need in ("Main.qml", "metadata.desktop"):
         if not (dest / need).exists():
             die(f"{name} : {need} manquant après téléchargement")
     print(f"  → {dest}")
+    return failed
 
 
 def main():
@@ -194,8 +203,12 @@ def main():
     if unknown:
         die(f"thème inconnu : {', '.join(unknown)}")
 
+    failures = []
     for n in names:
-        fetch(n, idx[n], static)
+        failures += fetch(n, idx[n], static)
+    if failures:
+        print(f"\n⚠ {len(failures)} fichier(s) non récupéré(s) — relancer la commande "
+              f"reprend là où ça s'est arrêté.", file=sys.stderr)
     print(f"\ninstaller : bash dev/sddm/install.sh --qylock {' '.join(names)}")
 
 

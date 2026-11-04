@@ -25,9 +25,11 @@ cmd="${1:-}"
 case "$cmd" in
 apply)
     id="${2:-}"
-    # Identifiant strict : minuscules, chiffres, souligné et tiret (les thèmes
-    # complets de qylock sont nommés material-you-dark, clockwork-orbital…).
-    [[ "$id" =~ ^[a-z0-9_-]+$ ]] || die "identifiant invalide"
+    # Identifiant strict : lettres (les noms amont en portent, « Genshin »,
+    # « R1999_1 »), chiffres, souligné, tiret et point. Rien d'autre ne peut
+    # désigner un dossier, donc pas de traversée de chemin possible.
+    [[ "$id" =~ ^[A-Za-z0-9_.-]+$ ]] && [[ "$id" != "." && "$id" != ".." ]] \
+        || die "identifiant invalide"
     if [ -f "$THEME/Themes/$id.conf" ]; then
         # Conf du thème astronaut : c'est la metadata qui désigne le fichier.
         sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$THEME/metadata.desktop"

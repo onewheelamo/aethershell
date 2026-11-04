@@ -139,6 +139,13 @@ dev/sddm/
 - Miniatures : `greeter_manager.py sources` donne la liste `id → dossier`, que
   `thumbnails.sh` capture une par une en mode test. Un thème seulement récupéré
   (pas encore installé) est listé avec le suffixe « (à installer) ».
+- **Le panneau ne lit pas le dépôt.** `dev/core/greeter_manager.py` doit être
+  recopié dans `~/.config/quickshell/core/` (ce que fait `deploy.sh`) : sans ça
+  le panneau continue d'afficher l'ancienne liste, sans les thèmes qylock, même
+  quand `python3 dev/core/… list` les voit. Vérification rapide :
+  `diff -q dev/core/greeter_manager.py ~/.config/quickshell/core/greeter_manager.py`.
+  L'onglet « Connexion » étant chargé à la demande (`Loader { active: visible }`),
+  rouvrir le panneau suffit ensuite — pas besoin de relancer Quickshell.
 
 ### État mesuré le 04/11/2026
 
