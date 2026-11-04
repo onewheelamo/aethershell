@@ -13,6 +13,81 @@ Item {
 
     property string pendingKbLayout: Theme.kbLayout || "fr"
 
+    // ────────────────────────────────────────────────────────────────────────
+    // MODE PLACEMENT D'UN WIDGET (SUPER + clic sur le widget)
+    // ────────────────────────────────────────────────────────────────────────
+    // Le glisser direct est impossible : sur une petite surface layer, les
+    // mouvements ne sont pas délivrés au client et le geste meurt dès que le
+    // pointeur sort du rectangle (mesuré : press et release arrivent, pas les
+    // déplacements). On passe donc par une surface plein écran qui reçoit le
+    // pointeur partout : le widget suit le curseur en aperçu, et un clic le pose.
+    property var placingWindow: null
+    property real placingX: 0
+    property real placingY: 0
+    property real placingGrabX: 0
+    property real placingGrabY: 0
+    property bool placingArmed: false
+    readonly property bool placing: placingWindow !== null
+
+    // Fenêtres des widgets, pour retrouver laquelle est sous le curseur quand le
+    // déclencheur vient de Hyprland (qui, lui, connaît le modificateur).
+    property var widgetWindows: []
+
+    // Appelé par `quickshell ipc call shell placeWidget` (bind SUPER + SHIFT + clic).
+    function startPlacementFromCursor() {
+        if (placingWindow) { endPlacement(false); return }
+        findWidgetProc.running = true
+    }
+
+    Process {
+        id: findWidgetProc
+        command: ["hyprctl", "cursorpos"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts = String(text).trim().split(",")
+                const cx = parseInt(parts[0], 10)
+                const cy = parseInt(parts[1], 10)
+                if (isNaN(cx) || isNaN(cy)) return
+                for (let i = 0; i < root.widgetWindows.length; i++) {
+                    const win = root.widgetWindows[i]
+                    if (!win || !win.visible) continue
+                    const wx = Number(win.w.x) || 0
+                    const wy = Number(win.w.y) || 0
+                    if (cx >= wx && cx <= wx + win.implicitWidth
+                            && cy >= wy && cy <= wy + win.implicitHeight) {
+                        root.beginPlacement(win, cx - wx, cy - wy)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    Component.onCompleted: Theme.placeWidgetHook = function() { root.startPlacementFromCursor() }
+
+    function beginPlacement(win, grabX, grabY) {
+        placingWindow = win
+        placingGrabX = grabX
+        placingGrabY = grabY
+        placingX = Number(win.w.x) || 0
+        placingY = Number(win.w.y) || 0
+        placingArmed = false
+        placementArmTimer.restart()
+    }
+
+    function endPlacement(commit) {
+        if (commit && placingWindow)
+            moveWidget(placingWindow.w.id, Math.round(placingX), Math.round(placingY))
+        placingWindow = null
+    }
+
+    // Le relâchement du clic qui a ouvert le mode ne doit pas poser le widget.
+    Timer {
+        id: placementArmTimer
+        interval: 220
+        onTriggered: root.placingArmed = true
+    }
+
     // Certaines applications (ProtonVPN) ne se réenregistrent pas auprès d'un
     // nouveau StatusNotifierWatcher : après un redémarrage du shell leur icône
     // reste absente jusqu'au redémarrage de l'app. Ce gardien compare les services
@@ -32,6 +107,21 @@ Item {
                 Theme.firstRunCompleted = true
             }
         }
+    }
+
+    // Écrit la nouvelle position dans core/widgets.json (le shell la relira par
+    // FileView : c'est le fichier qui fait foi, pas l'état local du glissement).
+    Process {
+        id: moveWidgetProc
+    }
+
+    function moveWidget(id, x, y) {
+        if (!id) return
+        moveWidgetProc.command = [
+            "python3", Quickshell.shellPath("core/config_manager.py"),
+            "widget_move", String(id), String(Math.round(x)), String(Math.round(y))
+        ]
+        moveWidgetProc.running = true
     }
 
     function applyInitialKeyboard(layoutCode) {
@@ -478,8 +568,18 @@ Item {
                          || (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === Number(w.workspace)))
 
             anchors { top: true; left: true }
-            margins.top: Number(w.y) || 0
-            margins.left: Number(w.x) || 0
+            // Glissement : les marges suivent le geste pendant qu'on déplace, puis
+            // reprennent la valeur du fichier d'état une fois le relâchement écrit.
+            property bool dragging: false
+            property real dragStartX: 0
+            property real dragStartY: 0
+            property real liveX: Number(w.x) || 0
+            property real liveY: Number(w.y) || 0
+            // En mode placement, c'est l'aperçu qui pilote la position ; sinon le
+            // fichier d'état fait foi.
+            readonly property bool isPlacing: root.placingWindow === widgetWindow
+            margins.top: widgetWindow.isPlacing ? Math.round(root.placingY) : (Number(w.y) || 0)
+            margins.left: widgetWindow.isPlacing ? Math.round(root.placingX) : (Number(w.x) || 0)
             // La carte : transparence propre à chaque widget (0,35 par défaut,
             // donc au-dessus du seuil de flou 0,30). Le padding fait partie de
             // la surface : il consomme les clics, il reste donc serré (18 px).
@@ -496,6 +596,20 @@ Item {
             readonly property bool broken: widgetLoader.status === Loader.Error
             implicitWidth: (broken ? brokenText.implicitWidth : widgetLoader.implicitWidth) + pad * 2
             implicitHeight: (broken ? brokenText.implicitHeight : widgetLoader.implicitHeight) + pad * 2
+            Component.onCompleted: {
+                const list = root.widgetWindows.slice()
+                list.push(widgetWindow)
+                root.widgetWindows = list
+            }
+            Component.onDestruction: {
+                const i = root.widgetWindows.indexOf(widgetWindow)
+                if (i >= 0) {
+                    const list = root.widgetWindows.slice()
+                    list.splice(i, 1)
+                    root.widgetWindows = list
+                }
+            }
+
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
@@ -511,6 +625,24 @@ Item {
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
+
+                // Déplacement à la souris.
+                //
+                // Constat mesuré sur une surface layer : `press`, `release` et
+                // `enter` arrivent, mais **pas** les mouvements — ni MouseArea ni
+                // DragHandler ne reçoivent de delta, et un PointHandler n'en reçoit
+                // que tant que le pointeur reste au-dessus de la surface, donc pas
+                // assez pour suivre le geste. On garde donc l'appui d'un PointHandler
+                // (fiable) et on lit la position du curseur chez le compositeur.
+                //
+                // `hyprctl cursorpos` toutes les 30 ms pendant le geste : la surface
+                // est repositionnée sous le pointeur, et comme on ne dépend plus des
+                // événements de mouvement, le widget suit même quand le pointeur sort
+                // de son rectangle.
+                // Le widget lui-même ne capte plus rien : le déclencheur est le bind
+                // Hyprland SUPER + SHIFT + clic (voir binds.lua), parce que
+                // `mouse.modifiers` vaut 0 dans les événements souris de cette
+                // surface — le modificateur y est invisible.
 
                 Text {
                     id: brokenText
@@ -537,6 +669,41 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Surface de placement : plein écran, transparente, elle reçoit le pointeur
+    // partout (contrairement au widget) et applique l'aperçu, puis pose au clic.
+    PanelWindow {
+        id: placementCatcher
+        visible: root.placing
+        screen: topBarWindow.screen
+        anchors { top: true; bottom: true; left: true; right: true }
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        // Namespace hors liste de flou : rien à flouter ici.
+        WlrLayershell.namespace: "shell-widget-placement"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.CrossCursor
+
+            onPositionChanged: mouse => {
+                if (!root.placingWindow) return
+                const maxX = parent.width - root.placingWindow.implicitWidth
+                const maxY = parent.height - root.placingWindow.implicitHeight
+                root.placingX = Math.max(0, Math.min(maxX, mouse.x - root.placingGrabX))
+                root.placingY = Math.max(0, Math.min(maxY, mouse.y - root.placingGrabY))
+            }
+
+            onClicked: if (root.placingArmed) root.endPlacement(true)
+            onWheel: if (root.placing) root.endPlacement(false)
+
+            Keys.onEscapePressed: root.endPlacement(false)
+            focus: true
         }
     }
 

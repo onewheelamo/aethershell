@@ -1825,7 +1825,8 @@ Rectangle {
                         width: parent.width
                         text: root.widgetsList.length === 0
                               ? "Aucun widget. Le bureau affiche le fond d'écran seul."
-                              : "Chaque widget vit derrière les fenêtres, sur son workspace."
+                              : "Chaque widget vit derrière les fenêtres, sur son workspace. "
+                                + "Pour le déplacer : SUPER + SHIFT + clic dessus, puis clic pour le poser."
                         color: Qt.alpha(Theme.fg, 0.6)
                         font.pixelSize: Theme.textXs
                         wrapMode: Text.WordWrap

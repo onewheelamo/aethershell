@@ -33,6 +33,11 @@ hl.bind("Escape", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/greeter_preview
 --: Capture
 -- Sélection de zone ou de fenêtre, presse-papier et fichier.
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"), { description = "capture d'écran" })
+-- Placement d'un widget de bureau : le shell lit la position du curseur, trouve le
+-- widget dessous et affiche une surface plein écran qui le fait suivre la souris.
+-- SUPER + clic ne peut pas servir (déjà pris par le glisser de fenêtre) et
+-- `mouse.modifiers` vaut 0 côté surface : c'est donc Hyprland qui porte le geste.
+hl.bind(mainMod .. " + SHIFT + mouse:272", hl.dsp.exec_cmd("quickshell ipc call shell placeWidget"), { mouse = true, description = "déplacer un widget" })
 
 --: Focus
 -- Déplacement du focus avec SUPER + Flèches.

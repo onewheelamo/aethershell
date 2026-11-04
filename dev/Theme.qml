@@ -371,8 +371,17 @@ QtObject {
     // Allows scripts, keybindings and sub-processes to control Quickshell:
     //   qs -p /path/to/shell ipc shell toggleConfig
     //   qs -p /path/to/shell ipc shell osd volume 75
+    // Crochet : main.qml y branche le mode placement d'un widget. Le déclencheur
+    // vient de Hyprland (SUPER + SHIFT + clic), seul endroit où le modificateur est
+    // fiable — dans un événement souris QML, `mouse.modifiers` vaut 0.
+    property var placeWidgetHook: null
+
     property IpcHandler ipc: IpcHandler {
         target: "shell"
+        function placeWidget() {
+            if (root.placeWidgetHook)
+                root.placeWidgetHook()
+        }
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
         }
