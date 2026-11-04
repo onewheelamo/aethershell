@@ -341,6 +341,17 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboar
                          "shell-spotlight", "shell-spotlight-rest")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
+# Positions prédéfinies de la capsule du lanceur (pas de position libre) :
+# bord haut/bas, centre ou tiers gauche/droit.
+LAUNCHER_POSITIONS = (
+    "bas-centre",
+    "haut-centre",
+    "bas-gauche",
+    "bas-droit",
+    "haut-gauche",
+    "haut-droit",
+)
+
 
 def build_shell_blur_block(enabled, alpha, popups):
     """Return the Lua block (markers included) for the given shell blur settings."""
@@ -518,6 +529,8 @@ def update_style_var(key, value):
         else:
             data[key] = str(value).lower() in ("true", "1", "yes")
         shell_blur_changed = True
+    elif key == "launcher_position" and str(value) in LAUNCHER_POSITIONS:
+        data[key] = str(value)
     elif key == "active_theme" and value in data.get("palette", {}):
         data["active_theme"] = value
     elif key in COLOR_KEYS:
@@ -1072,6 +1085,7 @@ def get_full_config_state():
         "first_run_completed": bool(style_data.get("first_run_completed", False)),
         "show_config_button": bool(style_data.get("show_config_button", True)),
         "bar_height": int(style_data.get("bar_height", 40)),
+        "launcher_position": style_data.get("launcher_position", "bas-centre"),
         "global_radius": int(style_data.get("global_radius", 2)),
         "global_opacity": float(style_data.get("global_opacity", 0.7)),
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),

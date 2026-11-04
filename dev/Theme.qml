@@ -32,6 +32,10 @@ QtObject {
     property bool showKeyboardOnboarding: false
     property bool showConfigButton: true
     property int barHeight: 40
+    // Position de la capsule du lanceur : six emplacements prédéfinis (§3.5 de
+    // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
+    // dans main.qml à partir de cette clé et de la largeur de la capsule.
+    property string launcherPosition: "bas-centre"
     property string primaryMonitor: ""
     property string wallpaperDir: "$HOME/Images/wallpapers/"
 
@@ -235,6 +239,7 @@ QtObject {
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
+        if (typeof data.launcher_position === "string" && data.launcher_position.length > 0) root.launcherPosition = data.launcher_position
         if (typeof data.primary_monitor === "string") root.primaryMonitor = data.primary_monitor
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir
         if (typeof data.blur_enabled === "boolean") root.blurEnabled = data.blur_enabled

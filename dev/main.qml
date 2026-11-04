@@ -299,13 +299,29 @@ Item {
         id: spotlightRestWindow
         screen: topBarWindow.screen
         visible: !Theme.spotlightVisible
+
+        // Six positions prédéfinies (PROPOSITION_widgets.md §3.5) : bord haut ou
+        // bas, centre ou tiers gauche/droit — jamais une position libre.
+        // Largeur 600 : elle tient dans un tiers (640), là où 720 débordait.
+        readonly property int restWidth: 600
+        readonly property string restPos: Theme.launcherPosition
+        readonly property bool atTop: restPos.indexOf("haut") === 0
+        readonly property bool atLeft: restPos.indexOf("gauche") >= 0
+        readonly property bool atCentre: restPos.indexOf("centre") >= 0
+
         anchors {
-            bottom: true
+            top: atTop
+            bottom: !atTop
             left: true
         }
-        margins.left: Math.round(((screen ? screen.width : 1920) - 720) / 2)
-        margins.bottom: 44
-        implicitWidth: 720
+        // La barre occupe y 8..44 : une capsule en haut commence 8 px plus bas.
+        margins.top: atTop ? Theme.barHeight + Theme.gutter * 2 : 0
+        margins.bottom: atTop ? 0 : Theme.barHeight + Theme.gutter
+        margins.left: atCentre
+            ? Math.round(((screen ? screen.width : 1920) - restWidth) / 2)
+            : (atLeft ? Theme.gutter
+                      : (screen ? screen.width : 1920) - restWidth - Theme.gutter)
+        implicitWidth: restWidth
         implicitHeight: 62
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
