@@ -989,7 +989,7 @@ Rectangle {
                 Text {
                     width: 145
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Dossier wallpapers :"
+                    text: "Wallpapers"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     font.bold: true
@@ -1048,6 +1048,10 @@ Rectangle {
                 }
             }
 
+            // 2 px de respiration entre les deux dossiers : sans cet item, les
+            // deux champs se lisent comme une seule ligne à deux étages.
+            Item { width: 1; height: 2 }
+
             // Dossier des captures d'écran (lu par core/screenshot.sh)
             Row {
                 id: screenshotsDirRow   // ancre de recherche
@@ -1058,7 +1062,7 @@ Rectangle {
                 Text {
                     width: 145
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Dossier captures :"
+                    text: "Screenshots"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     font.bold: true
