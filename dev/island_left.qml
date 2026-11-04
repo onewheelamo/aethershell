@@ -156,13 +156,6 @@ Item {
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
 
-        // Un clic sur la capsule la réveille (opacité des popups + flou) pour
-        // quelques secondes ; au repos elle retombe à barRestOpacity.
-        MouseArea {
-            anchors.fill: parent
-            onPressed: Theme.wakeBar()
-        }
-
 
         // Scroll anywhere on the left island to switch to previous/next workspace
         WheelHandler {
@@ -311,7 +304,6 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                Theme.wakeBar()
                                 islandLeft.focusWorkspace(wsDelegate.wsId)
                             }
                         }

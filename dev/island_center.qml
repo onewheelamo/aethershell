@@ -386,13 +386,6 @@ Item {
         Behavior on color { ColorAnimation { duration: 160 } }
         Behavior on border.color { ColorAnimation { duration: 160 } }
 
-        // Un clic sur la capsule la réveille (opacité des popups + flou) pour
-        // quelques secondes ; au repos elle retombe à barRestOpacity.
-        MouseArea {
-            anchors.fill: parent
-            onPressed: Theme.wakeBar()
-        }
-
 
         Row {
             id: contentRow

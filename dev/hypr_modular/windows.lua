@@ -20,12 +20,8 @@ hl.window_rule({
     float = true,
 })
 
--- Workspaces permanents 1 à 5
-hl.workspace_rule({ workspace = "1", persistent = true, default_name = "一" })
-hl.workspace_rule({ workspace = "2", persistent = true, default_name = "二" })
-hl.workspace_rule({ workspace = "3", persistent = true, default_name = "三" })
-hl.workspace_rule({ workspace = "4", persistent = true, default_name = "四" })
-hl.workspace_rule({ workspace = "5", persistent = true, default_name = "五" })
+-- Workspaces permanents 1 à 5 : assignés par hardware-<host>.lua à l'écran principal
+-- (évite de réécraser la contrainte de moniteur définie par le profil matériel)
 
 hl.window_rule({ name = "firefox", match = { class = "^(firefox|Firefox)$" }, workspace = "2" })
 hl.window_rule({ name = "pavucontrol", float = true, center = true })

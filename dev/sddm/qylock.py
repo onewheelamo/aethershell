@@ -159,9 +159,16 @@ def fetch(name, entries, static_only):
             failed.append(rel)
             continue
         print(f"  {rel} ({human(e.get('size', 0))})")
-    for need in ("Main.qml", "metadata.desktop"):
-        if not (dest / need).exists():
-            die(f"{name} : {need} manquant après téléchargement")
+    vdirs = variant_dirs(dest)
+    if not vdirs:
+        for need in ("Main.qml", "metadata.desktop"):
+            if not (dest / need).exists():
+                die(f"{name} : {need} manquant après téléchargement")
+    else:
+        for d in vdirs:
+            for need in ("Main.qml", "metadata.desktop"):
+                if not (d / need).exists():
+                    die(f"{name} ({d.name}) : {need} manquant après téléchargement")
     print(f"  → {dest}")
     return failed
 

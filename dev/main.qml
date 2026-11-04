@@ -11,22 +11,6 @@ import Quickshell.Wayland
 Item {
     id: root
 
-    // Vrai quand le workspace courant n'a aucune fenêtre : la capsule de repos
-    // peut alors passer au-dessus (et donc recevoir les clics) sans rien masquer.
-    readonly property bool desktopClear: {
-        const ws = Hyprland.focusedWorkspace
-        if (!ws) return true
-        const tops = Hyprland.toplevels
-        if (tops && tops.values) {
-            for (let i = 0; i < tops.values.length; ++i) {
-                const t = tops.values[i]
-                if (t && t.workspace && t.workspace.id === ws.id) return false
-            }
-            return true
-        }
-        return !(ws.lastIpcObject && ws.lastIpcObject.windows > 0)
-    }
-
     property string pendingKbLayout: Theme.kbLayout || "fr"
 
     Process {
@@ -52,6 +36,16 @@ Item {
     // Top Bar Window hosting the 3 distinct islands (Left, Center, Right)
     PanelWindow {
         id: topBarWindow
+        screen: {
+            if (Theme.primaryMonitor && Quickshell.screens) {
+                for (let i = 0; i < Quickshell.screens.length; i++) {
+                    if (Quickshell.screens[i].name === Theme.primaryMonitor) {
+                        return Quickshell.screens[i]
+                    }
+                }
+            }
+            return (Quickshell.screens && Quickshell.screens.length > 0) ? Quickshell.screens[0] : null
+        }
         anchors {
             top: true
             left: true
@@ -93,11 +87,9 @@ Item {
                 Behavior on color { ColorAnimation { duration: 180 } }
                 Behavior on border.color { ColorAnimation { duration: 180 } }
 
-                // Un clic sur la capsule la réveille quelques secondes (opacité
-                // des popups + flou) ; déclaré avant les îlots pour rester dessous.
+                // Déclaré avant les îlots pour rester dessous.
                 MouseArea {
                     anchors.fill: parent
-                    onPressed: Theme.wakeBar()
                 }
             }
 
@@ -150,6 +142,7 @@ Item {
     // OSD overlay (volume / brightness): temporary centered pill, auto-hides
     PanelWindow {
         id: osdWindow
+        screen: topBarWindow.screen
         visible: Theme.osdVisible || osdBox.opacity > 0
         anchors {
             bottom: true
@@ -230,6 +223,7 @@ Item {
     // Floating Configuration Panel Overlay Window
     PanelWindow {
         id: configOverlayWindow
+        screen: topBarWindow.screen
         visible: Theme.configPanelVisible
         anchors {
             top: true
@@ -263,6 +257,7 @@ Item {
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
     PanelWindow {
         id: spotlightWindow
+        screen: topBarWindow.screen
         visible: Theme.spotlightVisible
         anchors {
             top: true
@@ -302,6 +297,7 @@ Item {
     // réapparaît que sur un bureau nu (workspace vide, fenêtre déplacée).
     PanelWindow {
         id: spotlightRestWindow
+        screen: topBarWindow.screen
         visible: !Theme.spotlightVisible
         anchors {
             bottom: true
@@ -313,10 +309,9 @@ Item {
         implicitHeight: 62
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
-        // Bureau nu : au-dessus (une surface de la couche `bottom` ne reçoit pas
-        // les clics, et il n'y a rien à masquer). Fenêtre présente : derrière
-        // elle, la capsule s'efface.
-        WlrLayershell.layer: root.desktopClear ? WlrLayer.Top : WlrLayer.Bottom
+        // Couche `Bottom` : la capsule reste en permanence sous les fenêtres Hyprland,
+        // sur le fond d'écran, et reçoit les clics dès que la zone est découverte.
+        WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-spotlight-rest"
 
@@ -359,6 +354,7 @@ Item {
     // First-Run Keyboard Layout Selection Window (100% Mouse Operated)
     PanelWindow {
         id: firstRunOverlayWindow
+        screen: topBarWindow.screen
         visible: Theme.showKeyboardOnboarding
         anchors {
             top: true

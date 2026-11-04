@@ -341,12 +341,14 @@ Rectangle {
         return root.monitorsList.length > 0 ? root.monitorsList[0] : null
     }
 
+    property bool resDropdownOpen: false
+
     readonly property var currentMonitorModes: {
         const m = root.currentMonitorObj
         if (m && Array.isArray(m.availableModes) && m.availableModes.length > 0) {
-            return m.availableModes.slice(0, 6).concat(["preferred"])
+            return m.availableModes
         }
-        return ["1920x1080@60", "2560x1440@60", "3840x2160@60", "preferred"]
+        return ["preferred", "3840x2160@30", "1920x1080@120", "1920x1080@60", "1280x720@60"]
     }
 
     Process {
@@ -1785,15 +1787,31 @@ Rectangle {
                         Column {
                             anchors.centerIn: parent
                             spacing: 2
-                            Text {
+                            Row {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                width: monCard.width - 16
-                                horizontalAlignment: Text.AlignHCenter
-                                text: monCard.modelData.name + " (" + monCard.modelData.width + "x" + monCard.modelData.height + "@" + monCard.modelData.refreshRate + "Hz)"
-                                color: monCard.isSel ? Theme.accent : Theme.fg
-                                font.pixelSize: Theme.textSm
-                                font.bold: true
-                                elide: Text.ElideRight
+                                spacing: 6
+                                Text {
+                                    text: monCard.modelData.name + " (" + monCard.modelData.width + "x" + monCard.modelData.height + "@" + monCard.modelData.refreshRate + "Hz)"
+                                    color: monCard.isSel ? Theme.accent : Theme.fg
+                                    font.pixelSize: Theme.textSm
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle {
+                                    visible: !!monCard.modelData.is_primary
+                                    width: 52
+                                    height: 16
+                                    radius: 3
+                                    color: Theme.accent
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Principal"
+                                        color: Theme.bg
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                    }
+                                }
                             }
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1815,50 +1833,187 @@ Rectangle {
                 }
             }
 
-            // Resolution & Refresh Rate selector for selected monitor
+            // Statut / Action Écran Principal
+            Rectangle {
+                visible: root.monitorsList.length > 1
+                width: parent.width
+                height: 32
+                radius: Theme.globalRadius
+                readonly property bool isSelectedPrimary: root.currentMonitorObj && !!root.currentMonitorObj.is_primary
+                color: isSelectedPrimary ? Qt.alpha(Theme.accent, 0.12) : (makePrimMa.containsMouse ? Theme.accent : Theme.surfaceVariant)
+                border.color: Theme.accent
+                border.width: 1
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Icon {
+                        glyph: "check"
+                        size: Theme.iconSm
+                        color: parent.parent.isSelectedPrimary ? Theme.accent : (makePrimMa.containsMouse ? Theme.bg : Theme.accent)
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: parent.parent.isSelectedPrimary
+                            ? "« " + root.selectedMonitorName + " » est l'écran principal (Workspaces 1 à 5)"
+                            : "Définir « " + root.selectedMonitorName + " » comme écran principal"
+                        color: parent.parent.isSelectedPrimary ? Theme.accent : (makePrimMa.containsMouse ? Theme.bg : Theme.fg)
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+                }
+
+                MouseArea {
+                    id: makePrimMa
+                    anchors.fill: parent
+                    enabled: !parent.isSelectedPrimary
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.runConfigCmd(["monitor_primary", root.selectedMonitorName])
+                }
+            }
+
+            // Resolution & Refresh Rate Dropdown Selector
             Text {
                 width: parent.width
-                text: "Résolution & Fréquence pour « " + root.selectedMonitorName + " » (persistant dans hardware-" + root.hostName.toLowerCase() + ".lua)"
+                text: "Résolution & Fréquence pour « " + root.selectedMonitorName + " » :"
                 color: Theme.accent
                 font.pixelSize: Theme.textMd
                 font.bold: true
                 wrapMode: Text.WordWrap
             }
 
-            Flow {
-
-                height: childrenRect.height
+            Column {
                 width: parent.width
-                spacing: 8
+                spacing: 4
 
-                Repeater {
-                    model: root.currentMonitorModes
+                // Bouton principal du menu déroulant
+                Rectangle {
+                    id: resDropdownBtn
+                    width: parent.width
+                    height: 36
+                    radius: Theme.globalRadius
+                    color: resBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.18) : Theme.surfaceVariant
+                    border.color: root.resDropdownOpen ? Theme.accent : Theme.accentMuted
+                    border.width: 1
 
-                    Rectangle {
-                        required property string modelData
-                        width: 148
-                        height: 30
-                        radius: Theme.globalRadius
-                        color: resMa.containsMouse ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accentMuted
-                        border.width: 1
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: modelData === "preferred" ? "Auto (Preferred)" : modelData + "Hz"
-                            color: resMa.containsMouse ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
+                        Icon {
+                            glyph: "monitor"
+                            size: Theme.iconSm
+                            color: Theme.accent
+                            anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        MouseArea {
-                            id: resMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                const curScale = root.currentMonitorObj ? String(root.currentMonitorObj.scale || 1) : "1"
-                                root.runConfigCmd(["monitor_mode", root.selectedMonitorName, modelData, curScale])
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: {
+                                const m = root.currentMonitorObj
+                                return m ? ("Mode actif : " + m.width + "x" + m.height + "@" + m.refreshRate + "Hz") : "Auto (Preferred)"
+                            }
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+                    }
+
+                    Icon {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: root.resDropdownOpen ? "chevron-up" : "chevron-down"
+                        size: Theme.iconSm
+                        color: Theme.accent
+                    }
+
+                    MouseArea {
+                        id: resBtnMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.resDropdownOpen = !root.resDropdownOpen
+                    }
+                }
+
+                // Liste déroulante des modes
+                Rectangle {
+                    visible: root.resDropdownOpen
+                    width: parent.width
+                    height: Math.min(220, resCol.height + 8)
+                    radius: Theme.globalRadius
+                    color: Theme.surface
+                    border.color: Theme.accent
+                    border.width: 1
+                    clip: true
+
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        contentWidth: width
+                        contentHeight: resCol.height
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Column {
+                            id: resCol
+                            width: parent.width
+                            spacing: 2
+
+                            Repeater {
+                                model: root.currentMonitorModes
+
+                                Rectangle {
+                                    required property string modelData
+                                    width: parent.width
+                                    height: 30
+                                    radius: Theme.globalRadius - 2
+                                    readonly property bool isCurrent: {
+                                        const m = root.currentMonitorObj
+                                        if (!m) return false
+                                        if (modelData === "preferred") return false
+                                        return modelData === (m.width + "x" + m.height + "@" + m.refreshRate)
+                                    }
+                                    color: itemMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : (isCurrent ? Qt.alpha(Theme.accent, 0.12) : "transparent")
+
+                                    Row {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 8
+
+                                        Icon {
+                                            glyph: isCurrent ? "check" : "chevron-right"
+                                            size: 14
+                                            color: isCurrent ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: modelData === "preferred" ? "Auto (Preferred)" : (modelData + "Hz")
+                                            color: isCurrent ? Theme.accent : Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                            font.bold: isCurrent
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: itemMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            const curScale = root.currentMonitorObj ? String(root.currentMonitorObj.scale || 1) : "1"
+                                            root.runConfigCmd(["monitor_mode", root.selectedMonitorName, modelData, curScale])
+                                            root.resDropdownOpen = false
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

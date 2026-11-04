@@ -136,7 +136,7 @@ prune_target() {
             hypridle.conf|hyprlock.conf|hyprlock-colors.conf|autostart_cmds.txt|.quickshell_managed) continue ;;
             secrets.json) continue ;;
             # Outils manuels hors périmètre du déploiement : jamais élagués.
-            rotate.sh|sync_to_*.sh) continue ;;
+            rotate.sh|sync_to_*.sh|sync*.sh) continue ;;
         esac
         if [ "${PRUNE_DRY:-0}" = "1" ]; then
             echo "  [dry-run] would prune: $dst/$name"
@@ -200,6 +200,13 @@ check_dependencies() {
             missing_pkgs+=("$(pkg_for_bin "$dep")")
         fi
     done
+
+    if ! fc-list : family | grep -qi "0xproto"; then
+        echo "⚠️ Police d'icônes manquante : 0xProto Nerd Font"
+        if [ -x "$DEV_DIR/core/install_fonts.sh" ]; then
+            bash "$DEV_DIR/core/install_fonts.sh" || echo "⚠️ Échec de l'installation automatique de la police."
+        fi
+    fi
 
     if [ ${#missing[@]} -eq 0 ]; then
         echo "✅ All dependencies installed."

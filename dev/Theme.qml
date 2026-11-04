@@ -32,6 +32,7 @@ QtObject {
     property bool showKeyboardOnboarding: false
     property bool showConfigButton: true
     property int barHeight: 40
+    property string primaryMonitor: ""
     property string wallpaperDir: "$HOME/Images/wallpapers/"
 
     // ────────────────────────────────────────────────────────────────────────
@@ -162,21 +163,13 @@ QtObject {
         activePopup = (activePopup === name) ? "" : name
     }
 
-    // ── Barre au repos / réveillée ────────────────────────────────────────────
-    // Au repos la capsule est à peine posée (0.2) : sous le seuil `ignore_alpha`
-    // de la règle de flou (0.30), Hyprland ne floute donc rien derrière elle.
-    // Un clic sur la barre, un popup ouvert ou la pilule la réveillent : elle
-    // reprend l'opacité des autres surfaces du shell et le flou avec.
-    property real barRestOpacity: 0.2
-    property bool barAroused: false
-    readonly property bool barAwake: barAroused || activePopup !== "" || spotlightVisible
-    readonly property real barOpacity: barAwake ? shellOpacity : barRestOpacity
+    // ── Barre : un seul état ──────────────────────────────────────────────────
+    // La barre reste en permanence à l'opacité des surfaces du shell (0.65),
+    // donc au-dessus du seuil `ignore_alpha` de la règle de flou (0.30) : elle
+    // est toujours floutée. Contrairement à la capsule de repos du lanceur, il
+    // n'y a ici ni état de veille ni réveil au clic.
+    readonly property real barOpacity: shellOpacity
     readonly property color barBg: Qt.alpha(surface, barOpacity)
-
-    property Timer barSleepTimer: Timer {
-        interval: 2600
-        onTriggered: root.barAroused = false
-    }
 
     // ── Lanceur au repos ──────────────────────────────────────────────────────
     // La pilule reste posée en bas au centre, en veille à 0.2 (donc sans flou :
@@ -184,11 +177,6 @@ QtObject {
     // (et le flou) qu'à l'état de frappe, ouverte par SUPER + R ou par un clic.
     property real spotlightRestOpacity: 0.2
     readonly property color spotlightRestBg: Qt.alpha(surface, spotlightRestOpacity)
-
-    function wakeBar() {
-        root.barAroused = true
-        root.barSleepTimer.restart()
-    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 6: LIVE HYPRLAND LOOK INJECTION (hyprctl eval)
@@ -247,6 +235,7 @@ QtObject {
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
+        if (typeof data.primary_monitor === "string") root.primaryMonitor = data.primary_monitor
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir
         if (typeof data.blur_enabled === "boolean") root.blurEnabled = data.blur_enabled
         if (typeof data.blur_size === "number") root.blurSize = Math.max(1, Math.min(20, data.blur_size))

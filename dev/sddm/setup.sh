@@ -227,28 +227,39 @@ fi
 
 # ── 5. Pose dans /usr/share ──────────────────────────────────────────────────
 if [ "$INSTALL" = "1" ]; then
-    step "installation dans $SYS_THEMES"
+    step "installation du socle astronaut dans $SYS_THEMES"
+    if [ "$FAMILY" = "fedora" ]; then
+        if [ "$DRY" = "1" ]; then
+            echo "  [dry-run] ASK_SUDO=1 bash $SDDM_DIR/install.sh"
+        else
+            sudo -v   # une seule invite pour l'installation, puis pour le panneau
+            ASK_SUDO=1 bash "$SDDM_DIR/install.sh"
+        fi
+    elif [ "$DRY" = "1" ]; then
+        echo "  [dry-run] bash $SDDM_DIR/install.sh"
+    else
+        bash "$SDDM_DIR/install.sh"
+    fi
+
+    step "installation des thèmes qylock dans $SYS_THEMES"
     NAMES="$SUBSET"
     if [ -z "$NAMES" ]; then
         NAMES="$(ls -1 "$HOME/.local/share/qylock-themes" 2>/dev/null | tr '\n' ' ')"
     fi
-    [ -n "$NAMES" ] || die "aucun thème récupéré (lancer sans --no-fetch)"
-
-    # install.sh gère ses propres élévations : sudo sur Fedora (pas d'agent
-    # polkit supposé), pkexec ailleurs.
-    if [ "$FAMILY" = "fedora" ]; then
-        if [ "$DRY" = "1" ]; then
-            echo "  [dry-run] ASK_SUDO=1 bash $SDDM_DIR/install.sh --qylock $NAMES"
+    if [ -n "$NAMES" ]; then
+        if [ "$FAMILY" = "fedora" ]; then
+            if [ "$DRY" = "1" ]; then
+                echo "  [dry-run] ASK_SUDO=1 bash $SDDM_DIR/install.sh --qylock $NAMES"
+            else
+                # shellcheck disable=SC2086
+                ASK_SUDO=1 bash "$SDDM_DIR/install.sh" --qylock $NAMES
+            fi
+        elif [ "$DRY" = "1" ]; then
+            echo "  [dry-run] bash $SDDM_DIR/install.sh --qylock $NAMES"
         else
-            sudo -v   # une seule invite pour l'installation, puis pour le panneau
             # shellcheck disable=SC2086
-            ASK_SUDO=1 bash "$SDDM_DIR/install.sh" --qylock $NAMES
+            bash "$SDDM_DIR/install.sh" --qylock $NAMES
         fi
-    elif [ "$DRY" = "1" ]; then
-        echo "  [dry-run] bash $SDDM_DIR/install.sh --qylock $NAMES"
-    else
-        # shellcheck disable=SC2086
-        bash "$SDDM_DIR/install.sh" --qylock $NAMES
     fi
 fi
 

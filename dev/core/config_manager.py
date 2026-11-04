@@ -569,24 +569,69 @@ def set_quiet_notif_app(name, quiet):
 # SECTION 5: SYSTEM & DISPLAY MANAGEMENT (Monitors, Resolutions, Refresh Rates)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def filter_clean_modes(avail):
+    """Extract, deduplicate and cleanly sort monitor modes (including 1080p, 1440p, 4k)."""
+    parsed = []
+    seen = set()
+    for m in avail or []:
+        match = re.match(r"^(\d+)x(\d+)(?:@([\d.]+)(?:Hz)?)?$", str(m))
+        if not match:
+            continue
+        w, h = int(match.group(1)), int(match.group(2))
+        hz = float(match.group(3)) if match.group(3) else 60.0
+        round_hz = int(round(hz))
+        # Keep >= 720p modes (filter ancient/irrelevant sub-HD resolutions)
+        if h < 720:
+            continue
+        key = (w, h, round_hz)
+        if key not in seen:
+            seen.add(key)
+            parsed.append((w, h, round_hz))
+    # Sort descending by width, height, and refresh rate
+    parsed.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+    modes = [f"{w}x{h}@{hz}" for w, h, hz in parsed]
+    if "preferred" not in modes:
+        modes.insert(0, "preferred")
+    return modes
+
+
+def get_primary_monitor(hostname=None):
+    """Detect primary monitor name from style_vars.json or hardware-<host>.lua."""
+    style_data = load_json(STYLE_FILE)
+    if style_data.get("primary_monitor"):
+        return style_data["primary_monitor"]
+
+    if not hostname:
+        hostname = get_hostname()
+    hw_path = os.path.join(HYPR_DIR, f"hardware-{hostname}.lua")
+    if os.path.exists(hw_path):
+        try:
+            with open(hw_path, "r") as f:
+                content = f.read()
+            m = re.search(r'hl\.workspace_rule\(\{[^{}]*workspace\s*=\s*["\']1["\'][^{}]*monitor\s*=\s*["\']([^"\']+)["\']', content)
+            if m:
+                return m.group(1)
+        except Exception:
+            pass
+    return "eDP-1" if is_laptop_system() else "HDMI-A-1"
+
+
 def get_monitors_info():
     """Return active Hyprland monitors, available modes, hardware profile, and timezone/NTP info."""
     monitors = []
+    host = get_hostname()
+    prim = get_primary_monitor(host)
     out = run_cmd(["hyprctl", "monitors", "-j"])
     if out:
         try:
             raw = json.loads(out)
             for m in raw:
                 avail = m.get("availableModes") or []
-                # Pick top clean modes (deduplicated) for easy mouse selection
-                clean_modes = []
-                for mode_entry in avail:
-                    mode_short = mode_entry.replace(".00Hz", "").replace("Hz", "")
-                    if mode_short not in clean_modes:
-                        clean_modes.append(mode_short)
+                clean_modes = filter_clean_modes(avail)
+                name = m.get("name", "")
                 monitors.append(
                     {
-                        "name": m.get("name", ""),
+                        "name": name,
                         "description": m.get("description", ""),
                         "width": m.get("width", 1920),
                         "height": m.get("height", 1080),
@@ -595,7 +640,8 @@ def get_monitors_info():
                         "y": m.get("y", 0),
                         "scale": m.get("scale", 1.0),
                         "transform": m.get("transform", 0),
-                        "availableModes": clean_modes[:8],
+                        "availableModes": clean_modes,
+                        "is_primary": (name == prim),
                     }
                 )
         except Exception:
@@ -604,12 +650,63 @@ def get_monitors_info():
     tz = run_cmd(["timedatectl", "show", "-p", "Timezone", "--value"]) or "Europe/Paris"
     ntp = run_cmd(["timedatectl", "show", "-p", "NTPSynchronized", "--value"]) == "yes"
     return {
-        "hostname": get_hostname(),
+        "hostname": host,
         "is_laptop": is_laptop_system(),
         "monitors": monitors,
+        "primary": prim,
         "timezone": tz,
         "ntp": ntp,
     }
+
+
+def set_primary_monitor(output_name):
+    """Set output_name as primary monitor: bind workspaces 1..5 and persist in hardware-<host>.lua + style_vars.json."""
+    if not monitor_utils.OUTPUT_RE.match(str(output_name)):
+        return False
+
+    # 1. Update style_vars.json
+    style_data = load_json(STYLE_FILE)
+    style_data["primary_monitor"] = output_name
+    save_json(STYLE_FILE, style_data)
+
+    # 2. Update hardware-<host>.lua
+    host = get_hostname()
+    hw_path = os.path.join(HYPR_DIR, f"hardware-{host}.lua")
+    if not os.path.exists(hw_path):
+        hw_path = os.path.join(HYPR_DIR, "hardware-station.lua")
+
+    ws_names = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五"}
+    new_rules = [f"-- Workspaces assignés à l'écran principal ({output_name})"]
+    for ws, kanji in ws_names.items():
+        dflt = ", default = true" if ws == 1 else ""
+        new_rules.append(
+            f'hl.workspace_rule({{ workspace = "{ws}", monitor = "{output_name}"{dflt}, persistent = true, default_name = "{kanji}" }})'
+        )
+    new_block = "\n".join(new_rules)
+
+    if os.path.exists(hw_path):
+        try:
+            with open(hw_path, "r") as f:
+                txt = f.read()
+            rule_re = re.compile(r'-- Workspaces assignés à l\'écran principal[^\n]*\n(?:hl\.workspace_rule\([^\n]+\)\n?)+')
+            if rule_re.search(txt):
+                txt = rule_re.sub(new_block, txt)
+            else:
+                indiv_re = re.compile(r'(?:hl\.workspace_rule\(\{[^{}]*workspace\s*=\s*["\'][1-5]["\'][^{}]*\}\)\n?)+')
+                if indiv_re.search(txt):
+                    txt = indiv_re.sub(new_block + "\n", txt)
+                else:
+                    txt = txt.rstrip() + "\n\n" + new_block + "\n"
+            with open(hw_path, "w") as f:
+                f.write(txt)
+        except Exception:
+            pass
+
+    # 3. Reload Hyprland and focus the new primary monitor using Hyprland 0.57+ Lua dispatchers
+    subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(["hyprctl", "eval", f'hl.dsp.focus({{ monitor = "{output_name}" }})'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(["hyprctl", "eval", 'hl.dsp.focus({ workspace = 1 })'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    return True
 
 
 def set_monitor_profile(profile):
@@ -617,27 +714,56 @@ def set_monitor_profile(profile):
     Apply multi-monitor / TV presets for Lenovo Yoga (eDP-1) + External TV (DP-1):
       - 'dual'   : TV (DP-1 1920x1080@60 at 0x0) + Laptop (eDP-1 preferred at 1920x0)
       - 'tv'     : TV only (disable eDP-1, enable DP-1 at 0x0)
-      - 'laptop' : Laptop only (enable eDP-1 preferred at 0x0)
+      - 'laptop' : Laptop only (disable DP-1, enable eDP-1 preferred at 0x0)
     """
+    all_mons = monitor_utils.hyprctl_json("monitors", "all") or []
+    ext_mon = None
+    for m in all_mons:
+        name = m.get("name", "")
+        if name and not name.startswith("eDP"):
+            ext_mon = name
+            break
+    if not ext_mon:
+        ext_mon = "DP-1"
+
     if profile == "dual":
         cmds = [
-            'hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })',
-            'hl.monitor({ output = "eDP-1", mode = "preferred", position = "1920x0", scale = 1, transform = 0 })',
+            f'hl.monitor({{ output = "{ext_mon}", disabled = false, mode = "1920x1080@60", position = "0x0", scale = 1, bitdepth = 10 }})',
+            'hl.monitor({ output = "eDP-1", disabled = false, mode = "preferred", position = "1920x0", scale = 1, transform = 0 })',
+            f'hl.dsp.focus({{ monitor = "{ext_mon}" }})',
+            'hl.dsp.focus({ workspace = 1 })',
         ]
+        target_prim = ext_mon
     elif profile == "tv":
         cmds = [
-            'hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "0x0", scale = 1 })',
-            'hl.monitor({ output = "eDP-1", mode = "disable" })',
+            f'hl.monitor({{ output = "{ext_mon}", disabled = false, mode = "1920x1080@60", position = "0x0", scale = 1, bitdepth = 10 }})',
+            'hl.monitor({ output = "eDP-1", disabled = true })',
+            f'hl.dsp.focus({{ monitor = "{ext_mon}" }})',
+            'hl.dsp.focus({ workspace = 1 })',
         ]
+        target_prim = ext_mon
     elif profile == "laptop":
         cmds = [
-            'hl.monitor({ output = "eDP-1", mode = "preferred", position = "0x0", scale = 1, transform = 0 })',
+            f'hl.monitor({{ output = "{ext_mon}", disabled = true }})',
+            'hl.monitor({ output = "eDP-1", disabled = false, mode = "preferred", position = "0x0", scale = 1, transform = 0 })',
+            'hl.dsp.focus({ monitor = "eDP-1" })',
+            'hl.dsp.focus({ workspace = 1 })',
         ]
+        target_prim = "eDP-1"
     else:
         return False
 
     for c in cmds:
         subprocess.run(["hyprctl", "eval", c], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+
+    try:
+        style_data = load_json(STYLE_FILE)
+        if style_data.get("primary_monitor") != target_prim:
+            style_data["primary_monitor"] = target_prim
+            save_json(STYLE_FILE, style_data)
+    except Exception:
+        pass
+
     return True
 
 
@@ -992,6 +1118,9 @@ if __name__ == "__main__":
         print(json.dumps({"ok": True, "quiet_notif_apps": new_list}))
     elif action == "gaps" and len(sys.argv) > 3:
         update_hypr_gaps(sys.argv[2], sys.argv[3])
+        print(json.dumps(get_full_config_state()))
+    elif action == "monitor_primary" and len(sys.argv) > 2:
+        set_primary_monitor(sys.argv[2])
         print(json.dumps(get_full_config_state()))
     elif action == "monitor_profile" and len(sys.argv) > 2:
         set_monitor_profile(sys.argv[2])
