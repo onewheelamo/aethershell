@@ -98,6 +98,23 @@ Item {
         return { kind: kind, name: name, exec: exec, icon: icon, tag: tag }
     }
 
+    // Icône d'un alias : le nom de la commande n'est pas forcément celui de l'icône.
+    // « ghostty » installe son icône sous « com.mitchellh.ghostty », donc
+    // `image://icon/ghostty` ne rend rien. On cherche donc l'entrée du même binaire
+    // dans app_index.json (qui porte le nom d'icône du fichier .desktop).
+    function iconForCommand(cmd) {
+        const bin = String(cmd || "").trim().split(/\s+/)[0]
+        if (bin === "") return ""
+        const target = bin.toLowerCase()
+        for (let i = 0; i < root.appIndex.length; ++i) {
+            const app = root.appIndex[i]
+            const appBin = String(app.exec || "").trim().split(/\s+/)[0].toLowerCase()
+            if (appBin === target && app.icon)
+                return String(app.icon)
+        }
+        return bin
+    }
+
     function build() {
         const q = String(root.query).trim()
 
@@ -135,7 +152,7 @@ Item {
             if (score >= 0) {
                 scored.push({
                     entry: root.entry("alias", name, cmd,
-                                      cmd.trim().split(/\s+/)[0], "alias"),
+                                      root.iconForCommand(cmd), "alias"),
                     score: score,
                 })
             }
