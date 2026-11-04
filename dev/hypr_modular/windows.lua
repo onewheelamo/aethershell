@@ -23,16 +23,24 @@ hl.window_rule({
 -- Workspaces permanents 1 à 5 : assignés par hardware-<host>.lua à l'écran principal
 -- (évite de réécraser la contrainte de moniteur définie par le profil matériel)
 
-hl.window_rule({ name = "firefox", match = { class = "^(firefox|Firefox)$" }, workspace = "2" })
+hl.window_rule({ name = "firefox", match = { class = "(?i).*firefox.*" }, workspace = "2" })
 hl.window_rule({ name = "pavucontrol", float = true, center = true })
 
 -- Exceptions d'opacité (1.0) et inhibition de mise en veille (Firefox, OnlyOffice, Vidéo)
--- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` force l'opacité
--- malgré la transparence globale (decoration.active_opacity / inactive_opacity).
+-- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` met
+-- active/inactive/fullscreen_opacity à 1 pour la fenêtre, `opacity = "1.0 override"`
+-- force l'alpha de façon absolue. Les deux, pour ne pas dépendre d'un seul mécanisme.
+-- Deux pièges qui se cumulent, mesurés sur portable :
+--   1. la classe est comparée en **match complet** (pas une recherche) : « firefox »
+--      ne matche pas « org.mozilla.firefox », il faut `.*firefox.*` ;
+--   2. Firefox natif Wayland se déclare `org.mozilla.firefox` alors qu'en XWayland
+--      il se déclare `firefox` — une règle écrite sur une machine ne matchait rien
+--      sur l'autre, et la fenêtre ne redevenait opaque qu'en plein écran
+--      (decoration.fullscreen_opacity = 1).
 hl.window_rule({ name = "idle-fullscreen", match = { class = ".*", fullscreen = true }, idle_inhibit = "fullscreen" })
-hl.window_rule({ name = "idle-firefox", match = { class = "(?i)firefox" }, idle_inhibit = "focus" })
+hl.window_rule({ name = "idle-firefox", match = { class = "(?i).*firefox.*" }, idle_inhibit = "focus" })
 
-hl.window_rule({ name = "opaque-firefox", match = { class = "(?i)^(firefox|Firefox)$" }, opaque = true })
-hl.window_rule({ name = "opaque-zen", match = { class = "(?i)zen" }, opaque = true })
-hl.window_rule({ name = "opaque-onlyoffice", match = { class = "(?i).*onlyoffice.*" }, opaque = true })
-hl.window_rule({ name = "opaque-video", match = { class = "(?i)(mpv|vlc|totem|celluloid|haruna)" }, opaque = true })
+hl.window_rule({ name = "opaque-firefox", match = { class = "(?i).*firefox.*" }, opaque = true, opacity = "1.0 override" })
+hl.window_rule({ name = "opaque-zen", match = { class = "(?i).*zen.*" }, opaque = true, opacity = "1.0 override" })
+hl.window_rule({ name = "opaque-onlyoffice", match = { class = "(?i).*onlyoffice.*" }, opaque = true, opacity = "1.0 override" })
+hl.window_rule({ name = "opaque-video", match = { class = "(?i).*(mpv|vlc|totem|celluloid|haruna).*" }, opaque = true, opacity = "1.0 override" })
