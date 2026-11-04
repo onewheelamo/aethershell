@@ -36,6 +36,10 @@ QtObject {
     // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
     // dans main.qml à partir de cette clé et de la largeur de la capsule.
     property string launcherPosition: "bas-centre"
+    // Widgets de bureau (core/widgets.json) : liste de dicts
+    // { id, type, workspace, x, y, enabled, options }. main.qml en fait une
+    // surface par entrée.
+    property var widgets: []
     property string primaryMonitor: ""
     property string wallpaperDir: "$HOME/Images/wallpapers/"
 
@@ -58,6 +62,11 @@ QtObject {
     readonly property int iconSm: 14
     readonly property int iconMd: 16
     readonly property int iconLg: 22
+
+    // Widgets de bureau : échelle à part, la barre n'a rien au-dessus de 22 px.
+    readonly property int widgetClock: 64    // heure d'un widget d'horloge
+    readonly property int widgetClockSm: 30  // secondes, à la même ligne de base
+    readonly property int widgetDate: 26     // date seule sur le bureau
 
     // Rythme : multiples de 4, gouttière d'écran = 8
     readonly property int space1: 4
@@ -240,6 +249,7 @@ QtObject {
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.launcher_position === "string" && data.launcher_position.length > 0) root.launcherPosition = data.launcher_position
+        if (Array.isArray(data.widgets)) root.widgets = data.widgets
         if (typeof data.primary_monitor === "string") root.primaryMonitor = data.primary_monitor
         if (typeof data.wallpaper_dir === "string" && data.wallpaper_dir.length > 0) root.wallpaperDir = data.wallpaper_dir
         if (typeof data.blur_enabled === "boolean") root.blurEnabled = data.blur_enabled
@@ -284,6 +294,24 @@ QtObject {
                 root.applyPaletteData(parsed)
             } catch (e) {
                 console.warn("Theme.qml: Failed to parse core/style_vars.json:", e)
+            }
+        }
+    }
+
+    // Widgets de bureau : fichier d'état séparé, surveillé comme style_vars.
+    // Sans ce FileView, une entrée ajoutée par le panneau n'atteindrait jamais
+    // le rendu (le shell ne relit pas les fichiers qu'il ne surveille pas).
+    property FileView widgetsFile: FileView {
+        path: Quickshell.shellPath("core/widgets.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.widgets = Array.isArray(parsed.widgets) ? parsed.widgets : []
+            } catch (e) {
+                console.warn("Theme.qml: Failed to parse core/widgets.json:", e)
             }
         }
     }

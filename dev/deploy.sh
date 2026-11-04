@@ -68,7 +68,7 @@ esac
 
 # 3. Preservation logic
 MARKER="$CURRENT_HYPR/.quickshell_managed"
-PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json"
+PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
 # programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et
@@ -325,6 +325,13 @@ deploy_new_env() {
     cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"
     cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
     cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
+
+    # Widgets de bureau : un composant par type, chargés par URL depuis
+    # `widgets/<type>.qml` — donc copiés en bloc, et sans entrée qmldir.
+    if [ -d "$DEV_DIR/widgets" ]; then
+        mkdir -p "$QS_DIR/widgets"
+        cp -f "$DEV_DIR/widgets/"*.qml "$QS_DIR/widgets/" 2>/dev/null || true
+    fi
 
     local qs_manifest
     qs_manifest=$(mktemp)

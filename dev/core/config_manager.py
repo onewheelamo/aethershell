@@ -35,6 +35,7 @@ import tablet_mode_daemon  # noqa: E402
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEV_ROOT = os.path.dirname(BASE_DIR)
 STYLE_FILE = os.path.join(BASE_DIR, "style_vars.json")
+WIDGETS_FILE = os.path.join(BASE_DIR, "widgets.json")
 APP_VARS_FILE = os.path.join(BASE_DIR, "app_vars.json")
 AUTOSTART_FILE = os.path.join(BASE_DIR, "autostart.json")
 ROFI_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_rofi_theme.sh")
@@ -1074,6 +1075,83 @@ def sync_programs_lua(app_data):
 # SECTION 9: FULL STATE AGGREGATION & CLI DISPATCHER
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 8B: WIDGETS DE BUREAU (core/widgets.json)
+# ─────────────────────────────────────────────────────────────────────────────
+# Fichier d'état préservé au déploiement (PRESERVE_CORE). Chaque entrée devient
+# une surface layer `shell-widget` en couche Bottom, une par widget.
+WIDGET_TYPES = ("horloge", "date", "meteo", "combo")
+
+
+def load_widgets():
+    data = load_json(WIDGETS_FILE)
+    items = data.get("widgets") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return []
+    return [w for w in items if isinstance(w, dict) and w.get("type")]
+
+
+def save_widgets(items):
+    save_json(WIDGETS_FILE, {"widgets": items})
+    return items
+
+
+def widget_add(wtype, workspace=1, x=120, y=160):
+    wtype = str(wtype)
+    if wtype not in WIDGET_TYPES:
+        raise SystemExit(f"type de widget inconnu: {wtype} (attendu: {', '.join(WIDGET_TYPES)})")
+    items = load_widgets()
+    wid = f"{wtype}-{len(items) + 1}"
+    while any(w.get("id") == wid for w in items):
+        wid += "x"
+    items.append({
+        "id": wid, "type": wtype, "workspace": int(workspace),
+        "x": int(x), "y": int(y), "enabled": True, "options": {},
+    })
+    save_widgets(items)
+    return wid
+
+
+def _widget_update(wid, mutate):
+    items = load_widgets()
+    for w in items:
+        if w.get("id") == wid:
+            mutate(w)
+            save_widgets(items)
+            return w
+    raise SystemExit(f"widget inconnu: {wid}")
+
+
+def widget_set(wid, key, value):
+    def mutate(w):
+        if key in ("x", "y", "workspace"):
+            w[key] = int(float(value))
+        elif key == "enabled":
+            w[key] = str(value).lower() in ("true", "1", "yes")
+        elif key == "type":
+            if str(value) not in WIDGET_TYPES:
+                raise SystemExit(f"type de widget inconnu: {value}")
+            w[key] = str(value)
+        elif key == "id":
+            w[key] = str(value)
+        else:
+            # Tout le reste va dans options (secondes, ville…).
+            w.setdefault("options", {})[key] = value
+    return _widget_update(wid, mutate)
+
+
+def widget_move(wid, x, y):
+    def mutate(w):
+        w["x"], w["y"] = int(float(x)), int(float(y))
+    return _widget_update(wid, mutate)
+
+
+def widget_remove(wid):
+    items = [w for w in load_widgets() if w.get("id") != wid]
+    save_widgets(items)
+    return len(items)
+
+
 def get_full_config_state():
     style_data = load_json(STYLE_FILE)
     kb = get_kb_layout()
@@ -1086,6 +1164,7 @@ def get_full_config_state():
         "show_config_button": bool(style_data.get("show_config_button", True)),
         "bar_height": int(style_data.get("bar_height", 40)),
         "launcher_position": style_data.get("launcher_position", "bas-centre"),
+        "widgets": load_widgets(),
         "global_radius": int(style_data.get("global_radius", 2)),
         "global_opacity": float(style_data.get("global_opacity", 0.7)),
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
@@ -1124,6 +1203,19 @@ if __name__ == "__main__":
     elif action == "panel_section" and len(sys.argv) > 3:
         set_panel_section(sys.argv[2], sys.argv[3] == "true")
         print(json.dumps(get_full_config_state()))
+    elif action == "widget_list":
+        print(json.dumps(load_widgets()))
+    elif action == "widget_add" and len(sys.argv) > 2:
+        ws = sys.argv[3] if len(sys.argv) > 3 else 1
+        wx = sys.argv[4] if len(sys.argv) > 4 else 120
+        wy = sys.argv[5] if len(sys.argv) > 5 else 160
+        print(widget_add(sys.argv[2], ws, wx, wy))
+    elif action == "widget_set" and len(sys.argv) > 4:
+        print(json.dumps(widget_set(sys.argv[2], sys.argv[3], sys.argv[4])))
+    elif action == "widget_move" and len(sys.argv) > 4:
+        print(json.dumps(widget_move(sys.argv[2], sys.argv[3], sys.argv[4])))
+    elif action == "widget_remove" and len(sys.argv) > 2:
+        print(widget_remove(sys.argv[2]))
     elif action == "style" and len(sys.argv) > 3:
         update_style_var(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))

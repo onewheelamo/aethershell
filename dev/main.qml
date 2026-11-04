@@ -367,6 +367,59 @@ Item {
         }
     }
 
+    // ────────────────────────────────────────────────────────────────────────
+    // WIDGETS DE BUREAU — une surface layer par entrée de core/widgets.json.
+    // Couche `Bottom`, jamais le clavier : le widget vit derrière les fenêtres et
+    // n'est cliquable que là où rien ne le couvre. Sa taille suit son contenu :
+    // une surface layer consomme les clics sur toute son étendue, donc une
+    // fenêtre plus grande que le widget rendrait le bureau incliquable.
+    // ────────────────────────────────────────────────────────────────────────
+    Variants {
+        model: Theme.widgets
+
+        PanelWindow {
+            id: widgetWindow
+            required property var modelData
+
+            readonly property var w: modelData || ({})
+
+            screen: topBarWindow.screen
+            visible: w.enabled !== false
+                     && (Number(w.workspace) === 0
+                         || (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === Number(w.workspace)))
+
+            anchors { top: true; left: true }
+            margins.top: Number(w.y) || 0
+            margins.left: Number(w.x) || 0
+            // La surface épouse le contenu : c'est le widget qui décide, pas la
+            // fenêtre (une surface plus grande rendrait le bureau incliquable).
+            implicitWidth: widgetLoader.implicitWidth
+            implicitHeight: widgetLoader.implicitHeight
+            exclusionMode: ExclusionMode.Ignore
+            color: "transparent"
+            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            WlrLayershell.namespace: "shell-widget"
+
+            Loader {
+                id: widgetLoader
+                // Surtout pas `anchors.fill: parent` : le Loader imposerait sa
+                // taille (1×1 au premier paint) au widget, qui resterait écrasé
+                // (pitfall 68). Ici le contenu garde sa taille implicite et la
+                // fenêtre suit.
+                anchors.top: parent.top
+                anchors.left: parent.left
+                source: widgetWindow.w.type ? ("widgets/" + widgetWindow.w.type + ".qml") : ""
+                onLoaded: {
+                    if (item) {
+                        item.options = widgetWindow.w.options || ({})
+                        item.widgetId = widgetWindow.w.id || ""
+                    }
+                }
+            }
+        }
+    }
+
     // First-Run Keyboard Layout Selection Window (100% Mouse Operated)
     PanelWindow {
         id: firstRunOverlayWindow
