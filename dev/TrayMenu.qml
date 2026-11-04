@@ -79,6 +79,10 @@ Item {
         visible: root.opened
         screen: topBarWindow.screen
         anchors { top: true; bottom: true; left: true; right: true }
+        // L'attrapeur commence SOUS la barre : la barre reste cliquable, donc un
+        // clic droit sur une autre icône ouvre son menu et remplace celui-ci au
+        // lieu d'exiger un clic dans le vide d'abord.
+        margins.top: Theme.barHeight + 12
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay

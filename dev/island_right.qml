@@ -607,9 +607,15 @@ Item {
                                     if (trayDelegate.modelData.hasMenu && win) {
                                         // Pas `display()` : la fenêtre interne de Quickshell
                                         // rend un menu blanc sans nos tokens (TrayMenu.qml).
-                                        trayMenu.open(trayDelegate.modelData, pt.x, pt.y)
+                                        // Même icône : referme. Autre icône : remplace le menu.
+                                        if (trayMenu.opened && trayMenu.trayItem === trayDelegate.modelData)
+                                            trayMenu.close()
+                                        else
+                                            trayMenu.open(trayDelegate.modelData, pt.x, pt.y)
                                     }
                                 } else if (mouse.button === Qt.LeftButton) {
+                                    if (trayMenu.opened)
+                                        trayMenu.close()
                                     trayDelegate.modelData.activate()
                                 } else if (mouse.button === Qt.MiddleButton) {
                                     trayDelegate.modelData.secondaryActivate()
