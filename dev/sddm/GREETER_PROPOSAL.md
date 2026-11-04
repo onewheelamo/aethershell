@@ -109,6 +109,51 @@ cela tue la session en cours.
 - `magick` affiche un `ParseError missing >` en lisant le JPEG source : sans effet,
   le PNG généré est valide (dimensions et luminance contrôlées).
 
+## Thèmes complets qylock (SDDM seulement)
+
+Amont : https://github.com/Darkkal44/qylock (GPL-3.0) — 39 thèmes sous `themes/`,
+~595 Mo, essentiellement des fonds vidéo. **Seul `themes/` est utilisé** : la
+version écran de veille du dépôt (`quickshell-lockscreen/`, `lock.sh` + QML
+hyprlock) n'est pas reprise, la session a déjà son verrou.
+
+Chaque thème est autonome (`Main.qml`, `theme.conf`, `bg.png`, `font/`) et ne
+demande que des modules déjà présents : `SddmComponents 2.0`,
+`Qt5Compat.GraphicalEffects` (`qt6-5compat`), `Qt.labs.folderlistmodel`.
+
+```
+dev/sddm/
+  qylock.py       # catalogue + récupération à la demande (jamais versionnée)
+  install.sh --qylock <nom…>   # pose dans /usr/share + helper polkit
+  thumbnails.sh   # miniatures des deux familles (astronaut et qylock)
+```
+
+- `qylock.py list` / `fetch <nom…>` / `fetch --static` (refuse un fond vidéo) /
+  `fetch --all`. Cache : `~/.local/share/qylock-themes/<nom>/`, arbre GitHub
+  dans `~/.cache/quickshell/qylock-tree.json` (`QYLOCK_REFRESH=1` pour rafraîchir).
+- `clockwork` contient trois thèmes (orbital, neo-orbital, tape) : SDDM ne sait
+  nommer qu'un dossier de premier niveau dans `Current=`, ils sont donc installés
+  aplatis en `clockwork-<variante>`.
+- `install.sh --qylock` réinstalle aussi `greeter-palette` et sa règle polkit :
+  l'ancienne version du helper ne connaissait que les confs astronaut et
+  refusait un thème complet.
+- Miniatures : `greeter_manager.py sources` donne la liste `id → dossier`, que
+  `thumbnails.sh` capture une par une en mode test. Un thème seulement récupéré
+  (pas encore installé) est listé avec le suffixe « (à installer) ».
+
+### État mesuré le 04/11/2026
+
+Installés : `clockwork-orbital`, `clockwork-neo-orbital`, `clockwork-tape`,
+`field`, `material-you`, `material-you-dark`, `nothing` — plus `ryoku`, déjà
+présent dans `/usr/share/sddm/themes` et reconnu comme qylock via
+`Author=Darkkal44` dans sa metadata. Les sept variantes ont été rendues en mode
+test (Qt 6.12) avant installation, puis une capture depuis
+`/usr/share/sddm/themes/nothing` a confirmé que la copie root:root se rend.
+
+Sélection vérifiée de bout en bout : `greeter_manager.py apply nothing` →
+`Current=nothing`, `list` renvoie `active=nothing` ; retour à `pixel_sakura`
+(astronaut) ensuite, donc le drop-in `/etc/sddm.conf.d/10-sddm-theme.conf`
+alterne bien entre les deux familles.
+
 ## Autre machine que le desktop (Fedora)
 
 Rien de ce pipeline n'est joué par `deploy.sh` : il vit dans `dev/sddm/` et

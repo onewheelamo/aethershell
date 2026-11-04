@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
-# Génère les miniatures du greeter : une capture 480×270 par configuration.
+# Génère les miniatures du greeter : une capture 480×270 par thème.
 #
-#   bash dev/sddm/thumbnails.sh               toutes les confs du thème
-#   bash dev/sddm/thumbnails.sh palette       une seule
+#   bash dev/sddm/thumbnails.sh              tout ce que le panneau liste
+#   bash dev/sddm/thumbnails.sh palette      une seule configuration
+#   bash dev/sddm/thumbnails.sh nothing      un thème qylock
 #
-# Chaque conf est prévisualisée par sddm-greeter-qt6 en mode test, sur une copie
-# jetable du thème (liens durs), puis capturée avec grim. Les fenêtres du greeter
-# prennent l'écran quelques secondes : lancer la commande quand personne ne
-# travaille dessus.
+# Le panneau liste deux familles : les configurations du thème astronaut
+# (couleurs/police dans Themes/*.conf) et les thèmes complets récupérés par
+# dev/sddm/qylock.py (un dossier QML autonome, miniatures lues dans le cache
+# ou dans /usr/share). core/greeter_manager.py `sources` donne la liste —
+# c'est lui qui décide de l'identifiant affiché, donc les noms de fichiers ici
+# correspondent exactement à ceux que le panneau cherche.
+#
+# Chaque thème est prévisualisé par sddm-greeter-qt6 en mode test, sur une copie
+# jetable, puis capturé avec grim. Les fenêtres du greeter prennent l'écran
+# quelques secondes : lancer la commande quand personne ne travaille dessus.
 
 set -euo pipefail
 
+DEV="$(cd "$(dirname "$0")/.." && pwd)"
 THEME="/usr/share/sddm/themes/sddm-astronaut-theme"
 OUT="$HOME/.cache/quickshell/greeter-thumbs"
 SIZE="480x270"
@@ -23,25 +31,26 @@ command -v magick >/dev/null || die "magick requis"
 
 mkdir -p "$OUT"
 
-if [ "$#" -gt 0 ]; then
-    ids=("$@")
-else
-    mapfile -t ids < <(find "$THEME/Themes" -maxdepth 1 -name '*.conf' -printf '%f\n' \
-        | sed 's/\.conf$//' | sort)
-fi
+# sources : une ligne « id<TAB>dossier<TAB>astronaut|qylock » par thème.
+mapfile -t rows < <(python3 "$DEV/core/greeter_manager.py" sources "$@")
+[ "${#rows[@]}" -gt 0 ] || die "aucun thème à prévisualiser${*:+ : $*}"
 
-for id in "${ids[@]}"; do
-    conf="$THEME/Themes/$id.conf"
-    [ -f "$conf" ] || { echo "ignoré (conf absente) : $id"; continue; }
+for row in "${rows[@]}"; do
+    IFS=$'\t' read -r id src kind <<< "$row"
 
     # /usr est sur un autre système de fichiers que /home : les liens durs
     # échouent depuis TMPDIR, d'où /var/tmp (même volume, mktemp crée en 700).
     tmp="$(mktemp -d /var/tmp/greeter-thumb-XXXXXX)"
     # Liens durs impossibles (fichiers root, fs.protected_hardlinks=1) : copie
     # réelle, en reflink quand le volume est en copy-on-write.
-    cp -a --reflink=auto "$THEME/." "$tmp/"
-    # Le mode test suit metadata.desktop : on pointe la copie sur la conf voulue.
-    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$tmp/metadata.desktop"
+    cp -a --reflink=auto "$src/." "$tmp/"
+
+    # Le mode test suit metadata.desktop. Un thème qylock n'a qu'une conf : sa
+    # metadata la nomme déjà. Les confs astronaut partagent un dossier, c'est
+    # donc la copie qu'on pointe sur celle que l'on veut capturer.
+    if [ "$kind" = "astronaut" ]; then
+        sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$tmp/metadata.desktop"
+    fi
 
     QT_QPA_PLATFORM=wayland timeout 9 sddm-greeter-qt6 --test-mode --theme "$tmp" \
         >/dev/null 2>&1 &

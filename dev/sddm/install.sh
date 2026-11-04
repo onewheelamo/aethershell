@@ -4,6 +4,7 @@
 #
 #   bash dev/sddm/install.sh              installation complète (une invite polkit)
 #   bash dev/sddm/install.sh --colors-only # palette + fond seuls, après un changement
+#   bash dev/sddm/install.sh --qylock <nom…> # thèmes qylock récupérés (qylock.py)
 #   ASK_SUDO=1 bash dev/sddm/install.sh   # machine sans agent polkit (sudo à la place)
 #
 # Prérequis : le thème sddm-astronaut installé dans /usr/share/sddm/themes/.
@@ -32,6 +33,53 @@ RUNNER="pkexec"
 [ "${ASK_SUDO:-0}" = "1" ] && RUNNER="sudo"
 
 die() { echo "install.sh: $*" >&2; exit 1; }
+
+# --qylock : installe dans /usr/share/sddm/themes des thèmes récupérés par
+# dev/sddm/qylock.py. Ne touche pas à la sélection courante — le panneau
+# (onglet Connexion) le fait ensuite par le helper polkit. Les variantes d'un
+# même thème (clockwork en contient trois) sont aplaties en <thème>-<variante> :
+# SDDM ne sait nommer qu'un dossier de premier niveau dans Current=.
+if [ "${1:-}" = "--qylock" ]; then
+    shift
+    [ "$#" -gt 0 ] || die "aucun thème nommé (bash dev/sddm/install.sh --qylock <nom…>)"
+    QCACHE="$HOME/.local/share/qylock-themes"
+    QSTAGE="$(mktemp -d)"
+    trap 'rm -rf "$QSTAGE"' EXIT
+    {
+        echo '#!/bin/bash'
+        echo 'set -euo pipefail'
+        # Le helper et sa règle polkit : sans eux le panneau ne peut pas
+        # sélectionner un thème complet (l'ancienne version ne connaissait que
+        # les confs astronaut). Réinstallés à chaque fois pour rester alignés
+        # sur le dépôt.
+        echo "install -Dm755 '$DEV/greeter-palette' /usr/local/bin/greeter-palette"
+        echo "install -Dm644 '$DEV/50-greeter-palette.rules' /etc/polkit-1/rules.d/50-greeter-palette.rules"
+        for name in "$@"; do
+            src="$QCACHE/$name"
+            [ -d "$src" ] || die "thème non récupéré : $name (python3 dev/sddm/qylock.py fetch $name)"
+            for sub in "$src"/*/; do
+                [ -f "$sub/metadata.desktop" ] || continue
+                dst="$name-$(basename "${sub%/}")"
+                echo "rm -rf '/usr/share/sddm/themes/$dst'"
+                echo "cp -a '${sub%/}' '/usr/share/sddm/themes/$dst'"
+                echo "chown -R root:root '/usr/share/sddm/themes/$dst'"
+            done
+            if [ -f "$src/metadata.desktop" ]; then
+                echo "rm -rf '/usr/share/sddm/themes/$name'"
+                echo "cp -a '$src' '/usr/share/sddm/themes/$name'"
+                echo "chown -R root:root '/usr/share/sddm/themes/$name'"
+            fi
+        done
+    } > "$QSTAGE/root.sh"
+    bash -n "$QSTAGE/root.sh" || die "script root invalide"
+    echo "▶ installation des thèmes qylock (une invite $RUNNER)"
+    "$RUNNER" bash "$QSTAGE/root.sh"
+    echo
+    echo "thèmes présents dans /usr/share/sddm/themes :"
+    ls -1d /usr/share/sddm/themes/*/ 2>/dev/null | sed 's|.*/themes/||; s|/$||; s|^|  |'
+    echo "(sélection : panneau → Connexion, ou greeter_manager.py apply <nom>)"
+    exit 0
+fi
 
 if [ ! -d "$THEME" ]; then
     if command -v dnf >/dev/null; then

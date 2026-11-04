@@ -25,13 +25,22 @@ cmd="${1:-}"
 case "$cmd" in
 apply)
     id="${2:-}"
-    # Identifiant strict : lettres minuscules, chiffres et souligné.
-    [[ "$id" =~ ^[a-z0-9_]+$ ]] || die "identifiant invalide"
-    conf="$THEME/Themes/$id.conf"
-    [ -f "$conf" ] || die "configuration inconnue : $id"
-    sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$THEME/metadata.desktop"
+    # Identifiant strict : minuscules, chiffres, souligné et tiret (les thèmes
+    # complets de qylock sont nommés material-you-dark, clockwork-orbital…).
+    [[ "$id" =~ ^[a-z0-9_-]+$ ]] || die "identifiant invalide"
+    if [ -f "$THEME/Themes/$id.conf" ]; then
+        # Conf du thème astronaut : c'est la metadata qui désigne le fichier.
+        sed -i "s|^ConfigFile=.*|ConfigFile=Themes/$id.conf|" "$THEME/metadata.desktop"
+        current="sddm-astronaut-theme"
+    elif [ -d "/usr/share/sddm/themes/$id" ] && [ -f "/usr/share/sddm/themes/$id/metadata.desktop" ]; then
+        # Thème complet (qylock) : sa propre metadata porte déjà son ConfigFile,
+        # il suffit de nommer son dossier.
+        current="$id"
+    else
+        die "configuration inconnue : $id"
+    fi
     mkdir -p "$(dirname "$SDDM_CONF")"
-    printf '[Theme]\nCurrent=sddm-astronaut-theme\n' > "$SDDM_CONF"
+    printf '[Theme]\nCurrent=%s\n' "$current" > "$SDDM_CONF"
     echo "appliqué : $id"
     ;;
 
