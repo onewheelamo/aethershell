@@ -76,16 +76,40 @@ Item {
     }
 
     function refreshWorkspacesFromHyprland() {
+        // Occupation réelle : le nombre de toplevels par workspace. La version
+        // précédente marquait `occupied: true` pour tout workspace présent dans
+        // Hyprland.workspaces, sans clé `windows` — or le délégué considère
+        // « occupé » dès que `windows` est absent. Hyprland liste brièvement les
+        // workspaces qu'il vient de créer ou de quitter : d'où le point qui
+        // clignotait sous un bureau vide pendant un changement de workspace.
+        const counts = {}
+        if (Hyprland.toplevels && Hyprland.toplevels.values) {
+            const tops = Hyprland.toplevels.values
+            for (let i = 0; i < tops.length; i++) {
+                const t = tops[i]
+                const wid = (t && t.workspace) ? t.workspace.id : -1
+                if (wid > 0)
+                    counts[wid] = (counts[wid] || 0) + 1
+            }
+        }
+
         const nextMap = {}
         if (Hyprland.workspaces && Hyprland.workspaces.values) {
             const list = Hyprland.workspaces.values
             for (let i = 0; i < list.length; i++) {
                 const w = list[i]
                 if (!w || w.id <= 0) continue
+                const prev = (wsStateMap || {})[w.id]
+                // Le modèle des toplevels est la source fiable ; à défaut on garde
+                // le dernier compte connu plutôt que d'inventer « occupé ».
+                const n = (counts[w.id] !== undefined)
+                    ? counts[w.id]
+                    : (prev && prev.windows !== undefined ? prev.windows : 0)
                 nextMap[w.id] = {
                     active: w.active || w.focused || (w.id === activeWorkspaceId),
                     urgent: Boolean(w.urgent),
-                    occupied: true
+                    occupied: n > 0,
+                    windows: n
                 }
             }
         }
