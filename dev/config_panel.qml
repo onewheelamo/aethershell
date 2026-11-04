@@ -1875,7 +1875,7 @@ Rectangle {
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        width: parent.width - 90
+                                        width: parent.width - 14 - 18 - Theme.space2 * 2
                                         text: widgetCard.wtype.charAt(0).toUpperCase()
                                               + widgetCard.wtype.slice(1) + "  ·  " + widgetCard.wid
                                         color: Theme.fg
@@ -1883,16 +1883,22 @@ Rectangle {
                                         font.bold: true
                                         elide: Text.ElideRight
                                     }
+                                    // Suppression : la croix seule. Le libellé « Retirer » et
+                                    // son ancre à droite dans la Row cassaient la mise en page.
                                     Text {
+                                        id: removeIcon
                                         anchors.verticalCenter: parent.verticalCenter
-                                        width: 74
-                                        text: "✕ Retirer"
-                                        color: Qt.alpha(Theme.error, 0.75)
-                                        font.pixelSize: Theme.textXs
+                                        width: 18
                                         horizontalAlignment: Text.AlignRight
+                                        text: "✕"
+                                        color: removeMa.containsMouse ? Theme.error
+                                                                     : Qt.alpha(Theme.error, 0.80)
+                                        font.pixelSize: Theme.textSm
 
                                         MouseArea {
+                                            id: removeMa
                                             anchors.fill: parent
+                                            anchors.margins: -6
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: root.runConfigCmd(["widget_remove", widgetCard.wid])
@@ -1973,7 +1979,7 @@ Rectangle {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - 56 - 240 - Theme.space2 * 3
                                         value: widgetCard.wOpacity
-                                        minimumValue: 0.1
+                                        minimumValue: 0.0
                                         maximumValue: 1.0
                                         stepSize: 0.05
                                         decimals: 2

@@ -462,7 +462,7 @@ Item {
             readonly property var w: modelData || ({})
 
             screen: topBarWindow.screen
-            visible: w.enabled !== false
+            visible: w.enabled !== false && cardOpacity > 0
                      && (Number(w.workspace) === 0
                          || (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === Number(w.workspace)))
 
@@ -473,7 +473,13 @@ Item {
             // donc au-dessus du seuil de flou 0,30). Le padding fait partie de
             // la surface : il consomme les clics, il reste donc serré (18 px).
             readonly property int pad: 18
-            readonly property real cardOpacity: Number(w.opacity) > 0 ? Number(w.opacity) : 0.35
+            // 0 est une valeur légitime : l'opacité pilote le widget entier (carte
+            // + contenu), et à 0 la surface n'est plus mappée — sinon on garderait
+            // une zone morte invisible qui avale les clics du bureau.
+            readonly property bool hasOpacity: w.opacity !== undefined && w.opacity !== null
+                                               && !isNaN(Number(w.opacity))
+            readonly property real cardOpacity: hasOpacity
+                ? Math.max(0, Math.min(1, Number(w.opacity))) : 0.35
             implicitWidth: widgetLoader.implicitWidth + pad * 2
             implicitHeight: widgetLoader.implicitHeight + pad * 2
             exclusionMode: ExclusionMode.Ignore
@@ -487,12 +493,17 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: Theme.globalRadius
+                // La carte suit l'opacité choisie ; le contenu garde sa lisibilité
+                // au-dessus de 0,35 et ne se met à pâlir qu'en dessous — à 0 tout
+                // disparaît, ce qui est le sens de « complètement transparent ».
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
 
                 Loader {
                     id: widgetLoader
+                    opacity: widgetWindow.cardOpacity >= 0.35
+                             ? 1 : (widgetWindow.cardOpacity / 0.35)
                     // Surtout pas `anchors.fill: parent` : le Loader imposerait sa
                     // taille (1×1 au premier paint) au widget, qui resterait écrasé
                     // (pitfall 68). Ici le contenu garde sa taille implicite et la

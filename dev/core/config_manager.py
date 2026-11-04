@@ -395,6 +395,7 @@ def apply_shell_blur(data=None):
     popups = bool(src.get("shell_blur_popups", True))
     widget_namespaces = [f"shell-widget-{w.get('id')}" for w in load_widgets()
                          if w.get("blur", True) and w.get("id")]
+    changed = False
     path = os.path.join(HYPR_DIR, "general.lua")
     if not os.path.exists(path):
         return False
@@ -409,10 +410,15 @@ def apply_shell_blur(data=None):
         if count and new_txt != txt:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_txt)
+            changed = True
     except Exception as e:
         print(f"Error updating shell blur block: {e}", file=sys.stderr)
         return False
-    subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    # Ne recharger que si le bloc a réellement changé : chaque `hyprctl reload`
+    # recrée les surfaces et ramène le workspace 1 au premier plan, ce qui
+    # déplaçait l'utilisateur à chaque réglage d'opacité.
+    if changed:
+        subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     return True
 
 
