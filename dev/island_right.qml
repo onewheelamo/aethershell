@@ -563,17 +563,28 @@ Item {
                     Rectangle {
                         id: trayDelegate
                         required property var modelData
+
+                        // Icône : celle de l'item, sauf correspondance déclarée dans
+                        // core/tray_icons.json (par Id). Un item qui ne publie aucune
+                        // image — IconPixmap vide, IconName vide — n'a pas de case du
+                        // tout : c'est ce qui dessinait un pixmap illisible.
+                        readonly property string itemIcon: Theme.trayIconFor(trayDelegate.modelData.id)
+                        readonly property string iconSource: itemIcon !== ""
+                            ? itemIcon
+                            : (trayDelegate.modelData.icon ? String(trayDelegate.modelData.icon) : "")
+
                         width: 24
                         height: 24
                         anchors.verticalCenter: parent.verticalCenter
                         radius: Theme.globalRadius
                         color: trayMa.containsMouse ? Theme.surfaceVariant : "transparent"
+                        visible: iconSource !== ""
 
                         Image {
                             anchors.centerIn: parent
                             width: 16
                             height: 16
-                            source: trayDelegate.modelData.icon || ""
+                            source: trayDelegate.iconSource
                             sourceSize: Qt.size(16, 16)
                             smooth: true
                         }

@@ -1,0 +1,6 @@
+{
+  "HeadsetBatteryIndicator": {
+    "icon": "headset.svg",
+    "note": "Moniteur de batterie du casque Arctis (AppImage HeadsetControl). L'item publie Status=Active mais IconPixmap vide (a(iiay) 0) et IconName vide : le shell dessinait donc un pixmap illisible. Clé = propriété Id de l'item SNI."
+  }
+}

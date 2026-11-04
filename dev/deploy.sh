@@ -327,6 +327,12 @@ deploy_new_env() {
     cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
     cp "$DEV_DIR/Cheatsheet.qml" "$QS_DIR/Cheatsheet.qml"
 
+    # Icônes de substitution du systray (core/tray_icons.json y renvoie).
+    if [ -d "$DEV_DIR/assets/tray" ]; then
+        mkdir -p "$QS_DIR/assets/tray"
+        cp -f "$DEV_DIR/assets/tray/"* "$QS_DIR/assets/tray/" 2>/dev/null || true
+    fi
+
     # Widgets de bureau : un composant par type, chargés par URL depuis
     # `widgets/<type>.qml` — donc copiés en bloc, et sans entrée qmldir.
     if [ -d "$DEV_DIR/widgets" ]; then
