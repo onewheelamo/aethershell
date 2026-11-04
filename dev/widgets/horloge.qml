@@ -23,7 +23,12 @@ Item {
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
-    readonly property bool withSeconds: !!(options && options.seconds === true)
+    // widget_set écrit les options en chaîne ("true") : tester les deux formes,
+    // sinon l'option ne s'active jamais depuis la CLI ou le panneau.
+    readonly property bool withSeconds: {
+        const s = options ? options.seconds : undefined
+        return s === true || s === "true" || s === 1 || s === "1"
+    }
 
     implicitWidth: clockRow.implicitWidth
     implicitHeight: clockRow.implicitHeight

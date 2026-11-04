@@ -1,0 +1,102 @@
+import QtQuick
+// Les singletons du shell (Theme, Icon) sont déclarés dans le qmldir du dossier
+// parent : sans cet import, un composant en sous-dossier les voit "not defined".
+import ".."
+import Quickshell
+import Quickshell.Io
+
+// MÉTÉO — température courante, condition et ville.
+//
+// Les données viennent de core/weather_service.py (Open-Meteo, sans clé), lancé
+// par un Process : c'est le patron du reste du shell, un script Python qui rend
+// une ligne de JSON. Rafraîchissement toutes les dix minutes ; en cas d'échec
+// réseau le service rend la dernière valeur connue, marquée `cached`.
+Item {
+    id: root
+    property var options: ({})
+    // Renseigné par main.qml : identité de l'entrée dans widgets.json.
+    property string widgetId: ""
+
+    property var meteo: ({})
+    property bool loaded: false
+
+    readonly property bool ok: loaded && meteo && meteo.ok === true
+    // Ville propre au widget (`widget_set meteo-1 city Lyon`) ; sinon le service
+    // retombe sur weather_city de style_vars.json.
+    readonly property string cityOption: (options && options.city) ? String(options.city) : ""
+
+    implicitWidth: contentRow.implicitWidth
+    implicitHeight: contentRow.implicitHeight
+
+    function refresh(force) {
+        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
+        if (root.cityOption !== "")
+            args.push("--city", root.cityOption)
+        if (force)
+            args.push("--force")
+        proc.command = args
+        proc.running = true
+    }
+
+    Component.onCompleted: refresh(false)
+
+    Timer {
+        interval: 600000
+        repeat: true
+        running: true
+        onTriggered: root.refresh(false)
+    }
+
+    Process {
+        id: proc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.meteo = JSON.parse(text.trim())
+                } catch (e) {
+                    root.meteo = { ok: false, error: "réponse illisible" }
+                }
+                root.loaded = true
+            }
+        }
+    }
+
+    Row {
+        id: contentRow
+        spacing: Theme.space3
+
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            glyph: (root.ok && root.meteo.icon === "sun") ? "sun" : "cloud"
+            size: Theme.widgetWeatherIcon
+            color: Theme.accent
+            opacityLevel: root.ok ? 1.0 : 0.45
+        }
+
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 0
+
+            Text {
+                text: root.ok ? Math.round(root.meteo.temp) + "°" : "—"
+                color: Theme.fg
+                font.pixelSize: Theme.widgetTemp
+                font.weight: Font.Light
+                font.features: { "tnum": 1 }
+                // Lisible sur un wallpaper clair sans ajouter de carte.
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+
+            Text {
+                text: root.ok
+                      ? (root.meteo.label + " · " + root.meteo.city)
+                      : (root.loaded ? "météo indisponible" : "…")
+                color: Qt.alpha(Theme.fg, 0.78)
+                font.pixelSize: Theme.widgetLabel
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+        }
+    }
+}

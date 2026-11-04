@@ -69,6 +69,11 @@ QtObject {
     readonly property int widgetClock: 64    // heure d'un widget d'horloge
     readonly property int widgetClockSm: 30  // secondes, à la même ligne de base
     readonly property int widgetDate: 26     // date seule sur le bureau
+    readonly property int widgetTemp: 34     // température d'un widget météo
+    readonly property int widgetLabel: 15    // condition + ville sous la température
+    readonly property int widgetWeatherIcon: 28
+    readonly property int widgetComboDate: 18    // date dans le combo (sous l'heure)
+    readonly property int widgetComboWeather: 22 // température dans le combo
 
     // Rythme : multiples de 4, gouttière d'écran = 8
     readonly property int space1: 4

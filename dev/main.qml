@@ -479,8 +479,12 @@ Item {
                                                && !isNaN(Number(w.opacity))
             readonly property real cardOpacity: hasOpacity
                 ? Math.max(0, Math.min(1, Number(w.opacity))) : 0.35
-            implicitWidth: widgetLoader.implicitWidth + pad * 2
-            implicitHeight: widgetLoader.implicitHeight + pad * 2
+            // Un type sans composant (meteo.qml absent, faute de frappe) donnait une
+            // carte de pad*2 = 36×36 avec le rayon global : un rond vide, illisible
+            // comme diagnostic. On affiche un libellé explicite à la place.
+            readonly property bool broken: widgetLoader.status === Loader.Error
+            implicitWidth: (broken ? brokenText.implicitWidth : widgetLoader.implicitWidth) + pad * 2
+            implicitHeight: (broken ? brokenText.implicitHeight : widgetLoader.implicitHeight) + pad * 2
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
@@ -496,6 +500,15 @@ Item {
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
+
+                Text {
+                    id: brokenText
+                    anchors.centerIn: parent
+                    visible: widgetWindow.broken
+                    text: "Widget « " + (widgetWindow.w.type || "?") + " » introuvable"
+                    color: Qt.alpha(Theme.error, 0.9)
+                    font.pixelSize: Theme.textXs
+                }
 
                 Loader {
                     id: widgetLoader

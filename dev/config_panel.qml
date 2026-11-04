@@ -1846,6 +1846,13 @@ Rectangle {
                             readonly property bool wEnabled: modelData.enabled !== false
                             readonly property bool wBlur: modelData.blur !== false
                             readonly property bool wBorder: modelData.border !== false
+                            readonly property var wOptions: modelData.options || ({})
+                            readonly property bool wSeconds: {
+                                const v = widgetCard.wOptions.seconds
+                                return v === true || v === "true" || v === 1 || v === "1"
+                            }
+                            readonly property string wCity: widgetCard.wOptions.city
+                                ? String(widgetCard.wOptions.city) : ""
 
                             width: parent.width
                             height: wcol.implicitHeight + 20
@@ -2019,6 +2026,83 @@ Rectangle {
                                                     modelData.key, modelData.on ? "false" : "true"
                                                 ])
                                             }
+                                        }
+                                    }
+                                }
+
+                                // Ligne 4 : options propres au type de widget. La ville
+                                // vide retombe sur `weather_city` de style_vars.json.
+                                Row {
+                                    width: parent.width
+                                    spacing: Theme.space2
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 56
+                                        text: "Options"
+                                        color: Qt.alpha(Theme.fg, 0.75)
+                                        font.pixelSize: Theme.textXs
+                                    }
+
+                                    Rectangle {
+                                        visible: widgetCard.wtype !== "meteo"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 86
+                                        height: 24
+                                        radius: Theme.globalRadius
+                                        color: widgetCard.wSeconds ? Theme.accent : Theme.surfaceVariant
+                                        border.width: 1
+                                        border.color: Theme.accent
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: (widgetCard.wSeconds ? "✓ " : "✕ ") + "Secondes"
+                                            color: widgetCard.wSeconds ? Theme.bg : Theme.fg
+                                            font.pixelSize: Theme.text2xs
+                                            font.bold: true
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.runConfigCmd([
+                                                "widget_set", widgetCard.wid, "seconds",
+                                                widgetCard.wSeconds ? "false" : "true"
+                                            ])
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        visible: widgetCard.wtype !== "horloge"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 170
+                                        height: 24
+                                        radius: Theme.globalRadius
+                                        color: Theme.surfaceVariant
+                                        border.width: 1
+                                        border.color: Theme.surfaceVariant
+
+                                        TextInput {
+                                            id: cityInput
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 7
+                                            anchors.rightMargin: 7
+                                            verticalAlignment: TextInput.AlignVCenter
+                                            text: widgetCard.wCity
+                                            color: Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                            selectByMouse: true
+                                            onAccepted: root.runConfigCmd([
+                                                "widget_set", widgetCard.wid, "city", cityInput.text
+                                            ])
+                                        }
+                                        Text {
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 7
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: cityInput.text === ""
+                                            text: "Ville"
+                                            color: Qt.alpha(Theme.fg, 0.42)
+                                            font.pixelSize: Theme.textXs
                                         }
                                     }
                                 }
