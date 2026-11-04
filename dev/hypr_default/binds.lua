@@ -28,27 +28,27 @@ hl.bind(mainMod .. " + SHIFT + Down", hl.dsp.window.resize({ x = 0, y = 30 }))
 -- Gestion des Workspaces (Adaptation AZERTY avec objets hl.dsp)
 -- Workspace 1 (ampersand)
 hl.bind(mainMod .. " + ampersand", hl.dsp.focus({ workspace = 1 }))
-hl.bind(mainMod .. " + CTRL + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
+hl.bind(mainMod .. " + SHIFT + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
 hl.bind(mainMod .. " + ALT + ampersand", hl.dsp.window.move({ workspace = 1 }))
 
 -- Workspace 2 (eacute)
 hl.bind(mainMod .. " + eacute", hl.dsp.focus({ workspace = 2 }))
-hl.bind(mainMod .. " + CTRL + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
+hl.bind(mainMod .. " + SHIFT + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
 hl.bind(mainMod .. " + ALT + eacute", hl.dsp.window.move({ workspace = 2 }))
 
 -- Workspace 3 (quotedbl)
 hl.bind(mainMod .. " + quotedbl", hl.dsp.focus({ workspace = 3 }))
-hl.bind(mainMod .. " + CTRL + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
+hl.bind(mainMod .. " + SHIFT + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
 hl.bind(mainMod .. " + ALT + quotedbl", hl.dsp.window.move({ workspace = 3 }))
 
 -- Workspace 4 (apostrophe)
 hl.bind(mainMod .. " + apostrophe", hl.dsp.focus({ workspace = 4 }))
-hl.bind(mainMod .. " + CTRL + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
+hl.bind(mainMod .. " + SHIFT + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
 hl.bind(mainMod .. " + ALT + apostrophe", hl.dsp.window.move({ workspace = 4 }))
 
 -- Workspace 5 (leftparen)
 hl.bind(mainMod .. " + parenleft", hl.dsp.focus({ workspace = 5 }))
-hl.bind(mainMod .. " + CTRL + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
+hl.bind(mainMod .. " + SHIFT + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
 hl.bind(mainMod .. " + ALT + parenleft", hl.dsp.window.move({ workspace = 5 }))
 
 -- Noctalia IPC
