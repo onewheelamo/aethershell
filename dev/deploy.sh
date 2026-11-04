@@ -201,7 +201,10 @@ check_dependencies() {
         fi
     done
 
-    if ! fc-list : family | grep -qi "0xproto"; then
+    # `grep -q` serait un faux négatif ici : sous `set -o pipefail`, grep sort au
+    # premier match, fc-list prend SIGPIPE et le pipeline rend 141 → la police
+    # paraît manquante à chaque déploiement et se réinstalle.
+    if ! fc-list : family 2>/dev/null | grep -i "0xproto" >/dev/null; then
         echo "⚠️ Police d'icônes manquante : 0xProto Nerd Font"
         if [ -x "$DEV_DIR/core/install_fonts.sh" ]; then
             bash "$DEV_DIR/core/install_fonts.sh" || echo "⚠️ Échec de l'installation automatique de la police."

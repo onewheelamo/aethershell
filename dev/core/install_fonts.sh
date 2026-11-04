@@ -7,7 +7,11 @@ set -euo pipefail
 FONT_NAME="0xProto Nerd Font"
 FONT_DIR="$HOME/.local/share/fonts/0xProto"
 
-if fc-list : family | grep -qi "0xproto"; then
+# Le test doit éviter `grep -q` : sous `set -o pipefail`, grep -q sort au premier
+# match, fc-list reçoit SIGPIPE et le pipeline rend 141 — le script conclut alors
+# que la police manque et la retélécharge à chaque déploiement (2,16 Mo).
+# `grep ... >/dev/null` lit tout le flux et laisse le pipeline en 0.
+if fc-list : family 2>/dev/null | grep -i "0xproto" >/dev/null; then
     echo "✓ Police $FONT_NAME déjà installée."
     exit 0
 fi
@@ -30,7 +34,7 @@ fi
 tar -xf "$TMP/0xProto.tar.xz" -C "$FONT_DIR"
 fc-cache -f "$FONT_DIR"
 
-if fc-list : family | grep -qi "0xproto"; then
+if fc-list : family 2>/dev/null | grep -i "0xproto" >/dev/null; then
     echo "✅ $FONT_NAME installée avec succès dans $FONT_DIR."
 else
     echo "⚠️ Police extraite mais non reconnue par fontconfig."
