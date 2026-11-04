@@ -1251,18 +1251,24 @@ if __name__ == "__main__":
         set_panel_section(sys.argv[2], sys.argv[3] == "true")
         print(json.dumps(get_full_config_state()))
     elif action == "widget_list":
-        print(json.dumps(load_widgets()))
+        print(json.dumps(get_full_config_state()))
     elif action == "widget_add" and len(sys.argv) > 2:
+        # Convention du panneau : chaque commande rend l'état complet, sinon
+        # config_panel.qml doit relancer un `state` après chaque clic.
         ws = sys.argv[3] if len(sys.argv) > 3 else 1
         wx = sys.argv[4] if len(sys.argv) > 4 else 120
         wy = sys.argv[5] if len(sys.argv) > 5 else 160
-        print(widget_add(sys.argv[2], ws, wx, wy))
+        widget_add(sys.argv[2], ws, wx, wy)
+        print(json.dumps(get_full_config_state()))
     elif action == "widget_set" and len(sys.argv) > 4:
-        print(json.dumps(widget_set(sys.argv[2], sys.argv[3], sys.argv[4])))
+        widget_set(sys.argv[2], sys.argv[3], sys.argv[4])
+        print(json.dumps(get_full_config_state()))
     elif action == "widget_move" and len(sys.argv) > 4:
-        print(json.dumps(widget_move(sys.argv[2], sys.argv[3], sys.argv[4])))
+        widget_move(sys.argv[2], sys.argv[3], sys.argv[4])
+        print(json.dumps(get_full_config_state()))
     elif action == "widget_remove" and len(sys.argv) > 2:
-        print(widget_remove(sys.argv[2]))
+        widget_remove(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
     elif action == "style" and len(sys.argv) > 3:
         update_style_var(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))

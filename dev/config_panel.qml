@@ -49,7 +49,11 @@ Rectangle {
     // l'onglet et la section, puis fait défiler jusqu'à la ligne ciblée.
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
-          tab: 4, section: "greeter_theme", target: "secGreeter" },
+          tab: 5, section: "greeter_theme", target: "secGreeter" },
+        { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
+          tab: 1, section: "widgets", target: "secWidgets" },
+        { label: "Position du lanceur", words: "lanceur position capsule haut bas centre gauche droite",
+          tab: 1, section: "widgets", target: "secWidgets" },
         { label: "Thème et fond d'écran", words: "theme fond ecran wallpaper couleur",
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Jeux de couleurs Matugen", words: "matugen palette preset couleurs saturation",
@@ -79,19 +83,19 @@ Rectangle {
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
           tab: 0, section: "esthetique_aspect", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
-          tab: 1, section: "", target: "monitorsRow" },
+          tab: 2, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
-          tab: 1, section: "", target: "timezoneRow" },
+          tab: 2, section: "", target: "timezoneRow" },
         { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",
-          tab: 2, section: "", target: "kbdRow" },
+          tab: 3, section: "", target: "kbdRow" },
         { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
-          tab: 2, section: "", target: "bindsCol" },
+          tab: 3, section: "", target: "bindsCol" },
         { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
-          tab: 3, section: "apps_programs", target: "secApps" },
+          tab: 4, section: "apps_programs", target: "secApps" },
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
-          tab: 3, section: "apps_programs", target: "launchHistoryRow" },
+          tab: 4, section: "apps_programs", target: "launchHistoryRow" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
-          tab: 3, section: "apps_autostart", target: "secAutostart" }
+          tab: 4, section: "apps_autostart", target: "secAutostart" }
     ]
 
     // Redirige vers l'onglet et la section du réglage, puis défile jusqu'à lui.
@@ -182,7 +186,7 @@ Rectangle {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1: BACKEND IPC & STATE PROPERTIES
     // ────────────────────────────────────────────────────────────────────────
-    property int currentTab: 0 // 0: Esthétique, 1: Système & Écrans, 2: Contrôles, 3: Applications, 4: Connexion
+    property int currentTab: 0 // 0: Esthétique, 1: Widgets, 2: Système & Écrans, 3: Contrôles, 4: Applications, 5: Connexion
 
     // State synced with config_manager.py & FileViews
     property string hostName: "Station"
@@ -199,6 +203,9 @@ Rectangle {
     property string timezoneStr: "Europe/Paris"
     property bool ntpSynced: true
     property var bindsList: []
+    // Widgets de bureau (core/widgets.json) et position de la capsule du lanceur.
+    property var widgetsList: []
+    property string launcherPosition: "bas-centre"
     property var appVarsModel: []
     property var autostartModel: []
     property bool batLimit80: false
@@ -319,6 +326,8 @@ Rectangle {
             if (data.display.timezone) root.timezoneStr = data.display.timezone
             if (typeof data.display.ntp === "boolean") root.ntpSynced = data.display.ntp
         }
+        if (Array.isArray(data.widgets)) root.widgetsList = data.widgets
+        if (typeof data.launcher_position === "string") root.launcherPosition = data.launcher_position
         if (Array.isArray(data.binds)) {
             root.bindsList = data.binds
         }
@@ -633,6 +642,7 @@ Rectangle {
         Repeater {
             model: [
                 { icon: "palette", label: "Esthétique" },
+                { icon: "widgets", label: "Widgets" },
                 { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
                 { icon: "keyboard", label: "Contrôles" },
                 { icon: "rocket", label: "Applications" },
@@ -695,10 +705,11 @@ Rectangle {
             contentWidth: width
             contentHeight: {
                 if (root.currentTab === 0) return tabEsthetiqueCol.implicitHeight
-                if (root.currentTab === 1) return tabSystemeCol.implicitHeight
-                if (root.currentTab === 2) return tabControlesCol.implicitHeight
-                if (root.currentTab === 3) return tabAppsCol.implicitHeight
-                if (root.currentTab === 4) return greeterTabLoader.item
+                if (root.currentTab === 1) return tabWidgetsCol.implicitHeight
+                if (root.currentTab === 2) return tabSystemeCol.implicitHeight
+                if (root.currentTab === 3) return tabControlesCol.implicitHeight
+                if (root.currentTab === 4) return tabAppsCol.implicitHeight
+                if (root.currentTab === 5) return greeterTabLoader.item
                     ? greeterTabLoader.item.implicitHeight : 0
                 return 0
             }
@@ -1791,11 +1802,339 @@ Rectangle {
     }   // end Column tabEsthetiqueCol
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // TAB 1: SYSTÈME & ÉCRANS (Adaptatif : Tour Station vs Laptop Portable)
+        // TAB 1: WIDGETS DU BUREAU (sur les workspaces, réglages par widget)
+        // ═══════════════════════════════════════════════════════════════════════════
+        Column {
+            id: tabWidgetsCol
+            visible: root.currentTab === 1
+            width: mainFlickable.width
+            spacing: 11
+
+            CollapsibleSection {
+                id: secWidgets
+                objectName: "secWidgets"
+                title: "Widgets du bureau"
+                icon: "widgets"
+                expanded: true
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: root.widgetsList.length === 0
+                              ? "Aucun widget. Le bureau affiche le fond d'écran seul."
+                              : "Chaque widget vit derrière les fenêtres, sur son workspace."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Repeater {
+                        model: root.widgetsList
+
+                        Rectangle {
+                            required property var modelData
+                            required property int index
+
+                            readonly property string wid: modelData.id || ""
+                            readonly property string wtype: modelData.type || ""
+                            readonly property int wWorkspace: Number(modelData.workspace) || 0
+                            readonly property real wOpacity: modelData.opacity !== undefined
+                                                              ? Number(modelData.opacity) : 0.35
+                            readonly property bool wEnabled: modelData.enabled !== false
+                            readonly property bool wBlur: modelData.blur !== false
+                            readonly property bool wBorder: modelData.border !== false
+
+                            width: parent.width
+                            height: wcol.implicitHeight + 20
+                            radius: Theme.globalRadius
+                            color: Qt.alpha(Theme.surfaceVariant, 0.55)
+                            border.width: 1
+                            border.color: Theme.surfaceVariant
+
+                            Column {
+                                id: wcol
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 8
+
+                                // Ligne 1 : type, identifiant, suppression
+                                Row {
+                                    width: parent.width
+                                    spacing: Theme.space2
+
+                                    Icon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        glyph: widgetCard.wtype === "date" ? "calendar"
+                                               : (widgetCard.wtype === "meteo" ? "cloud"
+                                               : (widgetCard.wtype === "combo" ? "widgets" : "clock"))
+                                        size: Theme.iconSm
+                                        color: Theme.accent
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: parent.width - 90
+                                        text: widgetCard.wtype.charAt(0).toUpperCase()
+                                              + widgetCard.wtype.slice(1) + "  ·  " + widgetCard.wid
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.textSm
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 74
+                                        text: "✕ Retirer"
+                                        color: Qt.alpha(Theme.error, 0.75)
+                                        font.pixelSize: Theme.textXs
+                                        horizontalAlignment: Text.AlignRight
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.runConfigCmd(["widget_remove", widgetCard.wid])
+                                        }
+                                    }
+                                }
+
+                                // Ligne 2 : workspace et position
+                                Row {
+                                    width: parent.width
+                                    spacing: Theme.space2
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 76
+                                        text: "Workspace"
+                                        color: Qt.alpha(Theme.fg, 0.75)
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                    Stepper {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 120
+                                        value: widgetCard.wWorkspace
+                                        minimumValue: 0
+                                        maximumValue: 5
+                                        stepSize: 1
+                                        textFormatter: v => v === 0 ? "Tous" : String(v)
+                                        onValueModified: newVal =>
+                                            root.runConfigCmd(["widget_set", widgetCard.wid, "workspace", String(newVal)])
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "x"
+                                        color: Qt.alpha(Theme.fg, 0.55)
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                    Stepper {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 104
+                                        value: Number(widgetCard.modelData.x) || 0
+                                        minimumValue: 0
+                                        maximumValue: 1800
+                                        stepSize: 10
+                                        onValueModified: newVal =>
+                                            root.runConfigCmd(["widget_move", widgetCard.wid, String(newVal), String(Number(widgetCard.modelData.y) || 0)])
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "y"
+                                        color: Qt.alpha(Theme.fg, 0.55)
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                    Stepper {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 104
+                                        value: Number(widgetCard.modelData.y) || 0
+                                        minimumValue: 0
+                                        maximumValue: 1000
+                                        stepSize: 10
+                                        onValueModified: newVal =>
+                                            root.runConfigCmd(["widget_move", widgetCard.wid, String(Number(widgetCard.modelData.x) || 0), String(newVal)])
+                                    }
+                                }
+
+                                // Ligne 3 : opacité, puis les trois interrupteurs
+                                Row {
+                                    width: parent.width
+                                    spacing: Theme.space2
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 56
+                                        text: "Opacité"
+                                        color: Qt.alpha(Theme.fg, 0.75)
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                    Slider {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: parent.width - 56 - 240 - Theme.space2 * 3
+                                        value: widgetCard.wOpacity
+                                        minimumValue: 0.1
+                                        maximumValue: 1.0
+                                        stepSize: 0.05
+                                        decimals: 2
+                                        onValueModified: newVal =>
+                                            root.runConfigCmd(["widget_set", widgetCard.wid, "opacity", String(newVal)])
+                                    }
+
+                                    Repeater {
+                                        model: [
+                                            { key: "enabled", label: "Actif",   on: widgetCard.wEnabled },
+                                            { key: "border",  label: "Bordure", on: widgetCard.wBorder },
+                                            { key: "blur",    label: "Flou",    on: widgetCard.wBlur }
+                                        ]
+
+                                        Rectangle {
+                                            required property var modelData
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 72
+                                            height: 24
+                                            radius: Theme.globalRadius
+                                            color: modelData.on ? Theme.accent : Theme.surfaceVariant
+                                            border.width: 1
+                                            border.color: Theme.accent
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: (modelData.on ? "✓ " : "✕ ") + modelData.label
+                                                color: modelData.on ? Theme.bg : Theme.fg
+                                                font.pixelSize: Theme.text2xs
+                                                font.bold: true
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.runConfigCmd([
+                                                    "widget_set", widgetCard.wid,
+                                                    modelData.key, modelData.on ? "false" : "true"
+                                                ])
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            id: widgetCard
+                        }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
+
+                    // Ajout d'un widget
+                    Row {
+                        width: parent.width
+                        spacing: Theme.space2
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 76
+                            text: "Ajouter"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Repeater {
+                            model: [
+                                { type: "horloge", label: "Horloge" },
+                                { type: "date",    label: "Date" },
+                                { type: "meteo",   label: "Météo" },
+                                { type: "combo",   label: "Combo" }
+                            ]
+
+                            Rectangle {
+                                required property var modelData
+                                width: 96
+                                height: 26
+                                radius: Theme.globalRadius
+                                color: Theme.surfaceVariant
+                                border.width: 1
+                                border.color: Theme.surfaceVariant
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "+ " + modelData.label
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["widget_add", modelData.type, "1", "120", "160"])
+                                }
+                            }
+                        }
+                    }
+
+                    // Le lanceur : intégré, position parmi six emplacements
+                    Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.space2
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "search"
+                            size: Theme.iconSm
+                            color: Theme.accent
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 320
+                            text: "Lanceur — intégré, position fixe"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                            elide: Text.ElideRight
+                        }
+
+                        Repeater {
+                            model: [
+                                { key: "haut-gauche", tip: "↖" },
+                                { key: "haut-centre", tip: "↑" },
+                                { key: "haut-droit",  tip: "↗" },
+                                { key: "bas-gauche",  tip: "↙" },
+                                { key: "bas-centre",  tip: "↓" },
+                                { key: "bas-droit",   tip: "↘" }
+                            ]
+
+                            Rectangle {
+                                required property var modelData
+                                width: 30
+                                height: 26
+                                radius: Theme.globalRadius
+                                color: root.launcherPosition === modelData.key ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: Theme.accent
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.tip
+                                    color: root.launcherPosition === modelData.key ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textSm
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["style", "launcher_position", modelData.key])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // TAB 2: SYSTÈME & ÉCRANS (Adaptatif : Tour Station vs Laptop Portable)
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabSystemeCol
-            visible: root.currentTab === 1
+            visible: root.currentTab === 2
             width: mainFlickable.width
             spacing: 12
 
@@ -2283,11 +2622,11 @@ Rectangle {
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // TAB 2: CONTRÔLES, CLAVIER & RACCOURCIS (binds.lua)
+        // TAB 3: CONTRÔLES, CLAVIER & RACCOURCIS (binds.lua)
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabControlesCol
-            visible: root.currentTab === 2
+            visible: root.currentTab === 3
             width: mainFlickable.width
             spacing: 10
 
@@ -2575,11 +2914,11 @@ Rectangle {
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // TAB 3: VARIABLES DYNAMIQUES & APPLICATIONS (app_vars.json <-> programs.lua)
+        // TAB 4: VARIABLES DYNAMIQUES & APPLICATIONS (app_vars.json <-> programs.lua)
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabAppsCol
-            visible: root.currentTab === 3
+            visible: root.currentTab === 4
             width: mainFlickable.width
             spacing: 12
 
@@ -3130,7 +3469,7 @@ Rectangle {
             Loader {
                 id: greeterTabLoader
                 width: mainFlickable.width
-                visible: root.currentTab === 4
+                visible: root.currentTab === 5
                 active: visible
                 source: "GreeterTab.qml"
                 onLoaded: item.width = mainFlickable.width

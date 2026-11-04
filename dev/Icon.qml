@@ -69,6 +69,7 @@ Item {
         "logout": "\u{F0343}",
         "download": "\u{F01DA}",
         "rocket": "\u{F14DE}",
+        "widgets": "\u{F0728}",   // md-widgets
         "wifi": "\u{F05A9}",
         "bluetooth": "\u{F00AF}",
         "volume": "\u{F057E}",
