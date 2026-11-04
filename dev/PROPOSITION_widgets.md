@@ -110,38 +110,30 @@ Recherche : entrées d'index pour l'onglet et deux libellés (`widgets`,
 ### 3.5 La capsule du lanceur : positions prédéfinies, pas de position libre
 
 Décision retenue : la capsule est un **cas à part**. Elle ne se place pas au
-pixel, elle choisit dans une grille de six positions :
+pixel, elle choisit dans une grille de six positions. Largeur **600 px**
+(décision du 04/11 : elle tient dans un tiers de 640, là où 720 débordait).
 
-| clé          | zone               | marges (1920 × 1080, capsule 720 × 62) |
-|--------------|--------------------|----------------------------------------|
-| `haut-centre`  | bord haut, centre  | left 600, bottom —,  top 12            |
-| `bas-centre`   | bord bas, centre   | left 600, bottom 44 (position actuelle)|
-| `haut-gauche`  | tiers gauche, haut | left 12,  top 12                       |
-| `haut-droit`   | tiers droit, haut  | left 1884 − w, top 12                  |
-| `bas-gauche`   | tiers gauche, bas  | left 12,  bottom 44                    |
-| `bas-droit`    | tiers droit, bas   | left 1884 − w, bottom 44               |
+| clé           | zone                | marges calculées (1920 × 1080) | relevé `xywh`      |
+|---------------|---------------------|--------------------------------|--------------------|
+| `bas-centre`  | bord bas, centre    | left (W−600)/2, bottom 44      | 660 974 600 62     |
+| `haut-centre` | bord haut, centre   | left (W−600)/2, top 52         | 660 52 600 62      |
+| `bas-gauche`  | tiers gauche, bas   | left gutter, bottom 44         | 8 974 600 62       |
+| `bas-droit`   | tiers droit, bas    | left W−600−gutter, bottom 44   | 1312 974 600 62    |
+| `haut-gauche` | tiers gauche, haut  | left gutter, top 52            | 8 52 600 62        |
+| `haut-droit`  | tiers droit, haut   | left W−600−gutter, top 52      | 1312 52 600 62     |
 
-Les valeurs sont **calculées** (`Math.round`), pas écrites en dur : une seule
-constante de largeur (`w`) et les marges du thème (`Theme.gutter`), pour que le
-passage à un autre écran ou à une autre hauteur de barre ne demande rien.
+Deux constantes suffisent : `bottom = barHeight + gutter` (44) et
+`top = barHeight + 2·gutter` (52) — la barre occupe y 8..44, donc une capsule en
+haut doit commencer 8 px plus bas, sinon elle la chevauche. Tout est calculé
+dans `main.qml` (`Math.round`), rien n'est écrit en dur.
 
-État : `launcher_position` dans `style_vars.json` (déjà préservé au déploiement,
-déjà lu par `Theme.qml`) — pas besoin d'un second fichier pour un seul réglage,
-et ça évite d'introduire `widgets.json` pour la capsule alors qu'elle ne suit pas
-le modèle des widgets.
+État : `launcher_position` dans `style_vars.json`, avec `LAUNCHER_POSITIONS` côté
+backend (`update_style_var` valide la clé, `get_full_config_state` l'expose) et
+`Theme.launcherPosition` côté QML. Défaut `bas-centre` = la position d'avant.
 
 Dans l'onglet : ligne « Lanceur », marquée **intégré**, avec les six positions en
 pastilles (même forme que les groupes de choix du panneau : centrées sous leur
 libellé, sur une ligne) et pas de champs x/y.
-
-Un point de géométrie à trancher : une capsule de 720 px ne tient pas dans un
-tiers (640 px). Deux comportements possibles, à choisir :
-
-- **A. elle rétrécit** dans les positions en tiers (`w = min(720, W/3 − 2·gutter)`
-  = 616 ici), la même largeur servant aux quatre positions de tiers ;
-- **B. elle garde 720 px** et déborde du tiers vers le centre.
-
-A est cohérent avec l'idée de « tiers » ; B garde une capsule identique partout.
 
 ### 3.6 Les quatre premiers types
 
@@ -228,7 +220,7 @@ pluie, la neige, le brouillard et l'orage (vérifiés dans `glyphnames.json`).
    change.)
 3. ~~La capsule devient-elle un widget du registre ?~~ **Tranché : cas à part,
    positions prédéfinies (§3.5).** Reste à choisir : dans les positions en tiers,
-   la capsule **rétrécit** (A) ou **garde 720 px** (B) ?
+   la capsule fait **600 px** (tranché le 04/11, mesuré et livré).
 4. Position réglée aux flèches dans le panneau, ou directement à la souris
    (lot D tout de suite) ?
 5. Rendu : **texte seul** (proposé, cf. maquette) ou carte translucide ?
