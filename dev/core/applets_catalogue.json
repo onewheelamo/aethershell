@@ -1,0 +1,25 @@
+{
+    "version": 1,
+    "_doc": [
+        "Catalogue des applets connus du shell. Un applet est décrit ici une fois",
+        "et une seule : c'est ce qui interdit les doublons — un applet ne peut pas",
+        "être posé deux fois, il a un emplacement, pas des instances.",
+        "L'état de l'utilisateur (actif, îlot, ordre, échelle) vit dans",
+        "bar_applets.json, qui est préservé au déploiement. Absent de ce fichier =",
+        "applet éteint : les applets sont opt-in (décision du 05/11)."
+    ],
+    "applets": [
+        {
+            "id": "comptes",
+            "nom": "Comptes LLM",
+            "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",
+            "icone": "wallet",
+            "service": "core/comptes_applet.py",
+            "popup": "widgets/comptes.qml",
+            "ile": "droite",
+            "ordre": 10,
+            "cadence": 5,
+            "text_scale": 100
+        }
+    ]
+}

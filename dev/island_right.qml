@@ -792,6 +792,12 @@ Item {
             spacing: 12
 
             // ────────────────────────────────────────────────────────────────
+            // Applets posés sur l'îlot droit (registre bar_applets.json).
+            AppletRow {
+                ile: "droite"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
             // SUB-SECTION 5.1: SYSTRAY & NOTIFICATIONS
             // ────────────────────────────────────────────────────────────────
             Row {

@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "actifs": {
+        "comptes": {
+            "ile": "droite",
+            "ordre": 10,
+            "text_scale": 100,
+            "options": {}
+        }
+    }
+}

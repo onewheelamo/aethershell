@@ -269,6 +269,68 @@ Rectangle {
         })
     }
 
+    // ── Applets de la barre ──────────────────────────────────────────────────
+    // Le registre (core/bar_applets.py) est la seule source de vérité : le
+    // panneau ne fait que l'interroger et lui envoyer des ordres. Comme c'est un
+    // dictionnaire `id → placement`, cocher deux fois ou placer ailleurs ne peut
+    // pas créer de doublon : la dernière décision remplace la précédente.
+    property var appletRows: []
+    readonly property var appletIles: [
+        { code: "gauche", label: "G" },
+        { code: "centre", label: "C" },
+        { code: "droite", label: "D" }
+    ]
+
+    Process {
+        id: appletsEtatProc
+        command: ["python3", Quickshell.shellPath("core/bar_applets.py"), "state"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const liste = JSON.parse(text.trim())
+                    root.appletRows = Array.isArray(liste) ? liste : []
+                } catch (e) {
+                    root.appletRows = []
+                }
+            }
+        }
+    }
+
+    Process {
+        id: appletsCmdProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const liste = JSON.parse(text.trim())
+                    if (Array.isArray(liste)) root.appletRows = liste
+                    else root.appletsRafraichir()
+                } catch (e) {
+                    root.appletsRafraichir()
+                }
+            }
+        }
+    }
+
+    function appletsRafraichir() {
+        appletsEtatProc.running = false
+        appletsEtatProc.running = true
+    }
+
+    // Chaque commande rend l'état complet : pas de deuxième requête à faire.
+    function appletCommande(args) {
+        appletsCmdProc.command = ["python3", Quickshell.shellPath("core/bar_applets.py")].concat(args)
+        appletsCmdProc.running = true
+    }
+
+    function appletBasculer(id, actif) {
+        appletCommande([actif ? "desactiver" : "activer", id])
+    }
+
+    function appletEchelle(id, valeur) {
+        const v = Math.max(60, Math.min(160, Math.round(valeur)))
+        appletCommande(["echelle", id, String(v)])
+    }
+
     // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
     // toutes ses instances — il ne doit pas y en avoir plusieurs.
     function toggleWidgetType(nature, present) {
@@ -632,7 +694,10 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: refreshConfigState()
+    Component.onCompleted: {
+        refreshConfigState()
+        appletsRafraichir()
+    }
 
     // Absorb mouse clicks inside the panel so they don't close the overlay
     MouseArea {
@@ -2628,6 +2693,188 @@ Rectangle {
                                 y: widgetPicker.contentY + widgetPicker.contentY
                                      * (widgetPicker.height - height)
                                      / Math.max(1, gridPicker.implicitHeight - widgetPicker.height)
+                            }
+                        }
+                    }
+
+                    // ── Applets de la barre ───────────────────────────────
+                    Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
+
+                    Text {
+                        text: "Applets de la barre"
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        font.pixelSize: Theme.textXs
+                        font.weight: Font.Medium
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: "Éteints par défaut. Un applet n'a qu'un emplacement : "
+                              + "le choisir ailleurs le déplace, il ne se duplique pas."
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+
+                        Repeater {
+                            model: root.appletRows
+
+                            delegate: Rectangle {
+                                id: appletRow
+                                required property var modelData
+                                readonly property var donnee: modelData
+                                width: parent.width
+                                height: 30
+                                radius: Theme.globalRadius
+                                color: donnee.actif
+                                    ? Qt.alpha(Theme.accent, 0.10) : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: donnee.actif
+                                    ? Qt.alpha(Theme.accent, 0.5) : "transparent"
+
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 6
+
+                                    Rectangle {
+                                        width: 12
+                                        height: 12
+                                        radius: 3
+                                        color: appletRow.donnee.actif ? Theme.accent : "transparent"
+                                        border.width: 1
+                                        border.color: appletRow.donnee.actif
+                                            ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: appletRow.donnee.actif
+                                            text: "✓"
+                                            color: Theme.bg
+                                            font.pixelSize: 9
+                                            font.bold: true
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.appletBasculer(appletRow.donnee.id,
+                                                                           appletRow.donnee.actif)
+                                        }
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: appletRow.donnee.nom
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                }
+
+                                Row {
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 6
+
+                                    // Échelle de texte de cet applet : la même
+                                    // règle que les widgets, appliquée par applet.
+                                    // Boutons dans des Rectangles : un MouseArea
+                                    // avec `anchors.fill` ne peut pas être enfant
+                                    // direct d'un Row (le positionneur refuse les
+                                    // ancres horizontales), d'où l'enveloppe.
+                                    Row {
+                                        spacing: 3
+                                        opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "−"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletEchelle(appletRow.donnee.id,
+                                                                              appletRow.donnee.text_scale - 5)
+                                            }
+                                        }
+
+                                        Text {
+                                            text: appletRow.donnee.text_scale + " %"
+                                            color: Qt.alpha(Theme.fg, 0.75)
+                                            font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                            font.features: { "tnum": 1 }
+                                        }
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "+"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletEchelle(appletRow.donnee.id,
+                                                                              appletRow.donnee.text_scale + 5)
+                                            }
+                                        }
+                                    }
+
+                                    Repeater {
+                                        model: root.appletIles
+
+                                        Rectangle {
+                                            id: ileChip
+                                            required property var modelData
+                                            readonly property bool choisi: appletRow.donnee.ile === modelData.code
+                                            width: 18
+                                            height: 16
+                                            radius: 4
+                                            color: choisi ? Theme.accent : "transparent"
+                                            border.width: 1
+                                            border.color: choisi
+                                                ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                            opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: ileChip.modelData.label
+                                                color: ileChip.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                font.bold: ileChip.choisi
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletCommande(["placer",
+                                                    appletRow.donnee.id, ileChip.modelData.code])
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

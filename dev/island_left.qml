@@ -334,6 +334,12 @@ Item {
                     }
                 }
             }
+
+            // Applets posés sur l'îlot gauche (registre bar_applets.json).
+            AppletRow {
+                ile: "gauche"
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 }

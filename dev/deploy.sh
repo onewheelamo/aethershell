@@ -99,7 +99,7 @@ fi
 MARKER="$CURRENT_HYPR/.quickshell_managed"
 # llm_providers.json : adresses et références de clés choisies par l'utilisateur,
 # préservé comme secrets.json — le dépôt n'en fournit que le modèle initial.
-PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json"
+PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
 # programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et
@@ -399,6 +399,8 @@ deploy_new_env() {
     cp "$DEV_DIR/screenshot_bar.qml" "$QS_DIR/screenshot_bar.qml"
     cp "$DEV_DIR/TrayMenu.qml" "$QS_DIR/TrayMenu.qml"
     cp "$DEV_DIR/notif_history.qml" "$QS_DIR/notif_history.qml"
+    cp "$DEV_DIR/Applet.qml" "$QS_DIR/Applet.qml"
+    cp "$DEV_DIR/AppletRow.qml" "$QS_DIR/AppletRow.qml"
     cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).

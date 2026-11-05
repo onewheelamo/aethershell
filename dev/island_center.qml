@@ -393,6 +393,13 @@ Item {
             spacing: 0
 
             // ────────────────────────────────────────────────────────────────
+            // Applets posés sur l'îlot central (registre bar_applets.json) :
+            // largeur nulle tant qu'aucun n'y est allumé.
+            AppletRow {
+                ile: "centre"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
             // SUB-SECTION 6.1: DIGITAL CLOCK (HH:MM)
             // ────────────────────────────────────────────────────────────────
             Text {
