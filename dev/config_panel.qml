@@ -253,7 +253,9 @@ Rectangle {
         { type: "musique", label: "Musique" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },
-        { type: "antigravity", label: "Antigravity" }
+        { type: "antigravity", label: "Antigravity" },
+        // Fusion des trois précédents : un seul widget, blocs empilés.
+        { type: "comptes",  label: "Comptes (fusion)" }
     ]
     readonly property var widgetTypeRows: {
         const poses = ({})

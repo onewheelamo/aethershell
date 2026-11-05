@@ -42,6 +42,13 @@ Item {
     // tableau doit tenir sur cinq lignes sans manger le bureau.
     readonly property int tailleLigne: Math.max(8, Math.round(Theme.widgetLabel * 0.86 * root.echelle))
 
+    // Dans le widget fusionné, plusieurs comptes se suivent : l'icône ne suffit
+    // pas à dire de quel service parle un bloc, d'où un en-tête facultatif qui
+    // reprend le nom renvoyé par le service (« Ollama Cloud »).
+    readonly property bool entete: !!(options && options.entete === true)
+    readonly property string titre: (donnees && donnees.fournisseur)
+                                    ? String(donnees.fournisseur) : ""
+
     property var donnees: ({})
     property bool loaded: false
     // Horloge : les décomptes avancent sans relancer le service.
@@ -149,6 +156,19 @@ Item {
         if (texte === "") texte = tete
         // « cached » veut dire « lu du cache », pas « faux » : seule une requête
         // ratée pose stale_reason, et c'est elle qu'il faut signaler.
+        // Avec l'en-tête, le nom du service est déjà écrit au-dessus : le
+        // répéter en dessous ne dit rien de plus (« DeepSeek » puis « DeepSeek »,
+        // ou « à recharger · Ollama Cloud »). On retire le seul segment qui
+        // répète ce nom, le reste de la ligne est conservé.
+        if (root.entete && texte !== "") {
+            const morceaux = texte.split(" · ")
+            const gardes = []
+            for (let i = 0; i < morceaux.length; i++) {
+                const m = morceaux[i].trim()
+                if (m !== "" && m !== root.titre) gardes.push(m)
+            }
+            texte = gardes.join(" · ")
+        }
         if (donnees && donnees.stale_reason !== undefined)
             texte += (texte === "" ? "" : " · ") + "périmé"
         return texte
@@ -214,6 +234,20 @@ Item {
             }
         }
     }
+
+    Column {
+        id: enveloppe
+        spacing: Math.round(6 * root.echelle)
+
+        Text {
+            visible: root.entete && text !== ""
+            text: root.titre
+            color: Qt.alpha(Theme.fg, 0.6)
+            font.pixelSize: Math.round(Theme.widgetLabel * 0.78 * root.echelle)
+            font.letterSpacing: 0.4
+            style: Text.Raised
+            styleColor: Qt.alpha(Theme.bg, 0.55)
+        }
 
     Row {
         id: contentRow
@@ -345,7 +379,8 @@ Item {
             }
         }
     }
+    }
 
-    implicitWidth: root.enTableau ? tableauRow.implicitWidth : contentRow.implicitWidth
-    implicitHeight: root.enTableau ? tableauRow.implicitHeight : contentRow.implicitHeight
+    implicitWidth: enveloppe.implicitWidth
+    implicitHeight: enveloppe.implicitHeight
 }
