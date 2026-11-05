@@ -1466,19 +1466,28 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    // Stepper comme les bordures : clic ou molette au dixième. Le
+                    // suffixe vit à côté plutôt que dans le compteur, où « coupe
+                    // droite » déborderait entre les deux boutons.
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.hyprRoundingPower
                         minimumValue: 1
                         maximumValue: 4
                         stepSize: 0.1
                         decimals: 1
-                        suffix: root.hyprRoundingPower < 1.95 ? " · coupe droite"
-                              : (root.hyprRoundingPower > 2.6 ? " · arrondi carré" : " · cercle")
                         onValueModified: newVal => {
                             root.hyprRoundingPower = newVal
                             root.runConfigCmd(["style", "hypr_rounding_power", String(newVal)])
                         }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.hyprRoundingPower < 1.95 ? "coupe droite"
+                              : (root.hyprRoundingPower > 2.6 ? "arrondi carré" : "cercle")
+                        color: Qt.alpha(Theme.fg, 0.55)
+                        font.pixelSize: Theme.textXs
                     }
                 }
 
