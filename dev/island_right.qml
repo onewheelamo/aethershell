@@ -66,19 +66,9 @@ Item {
 
     property int briPercent: 100
 
-    property bool wifiConnected: false
-    property string wifiSsid: ""
-    property int wifiSignal: 0
-    property string netType: "wifi"
 
     property bool tabletMode: false
 
-    // WiFi Panel State
-    property var wifiNetworks: []
-    property bool wifiScanning: false
-    property string expandedSsid: ""
-    property string connectingStatus: ""
-    property bool connectingBusy: false
 
     // Notifications State
     property var notificationsList: []
@@ -93,13 +83,6 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // Renvoient un NOM d'icône (Icon.qml), plus un glyphe brut : c'est ce qui
     // garantit une seule famille, une seule taille et un seul centrage.
-    function signalIconFor(sig, connected) {
-        if (!connected && sig <= 0) return "wifi-none"
-        if (sig >= 75) return "wifi-full"
-        if (sig >= 50) return "wifi-high"
-        if (sig >= 25) return "wifi-medium"
-        return "wifi-low"
-    }
 
     function batteryIconFor(pct, status) {
         if (status === "Charging" || status === "Full") return "battery-charging"
@@ -109,13 +92,6 @@ Item {
         if (pct >= 25) return "battery-25"
         if (pct >= 10) return "battery-10"
         return "battery-outline"
-    }
-
-    function volumeIconFor(pct, muted) {
-        if (muted || pct <= 0) return "mute"
-        if (pct < 35) return "volume-low"
-        if (pct < 70) return "volume-medium"
-        return "volume-high"
     }
 
     function applySystemInfo(data) {
@@ -141,12 +117,6 @@ Item {
         if (typeof data.brightness === "number") {
             briPercent = data.brightness
         }
-        if (data.wifi) {
-            wifiConnected = Boolean(data.wifi.connected)
-            wifiSsid = String(data.wifi.ssid || "")
-            wifiSignal = Number(data.wifi.signal || 0)
-            netType = String(data.wifi.type || "wifi")
-        }
         if (typeof data.tablet_mode === "boolean") {
             tabletMode = data.tablet_mode
         }
@@ -156,41 +126,6 @@ Item {
         if (!sysInfoProc.running) sysInfoProc.running = true
     }
 
-    // Only one scan / connection at a time: extra requests are queued instead of
-    // killing the running process (a killed process would deliver truncated JSON).
-    property bool wifiScanQueued: false
-    property bool wifiScanQueuedRescan: false
-
-    function startWifiScan(rescan) {
-        const args = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
-        if (!rescan) args.push("--no-rescan")
-        wifiScanProc.command = args
-        wifiScanProc.running = true
-    }
-
-    function scanWifi(rescan) {
-        wifiScanning = true
-        if (wifiScanProc.running) {
-            wifiScanQueued = true
-            wifiScanQueuedRescan = wifiScanQueuedRescan || Boolean(rescan)
-            return
-        }
-        startWifiScan(rescan)
-    }
-
-    function connectToWifi(ssid, password) {
-        if (wifiConnectProc.running) return
-        connectingBusy = true
-        connectingStatus = "Connexion à " + ssid + "..."
-        wifiConnectProc.command = [
-            "python3",
-            Quickshell.shellPath("core/system_service.py"),
-            "wifi_connect",
-            ssid,
-            password || ""
-        ]
-        wifiConnectProc.running = true
-    }
 
     // Actions (volume, brightness...) are serialized: while one runs, newer ones are queued.
     // A queued action replaces an older queued one of the same kind so that dragging a slider
@@ -616,50 +551,6 @@ Item {
         }
     }
 
-    Process {
-        id: wifiScanProc
-        onExited: {
-            if (islandRight.wifiScanQueued) {
-                const rescan = islandRight.wifiScanQueuedRescan
-                islandRight.wifiScanQueued = false
-                islandRight.wifiScanQueuedRescan = false
-                islandRight.startWifiScan(rescan)
-            }
-        }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (islandRight.wifiScanQueued) return // stale: a newer scan is queued
-                islandRight.wifiScanning = false
-                try {
-                    islandRight.wifiNetworks = JSON.parse(text.trim())
-                } catch (e) {
-                    islandRight.wifiNetworks = []
-                }
-            }
-        }
-    }
-
-    Process {
-        id: wifiConnectProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                islandRight.connectingBusy = false
-                try {
-                    const res = JSON.parse(text.trim())
-                    if (res.success) {
-                        islandRight.connectingStatus = "✓ Connecté à " + res.ssid
-                        islandRight.expandedSsid = ""
-                        islandRight.refreshSystemInfo()
-                        islandRight.scanWifi(false)
-                    } else {
-                        islandRight.connectingStatus = "✕ Échec : " + (res.message || "Mot de passe incorrect")
-                    }
-                } catch (e) {
-                    islandRight.connectingStatus = "✕ Erreur de connexion"
-                }
-            }
-        }
-    }
 
     Timer {
         interval: 5000
@@ -681,16 +572,6 @@ Item {
         }
         function onOsdKindChanged() {
             if (Theme.osdKind === "volume" || Theme.osdKind === "mute") islandRight.refreshSystemInfo()
-        }
-    }
-
-    Connections {
-        target: Theme
-        function onActivePopupChanged() {
-            if (Theme.activePopup === "wifi") {
-                islandRight.connectingStatus = ""
-                islandRight.scanWifi(true)
-            }
         }
     }
 
@@ -902,77 +783,6 @@ Item {
                     }
                 }
 
-                // Menu contextuel des items du systray, rendu maison (TrayMenu.qml).
-    TrayMenu {
-        id: trayMenu
-    }
-
-    // Background Application Icons (Steam, ProtonVPN, etc.) via StatusNotifierItem
-                Repeater {
-                    model: SystemTray.items
-
-                    Rectangle {
-                        id: trayDelegate
-                        required property var modelData
-
-                        // Icône : celle de l'item, sauf correspondance déclarée dans
-                        // core/tray_icons.json (par Id). Un item qui ne publie aucune
-                        // image — IconPixmap vide, IconName vide — n'a pas de case du
-                        // tout : c'est ce qui dessinait un pixmap illisible.
-                        readonly property string itemIcon: Theme.trayIconFor(trayDelegate.modelData.id)
-                        readonly property string iconSource: itemIcon !== ""
-                            ? itemIcon
-                            : (trayDelegate.modelData.icon ? String(trayDelegate.modelData.icon) : "")
-
-                        width: 24
-                        height: 24
-                        anchors.verticalCenter: parent.verticalCenter
-                        radius: Theme.globalRadius
-                        color: trayMa.containsMouse ? Theme.surfaceVariant : "transparent"
-                        visible: iconSource !== ""
-
-                        Image {
-                            anchors.centerIn: parent
-                            width: 16
-                            height: 16
-                            source: trayDelegate.iconSource
-                            sourceSize: Qt.size(16, 16)
-                            smooth: true
-                        }
-
-                        MouseArea {
-                            id: trayMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: mouse => {
-                                const win = islandRight.QsWindow.window
-                                const pt = win ? win.contentItem.mapFromItem(trayDelegate, 0, trayDelegate.height) : Qt.point(0, 0)
-                                if (mouse.button === Qt.RightButton || trayDelegate.modelData.onlyMenu) {
-                                    if (trayDelegate.modelData.hasMenu && win) {
-                                        // Pas `display()` : la fenêtre interne de Quickshell
-                                        // rend un menu blanc sans nos tokens (TrayMenu.qml).
-                                        // Même icône : referme. Autre icône : remplace le menu.
-                                        if (trayMenu.opened && trayMenu.trayItem === trayDelegate.modelData)
-                                            trayMenu.close()
-                                        else
-                                            trayMenu.open(trayDelegate.modelData, pt.x, pt.y)
-                                    }
-                                } else if (mouse.button === Qt.LeftButton) {
-                                    if (trayMenu.opened)
-                                        trayMenu.close()
-                                    trayDelegate.modelData.activate()
-                                } else if (mouse.button === Qt.MiddleButton) {
-                                    trayDelegate.modelData.secondaryActivate()
-                                }
-                            }
-                            onWheel: wheel => {
-                                trayDelegate.modelData.scroll(wheel.angleDelta.y, false)
-                            }
-                        }
-                    }
-                }
             }
 
             // Visual Separator 1 (Between Systray and Network)
@@ -983,53 +793,6 @@ Item {
                 color: Theme.surfaceVariant
             }
 
-            // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 5.2: WIFI / NETWORK BUTTON
-            // ────────────────────────────────────────────────────────────────
-            Rectangle {
-                id: networkBtn
-                width: netRow.implicitWidth + 12
-                height: 28
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: Theme.activePopup === "wifi"
-                    ? Theme.accent
-                    : (netMa.containsMouse ? Theme.surfaceVariant : "transparent")
-
-                Row {
-                    id: netRow
-                    anchors.centerIn: parent
-                    spacing: 6
-
-                    Icon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        glyph: islandRight.netType === "ethernet"
-                            ? "ethernet"
-                            : islandRight.signalIconFor(islandRight.wifiSignal, islandRight.wifiConnected)
-                        size: Theme.iconSm
-                        color: Theme.activePopup === "wifi"
-                            ? Theme.bg
-                            : (islandRight.wifiConnected ? Theme.accent : Theme.error)
-                    }
-
-                    Text {
-                        text: islandRight.wifiConnected
-                            ? (islandRight.wifiSsid !== "" ? islandRight.wifiSsid : "WiFi")
-                            : "Déconnecté"
-                        color: Theme.activePopup === "wifi" ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textSm
-                        font.bold: islandRight.wifiConnected
-                    }
-                }
-
-                MouseArea {
-                    id: netMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.togglePopup("wifi")
-                }
-            }
 
             // Visual Separator 2 (Visually separating Systray/Network from System Controls)
             Rectangle {
@@ -1046,6 +809,10 @@ Item {
             // Battery status & 80% limit, volume slider, brightness slider
             Rectangle {
                 id: systemControlsBox
+                // Volume parti dans son applet : ce bloc ne garde que ce qui
+                // existe sur la machine (batterie, rétroéclairage). Sur une tour,
+                // il n'a plus rien à montrer et ne prend plus de place.
+                visible: islandRight.hasBattery || islandRight.hasBacklight
                 width: sysControlsRow.implicitWidth + 14
                 height: 28
                 anchors.verticalCenter: parent.verticalCenter
@@ -1109,44 +876,6 @@ Item {
                     }
 
                     // Entrée unique vers le panneau système (volume, luminosité, batterie).
-                    // Les pourcentages ont quitté la barre : volume et luminosité passent par
-                    // l'OSD (bas-centre) et par les curseurs du panneau. L'icône garde l'état
-                    // muet, et la molette y règle le volume comme le font les touches média.
-                    Item {
-                        width: 20
-                        height: 24
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Icon {
-                            anchors.centerIn: parent
-                            glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
-                            size: Theme.iconSm
-                            color: islandRight.volMuted ? Theme.error : Theme.accent
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: mouse => {
-                                if (mouse.button === Qt.RightButton) {
-                                    islandRight.volMuted = !islandRight.volMuted
-                                    islandRight.runSysAction(["mute"])
-                                    Theme.showOsd("volume", islandRight.volMuted ? 0 : islandRight.volPercent)
-                                } else {
-                                    Theme.togglePopup("system")
-                                }
-                            }
-                            onWheel: wheel => {
-                                const step = wheel.angleDelta.y > 0 ? 5 : -5
-                                const nextVol = Math.max(0, Math.min(150, islandRight.volPercent + step))
-                                islandRight.volPercent = nextVol
-                                islandRight.volMuted = false
-                                islandRight.runSysAction(["volume", String(nextVol)])
-                                Theme.showOsd("volume", nextVol)
-                            }
-                        }
-                    }
                 }
             }
 
@@ -1183,20 +912,6 @@ Item {
             // SUB-SECTION 5.5: POWER MENU BUTTON (Scaled to bar height)
             // ────────────────────────────────────────────────────────────────
             Rectangle {
-                id: powerBtn
-                anchors.verticalCenter: parent.verticalCenter
-                property real heightRatio: 0.70
-                readonly property real btnSize: Math.max(18, Math.round(Theme.barHeight * heightRatio))
-                width: btnSize
-                height: btnSize
-                radius: Math.min(Theme.globalRadius, Math.round(btnSize / 2))
-                color: Theme.activePopup === "power"
-                    ? Theme.error
-                    : (powerMa.containsMouse ? Qt.alpha(Theme.error, 0.16) : "transparent")
-                border.color: Theme.activePopup === "power" ? Theme.error : "transparent"
-                border.width: 1
-
-                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
                 Icon {
@@ -1225,14 +940,10 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // Dismisses open right-island popups when clicking anywhere on the desktop
     HyprlandFocusGrab {
-        active: Theme.activePopup === "wifi"
-            || Theme.activePopup === "system"
-            || Theme.activePopup === "power"
+        active: Theme.activePopup === "system"
             || Theme.activePopup === "notifications"
         windows: [
-            wifiPanelPopup,
             systemPanelPopup,
-            powerMenuPopup,
             notificationsPopup,
             islandRight.QsWindow.window
         ]
@@ -1246,324 +957,6 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 7: POPUP WINDOWS
     // ────────────────────────────────────────────────────────────────────────
-
-    // ────────────────────────────────────────────────────────────────────────
-    // SUB-SECTION 7.1: INTERACTIVE WIFI MANAGEMENT POPUP
-    // ────────────────────────────────────────────────────────────────────────
-    PopupWindow {
-        id: wifiPanelPopup
-        anchor.item: networkBtn
-        anchor.rect.x: (networkBtn.width - implicitWidth) / 2
-        anchor.rect.y: islandRight.popupY(networkBtn)
-        anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(islandRight.clampPopupX(networkBtn, (networkBtn.width - implicitWidth) / 2, implicitWidth), islandRight.popupY(networkBtn), anchor.rect.width, anchor.rect.height)
-        implicitWidth: 320
-        implicitHeight: 390
-        color: "transparent"
-        visible: Theme.activePopup === "wifi"
-        grabFocus: visible && islandRight.expandedSsid !== ""
-
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
-
-                // Header + Rescan button
-                Item {
-                    width: parent.width
-                    height: 26
-
-                    Row {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Theme.space2
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: "wifi"
-                            size: Theme.iconSm
-                            color: Theme.accent
-                            opacityLevel: 1
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Réseaux disponibles"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textLg
-                            font.bold: true
-                        }
-                    }
-
-                    Rectangle {
-                        width: 68
-                        height: 24
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        radius: Theme.globalRadius
-                        color: rescanMa.containsMouse ? Theme.accent : Theme.surfaceVariant
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: islandRight.wifiScanning ? "Scan..." : "↻ Scan"
-                            color: rescanMa.containsMouse ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            id: rescanMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: islandRight.scanWifi(true)
-                        }
-                    }
-                }
-
-                // Connection feedback banner
-                Rectangle {
-                    visible: islandRight.connectingStatus !== ""
-                    width: parent.width
-                    height: 26
-                    radius: Theme.globalRadius
-                    color: Theme.surfaceVariant
-                    border.color: islandRight.connectingStatus.indexOf("✓") === 0
-                        ? Theme.success
-                        : (islandRight.connectingStatus.indexOf("✕") === 0 ? Theme.error : Theme.info)
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: islandRight.connectingStatus
-                        color: Theme.fg
-                        font.pixelSize: Theme.textXs
-                        elide: Text.ElideRight
-                        width: parent.width - 12
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                }
-
-                // Scrollable list of WiFi networks with inline password input under clicked SSID
-                Flickable {
-                    id: wifiFlick
-                    width: parent.width
-                    height: islandRight.connectingStatus !== "" ? 285 : 315
-                    contentWidth: width
-                    contentHeight: networkListCol.implicitHeight
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-
-                    Column {
-                        id: networkListCol
-                        width: parent.width
-                        spacing: 6
-
-                        Text {
-                            visible: !islandRight.wifiScanning && islandRight.wifiNetworks.length === 0
-                            text: "Aucun réseau WiFi détecté."
-                            color: Qt.alpha(Theme.fg, 0.7)
-                            font.pixelSize: Theme.textSm
-                            font.italic: true
-                        }
-
-                        Repeater {
-                            model: islandRight.wifiNetworks
-
-                            Column {
-                                id: netItemCol
-                                required property var modelData
-                                width: networkListCol.width
-                                spacing: 0
-
-                                readonly property bool isExpanded: islandRight.expandedSsid === modelData.ssid
-
-                                // Network Row (Signal icon + SSID + Connected/Lock status)
-                                Rectangle {
-                                    width: parent.width
-                                    height: 36
-                                    radius: Theme.globalRadius
-                                    color: netItemCol.modelData.in_use
-                                        ? Qt.alpha(Theme.accent, 0.22)
-                                        : (netRowMa.containsMouse || netItemCol.isExpanded ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.45))
-                                    border.color: netItemCol.modelData.in_use
-                                        ? Theme.accent
-                                        : (netItemCol.isExpanded ? Theme.accentMuted : "transparent")
-                                    border.width: (netItemCol.modelData.in_use || netItemCol.isExpanded) ? 1 : 0
-
-                                    Row {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 10
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 10
-
-                                        // Dynamic signal strength icon at start of line
-                                        Icon {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            glyph: islandRight.signalIconFor(netItemCol.modelData.signal, true)
-                                            size: Theme.iconSm
-                                            color: netItemCol.modelData.signal >= 60
-                                                ? Theme.success
-                                                : (netItemCol.modelData.signal >= 30 ? Theme.warn : Theme.error)
-                                        }
-
-                                        // Network SSID
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: netItemCol.modelData.ssid
-                                            color: Theme.fg
-                                            font.pixelSize: Theme.textSm
-                                            font.bold: netItemCol.modelData.in_use
-                                            elide: Text.ElideRight
-                                            width: 175
-                                        }
-                                    }
-
-                                    // Right badge: Signal % + Connected / Lock icon
-                                    Row {
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 10
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 6
-
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: netItemCol.modelData.in_use
-                                                ? "Connecté"
-                                                : (netItemCol.modelData.signal + "%")
-                                            color: netItemCol.modelData.in_use ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                                            font.pixelSize: Theme.textXs
-                                            font.bold: netItemCol.modelData.in_use
-                                        }
-
-                                        Icon {
-                                            visible: Boolean(netItemCol.modelData.secured)
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            glyph: "lock"
-                                            size: 10
-                                            color: Theme.fg
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: netRowMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (netItemCol.modelData.in_use) return
-                                            if (!netItemCol.modelData.secured) {
-                                                // Open network -> connect immediately
-                                                islandRight.connectToWifi(netItemCol.modelData.ssid, "")
-                                            } else {
-                                                // Toggle inline password field right below this network
-                                                islandRight.expandedSsid = netItemCol.isExpanded ? "" : netItemCol.modelData.ssid
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Inline Password Box directly underneath the clicked network
-                                Rectangle {
-                                    id: inlinePassBox
-                                    visible: netItemCol.isExpanded
-                                    width: parent.width
-                                    height: visible ? 44 : 0
-                                    color: Theme.surfaceVariant
-                                    radius: Theme.globalRadius
-                                    border.color: Theme.accentMuted
-                                    border.width: 1
-
-                                    onVisibleChanged: {
-                                        if (visible) {
-                                            passInput.text = ""
-                                            passInput.forceActiveFocus()
-                                        }
-                                    }
-
-                                    Row {
-                                        anchors.fill: parent
-                                        anchors.margins: 6
-                                        spacing: 6
-
-                                        Rectangle {
-                                            width: parent.width - 82
-                                            height: parent.height
-                                            color: Theme.bg
-                                            radius: Theme.globalRadius
-                                            border.color: passInput.activeFocus ? Theme.accent : Theme.surfaceVariant
-                                            border.width: 1
-
-                                            Text {
-                                                visible: passInput.text.length === 0
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                anchors.left: parent.left
-                                                anchors.leftMargin: 8
-                                                text: "Mot de passe WiFi (ou vide si connu)..."
-                                                color: Qt.alpha(Theme.fg, 0.45)
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            TextInput {
-                                                id: passInput
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 8
-                                                anchors.rightMargin: 8
-                                                verticalAlignment: TextInput.AlignVCenter
-                                                echoMode: TextInput.Password
-                                                focus: netItemCol.isExpanded
-                                                selectByMouse: true
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textSm
-                                                clip: true
-                                                onAccepted: islandRight.connectToWifi(netItemCol.modelData.ssid, passInput.text)
-                                                Keys.onEscapePressed: islandRight.expandedSsid = ""
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.IBeamCursor
-                                                acceptedButtons: Qt.NoButton
-                                            }
-                                        }
-
-                                        Rectangle {
-                                            width: 74
-                                            height: parent.height
-                                            radius: Theme.globalRadius
-                                            color: connectBtnMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "Joindre"
-                                                color: Theme.bg
-                                                font.pixelSize: Theme.textXs
-                                                font.bold: true
-                                            }
-
-                                            MouseArea {
-                                                id: connectBtnMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: islandRight.connectToWifi(netItemCol.modelData.ssid, passInput.text)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SUB-SECTION 7.2: SYSTEM HARDWARE & CONTROLS POPUP
@@ -1612,75 +1005,6 @@ Item {
                         color: Theme.fg
                         font.pixelSize: Theme.textLg
                         font.bold: true
-                    }
-                }
-
-                // 1. Volume Slider Control
-                Column {
-                    width: parent.width
-                    spacing: 6
-
-                    Item {
-                        width: parent.width
-                        height: 18
-                        Row {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: Theme.space2
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: islandRight.volumeIconFor(islandRight.volPercent, islandRight.volMuted)
-                                size: Theme.iconSm
-                                color: islandRight.volMuted ? Theme.error : Theme.accent
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "Volume audio"
-                                color: Theme.fg
-                                font.pixelSize: Theme.textSm
-                                font.bold: true
-                            }
-                        }
-                        Text {
-                            anchors.right: parent.right
-                            text: islandRight.volMuted ? "Muet (Cliquer pour activer)" : (islandRight.volPercent + "%")
-                            color: islandRight.volMuted ? Theme.error : Theme.accent
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: islandRight.runSysAction(["mute"])
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        id: volTrack
-                        width: parent.width
-                        height: 12
-                        radius: Theme.globalRadius
-                        color: Theme.surfaceVariant
-
-                        Rectangle {
-                            width: Math.min(1, Math.max(0, islandRight.volPercent / 100)) * parent.width
-                            height: parent.height
-                            radius: Theme.globalRadius
-                            color: islandRight.volMuted ? Theme.error : Theme.accent
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            function applyPos(mx) {
-                                const pct = Math.round(Math.max(0, Math.min(1, mx / volTrack.width)) * 100)
-                                islandRight.volPercent = pct
-                                islandRight.runSysAction(["volume", String(pct)])
-                            }
-                            onPressed: mouse => applyPos(mouse.x)
-                            onPositionChanged: mouse => { if (pressed) applyPos(mouse.x) }
-                        }
                     }
                 }
 
@@ -1846,139 +1170,6 @@ Item {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SUB-SECTION 7.3: GENEROUS POWER MENU POPUP
-    // ────────────────────────────────────────────────────────────────────────
-    // Anchored to the rightmost extremity: Shutdown, Reboot, Lock, Suspend, Logout
-    PopupWindow {
-        id: powerMenuPopup
-        anchor.item: islandRight
-        anchor.rect.x: islandRight.width - implicitWidth
-        anchor.rect.y: islandRight.popupY(islandRight)
-        anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(islandRight.clampPopupX(islandRight, islandRight.width - implicitWidth, implicitWidth), islandRight.popupY(islandRight), anchor.rect.width, anchor.rect.height)
-        implicitWidth: 280
-        // Hauteur dérivée du contenu : une valeur fixe coupait la dernière ligne
-        // (le bas n'avait plus que 0 px de marge au lieu de 14).
-        implicitHeight: powerCard.implicitHeight
-        color: "transparent"
-        visible: Theme.activePopup === "power"
-
-        Rectangle {
-            id: powerCard
-            anchors.fill: parent
-            implicitHeight: powerColumn.implicitHeight + 28
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.error
-            border.width: 1
-
-            Column {
-                id: powerColumn
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 8
-
-                // Même en-tête que « Notifications » : glyphe du jeu d'icônes
-                // puis libellé. Le caractère brut ⏻ (U+23FB) tombait en police de
-                // repli, plus fin et collé au texte.
-                Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: Theme.space2
-
-                    Icon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        glyph: "power"
-                        size: Theme.iconSm
-                        color: Theme.error
-                        opacityLevel: 1
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Session & Alimentation"
-                        color: Theme.error
-                        font.pixelSize: Theme.textLg
-                        font.bold: true
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.surfaceVariant
-                }
-
-                Repeater {
-                    model: [
-                        { icon: "lock", title: "Verrouiller la session", sub: "Protéger l'écran actif", cmd: "hyprlock || loginctl lock-session", danger: false },
-                        { icon: "logout", title: "Fermer la session", sub: "Quitter Hyprland", cmd: "hyprctl dispatch 'hl.dsp.exit()' || hyprctl dispatch exit", danger: false },
-                        { icon: "sleep", title: "Mise en veille", sub: "Suspendre en mémoire", cmd: "systemctl suspend", danger: false },
-                        { icon: "restart", title: "Redémarrer", sub: "Relancer la machine " + islandRight.hostName, cmd: "systemctl reboot", danger: true },
-                        { icon: "power", title: "Extinction", sub: "Arrêter complètement le système", cmd: "systemctl poweroff", danger: true }
-                    ]
-
-                    Rectangle {
-                        id: pwrItem
-                        required property var modelData
-                        width: parent.width
-                        height: 46
-                        radius: Theme.globalRadius
-                        color: pwrItemMa.containsMouse
-                            ? (modelData.danger ? Qt.alpha(Theme.error, 0.25) : Theme.surfaceVariant)
-                            : Qt.alpha(Theme.surfaceVariant, 0.45)
-                        border.color: pwrItemMa.containsMouse
-                            ? (modelData.danger ? Theme.error : Theme.accent)
-                            : "transparent"
-                        border.width: 1
-
-                        Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: pwrItem.modelData.icon
-                                size: Theme.iconMd
-                                color: pwrItem.modelData.danger ? Theme.error : Theme.fg
-                                opacityLevel: 1
-                            }
-
-                            Column {
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 1
-
-                                Text {
-                                    text: pwrItem.modelData.title
-                                    color: pwrItem.modelData.danger ? Theme.error : Theme.fg
-                                    font.pixelSize: Theme.textMd
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    text: pwrItem.modelData.sub
-                                    color: Qt.alpha(Theme.fg, 0.65)
-                                    font.pixelSize: Theme.textXs
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            id: pwrItemMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Theme.activePopup = ""
-                                Quickshell.execDetached(["sh", "-c", pwrItem.modelData.cmd])
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SUB-SECTION 7.4: NOTIFICATION CENTER POPUP

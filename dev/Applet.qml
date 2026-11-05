@@ -59,6 +59,16 @@ Item {
     readonly property string popupCle: String(applet.popup_cle || "")
     readonly property bool popupExterne: popupCle !== ""
 
+    // ── deux genres d'applet ─────────────────────────────────────────────────
+    // « service » : un script Python rend un contrat JSON, l'applet dessine.
+    // « qml » : le catalogue désigne un composant QML qui se dessine lui-même et
+    // possède son propre popup. Nécessaire dès qu'il n'y a rien à interroger
+    // (horloge, workspaces) ou qu'il faut un état vivant, réactif au clic
+    // (volume, réseau, systray). Sans cette seconde voie, la barre ne serait
+    // modulaire qu'à moitié : les applets « système » resteraient en dur.
+    readonly property bool estQml: String(applet.genre || "service") === "qml"
+    readonly property string composant: String(applet.composant || "")
+
     // Valeur vide : l'applet s'efface au lieu d'afficher un tiret (cas du
     // morceau : rien ne joue).
     readonly property bool sansValeur: ok && valeur === ""
@@ -70,11 +80,11 @@ Item {
                                    ? (Theme.activePopup === popupCle)
                                    : (Theme.activePopup === "applet:" + appletId)
 
-    implicitWidth: contenu.implicitWidth
-    implicitHeight: contenu.implicitHeight
+    implicitWidth: estQml ? chargeurQml.implicitWidth : contenu.implicitWidth
+    implicitHeight: estQml ? chargeurQml.implicitHeight : contenu.implicitHeight
 
     function rafraichir(force) {
-        if (root.service === "" || root.occupe) return
+        if (root.estQml || root.service === "" || root.occupe) return
         root.occupe = true
         const args = ["python3", Quickshell.shellPath(root.service)]
         // Les options de l'applet (quelles mesures, quel dossier…) viennent du
@@ -86,12 +96,13 @@ Item {
         proc.running = true
     }
 
-    onServiceChanged: if (root.service !== "") root.rafraichir(false)
-    Component.onCompleted: if (root.service !== "") root.rafraichir(false)
+    onServiceChanged: if (!root.estQml && root.service !== "") root.rafraichir(false)
+    Component.onCompleted: if (!root.estQml && root.service !== "") root.rafraichir(false)
 
     Timer {
         interval: root.cadenceMin * 60000
         repeat: true
+        running: !root.estQml
         // La cadence choisie est la cadence réelle : sans --force, le cache du
         // service ignorerait un réglage à 1 ou 2 minutes.
         onTriggered: root.rafraichir(true)
@@ -115,6 +126,7 @@ Item {
 
     Row {
         id: contenu
+        visible: !root.estQml
         // En mode jauge, les mesures ont besoin d'air pour ne pas se lire comme
         // une seule barre bariolée.
         spacing: root.barres.length > 0
@@ -184,7 +196,7 @@ Item {
         Icon {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.barres.length === 0
-            glyph: String(root.applet.icone || "circle")
+            glyph: String(root.applet.icone || "")
             size: Math.max(10, Math.round(Theme.iconSm * root.echelle))
             color: root.alerte ? Theme.warn : Theme.fg
             opacityLevel: root.ok ? 0.92 : 0.45
@@ -200,8 +212,21 @@ Item {
         }
     }
 
+    // Composant QML : il gère son propre clic et son propre popup.
+    Loader {
+        id: chargeurQml
+        source: (root.estQml && root.composant !== "")
+                ? "file://" + Quickshell.shellPath(root.composant) : ""
+        onLoaded: {
+            if (!item) return
+            item.echelle = Qt.binding(() => root.echelle)
+            item.applet = Qt.binding(() => root.applet)
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
+        enabled: !root.estQml
         cursorShape: Qt.PointingHandCursor
         onClicked: {
             const cle = root.popupExterne ? root.popupCle : ("applet:" + root.appletId)
@@ -224,7 +249,7 @@ Item {
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)
         color: "transparent"
         // Un popup externe est dessiné par son îlot : cette fenêtre reste fermée.
-        visible: root.ouvert && !root.popupExterne
+        visible: root.ouvert && !root.popupExterne && !root.estQml
 
         Rectangle {
             anchors.fill: parent
@@ -267,7 +292,7 @@ Item {
 
     HyprlandFocusGrab {
         // Rien à saisir ici : le popup externe a déjà son propre attrapeur.
-        active: root.ouvert && !root.popupExterne && root.pretGrab
+        active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml
         windows: [fenetre]
         onCleared: {
             if (Theme.activePopup === "applet:" + root.appletId) Theme.activePopup = ""

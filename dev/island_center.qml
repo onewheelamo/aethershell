@@ -43,9 +43,8 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: BAR EXPANSION & CALENDAR STATE
     // ────────────────────────────────────────────────────────────────────────
-    property bool hovered: false
-    property real expandProgress: hovered ? 1.0 : 0.0
-    Behavior on expandProgress { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+    // `hovered` / `expandProgress` ont disparu avec l'horloge : plus personne
+    // n'a besoin de déplier l'îlot au survol.
     readonly property bool calendarOpen: Theme.activePopup === "calendar"
     readonly property bool mediaOpen: Theme.activePopup === "media"
     // La position MPRIS n'est pas réactive : il faut redemander sa lecture pour que
@@ -88,6 +87,14 @@ Item {
     readonly property var dayNamesFullFr: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
 
     property date nowDate: new Date()
+    // Le calendrier garde sa propre notion du jour : l'horloge est devenue un
+    // applet (autre fichier, autres identifiants) et ne peut plus la lui donner.
+    Timer {
+        interval: 60000
+        running: true
+        repeat: true
+        onTriggered: islandCenter.nowDate = new Date()
+    }
     readonly property date viewDate: new Date(nowDate.getFullYear(), nowDate.getMonth() + monthOffset, 1)
     readonly property int viewYear: viewDate.getFullYear()
     readonly property int viewMonth: viewDate.getMonth() + 1 // 1..12
@@ -105,7 +112,7 @@ Item {
     Timer {
         interval: 1000
         // aussi quand le popup média est ouvert : titre, état et boutons doivent suivre
-        running: islandCenter.hovered || islandCenter.mediaOpen
+        running: islandCenter.mediaOpen
         repeat: true
         triggeredOnStart: true
         onTriggered: islandCenter.mediaPollTick = !islandCenter.mediaPollTick
@@ -258,8 +265,12 @@ Item {
         addingEvent = false
         addEventStatus = ""
     }
+    // L'horloge est un applet : elle ne peut plus remettre `monthOffset` à zéro
+    // elle-même (autre fichier, autres identifiants). C'est l'ouverture du
+    // calendrier qui ramène au mois courant.
     onCalendarOpenChanged: {
         if (calendarOpen) {
+            monthOffset = 0
             syncEventsForView()
             fetchMonthEvents(false)
         } else {
@@ -391,44 +402,6 @@ Item {
             id: contentRow
             anchors.centerIn: parent
             spacing: 0
-
-            // SUB-SECTION 6.1: DIGITAL CLOCK (HH:MM)
-            // ────────────────────────────────────────────────────────────────
-            Text {
-                id: clockText
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.fg
-                font.pixelSize: Theme.textLg
-                font.bold: true
-                Timer {
-                    interval: 1000
-                    running: true
-                    repeat: true
-                    triggeredOnStart: true
-                    onTriggered: {
-                        const n = new Date()
-                        clockText.text = Qt.formatDateTime(n, "hh:mm")
-                        if (n.toDateString() !== islandCenter.nowDate.toDateString()) {
-                            islandCenter.nowDate = n
-                        }
-                    }
-                }
-
-                // L'heure rouvre le calendrier : c'est le seul déclencheur resté
-                // dans l'îlot, la date et la piste étant devenues des applets.
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onEntered: islandCenter.hovered = true
-                    onExited: islandCenter.hovered = false
-                    onClicked: {
-                        if (!islandCenter.calendarOpen) islandCenter.monthOffset = 0
-                        Theme.togglePopup("calendar")
-                    }
-                }
-            }
-
             // La date et le titre du morceau ne sont plus ici : ce sont deux
             // applets (« calendrier » et « musique »), posés dans cette rangée
             // par AppletRow. Le survol n'a donc plus rien à déplier.

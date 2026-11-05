@@ -142,7 +142,11 @@ Item {
         exclusiveZone: barContainer.height + 10
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: (Theme.activePopup === "wifi" || Theme.activePopup === "calendar")
+        // Le panneau réseau est celui de l'applet « reseau » depuis la mise en
+        // modularité : c'est sa clé qu'il faut reconnaître, la saisie du mot de
+        // passe Wi-Fi y a besoin du clavier.
+        WlrLayershell.keyboardFocus: (Theme.activePopup === "applet:reseau"
+                                      || Theme.activePopup === "calendar")
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-bar"

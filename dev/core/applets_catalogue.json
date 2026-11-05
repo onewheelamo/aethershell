@@ -36,6 +36,66 @@
             "text_scale": 100
         },
         {
+            "id": "reseau",
+            "nom": "Réseau",
+            "description": "Wi-Fi : réseau, signal ; clic pour la liste et la connexion",
+            "genre": "qml",
+            "composant": "ReseauApplet.qml",
+            "ile": "droite",
+            "ordre": 50,
+            "text_scale": 100
+        },
+        {
+            "id": "systray",
+            "nom": "Systray",
+            "description": "Icônes des applications en arrière-plan ; clic droit pour leur menu",
+            "genre": "qml",
+            "composant": "SystrayApplet.qml",
+            "ile": "droite",
+            "ordre": 40,
+            "text_scale": 100
+        },
+        {
+            "id": "alimentation",
+            "nom": "Alimentation",
+            "description": "Verrouiller, fermer la session, veiller, redémarrer, éteindre",
+            "genre": "qml",
+            "composant": "PowerApplet.qml",
+            "ile": "droite",
+            "ordre": 90,
+            "text_scale": 100
+        },
+        {
+            "id": "workspaces",
+            "nom": "Bureaux",
+            "description": "Bureaux Hyprland ; molette pour passer de l'un à l'autre",
+            "genre": "qml",
+            "composant": "WorkspacesApplet.qml",
+            "ile": "gauche",
+            "ordre": 10,
+            "text_scale": 100
+        },
+        {
+            "id": "horloge",
+            "nom": "Horloge",
+            "description": "L'heure ; clic pour ouvrir le calendrier",
+            "genre": "qml",
+            "composant": "HorlogeApplet.qml",
+            "ile": "centre",
+            "ordre": 5,
+            "text_scale": 100
+        },
+        {
+            "id": "volume",
+            "nom": "Volume",
+            "description": "Volume du haut-parleur ; molette pour régler, clic droit pour muet",
+            "genre": "qml",
+            "composant": "VolumeApplet.qml",
+            "ile": "droite",
+            "ordre": 30,
+            "text_scale": 100
+        },
+        {
             "id": "systeme",
             "nom": "Système",
             "description": "CPU, RAM, GPU et température en jauges ; clic pour le détail",

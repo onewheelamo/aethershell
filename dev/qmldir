@@ -13,3 +13,9 @@ Applet 1.0 Applet.qml
 AppletRow 1.0 AppletRow.qml
 SystemePopup 1.0 SystemePopup.qml
 IconSvg 1.0 IconSvg.qml
+VolumeApplet 1.0 VolumeApplet.qml
+HorlogeApplet 1.0 HorlogeApplet.qml
+WorkspacesApplet 1.0 WorkspacesApplet.qml
+SystrayApplet 1.0 SystrayApplet.qml
+PowerApplet 1.0 PowerApplet.qml
+ReseauApplet 1.0 ReseauApplet.qml

@@ -1,0 +1,533 @@
+import QtQuick
+import "."
+import Quickshell
+import Quickshell.Io
+import Quickshell.Hyprland
+
+// APPLET RÉSEAU — le Wi-Fi, son réseau, son panneau.
+//
+// Composant QML : il emporte tout ce qui faisait vivre le bouton réseau de
+// l'îlot droit — l'état, la lecture périodique, le balayage, la connexion et le
+// panneau de gestion. L'îlot n'en sait plus rien.
+//
+// La lecture passe par `system_service.py info` toutes les 10 s plutôt que par
+// le processus système de l'îlot : l'applet doit pouvoir vivre seul, dans
+// n'importe quel îlot, sans dépendre d'un voisin qui l'interrogerait pour lui.
+Item {
+    id: root
+    property var applet: ({})
+    property real echelle: 1.0
+
+    property bool wifiConnected: false
+    property string wifiSsid: ""
+    property int wifiSignal: 0
+    property string netType: "wifi"
+
+    // État du panneau
+    property var wifiNetworks: []
+    property bool wifiScanning: false
+    property string expandedSsid: ""
+    property string connectingStatus: ""
+    property bool connectingBusy: false
+    property bool wifiScanQueued: false
+    property bool wifiScanQueuedRescan: false
+
+    readonly property bool ouvert: Theme.activePopup === "applet:reseau"
+
+    implicitWidth: netRow.implicitWidth + Math.round(12 * echelle)
+    implicitHeight: Math.max(22, Math.round(28 * echelle))
+
+    function signalIconFor(sig, connected) {
+        if (!connected && sig <= 0) return "wifi-none"
+        if (sig >= 75) return "wifi-full"
+        if (sig >= 50) return "wifi-high"
+        if (sig >= 25) return "wifi-medium"
+        return "wifi-low"
+    }
+
+    function rafraichir() {
+        if (statut.running) return
+        statut.running = true
+    }
+
+    function startWifiScan(rescan) {
+        const args = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
+        if (!rescan) args.push("--no-rescan")
+        wifiScanProc.command = args
+        wifiScanProc.running = true
+    }
+
+    function scanWifi(rescan) {
+        wifiScanning = true
+        if (wifiScanProc.running) {
+            wifiScanQueued = true
+            wifiScanQueuedRescan = wifiScanQueuedRescan || Boolean(rescan)
+            return
+        }
+        startWifiScan(rescan)
+    }
+
+    function connectToWifi(ssid, password) {
+        if (wifiConnectProc.running) return
+        connectingBusy = true
+        connectingStatus = "Connexion à " + ssid + "..."
+        wifiConnectProc.command = [
+            "python3",
+            Quickshell.shellPath("core/system_service.py"),
+            "wifi_connect",
+            ssid,
+            password || ""
+        ]
+        wifiConnectProc.running = true
+    }
+
+    Component.onCompleted: root.rafraichir()
+
+    Timer {
+        interval: 10000
+        repeat: true
+        running: true
+        onTriggered: root.rafraichir()
+    }
+
+    Process {
+        id: statut
+        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const w = (JSON.parse(text.trim()) || {}).wifi
+                    if (!w) return
+                    root.wifiConnected = Boolean(w.connected)
+                    root.wifiSsid = String(w.ssid || "")
+                    root.wifiSignal = Number(w.signal || 0)
+                    root.netType = String(w.type || "wifi")
+                } catch (e) { /* lecture illisible : on garde le dernier état */ }
+            }
+        }
+    }
+
+    Process {
+        id: wifiScanProc
+        onExited: {
+            if (root.wifiScanQueued) {
+                const rescan = root.wifiScanQueuedRescan
+                root.wifiScanQueued = false
+                root.wifiScanQueuedRescan = false
+                root.startWifiScan(rescan)
+            }
+        }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (root.wifiScanQueued) return // périmé : un balayage plus récent est en file
+                root.wifiScanning = false
+                try {
+                    root.wifiNetworks = JSON.parse(text.trim())
+                } catch (e) {
+                    root.wifiNetworks = []
+                }
+            }
+        }
+    }
+
+    Process {
+        id: wifiConnectProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.connectingBusy = false
+                try {
+                    const res = JSON.parse(text.trim())
+                    if (res.success) {
+                        root.connectingStatus = "✓ Connecté à " + res.ssid
+                        root.expandedSsid = ""
+                        root.rafraichir()
+                        root.scanWifi(false)
+                    } else {
+                        root.connectingStatus = "✕ Échec : " + (res.message || "Mot de passe incorrect")
+                    }
+                } catch (e) {
+                    root.connectingStatus = "✕ Erreur de connexion"
+                }
+            }
+        }
+    }
+
+    // ── bouton de barre ─────────────────────────────────────────────────────
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.globalRadius
+        color: root.ouvert
+            ? Theme.accent
+            : (netMa.containsMouse ? Theme.surfaceVariant : "transparent")
+
+        Behavior on color { ColorAnimation { duration: 140 } }
+
+        Row {
+            id: netRow
+            anchors.centerIn: parent
+            spacing: Math.round(6 * echelle)
+
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: root.netType === "ethernet"
+                    ? "ethernet"
+                    : root.signalIconFor(root.wifiSignal, root.wifiConnected)
+                size: Math.max(11, Math.round(Theme.iconSm * echelle))
+                color: root.ouvert ? Theme.bg : (root.wifiConnected ? Theme.accent : Theme.error)
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.wifiConnected
+                    ? (root.wifiSsid !== "" ? root.wifiSsid : "WiFi")
+                    : "Déconnecté"
+                color: root.ouvert ? Theme.bg : Theme.fg
+                font.pixelSize: Math.round(Theme.textSm * echelle)
+                font.bold: root.wifiConnected
+            }
+        }
+
+        MouseArea {
+            id: netMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Theme.togglePopup("applet:reseau")
+        }
+    }
+
+    // SUB-SECTION 7.1: INTERACTIVE WIFI MANAGEMENT POPUP
+    // ────────────────────────────────────────────────────────────────────────
+    PopupWindow {
+        id: wifiPanelPopup
+        anchor.item: root
+        anchor.rect.x: (root.width - implicitWidth) / 2
+        anchor.rect.y: Theme.barHeight + 6
+        anchor.adjustment: PopupAdjustment.All
+        implicitWidth: 320
+        implicitHeight: 390
+        color: "transparent"
+        visible: root.ouvert
+        grabFocus: visible && root.expandedSsid !== ""
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.surfaceBg
+            radius: Theme.globalRadius
+            border.color: Theme.accent
+            border.width: 1
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 10
+
+                // Header + Rescan button
+                Item {
+                    width: parent.width
+                    height: 26
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.space2
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "wifi"
+                            size: Theme.iconSm
+                            color: Theme.accent
+                            opacityLevel: 1
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Réseaux disponibles"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textLg
+                            font.bold: true
+                        }
+                    }
+
+                    Rectangle {
+                        width: 68
+                        height: 24
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: Theme.globalRadius
+                        color: rescanMa.containsMouse ? Theme.accent : Theme.surfaceVariant
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.wifiScanning ? "Scan..." : "↻ Scan"
+                            color: rescanMa.containsMouse ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            id: rescanMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.scanWifi(true)
+                        }
+                    }
+                }
+
+                // Connection feedback banner
+                Rectangle {
+                    visible: root.connectingStatus !== ""
+                    width: parent.width
+                    height: 26
+                    radius: Theme.globalRadius
+                    color: Theme.surfaceVariant
+                    border.color: root.connectingStatus.indexOf("✓") === 0
+                        ? Theme.success
+                        : (root.connectingStatus.indexOf("✕") === 0 ? Theme.error : Theme.info)
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.connectingStatus
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        elide: Text.ElideRight
+                        width: parent.width - 12
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+
+                // Scrollable list of WiFi networks with inline password input under clicked SSID
+                Flickable {
+                    id: wifiFlick
+                    width: parent.width
+                    height: root.connectingStatus !== "" ? 285 : 315
+                    contentWidth: width
+                    contentHeight: networkListCol.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    Column {
+                        id: networkListCol
+                        width: parent.width
+                        spacing: 6
+
+                        Text {
+                            visible: !root.wifiScanning && root.wifiNetworks.length === 0
+                            text: "Aucun réseau WiFi détecté."
+                            color: Qt.alpha(Theme.fg, 0.7)
+                            font.pixelSize: Theme.textSm
+                            font.italic: true
+                        }
+
+                        Repeater {
+                            model: root.wifiNetworks
+
+                            Column {
+                                id: netItemCol
+                                required property var modelData
+                                width: networkListCol.width
+                                spacing: 0
+
+                                readonly property bool isExpanded: root.expandedSsid === modelData.ssid
+
+                                // Network Row (Signal icon + SSID + Connected/Lock status)
+                                Rectangle {
+                                    width: parent.width
+                                    height: 36
+                                    radius: Theme.globalRadius
+                                    color: netItemCol.modelData.in_use
+                                        ? Qt.alpha(Theme.accent, 0.22)
+                                        : (netRowMa.containsMouse || netItemCol.isExpanded ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.45))
+                                    border.color: netItemCol.modelData.in_use
+                                        ? Theme.accent
+                                        : (netItemCol.isExpanded ? Theme.accentMuted : "transparent")
+                                    border.width: (netItemCol.modelData.in_use || netItemCol.isExpanded) ? 1 : 0
+
+                                    Row {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 10
+
+                                        // Dynamic signal strength icon at start of line
+                                        Icon {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            glyph: root.signalIconFor(netItemCol.modelData.signal, true)
+                                            size: Theme.iconSm
+                                            color: netItemCol.modelData.signal >= 60
+                                                ? Theme.success
+                                                : (netItemCol.modelData.signal >= 30 ? Theme.warn : Theme.error)
+                                        }
+
+                                        // Network SSID
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: netItemCol.modelData.ssid
+                                            color: Theme.fg
+                                            font.pixelSize: Theme.textSm
+                                            font.bold: netItemCol.modelData.in_use
+                                            elide: Text.ElideRight
+                                            width: 175
+                                        }
+                                    }
+
+                                    // Right badge: Signal % + Connected / Lock icon
+                                    Row {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: netItemCol.modelData.in_use
+                                                ? "Connecté"
+                                                : (netItemCol.modelData.signal + "%")
+                                            color: netItemCol.modelData.in_use ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                            font.pixelSize: Theme.textXs
+                                            font.bold: netItemCol.modelData.in_use
+                                        }
+
+                                        Icon {
+                                            visible: Boolean(netItemCol.modelData.secured)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            glyph: "lock"
+                                            size: 10
+                                            color: Theme.fg
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: netRowMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (netItemCol.modelData.in_use) return
+                                            if (!netItemCol.modelData.secured) {
+                                                // Open network -> connect immediately
+                                                root.connectToWifi(netItemCol.modelData.ssid, "")
+                                            } else {
+                                                // Toggle inline password field right below this network
+                                                root.expandedSsid = netItemCol.isExpanded ? "" : netItemCol.modelData.ssid
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Inline Password Box directly underneath the clicked network
+                                Rectangle {
+                                    id: inlinePassBox
+                                    visible: netItemCol.isExpanded
+                                    width: parent.width
+                                    height: visible ? 44 : 0
+                                    color: Theme.surfaceVariant
+                                    radius: Theme.globalRadius
+                                    border.color: Theme.accentMuted
+                                    border.width: 1
+
+                                    onVisibleChanged: {
+                                        if (visible) {
+                                            passInput.text = ""
+                                            passInput.forceActiveFocus()
+                                        }
+                                    }
+
+                                    Row {
+                                        anchors.fill: parent
+                                        anchors.margins: 6
+                                        spacing: 6
+
+                                        Rectangle {
+                                            width: parent.width - 82
+                                            height: parent.height
+                                            color: Theme.bg
+                                            radius: Theme.globalRadius
+                                            border.color: passInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                            border.width: 1
+
+                                            Text {
+                                                visible: passInput.text.length === 0
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 8
+                                                text: "Mot de passe WiFi (ou vide si connu)..."
+                                                color: Qt.alpha(Theme.fg, 0.45)
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            TextInput {
+                                                id: passInput
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 8
+                                                anchors.rightMargin: 8
+                                                verticalAlignment: TextInput.AlignVCenter
+                                                echoMode: TextInput.Password
+                                                focus: netItemCol.isExpanded
+                                                selectByMouse: true
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textSm
+                                                clip: true
+                                                onAccepted: root.connectToWifi(netItemCol.modelData.ssid, passInput.text)
+                                                Keys.onEscapePressed: root.expandedSsid = ""
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.IBeamCursor
+                                                acceptedButtons: Qt.NoButton
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 74
+                                            height: parent.height
+                                            radius: Theme.globalRadius
+                                            color: connectBtnMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "Joindre"
+                                                color: Theme.bg
+                                                font.pixelSize: Theme.textXs
+                                                font.bold: true
+                                            }
+
+                                            MouseArea {
+                                                id: connectBtnMa
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.connectToWifi(netItemCol.modelData.ssid, passInput.text)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
+    property bool pretGrab: false
+    onOuvertChanged: {
+        if (root.ouvert) { root.scanWifi(false); delaiGrab.restart() }
+        else root.pretGrab = false
+    }
+    Timer {
+        id: delaiGrab
+        interval: 150
+        onTriggered: root.pretGrab = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.ouvert && root.pretGrab
+        windows: [wifiPanelPopup]
+        onCleared: if (root.ouvert) Theme.activePopup = ""
+    }
+}
