@@ -58,6 +58,8 @@ Rectangle {
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
           tab: 5, section: "greeter_theme", target: "secGreeter" },
+        { label: "Accès API", words: "cle api token deepseek secrets connexion", tab: 1,
+          section: "widgets_api", target: "secApiKeys" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
           tab: 1, section: "widgets", target: "secWidgets" },
         { label: "Position du lanceur", words: "lanceur position capsule haut bas centre gauche droite",
@@ -215,6 +217,10 @@ Rectangle {
     property int borderSize: 2
     property int hyprRounding: 2
     property real hyprRoundingPower: 2.0
+    // Clés d'API : le panneau ne connaît que leur présence et leurs 4 derniers
+    // caractères — la valeur elle-même ne remonte jamais du fichier.
+    property var apiKeys: ({})
+    property string cleEtat: ""
     property var monitorsList: []
     property string selectedMonitorName: "HDMI-A-1"
     property string timezoneStr: "Europe/Paris"
@@ -384,6 +390,7 @@ Rectangle {
             if (typeof data.gaps.border_size === "number") root.borderSize = data.gaps.border_size
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
+        if (data.api_keys && typeof data.api_keys === "object") root.apiKeys = data.api_keys
         if (typeof data.hypr_rounding_power === "number")
             root.hyprRoundingPower = data.hypr_rounding_power
         if (data.display) {
@@ -469,6 +476,50 @@ Rectangle {
                     root.applyStateJson(JSON.parse(text.trim()))
                 } catch (e) {
                     root.refreshConfigState()
+                }
+            }
+        }
+    }
+
+    // Clé d'API : écrite dans un fichier du répertoire runtime, puis remise à
+    // config_manager qui la range dans secrets.json et supprime le fichier.
+    FileView {
+        id: cleApiFile
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-api-key.json"
+        atomicWrites: true
+        printErrors: true
+        onSaved: root.envoyerCleApi()
+        onSaveFailed: err => root.cleEtat = "écriture impossible (" + err + ")"
+    }
+
+    function enregistrerCleApi(section) {
+        const valeur = champCleApi.text.trim()
+        if (valeur === "") {
+            root.cleEtat = "clé vide"
+            return
+        }
+        root.cleEtat = "enregistrement…"
+        cleApiFile.setText(JSON.stringify({ section: section, nom: "api_key", valeur: valeur }))
+    }
+
+    function envoyerCleApi() {
+        cleApiProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                              "api_key_set_file", cleApiFile.path]
+        cleApiProc.running = true
+    }
+
+    Process {
+        id: cleApiProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = ({})
+                try { r = JSON.parse(text.trim()) } catch (e) {}
+                if (r.ok) {
+                    root.cleEtat = "clé enregistrée (…" + r.tail + ")"
+                    champCleApi.text = ""
+                    root.refreshConfigState()
+                } else {
+                    root.cleEtat = "refusé : " + (r.erreur || "valeur invalide")
                 }
             }
         }
@@ -2496,6 +2547,103 @@ Rectangle {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Accès API : les widgets qui interrogent un service externe ont besoin
+            // d'une clé. Elle est rangée dans secrets.json (mode 600) et le panneau
+            // ne montre jamais que ses derniers caractères.
+            CollapsibleSection {
+                id: secApiKeys
+                objectName: "secApiKeys"
+                title: "Accès API"
+                icon: "lock"
+                expanded: root.sectionOpen("widgets_api", false)
+                onToggled: expanded => root.setPanelSection("widgets_api", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Clé d'API DeepSeek — elle sert au widget qui affiche le solde. "
+                            + "Elle est enregistrée dans core/secrets.json et n'apparaît jamais en clair."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 10
+
+                        Rectangle {
+                            width: parent.width - 130
+                            height: 32
+                            color: Theme.bg
+                            radius: Theme.globalRadius
+                            border.color: champCleApi.activeFocus ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+
+                            TextInput {
+                                id: champCleApi
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.info
+                                font.pixelSize: Theme.textSm
+                                echoMode: TextInput.Password
+                                selectByMouse: true
+                                onAccepted: root.enregistrerCleApi("deepseek")
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                visible: champCleApi.text.length === 0
+                                text: root.apiKeys["deepseek.api_key"]
+                                      ? "Clé enregistrée (…" + root.apiKeys["deepseek.api_key"].tail + ")"
+                                      : "sk-…"
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Theme.textXs
+                            }
+                        }
+
+                        Rectangle {
+                            width: 120
+                            height: 32
+                            radius: Theme.globalRadius
+                            color: enregistrerCle.containsMouse ? Theme.accentMuted : Theme.accent
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Enregistrer"
+                                color: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: enregistrerCle
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.enregistrerCleApi("deepseek")
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.cleEtat !== ""
+                        text: root.cleEtat
+                        color: root.cleEtat.startsWith("clé enregistrée") ? Theme.success : Theme.error
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
                     }
                 }
             }

@@ -1063,6 +1063,81 @@ def set_app_var(alias, command):
     return True
 
 
+SECRETS_FILE = os.path.join(BASE_DIR, "secrets.json")
+
+
+def lire_secrets():
+    try:
+        with open(SECRETS_FILE, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def resume_secrets():
+    """Ce que le panneau peut afficher : présence et derniers caractères, jamais la clé."""
+    out = {}
+    for section, valeur in lire_secrets().items():
+        if not isinstance(valeur, dict):
+            continue
+        for nom, cle in valeur.items():
+            if not isinstance(cle, str) or not cle.strip():
+                continue
+            out[f"{section}.{nom}"] = {"present": True, "tail": cle.strip()[-4:]}
+    return out
+
+
+def set_secret(section, nom, valeur):
+    """Range une clé dans secrets.json (600), sans jamais l'écrire ailleurs."""
+    section, nom = str(section).strip(), str(nom).strip()
+    valeur = str(valeur or "").strip()
+    if not section or not nom:
+        return False
+    if not valeur:
+        return False
+    data = lire_secrets()
+    entree = data.get(section)
+    if not isinstance(entree, dict):
+        entree = {}
+    entree[nom] = valeur
+    data[section] = entree
+    with open(SECRETS_FILE, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=4, ensure_ascii=False)
+        fh.write("\n")
+    try:
+        os.chmod(SECRETS_FILE, 0o600)
+    except OSError:
+        pass
+    return True
+
+
+def set_secret_from_file(chemin):
+    """La clé arrive par un fichier (pas par la ligne de commande).
+
+    Un argument de commande est visible dans `/proc/<pid>/cmdline` le temps de
+    l'exécution ; le fichier de passage, lui, vit sous $XDG_RUNTIME_DIR et
+    disparaît dès lecture.
+    """
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            charge = json.load(fh)
+    except Exception as exc:
+        return {"ok": False, "erreur": f"fichier illisible : {exc}"}
+    finally:
+        try:
+            os.unlink(chemin)
+        except OSError:
+            pass
+    section = str(charge.get("section") or "").strip()
+    nom = str(charge.get("nom") or "api_key").strip()
+    valeur = str(charge.get("valeur") or "").strip()
+    if not section or not valeur:
+        return {"ok": False, "erreur": "section ou valeur vide"}
+    ok = set_secret(section, nom, valeur)
+    return {"ok": ok, "section": section, "nom": nom, "tail": valeur[-4:] if ok else ""}
+
+
 def load_notif_targets():
     try:
         with open(NOTIF_TARGETS_FILE, encoding="utf-8") as fh:
@@ -1367,6 +1442,7 @@ def get_full_config_state():
         "bar_border": bool(style_data.get("bar_border", True)),
         "hypr_rounding": get_hypr_rounding(),
         "hypr_rounding_power": get_hypr_rounding_power(),
+        "api_keys": resume_secrets(),
         "wallpaper_dir": get_wallpaper_dir(),
         "screenshots_dir": get_screenshots_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),
@@ -1396,6 +1472,8 @@ if __name__ == "__main__":
     elif action == "kb_layout" and len(sys.argv) > 2:
         set_kb_layout(sys.argv[2], mark_first_run_done=True)
         print(json.dumps(get_full_config_state()))
+    elif action == "api_key_set_file" and len(sys.argv) > 2:
+        print(json.dumps(set_secret_from_file(sys.argv[2]), ensure_ascii=False))
     elif action == "complete_first_run":
         complete_first_run()
         print(json.dumps(get_full_config_state()))
