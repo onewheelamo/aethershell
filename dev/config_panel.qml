@@ -515,11 +515,33 @@ Rectangle {
                 let r = ({})
                 try { r = JSON.parse(text.trim()) } catch (e) {}
                 if (r.ok) {
-                    root.cleEtat = "clé enregistrée (…" + r.tail + ")"
+                    root.cleEtat = "enregistrée (…" + r.tail + "), vérification…"
                     champCleApi.text = ""
                     root.refreshConfigState()
+                    // Une clé mal copiée (préfixe perdu, jeton d'un autre champ) ne
+                    // se voit qu'à l'usage : on interroge l'API dans la foulée.
+                    testCleProc.command = ["python3",
+                                           Quickshell.shellPath("core/deepseek_service.py"), "--force"]
+                    testCleProc.running = true
                 } else {
                     root.cleEtat = "refusé : " + (r.erreur || "valeur invalide")
+                }
+            }
+        }
+    }
+
+    Process {
+        id: testCleProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = ({})
+                try { r = JSON.parse(text.trim()) } catch (e) {}
+                if (r.ok) {
+                    const sym = r.currency === "CNY" ? "¥" : (r.currency === "USD" ? "$" : "")
+                    root.cleEtat = "clé acceptée · solde " + sym + Number(r.total).toFixed(2)
+                                   + (r.available ? "" : " — solde épuisé")
+                } else {
+                    root.cleEtat = "l'API refuse cette clé : " + (r.error || "raison inconnue")
                 }
             }
         }
@@ -2679,7 +2701,8 @@ Rectangle {
                         width: parent.width
                         visible: root.cleEtat !== ""
                         text: root.cleEtat
-                        color: root.cleEtat.startsWith("clé enregistrée") ? Theme.success : Theme.error
+                        color: (root.cleEtat.startsWith("clé acceptée") || root.cleEtat.startsWith("enregistrée"))
+                               ? Theme.success : Theme.error
                         font.pixelSize: Theme.textXs
                         wrapMode: Text.WordWrap
                     }
