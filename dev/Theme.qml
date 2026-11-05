@@ -410,6 +410,12 @@ QtObject {
     // ce qui rend les modes lançables par IPC (tests scriptés).
     property var captureHook: null
 
+    // Crochets de diagnostic des notifications, branchés par island_right :
+    //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
+    //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
+    property var notifTargetsHook: null
+    property var notifOpenHook: null
+
     property IpcHandler ipc: IpcHandler {
         target: "shell"
         function placeWidget() {
@@ -485,6 +491,15 @@ QtObject {
         function captureMode(mode: string) {
             if (root.captureHook)
                 root.captureHook(mode)
+        }
+        // Diagnostic du clic sur le titre d'une notification :
+        //   quickshell ipc call shell notifTargets      → cibles résolues (JSON)
+        //   quickshell ipc call shell notifOpenLatest   → ouvre la plus récente
+        function notifTargets(): string {
+            return root.notifTargetsHook ? String(root.notifTargetsHook()) : "[]"
+        }
+        function notifOpenLatest(): bool {
+            return root.notifOpenHook ? Boolean(root.notifOpenHook()) : false
         }
     }
 }

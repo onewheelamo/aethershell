@@ -108,6 +108,48 @@ vivant), plus `Video` = `mpv` et `Images` = `gwenview`, dans `app_vars.json` **e
 `programs.lua`. `notif_targets.json` est entré dans `PRESERVE_CORE` (état, pas
 code) : une modification du panneau ou du fichier survit au déploiement.
 
+## État — L2 livré (05/11, 10:15)
+
+Le clic fonctionne dans le centre **et** dans le toast :
+
+- le titre (`summary`) est cliquable quand — et seulement quand — une cible a été
+  résolue : curseur main et teinte accent au survol (120 ms) ; sans cible, il
+  redevient du texte mort ;
+- le clic exécute `target.cmd` (`Quickshell.execDetached`) ou, pour une cible de
+  type `action`, appelle `invoke()` sur l'action `default` de la notification ;
+- il retire ensuite la notification de la liste **et** du serveur
+  (`raw.tracked = false`), puis ferme le centre — pour le toast, il disparaît ;
+- le corps du toast continue d'ouvrir le centre, le corps d'une carte ne fait rien ;
+- le ✕ de la carte et « Tout effacer » passent aussi par le `dismiss` serveur
+  (défaut corrigé au passage).
+
+Deux IPC de diagnostic, pour distinguer « pas de cible » de « clic cassé » :
+
+    quickshell ipc call shell notifTargets      # JSON des entrées + cible retenue
+    quickshell ipc call shell notifOpenLatest   # ouvre la cible la plus récente
+
+Vérifié sur le shell vivant (par IPC, donc par la même fonction que les clics) :
+
+| Essai | Résultat |
+|---|---|
+| entrée avec cible (`hermes-selftest` → `touch /tmp/…`) | `notifTargets` porte `regle=table cible=touch …` |
+| `notifOpenLatest` | `true`, fichier créé, entrée retirée de la liste |
+| entrée **sans** cible | `regle=""`, `notifOpenLatest` → `false` (pas d'affordance) |
+| deux entrées, une seule avec cible | seule celle avec cible est ouverte et retirée |
+
+Limites de la vérification, à dire plutôt qu'à masquer :
+
+- **Le clic lui-même** (survol + enfoncement) n'a pas été simulé : les `MouseArea`
+  appellent exactement la fonction exercée par l'IPC, mais la zone cliquable
+  (taille, priorité sur le fond du toast) reste à confirmer à la souris.
+- **`keepOnReload`** : impossible de provoquer un rechargement à chaud sur cette
+  instance (deux essais, aucun `Reloading configuration`), donc « une entrée
+  retirée ne revient pas » repose sur l'API (`tracked = false` ≡ `dismiss()`), pas
+  sur une observation.
+- Une notification **fermée par le client ou expirée** reste dans l'historique du
+  centre : rien n'écoute `Notification.closed`. C'est un choix d'historique, pas un
+  oubli — à trancher si les entrées mortes s'accumulent.
+
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par

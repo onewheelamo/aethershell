@@ -1,18 +1,21 @@
 {
     "_comment": "Cible du clic sur le titre d'une notification. Les programmes ne sont pas nommés ici : 'types' et 'url' désignent des alias du tiroir « Programmes par défaut » du panneau (core/app_vars.json), et 'apps' décrit une règle par application (appName ou desktopEntry). run + terminal = lancé dans l'alias Terminal.",
-
     "apps": {
-        "Arch-Update": { "run": "arch-update", "terminal": true },
-        "arch-update-tray.desktop": { "run": "arch-update", "terminal": true }
+        "Arch-Update": {
+            "run": "arch-update",
+            "terminal": true
+        },
+        "arch-update-tray.desktop": {
+            "run": "arch-update",
+            "terminal": true
+        }
     },
-
     "types": {
         "video": "Video",
         "image": "Images",
         "folder": "Files",
         "text": "Editor"
     },
-
     "url": "Browser",
     "terminal_alias": "Terminal"
 }

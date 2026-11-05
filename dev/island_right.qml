@@ -299,8 +299,7 @@ Item {
             summary: notification.summary || "",
             body: notification.body || "",
             hints: plainHints,
-            actions: actions,
-            actionCount: raw.length
+            actions: actions
         })
     }
 
@@ -351,6 +350,67 @@ Item {
         id: notifResolverRestart
         interval: 5000
         onTriggered: { if (!notifResolver.running) notifResolver.running = true }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SECTION 3ter: OUVRIR LA CIBLE D'UNE NOTIFICATION (clic sur le titre)
+    // ────────────────────────────────────────────────────────────────────────
+    // Le centre et le toast suivent la même règle pour le titre, et deux règles
+    // différentes pour le reste : dans le centre la carte ne fait rien (on lit une
+    // notification), dans le toast le corps ouvre le centre. Détail : fiche
+    // dev/PROPOSITION_notif_click.md.
+    function notifHasTarget(entry) {
+        if (!entry || !entry.target) return false
+        if (entry.target.kind === "action") return true
+        return Boolean(entry.target.cmd && entry.target.cmd.length > 0)
+    }
+
+    // Retirer de la liste **et** du serveur : sans `tracked = false`, keepOnReload
+    // ressuscite la notification au prochain rechargement du shell.
+    function forgetNotif(entry) {
+        if (!entry) return
+        if (entry.raw) {
+            try { entry.raw.tracked = false } catch (e) {}
+        }
+        const list = islandRight.notificationsList
+        for (let i = 0; i < list.length; i++) {
+            if (String(list[i].id) !== String(entry.id)) continue
+            const copy = list.slice()
+            copy.splice(i, 1)
+            islandRight.notificationsList = copy
+            return
+        }
+    }
+
+    function clearNotifications() {
+        const list = islandRight.notificationsList
+        for (let i = 0; i < list.length; i++) {
+            if (!list[i].raw) continue
+            try { list[i].raw.tracked = false } catch (e) {}
+        }
+        islandRight.notificationsList = []
+    }
+
+    // Ouvre ce que le titre annonce, puis retire la notification. `closeCentre`
+    // referme le popup des notifications (un toast n'en ouvre pas).
+    function openNotifTarget(entry, closeCentre) {
+        if (!islandRight.notifHasTarget(entry)) return false
+        const target = entry.target
+        if (target.kind === "action") {
+            const actions = entry.raw ? entry.raw.actions : []
+            for (let i = 0; i < actions.length; i++) {
+                if (String(actions[i].identifier) !== String(target.actionId)) continue
+                try { actions[i].invoke() } catch (e) {}
+                break
+            }
+        } else {
+            Quickshell.execDetached(target.cmd)
+        }
+        islandRight.forgetNotif(entry)
+        if (islandRight.latestToast && String(islandRight.latestToast.id) === String(entry.id))
+            islandRight.latestToast = null
+        if (closeCentre) Theme.activePopup = ""
+        return true
     }
 
     // Écarte une application des toasts, ou la rétablit. La liste vit dans
@@ -533,6 +593,34 @@ Item {
 
     Component.onCompleted: {
         checkArchUpdateInstalledProc.running = true
+
+        // Crochets de diagnostic, exposés par IPC depuis Theme :
+        //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
+        //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
+        // Sans eux, « le clic ne fait rien » ne se distingue pas de « pas de cible ».
+        Theme.notifTargetsHook = function() {
+            const out = []
+            const list = islandRight.notificationsList
+            for (let i = 0; i < list.length; i++) {
+                const e = list[i]
+                out.push({
+                    id: String(e.id),
+                    app: e.appName || "",
+                    resume: e.summary || "",
+                    regle: e.target ? String(e.target.rule || "") : "",
+                    type: e.target ? String(e.target.kind || "") : "",
+                    cible: e.target ? String(e.target.display || "") : ""
+                })
+            }
+            return JSON.stringify(out)
+        }
+        Theme.notifOpenHook = function() {
+            const list = islandRight.notificationsList
+            for (let i = 0; i < list.length; i++)
+                if (islandRight.notifHasTarget(list[i]))
+                    return islandRight.openNotifTarget(list[i], true)
+            return false
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -1832,7 +1920,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: islandRight.notificationsList = []
+                            onClicked: islandRight.clearNotifications()
                         }
                     }
                 }
@@ -1966,22 +2054,37 @@ Item {
                                                 anchors.margins: -4
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    const copy = islandRight.notificationsList.slice()
-                                                    copy.splice(index, 1)
-                                                    islandRight.notificationsList = copy
-                                                }
+                                                onClicked: islandRight.forgetNotif(modelData)
                                             }
                                         }
                                     }
 
-                                    Text {
+                                    // Titre = cible : curseur main et teinte accent au
+                                    // survol **seulement** si une cible a été résolue.
+                                    Item {
                                         width: parent.width
-                                        text: modelData.summary
-                                        color: Theme.fg
-                                        font.pixelSize: Theme.textSm
-                                        font.bold: true
-                                        wrapMode: Text.WordWrap
+                                        height: notifTitle.implicitHeight
+
+                                        Text {
+                                            id: notifTitle
+                                            width: parent.width
+                                            text: modelData.summary
+                                            color: titleMa.containsMouse && titleMa.enabled
+                                                ? Theme.accent : Theme.fg
+                                            font.pixelSize: Theme.textSm
+                                            font.bold: true
+                                            wrapMode: Text.WordWrap
+                                            Behavior on color { ColorAnimation { duration: 120 } }
+                                        }
+
+                                        MouseArea {
+                                            id: titleMa
+                                            anchors.fill: parent
+                                            enabled: islandRight.notifHasTarget(modelData)
+                                            hoverEnabled: true
+                                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                            onClicked: islandRight.openNotifTarget(modelData, true)
+                                        }
                                     }
 
                                     Text {
@@ -2187,13 +2290,37 @@ Item {
                     }
                 }
 
-                Text {
+                // Titre du toast : même règle que dans le centre — il ouvre la
+                // cible et retire la notification ; le reste du toast continue
+                // d'ouvrir le centre.
+                Item {
                     width: parent.width
-                    text: islandRight.latestToast ? islandRight.latestToast.summary : ""
-                    color: Theme.fg
-                    font.pixelSize: Theme.textSm
-                    font.bold: true
-                    wrapMode: Text.WordWrap
+                    height: toastTitle.implicitHeight
+
+                    Text {
+                        id: toastTitle
+                        width: parent.width
+                        text: islandRight.latestToast ? islandRight.latestToast.summary : ""
+                        color: toastTitleMa.containsMouse && toastTitleMa.enabled
+                            ? Theme.accent : Theme.fg
+                        font.pixelSize: Theme.textSm
+                        font.bold: true
+                        wrapMode: Text.WordWrap
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    MouseArea {
+                        id: toastTitleMa
+                        anchors.fill: parent
+                        enabled: islandRight.latestToast
+                            ? islandRight.notifHasTarget(islandRight.latestToast) : false
+                        hoverEnabled: true
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: {
+                            if (islandRight.latestToast)
+                                islandRight.openNotifTarget(islandRight.latestToast, false)
+                        }
+                    }
                 }
 
                 Text {
