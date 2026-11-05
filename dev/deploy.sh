@@ -168,6 +168,10 @@ prune_target() {
             secrets.json) continue ;;
             # Outils manuels hors périmètre du déploiement : jamais élagués.
             rotate.sh|sync_to_*.sh|sync*.sh) continue ;;
+            # Caches écrits à l'exécution par les services : absents du dépôt par
+            # construction, donc jamais « obsolètes ». Sans cette ligne, chaque
+            # déploiement les archivait et le shell repartait d'un cache vide.
+            *_cache.json) continue ;;
         esac
         if [ "${PRUNE_DRY:-0}" = "1" ]; then
             echo "  [dry-run] would prune: $dst/$name"
@@ -374,6 +378,14 @@ deploy_new_env() {
     if [ -d "$DEV_DIR/widgets" ]; then
         mkdir -p "$QS_DIR/widgets"
         cp -f "$DEV_DIR/widgets/"*.qml "$QS_DIR/widgets/" 2>/dev/null || true
+        # Un composant retiré du dépôt doit disparaître de la cible : il n'est
+        # plus chargé, mais un fichier orphelin se relit comme s'il servait
+        # encore (les widgets deepseek/ollama/antigravity sont devenus llm.qml).
+        local w_manifest
+        w_manifest=$(mktemp)
+        (cd "$DEV_DIR/widgets" && ls -1 *.qml 2>/dev/null) > "$w_manifest"
+        prune_target "$QS_DIR/widgets" "$w_manifest"
+        rm -f "$w_manifest"
     fi
 
     local qs_manifest

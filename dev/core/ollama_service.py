@@ -54,7 +54,10 @@ BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "ollama_cache.json"
 
 sys.path.insert(0, str(BASE_DIR))
+import llm_contrat  # noqa: E402
 import llm_providers  # noqa: E402
+
+SEUIL_BAS = 1.0        # sous 1 $, il reste moins d'une heure de consommation
 
 API_BASE = llm_providers.base_url("ollama", "https://ollama.com") + "/api"
 PLAGE = "7d"
@@ -163,6 +166,31 @@ def consommation(cle):
     }
 
 
+def presenter(donnees):
+    """Bloc d'affichage : le solde en grand, le rythme des 7 jours en petit.
+
+    Les deux chiffres répondent à deux questions différentes — « combien puis-je
+    encore dépenser » et « à quel rythme », un solde seul ne dit pas s'il tiendra
+    la semaine. Le rythme manque quand `/api/usage` a échoué : on l'omet plutôt
+    que d'afficher un zéro qui ferait croire à une consommation nulle.
+    """
+    if not donnees.get("ok"):
+        return donnees
+    total = float(donnees.get("total") or 0)
+    if total <= 0:
+        libelle, alerte = "crédit épuisé · Ollama Cloud", True
+    elif total < SEUIL_BAS:
+        libelle, alerte = "à recharger · Ollama Cloud", True
+    else:
+        libelle, alerte = "Ollama Cloud", False
+
+    mesures = [llm_contrat.mesure(llm_contrat.montant(total), libelle)]
+    conso = donnees.get("usage_7d")
+    if conso is not None:
+        mesures.append(llm_contrat.mesure(llm_contrat.montant(conso), "sur 7 j"))
+    return llm_contrat.presenter(donnees, "Ollama Cloud", "cloud", mesures, alerte)
+
+
 def main(argv):
     force = "--force" in argv
 
@@ -171,21 +199,18 @@ def main(argv):
         # Simple lecture du cache : la valeur est fraîche, elle n'a rien de périmé.
         cache["cached"] = True
         cache.pop("stale_reason", None)
-        print(json.dumps(cache, ensure_ascii=False))
-        return 0
+        return llm_contrat.sortir(presenter(cache))
 
     cle = cle_api()
     if not cle:
         if cache:
             cache["cached"] = True
-            print(json.dumps(cache, ensure_ascii=False))
-            return 0
-        print(json.dumps({
+            return llm_contrat.sortir(presenter(cache))
+        return llm_contrat.sortir({
             "ok": False,
             "provider": "ollama",
             "error": "clé absente (core/secrets.json → " + llm_providers.reference_cle("ollama") + ")",
-        }, ensure_ascii=False))
-        return 0
+        })
 
     try:
         donnees = solde(cle)
@@ -204,18 +229,15 @@ def main(argv):
         donnees["ts"] = int(time.time())
         donnees["cached"] = False
         ecrire_cache(donnees)
-        print(json.dumps(donnees, ensure_ascii=False))
-        return 0
+        return llm_contrat.sortir(presenter(donnees))
 
     # Échec : la dernière valeur connue vaut mieux qu'un tiret, à condition de
     # dire qu'elle est périmée.
     if cache and cache.get("ok"):
         cache["cached"] = True
         cache["stale_reason"] = donnees.get("error")
-        print(json.dumps(cache, ensure_ascii=False))
-        return 0
-    print(json.dumps(donnees, ensure_ascii=False))
-    return 0
+        return llm_contrat.sortir(presenter(cache))
+    return llm_contrat.sortir(donnees)
 
 
 if __name__ == "__main__":

@@ -44,6 +44,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "antigravity_cache.json"
 
+sys.path.insert(0, str(BASE_DIR))
+import llm_contrat  # noqa: E402
+
 LOG_DIRS = [
     Path(os.path.expanduser("~/.gemini/antigravity/log")),
     Path(os.path.expanduser("~/.gemini/antigravity-cli/log")),
@@ -154,6 +157,11 @@ def analyser():
 
     actives = [f for f in sortie if f["seconds_left"] > 0]
     dernier = max(tous, key=lambda e: e[0])
+    # Échéances déjà passées : « libre » seul n'informe de rien, alors que
+    # « reset hebdo il y a 1 h 12 » dit que le blocage vient de se lever.
+    passees = [(int(instant + secondes), "session" if secondes < 24 * 3600 else "week")
+               for instant, secondes, _, _ in tous if instant + secondes < now]
+    remise, genre_remise = max(passees) if passees else (0, "")
     return {
         "ok": True,
         "provider": "antigravity",
@@ -161,8 +169,57 @@ def analyser():
         "windows": sortie,
         "source": str(dernier[3]),
         "last_event": int(dernier[0]),
+        "last_reset_at": remise,
+        "last_reset_kind": genre_remise,
         "detail": "déduit des logs (aucun point d'entrée de quota côté abonnement)",
     }
+
+
+LIBELLES = {"session": "session", "week": "hebdo"}
+
+
+def presenter(donnees):
+    """Les deux fenêtres de quota, et depuis quand la dernière est retombée.
+
+    Ce que le service sait est une échéance, pas un pourcentage : quand rien
+    n'est épuisé il dit « libre », ce qui veut dire « aucun refus journalisé »,
+    jamais « quota mesuré ». La fenêtre la plus lointaine passe en grand, parce
+    qu'elle bloque encore quand la courte est passée ; l'autre reste lisible en
+    petit — c'est la distinction que le widget perdait en ne gardant que la
+    première.
+    """
+    if not donnees.get("ok"):
+        return donnees
+    maintenant = int(time.time())
+    fenetres = {f.get("kind"): f for f in donnees.get("windows") or []}
+    actives = [f for f in fenetres.values() if int(f.get("reset_at") or 0) > maintenant]
+
+    mesures = []
+    alerte = bool(actives)
+    if actives:
+        principale = max(actives, key=lambda f: f["reset_at"])
+        genre = principale.get("kind")
+        mesures.append(llm_contrat.mesure(
+            llm_contrat.duree(principale["reset_at"] - maintenant),
+            LIBELLES.get(str(genre), str(genre)) + " · quota épuisé",
+            fin=principale["reset_at"]))
+        autre = "session" if genre == "week" else "week"
+        if autre in fenetres and int(fenetres[autre].get("reset_at") or 0) > maintenant:
+            mesures.append(llm_contrat.mesure(
+                llm_contrat.duree(fenetres[autre]["reset_at"] - maintenant),
+                LIBELLES[autre] + " épuisée",
+                fin=fenetres[autre]["reset_at"]))
+        else:
+            mesures.append(llm_contrat.mesure(LIBELLES[autre], "libre"))
+    else:
+        mesures.append(llm_contrat.mesure("libre", "Antigravity"))
+        remise = int(donnees.get("last_reset_at") or 0)
+        if remise > 0:
+            genre = donnees.get("last_reset_kind") or ""
+            mesures.append(llm_contrat.mesure(
+                "reset " + LIBELLES.get(genre, genre), "", depuis=remise))
+
+    return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
 
 
 def main(argv):
@@ -170,8 +227,7 @@ def main(argv):
     cache = lire_cache()
     if cache and not force and (time.time() - int(cache.get("ts") or 0)) < TTL:
         cache["cached"] = True
-        print(json.dumps(cache, ensure_ascii=False))
-        return 0
+        return llm_contrat.sortir(presenter(cache))
 
     try:
         donnees = analyser()
@@ -182,8 +238,7 @@ def main(argv):
         donnees["ts"] = int(time.time())
         donnees["cached"] = False
         ecrire_cache(donnees)
-    print(json.dumps(donnees, ensure_ascii=False))
-    return 0
+    return llm_contrat.sortir(presenter(donnees))
 
 
 if __name__ == "__main__":

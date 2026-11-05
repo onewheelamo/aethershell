@@ -782,7 +782,16 @@ Item {
                     // (pitfall 68). Ici le contenu garde sa taille implicite et la
                     // fenêtre suit.
                     anchors.centerIn: parent
-                    source: widgetWindow.w.type ? ("widgets/" + widgetWindow.w.type + ".qml") : ""
+                    // Les widgets de compte partagent un seul composant : le
+                    // fournisseur se déduit de l'id (« deepseek-3 » → deepseek),
+                    // donc widgets.json, les positions et les réglages déjà
+                    // enregistrés n'ont pas bougé.
+                    source: {
+                        const t = widgetWindow.w.type
+                        if (!t) return ""
+                        const partages = ["deepseek", "ollama", "antigravity"]
+                        return "widgets/" + (partages.indexOf(t) >= 0 ? "llm" : t) + ".qml"
+                    }
                     onLoaded: {
                         if (item) {
                             item.options = widgetWindow.w.options || ({})

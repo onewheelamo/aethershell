@@ -40,11 +40,13 @@ BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "deepseek_cache.json"
 
 sys.path.insert(0, str(BASE_DIR))
+import llm_contrat  # noqa: E402
 import llm_providers  # noqa: E402
 
 API_URL = llm_providers.base_url("deepseek", "https://api.deepseek.com") + "/user/balance"
 TTL = 300
 TIMEOUT = 8
+SEUIL_BAS = 5.0        # sous 5 unités, on ne tient plus longtemps
 
 
 def cle_api():
@@ -95,6 +97,24 @@ def interroger(cle):
     }
 
 
+def presenter(donnees):
+    """Bloc d'affichage : le solde en grand, l'état en petit (voir llm_contrat)."""
+    if not donnees.get("ok"):
+        return donnees
+    total = float(donnees.get("total") or 0)
+    bas = total < SEUIL_BAS
+    if not donnees.get("available", True):
+        libelle, alerte = "solde épuisé · DeepSeek", True
+    elif bas:
+        libelle, alerte = "à recharger · DeepSeek", True
+    else:
+        libelle, alerte = "DeepSeek", False
+    return llm_contrat.presenter(
+        donnees, "DeepSeek", "wallet",
+        [llm_contrat.mesure(llm_contrat.montant(total, donnees.get("currency")), libelle)],
+        alerte)
+
+
 def main(argv):
     force = "--force" in argv
 
@@ -103,21 +123,18 @@ def main(argv):
         # Simple lecture du cache : la valeur est fraîche, elle n'a rien de périmé.
         cache["cached"] = True
         cache.pop("stale_reason", None)
-        print(json.dumps(cache, ensure_ascii=False))
-        return 0
+        return llm_contrat.sortir(presenter(cache))
 
     cle = cle_api()
     if not cle:
         # Pas de clé : on le dit, et on sert la dernière valeur connue si elle existe.
         if cache:
             cache["cached"] = True
-            print(json.dumps(cache, ensure_ascii=False))
-            return 0
-        print(json.dumps({
+            return llm_contrat.sortir(presenter(cache))
+        return llm_contrat.sortir({
             "ok": False,
             "error": "clé absente (core/secrets.json → " + llm_providers.reference_cle("deepseek") + ")",
-        }, ensure_ascii=False))
-        return 0
+        })
 
     try:
         donnees = interroger(cle)
@@ -132,8 +149,7 @@ def main(argv):
 
     if donnees.get("ok"):
         ecrire_cache(donnees)
-        print(json.dumps(donnees, ensure_ascii=False))
-        return 0
+        return llm_contrat.sortir(presenter(donnees))
 
     # Échec : la dernière valeur connue vaut mieux qu'un tiret, à condition de
     # dire qu'elle est périmée.
@@ -142,10 +158,8 @@ def main(argv):
         # échoué. `stale_reason` est ce que le widget affiche.
         cache["cached"] = True
         cache["stale_reason"] = donnees.get("error")
-        print(json.dumps(cache, ensure_ascii=False))
-        return 0
-    print(json.dumps(donnees, ensure_ascii=False))
-    return 0
+        return llm_contrat.sortir(presenter(cache))
+    return llm_contrat.sortir(donnees)
 
 
 if __name__ == "__main__":
