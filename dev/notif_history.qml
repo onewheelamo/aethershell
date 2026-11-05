@@ -31,6 +31,14 @@ Item {
     readonly property color surfaceColor: Qt.alpha(Theme.surface, 0.92)
     property var rows: []
     property int entryCount: 0
+    // Ligne sélectionnée au clavier (-1 : aucune). Seules les cartes comptent,
+    // pas les séparateurs de jour.
+    property int selectedRow: -1
+    // Garde-fou, pas une mesure : dans les 250 ms qui suivent le map, un clic
+    // extérieur est ignoré. Une surface plein écran qui apparaît sous le curseur
+    // peut recevoir un clic résiduel ; la marge coûte trois lignes et évite de
+    // refermer le tiroir qu'on vient d'ouvrir.
+    property double openedAt: 0
 
     signal closeRequested()
 
@@ -41,7 +49,7 @@ Item {
     // ── lecture de l'historique ─────────────────────────────────────────────
     FileView {
         id: historyFile
-        path: "file://" + root.cacheDir + "/quickshell/notifications-history.jsonl"
+        path: root.cacheDir + "/quickshell/notifications-history.jsonl"
         watchChanges: true
         onFileChanged: reload()
         onTextChanged: root.parseHistory(text())
@@ -117,6 +125,41 @@ Item {
         return true
     }
 
+    // ── navigation au clavier ───────────────────────────────────────────────
+    function entryRowIndexes() {
+        const out = []
+        for (let i = 0; i < rows.length; i++)
+            if (rows[i] && rows[i].type === "entry") out.push(i)
+        return out
+    }
+
+    function moveSelection(step) {
+        const dispo = entryRowIndexes()
+        if (dispo.length === 0) return
+        let pos = dispo.indexOf(selectedRow)
+        if (pos < 0) pos = step > 0 ? -1 : dispo.length
+        pos = Math.min(Math.max(pos + step, 0), dispo.length - 1)
+        selectedRow = dispo[pos]
+        historyList.positionViewAtIndex(selectedRow, ListView.Contain)
+    }
+
+    function selectedEntry() {
+        const ligne = rows[selectedRow]
+        return (ligne && ligne.type === "entry") ? ligne.entry : null
+    }
+
+    function activateSelection() {
+        const entry = selectedEntry()
+        if (entry) reopen(entry)
+    }
+
+    function deleteSelection() {
+        const entry = selectedEntry()
+        if (!entry) return
+        deleteEntry(entry.id)
+        selectedRow = -1        // la liste est relue : l'index ne veut plus rien dire
+    }
+
     function canReopen(entry) {
         const target = entry && entry.target ? entry.target : null
         if (!target || target.kind === "action") return false
@@ -134,10 +177,12 @@ Item {
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Overlay
-        // Toujours Exclusive : la surface n'existe que pendant l'ouverture, et
-        // changer ce paramètre en cours de route recrée la couche — ce qui coupait
-        // net l'animation de sortie (le tiroir disparaissait en deux images).
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        // Le clavier est pris pendant l'ouverture seulement : à la fermeture, il
+        // revient tout de suite à l'application, alors que le tiroir finit de
+        // sortir. (Le passage à None ne recrée pas la couche : l'animation de
+        // sortie avait été coupée par la course `visible`/timer, pas par ceci.)
+        WlrLayershell.keyboardFocus: Theme.notifHistoryVisible
+            ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-notif-history"
 
         // Avancement du glissement, 0 = hors écran à droite, 1 = posé.
@@ -159,6 +204,8 @@ Item {
             target: Theme
             function onNotifHistoryVisibleChanged() {
                 if (Theme.notifHistoryVisible) {
+                    root.selectedRow = -1
+                    root.openedAt = Date.now()
                     Theme.activePopup = ""      // le panneau de notifications s'efface
                     historyFile.reload()
                     openTimer.restart()
@@ -170,14 +217,23 @@ Item {
         }
 
         Item {
+            id: keyCatcher
             anchors.fill: parent
             focus: Theme.notifHistoryVisible
             Keys.onEscapePressed: Theme.notifHistoryVisible = false
+            Keys.onUpPressed: root.moveSelection(-1)
+            Keys.onDownPressed: root.moveSelection(1)
+            Keys.onReturnPressed: root.activateSelection()
+            Keys.onEnterPressed: root.activateSelection()
+            Keys.onDeletePressed: root.deleteSelection()
         }
 
         MouseArea {
             anchors.fill: parent
-            onClicked: Theme.notifHistoryVisible = false
+            onClicked: {
+                if (Date.now() - root.openedAt < 250) return
+                Theme.notifHistoryVisible = false
+            }
         }
 
         Rectangle {
@@ -191,6 +247,14 @@ Item {
             anchors.rightMargin: 14 - (1 - historyWindow.reveal) * (width + 20)
             radius: Theme.globalRadius
             color: root.surfaceColor
+
+            // Sans cette surface, un clic sur une carte (hors titre, croix ou
+            // bouton) traversait le tiroir et atteignait le capteur plein
+            // écran : cliquer une notification la refermait.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+            }
             border.color: Qt.alpha(Theme.accent, 0.22)
             border.width: 1
 
@@ -278,6 +342,7 @@ Item {
                     delegate: Loader {
                         id: rowLoader
                         required property var modelData
+                        required property int index
                         width: historyList.width
                         sourceComponent: modelData.type === "day" ? daySeparator : entryCard
 
@@ -314,8 +379,13 @@ Item {
                                 width: historyList.width
                                 height: histCol.implicitHeight + 16
                                 radius: Theme.globalRadius
-                                color: histMa.containsMouse
-                                    ? Qt.lighter(Theme.surfaceVariant, 1.12) : Theme.surfaceVariant
+                                readonly property bool selectionne: rowLoader.index === root.selectedRow
+                                color: selectionne
+                                    ? Qt.lighter(Theme.surfaceVariant, 1.32)
+                                    : (histMa.containsMouse ? Qt.lighter(Theme.surfaceVariant, 1.12)
+                                                            : Theme.surfaceVariant)
+                                border.width: selectionne ? 1 : 0
+                                border.color: Theme.accent
                                 Behavior on color { ColorAnimation { duration: 120 } }
 
                                 MouseArea {

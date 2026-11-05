@@ -207,6 +207,32 @@ Vérifié par l'IPC du shell (`captureMode`), donc par le chemin réel :
 Effet de bord assumé du test : `hyprshot` copie toujours dans le presse-papier, et
 les captures/vidéos d'essai ont été supprimées après mesure.
 
+## Lot C (05/11, 12:05)
+
+`SUPER + SHIFT + N` ouvre le tiroir (`showNotifHistory`, idempotent : un bind
+enregistré deux fois ne le referme pas). Le bind est dans le fichier vivant et dans
+la copie du dépôt, section « Lanceur & panneau », donc il apparaît tout seul dans
+l'aide-mémoire.
+
+Navigation au clavier dans le tiroir : flèches haut/bas (les séparateurs de jour sont
+sautés), Entrée rouvre la cible, Suppr retire l'entrée, Échap ferme. La carte
+sélectionnée prend un fond plus clair et un liseré accent, et la liste défile pour la
+garder visible.
+
+Deux défauts trouvés en chemin, tous deux corrigés :
+
+- Les clics traversaient le tiroir. La carte porte un `MouseArea` en `acceptedButtons:
+  Qt.NoButton` (pour le survol sans voler le clic) : le clic tombait donc dans le
+  capteur plein écran, et cliquer une notification la refermait. Le tiroir avale
+  maintenant les clics qui ne sont pas sur un élément actif ; vérifié, clic sur une
+  carte → ouvert, clic hors du tiroir → fermé.
+- `keyboardFocus` est de nouveau conditionnel (Exclusive seulement à l'ouverture). Le
+  commentaire qui accusait ce paramètre de recréer la couche était faux : la sortie
+  avait été coupée par la course `visible`/timer. Fermeture filmée après ce retour en
+  arrière : surface du tiroir 3957 → 68 sur neuf images, donc toujours progressive.
+
+Le chemin `FileView` est passé en chemin nu, comme partout ailleurs dans le projet.
+
 ## Lots A et B de l'audit Gemini (05/11, 11:35)
 
 **Lot A.** Le signal `closed` de chaque notification est branché : la carte quitte

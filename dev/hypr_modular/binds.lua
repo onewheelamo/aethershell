@@ -21,6 +21,7 @@ hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpot
 hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"), { description = "panneau de réglages" })
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
 hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc call shell toggleCheatsheet"), { description = "raccourcis" })
+hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("quickshell ipc call shell showNotifHistory"), { description = "historique des notifications" })
 
 -- Sortie de l'aperçu plein écran du greeter (fenêtre de test SDDM). Le mode
 -- test n'a aucun socket d'authentification et n'obéit pas à Qt.quit() : la
