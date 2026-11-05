@@ -240,6 +240,10 @@ Item {
                 summary: notification.summary || "Notification",
                 body: notification.body || "",
                 time: Qt.formatDateTime(new Date(), "hh:mm"),
+                // Photographie des actions : la carte les dessine même si la
+                // notification est fermée ensuite. L'invocation, elle, repasse
+                // par `raw` (l'objet Qt sait parler au client).
+                actions: islandRight.notifActionList(notification),
                 raw: notification
             }
             const next = [entry].concat(islandRight.notificationsList).slice(0, 30)
@@ -279,6 +283,15 @@ Item {
     // jamais d'un binaire écrit en dur.
     property var targetQueue: []
 
+    function notifActionList(notification) {
+        const out = []
+        const raw = notification.actions || []
+        for (let i = 0; i < raw.length; i++)
+            out.push({ identifier: String(raw[i].identifier || ""),
+                       text: String(raw[i].text || "") })
+        return out
+    }
+
     function notifTargetPayload(notification) {
         const hints = (notification.hints && typeof notification.hints === "object")
             ? notification.hints : ({})
@@ -286,11 +299,7 @@ Item {
         for (const key in hints)
             plainHints[String(key)] = String(hints[key])
 
-        const actions = []
-        const raw = notification.actions || []
-        for (let i = 0; i < raw.length; i++)
-            actions.push({ identifier: String(raw[i].identifier || ""),
-                           text: String(raw[i].text || "") })
+        const actions = islandRight.notifActionList(notification)
 
         return JSON.stringify({
             id: String(notification.id),
@@ -388,6 +397,38 @@ Item {
             return
         }
         console.warn("notification " + entry.id + " absente de la liste au retrait")
+    }
+
+    // Actions affichables : tout sauf « default », qui est déjà le clic sur le
+    // titre (deux boutons pour la même chose sèmeraient le doute).
+    function notifActions(entry) {
+        if (!entry || !entry.actions) return []
+        const out = []
+        for (let i = 0; i < entry.actions.length; i++) {
+            const a = entry.actions[i]
+            if (String(a.identifier).toLowerCase() === "default") continue
+            if (!a.text) continue
+            out.push(a)
+        }
+        return out
+    }
+
+    // Invoque une action nommée. Si la notification a été fermée par son
+    // application entre-temps, l'objet Qt ne répond plus : on garde l'entrée
+    // (l'historique n'appartient pas au client) et on ne fait rien d'autre.
+    function invokeNotifAction(entry, identifier) {
+        if (!entry || !entry.raw) return false
+        const actions = entry.raw.actions || []
+        for (let i = 0; i < actions.length; i++) {
+            if (String(actions[i].identifier) !== String(identifier)) continue
+            try { actions[i].invoke() } catch (e) { return false }
+            // Une action non « resident » fait fermer la notification par le
+            // serveur : on retire alors la carte, sinon on la laisse.
+            if (entry.raw && entry.raw.tracked === false) islandRight.forgetNotif(entry)
+            return true
+        }
+        console.warn("action " + identifier + " introuvable (notification fermée ?)")
+        return false
     }
 
     function clearNotifications() {
@@ -2104,6 +2145,48 @@ Item {
                                         wrapMode: Text.WordWrap
                                         maximumLineCount: 3
                                         elide: Text.ElideRight
+                                    }
+
+                                    // Actions proposées par l'application
+                                    // (« Ouvrir », « Mettre en pause »…) : petites
+                                    // pastilles sous le corps. L'action « default »
+                                    // n'y figure pas, c'est le clic sur le titre.
+                                    Flow {
+                                        width: parent.width
+                                        visible: islandRight.notifActions(notifCard.modelData).length > 0
+                                        spacing: Theme.space1
+
+                                        Repeater {
+                                            model: islandRight.notifActions(notifCard.modelData)
+
+                                            Rectangle {
+                                                required property var modelData
+                                                width: actionLabel.implicitWidth + Theme.space3 * 2
+                                                height: 20
+                                                radius: Theme.globalRadius
+                                                color: actionMa.containsMouse
+                                                    ? Qt.alpha(Theme.accent, 0.16)
+                                                    : Qt.alpha(Theme.fg, 0.06)
+
+                                                Text {
+                                                    id: actionLabel
+                                                    anchors.centerIn: parent
+                                                    text: modelData.text
+                                                    color: actionMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
+                                                    font.pixelSize: Theme.textXs
+                                                    elide: Text.ElideRight
+                                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                                }
+
+                                                MouseArea {
+                                                    id: actionMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: islandRight.invokeNotifAction(notifCard.modelData, modelData.identifier)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
