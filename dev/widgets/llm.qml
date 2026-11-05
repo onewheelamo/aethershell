@@ -316,6 +316,23 @@ Item {
                         }
                     }
                 }
+
+                // Échéance propre à la ligne : « 20:06 » aujourd'hui, la date
+                // complète au-delà. Chaque modèle porte la sienne, y compris ceux
+                // dont la tranche n'est pas bloquée.
+                Column {
+                    Repeater {
+                        model: root.lignes
+                        Text {
+                            text: String(modelData.echeance || "")
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.pixelSize: root.tailleLigne
+                            font.features: { "tnum": 1 }
+                            style: Text.Raised
+                            styleColor: Qt.alpha(Theme.bg, 0.55)
+                        }
+                    }
+                }
             }
 
             Text {

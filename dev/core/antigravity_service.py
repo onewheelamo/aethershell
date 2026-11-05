@@ -211,6 +211,16 @@ def etiquette(model):
     return ""
 
 
+def echeance(instant):
+    """« 20:06 » si c'est aujourd'hui, « 07/11 17:15 » sinon : le jour est inutile
+    quand la remise tombe dans les heures qui viennent."""
+    quand = time.localtime(int(instant))
+    maintenant = time.localtime()
+    if (quand.tm_year, quand.tm_yday) == (maintenant.tm_year, maintenant.tm_yday):
+        return time.strftime("%H:%M", quand)
+    return time.strftime("%d/%m %H:%M", quand)
+
+
 def lignes_de(fenetres):
     """Un tableau : un modèle par ligne, sa tranche et le pourcentage qui reste.
 
@@ -227,14 +237,15 @@ def lignes_de(fenetres):
                 continue
             reste = float(modele.get("reste") or 0)
             cle = (nom, tranche)
-            if cle not in pires or reste < pires[cle]:
-                pires[cle] = reste
+            if cle not in pires or reste < pires[cle][0]:
+                pires[cle] = (reste, int(fenetre.get("reset_at") or 0))
     lignes = [{
         "nom": nom,
         "tranche": tranche,
         "valeur": f"{int(round(reste * 100)):>3} %",
+        "echeance": echeance(remise) if remise else "",
         "alerte": reste <= SEUIL_ALERTE,
-    } for (nom, tranche), reste in pires.items()]
+    } for (nom, tranche), (reste, remise) in pires.items()]
     lignes.sort(key=lambda l: (0 if l["alerte"] else 1, l["nom"]))
     return lignes
 
@@ -515,24 +526,22 @@ def presenter(donnees):
         # Le pied ne garde que ce que le tableau ne dit pas : réouverture,
         # fraîcheur d'un relevé repris du cache, palier d'abonnement.
         pied = []
-        bloquees = [f for f in fenetres if float(f["reste"]) <= 0]
-        if bloquees:
-            # « rouvre » seul ne disait ni de quelle tranche ni de quels modèles :
-            # c'est la fenêtre bloquée qui porte la date, et les lignes à 0 % du
-            # tableau sont exactement celles qu'elle borne.
-            fenetre = bloquees[0]
-            pied.append(llm_contrat.mesure(
-                texte=f'{fenetre["label"]} rouvre ' + time.strftime(
-                    "%d/%m %H:%M", time.localtime(fenetre["reset_at"]))))
-        elif donnees.get("source") == "cache":
-            actives = [f for f in donnees.get("windows") or []
-                       if int(f.get("reset_at") or 0) > int(time.time())]
-            if actives:
-                plus_tard = max(actives, key=lambda f: f["reset_at"])
+        # Quand le tableau existe, chaque ligne porte déjà son échéance : la
+        # répéter en pied n'apprendrait rien.
+        if not lignes:
+            bloquees = [f for f in fenetres if float(f["reste"]) <= 0]
+            if bloquees:
+                fenetre = bloquees[0]
                 pied.append(llm_contrat.mesure(
-                    texte=("hebdo" if plus_tard.get("kind") == "week" else "5 h")
-                    + " rouvre " + time.strftime(
-                        "%d/%m %H:%M", time.localtime(plus_tard["reset_at"]))))
+                    texte=f'{fenetre["label"]} rouvre ' + echeance(fenetre["reset_at"])))
+            elif donnees.get("source") == "cache":
+                actives = [f for f in donnees.get("windows") or []
+                           if int(f.get("reset_at") or 0) > int(time.time())]
+                if actives:
+                    plus_tard = max(actives, key=lambda f: f["reset_at"])
+                    pied.append(llm_contrat.mesure(
+                        texte=("hebdo" if plus_tard.get("kind") == "week" else "5 h")
+                        + " rouvre " + echeance(plus_tard["reset_at"])))
         if donnees.get("source") == "cache":
             pied.append(llm_contrat.mesure(
                 texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
