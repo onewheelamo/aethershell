@@ -55,6 +55,7 @@ PLEIN_TTL = 6 * 3600
 sys.path.insert(0, str(BASE_DIR))
 import llm_contrat  # noqa: E402
 
+API_MODELES = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels"
 API_QUOTA = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
 API_ASSIST = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
 AGENT = "antigravity/1.10.0"
@@ -73,6 +74,8 @@ DELAI = re.compile(r"Resets in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
 QUOTA = "Individual quota reached"
 
 FAMILLES = (("claude", "Claude"), ("gemini", "Gemini"), ("gpt", "GPT"))
+# Les modèles qui nous concernent ; `chat_*`, `tab_*` et consorts sont internes.
+NOM_MODELE = re.compile(r"gemini|claude|gpt", re.I)
 
 
 # ---------------------------------------------------------------- cache
@@ -179,48 +182,48 @@ def famille(model_id):
     return "autres"
 
 
-def _lire_quota(jeton_acces):
-    """(fenêtres, raison, code HTTP) — le code ne sert qu'à décider d'un renouvellement."""
-    try:
-        assist = poster(API_ASSIST, {"metadata": {"pluginType": "GEMINI"}}, jeton_acces)
-        projet = assist.get("cloudaicompanionProject")
-        if not projet:
-            return None, "projet Code Assist introuvable", None
-        quota = poster(API_QUOTA, {"project": projet}, jeton_acces)
-    except urllib.error.HTTPError as erreur:
-        return None, f"API quota : HTTP {erreur.code}", erreur.code
-    except (urllib.error.URLError, ValueError) as erreur:
-        return None, f"API quota : {erreur}", None
+def court(nom):
+    """« Claude Opus 5.5 (High) » → « Opus 5.5 » : la famille est déjà dite ailleurs."""
+    nom = re.sub(r"\s*\([^)]*\)\s*$", "", str(nom or "")).strip()
+    if nom.lower().startswith("claude "):
+        return nom[len("claude "):]
+    return nom
 
+
+def fenetres_de(modeles):
+    """[{reset_at, reste, familles, noms, models}] regroupés par heure de remise."""
     partages = {}
-    for compartiment in quota.get("buckets") or []:
-        remise = compartiment.get("resetTime")
-        if not remise:
-            continue                      # modèles sans quota horaire : toujours libres
-        partages.setdefault(remise, []).append({
-            "model": str(compartiment.get("modelId") or "?"),
-            "reste": round(float(compartiment.get("remainingFraction") or 0), 4),
-        })
-    if not partages:
-        return None, "aucun compartiment quota dans la réponse", None
+    for modele in modeles:
+        if modele.get("reset"):
+            partages.setdefault(modele["reset"], []).append(modele)
 
     fenetres = []
-    for remise, modeles in partages.items():
+    for remise, groupe in partages.items():
         try:
             reset_at = int(dt.datetime.fromisoformat(remise.replace("Z", "+00:00")).timestamp())
         except ValueError:
             continue
-        pire = min(m["reste"] for m in modeles)
-        familles = sorted({famille(m["model"]) for m in modeles
-                           if m["reste"] <= pire + 1e-9})
+        pire = min(m["reste"] for m in groupe)
+        retenus = [m for m in groupe if m["reste"] <= pire + 1e-9]
+        # Claude d'abord, puis Gemini, puis GPT : l'ordre des familles, pas celui
+        # de la réponse, qui mélange les variantes.
+        rang = {nom: i for i, (_, nom) in enumerate(FAMILLES)}
+        retenus.sort(key=lambda m: (rang.get(famille(m["model"]), len(rang)),
+                                    m.get("nom") or m["model"]))
+        noms = []
+        for modele in retenus:
+            nom = modele.get("nom") or modele["model"]
+            if nom not in noms:
+                noms.append(nom)
         fenetres.append({
             "reset_at": reset_at,
             "reste": pire,
-            "familles": familles,
-            "models": modeles,
+            "familles": sorted({famille(m["model"]) for m in retenus}),
+            "noms": noms[:3],
+            "models": [{"model": m["model"], "reste": m["reste"]} for m in groupe],
         })
     if not fenetres:
-        return None, "fenêtres illisibles", None
+        return []
 
     maintenant = time.time()
     # Deux fenêtres : celle qui rouvre le plus tard est l'hebdomadaire. Un seuil
@@ -235,32 +238,115 @@ def _lire_quota(jeton_acces):
         fenetre["kind"] = "week" if hebdo else "session"
         fenetre["label"] = "hebdo" if hebdo else "5 h"
     fenetres.sort(key=lambda f: (f["reste"], -f["reset_at"]))
+    return fenetres
+
+
+def _modeles_utiles(table):
+    """Les modèles servis par l'abonnement, ramenés à leur fenêtre de quota."""
+    utiles = []
+    for nom, info in (table or {}).items():
+        if not NOM_MODELE.search(nom):
+            continue                     # chat_*, tab_* : internes, sans remise
+        quota = (info or {}).get("quotaInfo") or {}
+        if not quota.get("resetTime"):
+            continue                     # pas de fenêtre : quota illimité
+        utiles.append({
+            "model": nom,
+            "nom": court((info or {}).get("displayName") or nom),
+            # Champ absent = plus rien ne reste : c'est ainsi que la réponse dit
+            # « épuisé », sans zéro explicite.
+            "reste": round(float(quota.get("remainingFraction") or 0), 4),
+            "reset": quota["resetTime"],
+        })
+    return utiles
+
+
+def _lire_modeles(acces, projet):
+    try:
+        reponse = poster(API_MODELES, {"project": projet} if projet else {}, acces)
+    except urllib.error.HTTPError as erreur:
+        return None, f"API modèles : HTTP {erreur.code}", erreur.code
+    except (urllib.error.URLError, ValueError) as erreur:
+        return None, f"API modèles : {erreur}", None
+    fenetres = fenetres_de(_modeles_utiles(reponse.get("models")))
+    if not fenetres:
+        return None, "aucun modèle quota dans la réponse", None
     return fenetres, None, None
 
 
+def _lire_quota(acces, projet):
+    """L'endpoint groupé d'avant, gardé en second : il donne les mêmes fractions."""
+    try:
+        quota = poster(API_QUOTA, {"project": projet}, acces)
+    except urllib.error.HTTPError as erreur:
+        return None, f"API quota : HTTP {erreur.code}", erreur.code
+    except (urllib.error.URLError, ValueError) as erreur:
+        return None, f"API quota : {erreur}", None
+    modeles = [{
+        "model": str(compartiment.get("modelId") or "?"),
+        "nom": "",
+        "reste": round(float(compartiment.get("remainingFraction") or 0), 4),
+        "reset": compartiment.get("resetTime"),
+    } for compartiment in quota.get("buckets") or []]
+    fenetres = fenetres_de(modeles)
+    if not fenetres:
+        return None, "aucun compartiment quota dans la réponse", None
+    return fenetres, None, None
+
+
+def _lire_assist(acces):
+    """(projet, palier d'abonnement, souci)."""
+    try:
+        reponse = poster(API_ASSIST, {"metadata": {"ideType": "ANTIGRAVITY"}}, acces)
+    except urllib.error.HTTPError as erreur:
+        return "", "", f"Code Assist : HTTP {erreur.code}"
+    except (urllib.error.URLError, ValueError) as erreur:
+        return "", "", f"Code Assist : {erreur}"
+    # paidTier dit ce que l'abonnement payant apporte (g1-pro-tier), currentTier
+    # ce dont le compte dispose par défaut (free-tier) : c'est le premier qui
+    # porte les quotas affichés.
+    palier = ((reponse.get("paidTier") or {}).get("id")
+              or (reponse.get("currentTier") or {}).get("id") or "")
+    return str(reponse.get("cloudaicompanionProject") or ""), str(palier), None
+
+
+def _interroger(acces):
+    projet, palier, souci = _lire_assist(acces)
+    if souci:
+        return None, souci, None, ""
+    fenetres, raison, code = _lire_modeles(acces, projet)
+    if fenetres:
+        return fenetres, None, None, palier
+    if code == 401:
+        return None, raison, 401, palier
+    fenetres, raison2, code2 = _lire_quota(acces, projet)
+    if fenetres:
+        return fenetres, None, None, palier
+    return None, raison2 or raison, code2, palier
+
+
 def depuis_api():
-    """Compartiments par fenêtre, ou (None, raison) si l'API n'est pas joignable.
+    """(fenêtres, raison, palier) — les fenêtres de quota, ou la raison du silence.
 
     Un jeton expiré ou un 401 ne sont pas des impasses : le CLI sait le
     renouveler, et un second essai suffit presque toujours.
     """
-    jeton_acces, raison = jeton()
-    if not jeton_acces:
+    acces, raison = jeton()
+    if not acces:
         if "expiré" in str(raison) and renouveler():
-            jeton_acces, raison = jeton()
-        if not jeton_acces:
-            return None, raison
-
-    fenetres, raison, code = _lire_quota(jeton_acces)
+            acces, raison = jeton()
+        if not acces:
+            return None, raison, ""
+    fenetres, souci, code, palier = _interroger(acces)
     if fenetres:
-        return fenetres, None
+        return fenetres, None, palier
     if code == 401 and renouveler():
-        jeton_acces, _ = jeton()
-        if jeton_acces:
-            fenetres, raison, _ = _lire_quota(jeton_acces)
+        acces, _ = jeton()
+        if acces:
+            fenetres, souci, _, palier = _interroger(acces)
             if fenetres:
-                return fenetres, None
-    return None, raison
+                return fenetres, None, palier
+    return None, souci or raison, palier
 
 
 # ---------------------------------------------------------------- source 2 : logs
@@ -380,9 +466,18 @@ def presenter(donnees):
         for i, fenetre in enumerate(fenetres):
             pourcent = int(round(float(fenetre["reste"]) * 100))
             familles = " · ".join(fenetre.get("familles") or []) or "quota"
+            # La grande ligne dit *quoi* est bloqué : les modèles nommés quand la
+            # réponse les donne (« Opus 5.5 · Sonnet 5.5 · GPT-OSS 120B »), les
+            # familles sinon. Les fenêtres suivantes restent en familles, plus court.
+            noms = " · ".join(fenetre.get("noms") or [])
+            # La petite ligne du widget est étroite : des noms trop longs y
+            # débordent, on retombe alors sur « Claude/GPT », qui tient en dix
+            # caractères et dit déjà l'essentiel.
+            contexte = noms if noms and len(noms) <= 30 else "/".join(
+                fenetre.get("familles") or []) or familles
             if i == 0:
                 mesures.append(llm_contrat.mesure(
-                    f"{pourcent} %", f'{fenetre["label"]} · {familles}',
+                    f"{pourcent} %", f'{fenetre["label"]} · {contexte}',
                     releve=fenetre["reset_at"]))
             else:
                 mesures.append(llm_contrat.mesure(
@@ -407,7 +502,14 @@ def presenter(donnees):
                         time.localtime(max(f["reset_at"] for f in actives)))))
             mesures.append(llm_contrat.mesure(
                 texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
-        alerte = min(f["reste"] for f in fenetres) <= SEUIL_ALERTE
+        # Un palier sans abonnement payant change tout ce que le widget raconte :
+        # mieux vaut le dire que laisser lire des quotas sans portée.
+        palier = str(donnees.get("palier") or "")
+        sans_pro = palier != "" and "pro" not in palier.lower()
+        if sans_pro:
+            mesures.append(llm_contrat.mesure(
+                texte="palier " + palier.replace("-", " ")))
+        alerte = sans_pro or min(f["reste"] for f in fenetres) <= SEUIL_ALERTE
         return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
 
     # Repli : échéances issues des logs.
@@ -441,20 +543,23 @@ def presenter(donnees):
 
 
 def analyser():
-    fenetres, raison = depuis_api()
+    fenetres, raison, palier = depuis_api()
     if fenetres:
         pire = min(f["reste"] for f in fenetres)
-        ecrire_json(PLEIN_FILE, {"ts": int(time.time()), "percent_windows": fenetres})
+        ecrire_json(PLEIN_FILE, {"ts": int(time.time()), "percent_windows": fenetres,
+                                 "palier": palier})
         return {
             "ok": True, "provider": "antigravity",
             "state": "exhausted" if pire <= 0 else "free",
             "reste_min": pire,
             "percent_windows": fenetres,
+            "palier": palier,
             "source": "api",
         }
 
     donnees = depuis_logs()
     donnees["api_error"] = raison
+    donnees["palier"] = palier
     # Repli de repli : plutôt qu'un simple décompte, montrer le dernier relevé
     # complet, daté. Un pourcentage d'il y a quarante minutes vaut mieux qu'un
     # « épuisé » sans ampleur.
@@ -462,6 +567,7 @@ def analyser():
     age = int(time.time()) - int(plein.get("ts") or 0)
     if plein.get("percent_windows") and -60 <= age < PLEIN_TTL:
         donnees["percent_windows"] = plein["percent_windows"]
+        donnees["palier"] = plein.get("palier") or palier
         donnees["releve_ts"] = int(plein["ts"])
         donnees["source"] = "cache"
     return donnees
