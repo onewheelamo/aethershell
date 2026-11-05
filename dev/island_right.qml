@@ -241,7 +241,13 @@ Item {
             // L'historique, lui, garde son entrée : il vit sur disque.
             try {
                 notification.closed.connect(function () {
-                    islandRight.dropClosedNotif(notification.id)
+                    // L'objet, pas l'id : une application peut *remplacer* une
+                    // notification (`notify-send -r 1`), et le serveur réutilise
+                    // alors l'id. Filtrer par id retirait la nouvelle carte au lieu
+                    // de l'ancienne — c'est ce qui faisait disparaître les avis
+                    // d'arch-update du centre alors que le toast et l'historique
+                    // les gardaient.
+                    islandRight.dropClosedNotif(notification)
                 })
             } catch (e) {}
             const entry = {
@@ -256,6 +262,21 @@ Item {
                 actions: islandRight.notifActionList(notification),
                 raw: notification
             }
+            // Une application peut *remplacer* sa notification (`notify-send -r`).
+            // Le serveur met alors l'objet à jour sur place et n'émet **pas**
+            // `notification` : sans ces connexions, la carte gardait le texte de
+            // la notification précédente — un avis d'arch-update restait invisible
+            // dans le centre parce qu'il portait le nom et le résumé d'une autre
+            // application. Les propriétés de Notification ont toutes un NOTIFY,
+            // on écoute celles qui s'affichent.
+            const rafraichir = function () { islandRight.rafraichirEntree(notification) }
+            const signaux = ["appNameChanged", "summaryChanged", "bodyChanged",
+                             "actionsChanged", "hintsChanged", "desktopEntryChanged",
+                             "urgencyChanged", "imageChanged"]
+            for (let s = 0; s < signaux.length; s++) {
+                try { notification[signaux[s]].connect(rafraichir) } catch (e) {}
+            }
+
             const all = [entry].concat(islandRight.notificationsList)
             // Les évincées doivent être relâchées du serveur : `keepOnReload` garde
             // tout ce qui est encore `tracked` et les ferait réapparaître au
@@ -401,15 +422,49 @@ Item {
     // On ne touche pas à `tracked` : le serveur a déjà statué, et réécrire la
     // propriété d'un objet mort n'apporterait rien. `forgetNotif` reste réservé
     // au cas où c'est nous qui décidons de la fermeture.
-    function dropClosedNotif(id) {
+    // `closed` nous donne l'objet Qt concerné : c'est lui qui identifie l'entrée,
+    // pas son id. Deux notifications peuvent partager un id (remplacement), et
+    // dans ce cas retirer « la première qui porte cet id » retirait la nouvelle.
+    function dropClosedNotif(notif) {
+        if (!notif) return
         const list = islandRight.notificationsList
         for (let i = 0; i < list.length; i++) {
-            if (String(list[i].id) !== String(id)) continue
+            if (list[i].raw !== notif) continue
             const copy = list.slice()
             copy.splice(i, 1)
             islandRight.notificationsList = copy
-            if (islandRight.latestToast && String(islandRight.latestToast.id) === String(id))
+            if (islandRight.latestToast && islandRight.latestToast.raw === notif)
                 islandRight.latestToast = null
+            return
+        }
+    }
+
+    // Le contenu d'une notification remplacée : on recopie depuis l'objet, qui
+    // est la seule source à jour. La cible du clic est recalculée (le nouveau
+    // résumé peut désigner autre chose) et le toast suit s'il montre la même.
+    function rafraichirEntree(notif) {
+        if (!notif) return
+        const list = islandRight.notificationsList
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].raw !== notif) continue
+            const ancienne = list[i]
+            if (String(notif.summary || "") === String(ancienne.summary || "")
+                && String(notif.body || "") === String(ancienne.body || "")
+                && String(notif.appName || "") === String(ancienne.appName || ""))
+                return
+            const maj = Object.assign({}, ancienne, {
+                appName: notif.appName || "Système",
+                summary: notif.summary || "Notification",
+                body: notif.body || "",
+                actions: islandRight.notifActionList(notif),
+                target: undefined
+            })
+            const copy = list.slice()
+            copy[i] = maj
+            islandRight.notificationsList = copy
+            if (islandRight.latestToast && islandRight.latestToast.raw === notif)
+                islandRight.latestToast = maj
+            islandRight.requestNotifTarget(notif)
             return
         }
     }
@@ -423,7 +478,10 @@ Item {
         }
         const list = islandRight.notificationsList
         for (let i = 0; i < list.length; i++) {
-            if (String(list[i].id) !== String(entry.id)) continue
+            // Par objet quand on l'a encore (id partagé après un remplacement),
+            // par id sinon (entrée reconstruite depuis le disque).
+            const meme = entry.raw ? (list[i].raw === entry.raw) : (String(list[i].id) === String(entry.id))
+            if (!meme) continue
             const copy = list.slice()
             copy.splice(i, 1)
             islandRight.notificationsList = copy
@@ -699,6 +757,10 @@ Item {
                 })
             }
             return JSON.stringify(out)
+        }
+        Theme.notifClearHook = function() {
+            islandRight.clearNotifications()
+            return true
         }
         Theme.notifOpenHook = function() {
             const list = islandRight.notificationsList

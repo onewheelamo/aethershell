@@ -419,6 +419,8 @@ QtObject {
     //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
     property var notifTargetsHook: null
     property var notifOpenHook: null
+    //   quickshell ipc call shell notifClear        → vide le centre (pas l'historique)
+    property var notifClearHook: null
 
     property IpcHandler ipc: IpcHandler {
         target: "shell"
@@ -504,6 +506,9 @@ QtObject {
         }
         function notifOpenLatest(): bool {
             return root.notifOpenHook ? Boolean(root.notifOpenHook()) : false
+        }
+        function notifClear(): bool {
+            return root.notifClearHook ? Boolean(root.notifClearHook()) : false
         }
         // Tiroir de l'historique : toggle + show/hide idempotents (mêmes règles
         // que les autres surfaces : un toggle perd un appel, un show non).
