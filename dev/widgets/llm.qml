@@ -137,7 +137,13 @@ Item {
         proc.running = true
     }
 
-    Component.onCompleted: refresh(false)
+    // Le loader pose `options` et `widgetId` *après* la création de l'item :
+    // `Component.onCompleted` peut donc tomber avant que le fournisseur soit
+    // connu, et la commande partait sur `core/_service.py` (sortie vide, donc
+    // « réponse illisible »). On relance dès que le fournisseur apparaît, quel
+    // que soit l'ordre — et on ne lance rien tant qu'il est vide.
+    onProviderChanged: if (root.provider !== "") root.refresh(false)
+    Component.onCompleted: if (root.provider !== "") root.refresh(false)
 
     Timer {
         interval: root.refreshMin * 60000

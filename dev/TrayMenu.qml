@@ -39,6 +39,11 @@ Item {
         opened = true
     }
 
+    function back() {
+        root.subEntry = null
+        root.subReturnLabel = ""
+    }
+
     function close() {
         opened = false
         subEntry = null
@@ -53,6 +58,12 @@ Item {
             subEntry = entry
             return
         }
+        // `triggered()` est le seul point d'entrée exposé au QML ; il envoie
+        // l'événement `clicked` du DBusMenu. Les méthodes de `DBusMenuItem`
+        // (`sendTriggered`, `sendOpened`, `sendClosed`) ne sont pas visibles
+        // depuis QML — vérifié à l'exécution : `typeof` vaut « undefined ».
+        // Ce n'était donc pas le défaut : voir l'attrapeur de clic, qui passait
+        // au-dessus de la carte et avalait tous les clics.
         entry.triggered()
         close()
     }
@@ -85,7 +96,13 @@ Item {
         margins.top: Theme.barHeight + 12
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: WlrLayer.Overlay
+        // **Top, pas Overlay** : deux surfaces de couche identique sont empilées
+        // dans un ordre que le compositeur décide (mesuré ici : l'attrapeur
+        // passait au-dessus de la carte), et il avalait alors tous les clics —
+        // le menu se refermait sans qu'aucune entrée ne reçoive le sien. Une
+        // couche en dessous règle le problème sans dépendre de l'ordre de
+        // création. L'attrapeur reste au-dessus des fenêtres, ce qui suffit.
+        WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
         // Namespace distinct : celui-ci ne doit PAS être dans la liste de flou.
         WlrLayershell.namespace: "shell-tray-menu-catcher"
@@ -157,7 +174,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: { root.subEntry = null; root.subReturnLabel = "" }
+                        onClicked: root.back()
                     }
                 }
 
