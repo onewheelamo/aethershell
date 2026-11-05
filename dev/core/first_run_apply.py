@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Applique les choix de l'assistant de bienvenue, en une fois.
 
-Lecture d'un JSON sur stdin (écrit par le panneau) :
+Lecture d'un JSON, soit dans le fichier donné en argument (ce que fait le
+panneau : il écrit /run/user/<uid>/qs-first-run.json puis passe le chemin), soit
+sur stdin pour un essai en ligne de commande :
 
     {"kb_layout": "fr",
      "dossiers": {"PICTURES": "/home/x/Images", ...},
@@ -44,9 +46,23 @@ def appliquer_dossier(cle, chemin):
     return True, chemin
 
 
+def lire_choix():
+    """Les choix, du fichier donné en argument ou de l'entrée standard."""
+    if len(sys.argv) > 1:
+        chemin = sys.argv[1]
+        with open(chemin, encoding="utf-8") as fh:
+            choix = json.load(fh)
+        try:
+            os.unlink(chemin)       # fichier de passage : il n'a plus d'utilité
+        except OSError:
+            pass
+        return choix
+    return json.load(sys.stdin)
+
+
 def main():
     try:
-        choix = json.load(sys.stdin)
+        choix = lire_choix()
     except Exception as exc:
         print(json.dumps({"erreurs": [f"choix illisibles : {exc}"]}, ensure_ascii=False))
         return 1

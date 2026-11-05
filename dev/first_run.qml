@@ -33,6 +33,7 @@ Item {
     property var programmes: []        // [{ alias, commande, present, candidats }]
     property var widgets: []           // [{ type, label, pose }]
     property bool pret: false
+    property bool applicationEnCours: false
     property string rapport: ""        // résumé de l'application, en cas d'échec
 
     readonly property var dispositions: [
@@ -136,18 +137,36 @@ Item {
     }
 
     // ── application des choix ───────────────────────────────────────────────
+    // Les choix passent par un fichier, jamais par l'entrée standard : l'écriture
+    // est vérifiée (signal `saved`) avant de lancer le script, donc rien ne peut
+    // partir dans le vide.
+    FileView {
+        id: chargeFile
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-first-run.json"
+        atomicWrites: true
+        printErrors: true
+        onSaved: root.lancerApplication()
+        onSaveFailed: err => {
+            root.applicationEnCours = false
+            root.rapport = "écriture des choix impossible (" + err + ")"
+        }
+    }
+
     Process {
         id: applyProc
-        stdinEnabled: true
         stdout: StdioCollector {
             onStreamFinished: root.lireRapport(text)
         }
         onExited: code => {
+            root.applicationEnCours = false
             // Le shell relit style_vars : la marque de premier lancement y est
             // déjà écrite par le script quand tout a réussi.
             if (code === 0) {
                 Theme.showKeyboardOnboarding = false
                 Theme.firstRunCompleted = true
+            } else if (root.rapport === "") {
+                // Un échec sans message serait invisible : on en fabrique un.
+                root.rapport = "l'application des réglages a échoué (code " + code + ")"
             }
         }
     }
@@ -188,8 +207,15 @@ Item {
             widgets_ajouter: ajouter,
             widgets_retirer: retirer
         })
+        applicationEnCours = true
+        rapport = ""
+        chargeFile.setText(charge)      // → onSaved → lancerApplication()
+    }
+
+    function lancerApplication() {
+        applyProc.command = ["python3", Quickshell.shellPath("core/first_run_apply.py"),
+                             chargeFile.path]
         applyProc.running = true
-        applyProc.write(charge + "\n")
     }
 
     // ── la surface ──────────────────────────────────────────────────────────
@@ -708,8 +734,9 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: root.etape === root.etapeFinale ? "Terminé !"
-                                  : (root.etape === 0 ? "Choisir mes dossiers" : "Suivant")
+                            text: root.applicationEnCours ? "Application…"
+                                  : (root.etape === root.etapeFinale ? "Terminé !"
+                                  : (root.etape === 0 ? "Choisir mes dossiers" : "Suivant"))
                             color: Theme.bg
                             font.pixelSize: Theme.textMd
                             font.bold: true
@@ -720,7 +747,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            enabled: root.pret
+                            enabled: root.pret && !root.applicationEnCours
                             onClicked: {
                                 if (root.etape < root.etapeFinale) root.etape += 1
                                 else root.terminer()
