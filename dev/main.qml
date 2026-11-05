@@ -994,6 +994,20 @@ Item {
                         onClicked: root.applyInitialKeyboard(root.pendingKbLayout)
                     }
                 }
+
+                // L'aide-mémoire est généré depuis binds.lua, donc il affiche la
+                // nomenclature de la disposition choisie juste au-dessus : c'est
+                // l'endroit pour dire qu'il existe, au moment où l'utilisateur
+                // découvre le clavier.
+                Text {
+                    width: parent.width
+                    text: "Astuce — SUPER + K ouvre l'aide-mémoire : tous les raccourcis, "
+                        + "avec les touches de la disposition choisie."
+                    color: Qt.alpha(Theme.fg, 0.62)
+                    font.pixelSize: Theme.textXs
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
             }
         }
     }
