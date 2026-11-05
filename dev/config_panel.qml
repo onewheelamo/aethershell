@@ -1374,7 +1374,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.gapsOut
                         minimumValue: 0
@@ -1434,7 +1434,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.hyprRounding
                         minimumValue: 0
