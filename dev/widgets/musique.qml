@@ -21,6 +21,15 @@ Item {
     id: root
 
     property var options: ({})
+
+    // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
+    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
+    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    readonly property real echelle: {
+        const v = Number(options && options.text_scale)
+        if (v >= 60 && v <= 160) return v / 100
+        return 1.0
+    }
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
@@ -183,7 +192,7 @@ Item {
                 anchors.centerIn: parent
                 visible: root.shownArt === ""
                 glyph: "music"
-                size: Theme.iconLg
+                size: Math.round(Theme.iconLg * root.echelle)
                 color: Theme.accentMuted
                 opacityLevel: 0.7
             }
@@ -197,7 +206,7 @@ Item {
                 width: parent.width
                 text: root.titleLabel
                 color: Theme.fg
-                font.pixelSize: Theme.textSm
+                font.pixelSize: Math.round(Theme.textSm * root.echelle)
                 font.bold: true
                 elide: Text.ElideRight
             }
@@ -206,7 +215,7 @@ Item {
                 width: parent.width
                 text: root.subtitleLabel
                 color: Theme.accentMuted
-                font.pixelSize: Theme.textXs
+                font.pixelSize: Math.round(Theme.textXs * root.echelle)
                 elide: Text.ElideRight
             }
 
@@ -245,7 +254,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.formatTime(root.posNow)
                     color: Qt.alpha(Theme.fg, 0.65)
-                    font.pixelSize: Theme.text2xs
+                    font.pixelSize: Math.round(Theme.text2xs * root.echelle)
                     font.features: { "tnum": 1 }
                 }
 
@@ -261,7 +270,7 @@ Item {
                     id: prevIcon
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: "previous"
-                    size: Theme.iconSm
+                    size: Math.round(Theme.iconSm * root.echelle)
                     color: Theme.fg
                     opacityLevel: root.hasTrack && root.player.canGoPrevious ? 0.85 : 0.25
 
@@ -279,7 +288,7 @@ Item {
                     id: playIcon
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: root.isPlaying ? "pause" : "play"
-                    size: Theme.iconSm
+                    size: Math.round(Theme.iconSm * root.echelle)
                     color: Theme.accent
                     opacityLevel: (root.hasTrack || !root.launching) ? 1 : 0.5
 
@@ -297,7 +306,7 @@ Item {
                     id: nextIcon
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: "next"
-                    size: Theme.iconSm
+                    size: Math.round(Theme.iconSm * root.echelle)
                     color: Theme.fg
                     opacityLevel: root.hasTrack && root.player.canGoNext ? 0.85 : 0.25
 
@@ -316,7 +325,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.formatTime(root.durNow)
                     color: Qt.alpha(Theme.fg, 0.65)
-                    font.pixelSize: Theme.text2xs
+                    font.pixelSize: Math.round(Theme.text2xs * root.echelle)
                     font.features: { "tnum": 1 }
                 }
             }

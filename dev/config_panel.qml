@@ -2173,6 +2173,15 @@ Rectangle {
                                 const v = Number(widgetCard.wOptions.refresh_min)
                                 return (v >= 1 && v <= 120) ? Math.round(v) : 5
                             }
+                            // Échelle du texte (options.text_scale) : 100 = taille du
+                            // thème, 85 par défaut pour les widgets de compte LLM, qui
+                            // empilent deux lignes de texte dense.
+                            readonly property int wTextScale: {
+                                const v = Number(widgetCard.wOptions.text_scale)
+                                if (v >= 60 && v <= 160) return Math.round(v)
+                                const ia = ["deepseek", "ollama", "antigravity"]
+                                return ia.indexOf(widgetCard.wtype) >= 0 ? 85 : 100
+                            }
 
                             width: parent.width
                             height: wcol.implicitHeight + 20
@@ -2363,6 +2372,34 @@ Rectangle {
                                         text: "Options"
                                         color: Qt.alpha(Theme.fg, 0.75)
                                         font.pixelSize: Theme.textXs
+                                    }
+
+                                    // L'échelle du texte vaut pour tous les widgets :
+                                    // c'est le premier réglage qu'on cherche quand un
+                                    // widget déborde de sa taille.
+                                    Row {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Texte"
+                                            color: Qt.alpha(Theme.fg, 0.6)
+                                            font.pixelSize: Theme.text2xs
+                                        }
+
+                                        Stepper {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 92
+                                            value: widgetCard.wTextScale
+                                            minimumValue: 60
+                                            maximumValue: 160
+                                            stepSize: 5
+                                            suffix: " %"
+                                            onValueModified: newVal =>
+                                                root.runConfigCmd(["widget_set", widgetCard.wid,
+                                                                   "text_scale", String(newVal)])
+                                        }
                                     }
 
                                     // Les secondes ne concernent que les widgets qui

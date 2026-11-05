@@ -13,6 +13,15 @@ import Quickshell
 Item {
     id: root
     property var options: ({})
+
+    // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
+    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
+    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    readonly property real echelle: {
+        const v = Number(options && options.text_scale)
+        if (v >= 60 && v <= 160) return v / 100
+        return 1.0
+    }
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
@@ -42,7 +51,7 @@ Item {
         text: root.libelle
         color: Theme.fg
         opacity: 0.92
-        font.pixelSize: Theme.widgetDate
+        font.pixelSize: Math.round(Theme.widgetDate * root.echelle)
         font.weight: Font.Normal
         style: Text.Raised
         styleColor: Qt.alpha(Theme.bg, 0.55)

@@ -20,6 +20,15 @@ import Quickshell.Hyprland
 Item {
     id: root
     property var options: ({})
+
+    // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
+    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
+    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    readonly property real echelle: {
+        const v = Number(options && options.text_scale)
+        if (v >= 60 && v <= 160) return v / 100
+        return 1.0
+    }
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
@@ -46,7 +55,7 @@ Item {
             id: hhmm
             text: Qt.formatTime(clock.date, "HH:mm")
             color: Theme.fg
-            font.pixelSize: Theme.widgetClock
+            font.pixelSize: Math.round(Theme.widgetClock * root.echelle)
             font.weight: Font.Light
             font.features: { "tnum": 1 }
             // Lisible sur un wallpaper clair sans ajouter de carte.
@@ -58,7 +67,7 @@ Item {
             visible: root.withSeconds
             text: Qt.formatTime(clock.date, "ss")
             color: Theme.accent
-            font.pixelSize: Theme.widgetClockSm
+            font.pixelSize: Math.round(Theme.widgetClockSm * root.echelle)
             font.weight: Font.Light
             font.features: { "tnum": 1 }
             anchors.baseline: hhmm.baseline

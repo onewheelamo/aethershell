@@ -13,6 +13,15 @@ import Quickshell.Io
 Item {
     id: root
     property var options: ({})
+
+    // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
+    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
+    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    readonly property real echelle: {
+        const v = Number(options && options.text_scale)
+        if (v >= 60 && v <= 160) return v / 100
+        return 1.0
+    }
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
@@ -94,7 +103,7 @@ Item {
                 id: hhmm
                 text: Qt.formatTime(clock.date, "HH:mm")
                 color: Theme.fg
-                font.pixelSize: Theme.widgetClock
+                font.pixelSize: Math.round(Theme.widgetClock * root.echelle)
                 font.weight: Font.Light
                 font.features: { "tnum": 1 }
                 style: Text.Raised
@@ -105,7 +114,7 @@ Item {
                 visible: root.withSeconds
                 text: Qt.formatTime(clock.date, "ss")
                 color: Theme.accent
-                font.pixelSize: Theme.widgetClockSm
+                font.pixelSize: Math.round(Theme.widgetClockSm * root.echelle)
                 font.weight: Font.Light
                 font.features: { "tnum": 1 }
                 anchors.baseline: hhmm.baseline
@@ -118,7 +127,7 @@ Item {
         Text {
             text: root.libelleDate
             color: Qt.alpha(Theme.fg, 0.92)
-            font.pixelSize: Theme.widgetComboDate
+            font.pixelSize: Math.round(Theme.widgetComboDate * root.echelle)
             style: Text.Raised
             styleColor: Qt.alpha(Theme.bg, 0.55)
         }
@@ -131,7 +140,7 @@ Item {
             Icon {
                 anchors.verticalCenter: parent.verticalCenter
                 glyph: (root.ok && root.meteo.icon === "sun") ? "sun" : "cloud"
-                size: Theme.widgetWeatherIcon
+                size: Math.round(Theme.widgetWeatherIcon * root.echelle)
                 color: Theme.accent
                 opacityLevel: root.ok ? 1.0 : 0.45
             }
@@ -140,7 +149,7 @@ Item {
                 id: tempText
                 text: root.ok ? Math.round(root.meteo.temp) + "°" : "—"
                 color: Theme.fg
-                font.pixelSize: Theme.widgetComboWeather
+                font.pixelSize: Math.round(Theme.widgetComboWeather * root.echelle)
                 font.weight: Font.Light
                 font.features: { "tnum": 1 }
                 style: Text.Raised
@@ -151,7 +160,7 @@ Item {
                 text: root.ok ? (root.meteo.label + " · " + root.meteo.city)
                               : (root.loaded ? "météo indisponible" : "…")
                 color: Qt.alpha(Theme.fg, 0.78)
-                font.pixelSize: Theme.widgetLabel
+                font.pixelSize: Math.round(Theme.widgetLabel * root.echelle)
                 anchors.baseline: tempText.baseline
                 style: Text.Raised
                 styleColor: Qt.alpha(Theme.bg, 0.55)

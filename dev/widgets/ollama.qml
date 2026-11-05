@@ -23,6 +23,15 @@ import Quickshell.Io
 Item {
     id: root
     property var options: ({})
+
+    // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
+    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
+    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    readonly property real echelle: {
+        const v = Number(options && options.text_scale)
+        if (v >= 60 && v <= 160) return v / 100
+        return 0.85
+    }
     property string widgetId: ""
 
     property var compte: ({})
@@ -97,7 +106,7 @@ Item {
         Icon {
             anchors.verticalCenter: parent.verticalCenter
             glyph: "cloud"
-            size: Theme.widgetWeatherIcon
+            size: Math.round(Theme.widgetWeatherIcon * root.echelle)
             color: root.bas ? Theme.warn : Theme.accent
             opacityLevel: root.ok ? 1.0 : 0.45
         }
@@ -109,7 +118,7 @@ Item {
             Text {
                 text: root.montant(root.total)
                 color: root.bas ? Theme.warn : Theme.fg
-                font.pixelSize: Theme.widgetTemp
+                font.pixelSize: Math.round(Theme.widgetTemp * root.echelle)
                 font.weight: Font.Light
                 font.features: { "tnum": 1 }
                 style: Text.Raised
@@ -129,7 +138,7 @@ Item {
                     return (rythme || "Ollama Cloud") + (perime ? " · valeur périmée" : "")
                 }
                 color: Qt.alpha(Theme.fg, 0.78)
-                font.pixelSize: Theme.widgetLabel
+                font.pixelSize: Math.round(Theme.widgetLabel * root.echelle)
                 style: Text.Raised
                 styleColor: Qt.alpha(Theme.bg, 0.55)
             }
