@@ -119,7 +119,12 @@ def renouveler():
     ecrire_json(RENEW_FILE, {"ts": maintenant})
     binaire = shutil.which("agy") or str(Path.home() / ".local" / "bin" / "agy")
     try:
-        subprocess.run([binaire, "models"], capture_output=True, timeout=45, check=False)
+        # Session détachée, sorties sur /dev/null : le CLI écrit son « Fetching
+        # available models… » sur le terminal, pas sur stdout, et il n'a rien à
+        # faire dans la sortie du service.
+        subprocess.run([binaire, "models"], stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       timeout=45, check=False, start_new_session=True)
     except (OSError, subprocess.SubprocessError):
         return False
     return True
