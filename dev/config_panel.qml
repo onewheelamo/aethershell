@@ -58,7 +58,7 @@ Rectangle {
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
           tab: 5, section: "greeter_theme", target: "secGreeter" },
-        { label: "Accès API", words: "cle api token deepseek secrets connexion", tab: 1,
+        { label: "Accès API", words: "cle api token deepseek ollama secrets connexion fournisseur", tab: 1,
           section: "widgets_api", target: "secApiKeys" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
           tab: 1, section: "widgets", target: "secWidgets" },
@@ -220,7 +220,21 @@ Rectangle {
     // Clés d'API : le panneau ne connaît que leur présence et leurs 4 derniers
     // caractères — la valeur elle-même ne remonte jamais du fichier.
     property var apiKeys: ({})
-    property string cleEtat: ""
+    // Fournisseurs LLM (core/llm_providers.json) : une ligne par entrée, dans
+    // l'ordre du fichier. Ajouter un service ne touche pas à ce panneau.
+    property var llmProviders: []
+    // Message par fournisseur : un état partagé ferait apparaître « clé refusée »
+    // sous Ollama alors qu'on vient d'enregistrer celle de DeepSeek.
+    property var cleEtats: ({})
+    property var pendingProvider: null
+    property var pendingChamp: null
+
+    function etatCle(id, message) {
+        const copie = ({})
+        for (const k in root.cleEtats) copie[k] = root.cleEtats[k]
+        copie[id] = message
+        root.cleEtats = copie
+    }
     property var monitorsList: []
     property string selectedMonitorName: "HDMI-A-1"
     property string timezoneStr: "Europe/Paris"
@@ -237,7 +251,8 @@ Rectangle {
         { type: "meteo",   label: "Météo" },
         { type: "combo",   label: "Combo" },
         { type: "musique", label: "Musique" },
-        { type: "deepseek", label: "DeepSeek" }
+        { type: "deepseek", label: "DeepSeek" },
+        { type: "ollama",   label: "Ollama Cloud" }
     ]
     readonly property var widgetTypeRows: {
         const poses = ({})
@@ -391,6 +406,7 @@ Rectangle {
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (data.api_keys && typeof data.api_keys === "object") root.apiKeys = data.api_keys
+        if (Array.isArray(data.llm_providers)) root.llmProviders = data.llm_providers
         if (typeof data.hypr_rounding_power === "number")
             root.hyprRoundingPower = data.hypr_rounding_power
         if (data.display) {
@@ -489,17 +505,30 @@ Rectangle {
         atomicWrites: true
         printErrors: true
         onSaved: root.envoyerCleApi()
-        onSaveFailed: err => root.cleEtat = "écriture impossible (" + err + ")"
+        onSaveFailed: err => {
+            if (root.pendingProvider) root.etatCle(root.pendingProvider.id, "écriture impossible (" + err + ")")
+        }
     }
 
-    function enregistrerCleApi(section) {
-        const valeur = champCleApi.text.trim()
+    // `provider` est une entrée de core/llm_providers.json : sa référence de clé
+    // (« section.nom ») dit où ranger la valeur dans secrets.json.
+    function enregistrerCleApi(provider, champ) {
+        const valeur = champ.text.trim()
         if (valeur === "") {
-            root.cleEtat = "clé vide"
+            root.etatCle(provider.id, "clé vide")
             return
         }
-        root.cleEtat = "enregistrement…"
-        cleApiFile.setText(JSON.stringify({ section: section, nom: "api_key", valeur: valeur }))
+        const ref = String(provider.key || "").split(".")
+        if (ref.length < 2) {
+            root.etatCle(provider.id, "référence de clé invalide dans llm_providers.json")
+            return
+        }
+        root.pendingProvider = provider
+        root.pendingChamp = champ
+        root.etatCle(provider.id, "enregistrement…")
+        cleApiFile.setText(JSON.stringify({
+            section: ref[0], nom: ref.slice(1).join("."), valeur: valeur
+        }))
     }
 
     function envoyerCleApi() {
@@ -514,17 +543,19 @@ Rectangle {
             onStreamFinished: {
                 let r = ({})
                 try { r = JSON.parse(text.trim()) } catch (e) {}
+                const provider = root.pendingProvider
+                if (!provider) return
                 if (r.ok) {
-                    root.cleEtat = "enregistrée (…" + r.tail + "), vérification…"
-                    champCleApi.text = ""
+                    root.etatCle(provider.id, "enregistrée (…" + r.tail + "), vérification…")
+                    if (root.pendingChamp) root.pendingChamp.text = ""
                     root.refreshConfigState()
                     // Une clé mal copiée (préfixe perdu, jeton d'un autre champ) ne
-                    // se voit qu'à l'usage : on interroge l'API dans la foulée.
-                    testCleProc.command = ["python3",
-                                           Quickshell.shellPath("core/deepseek_service.py"), "--force"]
+                    // se voit qu'à l'usage : on interroge l'API dans la foulée, via
+                    // le script que le fournisseur déclare.
+                    testCleProc.command = ["python3", Quickshell.shellPath(provider.service), "--force"]
                     testCleProc.running = true
                 } else {
-                    root.cleEtat = "refusé : " + (r.erreur || "valeur invalide")
+                    root.etatCle(provider.id, "refusé : " + (r.erreur || "valeur invalide"))
                 }
             }
         }
@@ -534,14 +565,20 @@ Rectangle {
         id: testCleProc
         stdout: StdioCollector {
             onStreamFinished: {
+                const provider = root.pendingProvider
+                if (!provider) return
                 let r = ({})
                 try { r = JSON.parse(text.trim()) } catch (e) {}
                 if (r.ok) {
                     const sym = r.currency === "CNY" ? "¥" : (r.currency === "USD" ? "$" : "")
-                    root.cleEtat = "clé acceptée · solde " + sym + Number(r.total).toFixed(2)
-                                   + (r.available ? "" : " — solde épuisé")
+                    let msg = (r.total !== undefined && r.total !== null)
+                        ? "clé acceptée · solde " + sym + Number(r.total).toFixed(2)
+                        : "clé acceptée · service joignable"
+                    if (r.available === false || (r.total !== undefined && Number(r.total) <= 0))
+                        msg += " — crédit épuisé"
+                    root.etatCle(provider.id, msg)
                 } else {
-                    root.cleEtat = "l'API refuse cette clé : " + (r.error || "raison inconnue")
+                    root.etatCle(provider.id, "l'API refuse cette clé : " + (r.error || "raison inconnue"))
                 }
             }
         }
@@ -2362,6 +2399,7 @@ Rectangle {
                                     // « Auto (IP) » qui n'y veut rien dire.
                                     Row {
                                         visible: widgetCard.wtype === "deepseek"
+                                                 || widgetCard.wtype === "ollama"
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 6
 
@@ -2628,83 +2666,108 @@ Rectangle {
 
                     Text {
                         width: parent.width
-                        text: "Clé d'API DeepSeek — elle sert au widget qui affiche le solde. "
-                            + "Elle est enregistrée dans core/secrets.json et n'apparaît jamais en clair."
+                        text: "Une ligne par fournisseur LLM (core/llm_providers.json). La clé est "
+                            + "rangée dans core/secrets.json et n'apparaît jamais en clair."
                         color: Qt.alpha(Theme.fg, 0.6)
                         font.pixelSize: Theme.textXs
                         wrapMode: Text.WordWrap
                     }
 
-                    Row {
-                        width: parent.width
-                        spacing: 10
+                    // Une ligne par fournisseur déclaré : plus de bloc à recopier
+                    // quand on ajoute OpenAI, Claude ou Gemini.
+                    Repeater {
+                        model: root.llmProviders
 
-                        Rectangle {
-                            width: parent.width - 130
-                            height: 32
-                            color: Theme.bg
-                            radius: Theme.globalRadius
-                            border.color: champCleApi.activeFocus ? Theme.accent : Theme.surfaceVariant
-                            border.width: 1
-
-                            TextInput {
-                                id: champCleApi
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                verticalAlignment: TextInput.AlignVCenter
-                                color: Theme.info
-                                font.pixelSize: Theme.textSm
-                                echoMode: TextInput.Password
-                                selectByMouse: true
-                                onAccepted: root.enregistrerCleApi("deepseek")
-                            }
+                        Column {
+                            id: fournisseur
+                            required property var modelData
+                            width: parent.width
+                            spacing: 6
+                            // L'état est par fournisseur : « clé refusée » doit
+                            // rester sous la ligne qui a échoué.
+                            readonly property string etat: root.cleEtats[modelData.id] || ""
 
                             Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 10
-                                visible: champCleApi.text.length === 0
-                                text: root.apiKeys["deepseek.api_key"]
-                                      ? "Clé enregistrée (…" + root.apiKeys["deepseek.api_key"].tail + ")"
-                                      : "sk-…"
-                                color: Qt.alpha(Theme.fg, 0.45)
+                                width: parent.width
+                                text: modelData.label + " — " + (modelData.summary || "") + "."
+                                color: Theme.fg
                                 font.pixelSize: Theme.textXs
+                                wrapMode: Text.WordWrap
                             }
-                        }
 
-                        Rectangle {
-                            width: 120
-                            height: 32
-                            radius: Theme.globalRadius
-                            color: enregistrerCle.containsMouse ? Theme.accentMuted : Theme.accent
+                            Row {
+                                width: parent.width
+                                spacing: 10
+
+                                Rectangle {
+                                    width: parent.width - 130
+                                    height: 32
+                                    color: Theme.bg
+                                    radius: Theme.globalRadius
+                                    border.color: champ.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                    border.width: 1
+
+                                    TextInput {
+                                        id: champ
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        color: Theme.info
+                                        font.pixelSize: Theme.textSm
+                                        echoMode: TextInput.Password
+                                        selectByMouse: true
+                                        onAccepted: root.enregistrerCleApi(fournisseur.modelData, champ)
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 10
+                                        visible: champ.text.length === 0
+                                        text: root.apiKeys[fournisseur.modelData.key]
+                                              ? "Clé enregistrée (…" + root.apiKeys[fournisseur.modelData.key].tail + ")"
+                                              : (fournisseur.modelData.hint || "clé d'API")
+                                        color: Qt.alpha(Theme.fg, 0.45)
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 120
+                                    height: 32
+                                    radius: Theme.globalRadius
+                                    color: enregistrerCle.containsMouse ? Theme.accentMuted : Theme.accent
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Enregistrer"
+                                        color: Theme.bg
+                                        font.pixelSize: Theme.textSm
+                                        font.bold: true
+                                    }
+
+                                    MouseArea {
+                                        id: enregistrerCle
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.enregistrerCleApi(fournisseur.modelData, champ)
+                                    }
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: "Enregistrer"
-                                color: Theme.bg
-                                font.pixelSize: Theme.textSm
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                id: enregistrerCle
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.enregistrerCleApi("deepseek")
+                                width: parent.width
+                                visible: fournisseur.etat !== ""
+                                text: fournisseur.etat
+                                color: (fournisseur.etat.startsWith("clé acceptée")
+                                        || fournisseur.etat.startsWith("enregistrée"))
+                                       ? Theme.success : Theme.error
+                                font.pixelSize: Theme.textXs
+                                wrapMode: Text.WordWrap
                             }
                         }
-                    }
-
-                    Text {
-                        width: parent.width
-                        visible: root.cleEtat !== ""
-                        text: root.cleEtat
-                        color: (root.cleEtat.startsWith("clé acceptée") || root.cleEtat.startsWith("enregistrée"))
-                               ? Theme.success : Theme.error
-                        font.pixelSize: Theme.textXs
-                        wrapMode: Text.WordWrap
                     }
                 }
             }

@@ -26,6 +26,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import llm_providers  # noqa: E402
 import monitor_utils  # noqa: E402
 import tablet_mode_daemon  # noqa: E402
 
@@ -1333,7 +1334,9 @@ def sync_programs_lua(app_data):
 # ─────────────────────────────────────────────────────────────────────────────
 # Fichier d'état préservé au déploiement (PRESERVE_CORE). Chaque entrée devient
 # une surface layer `shell-widget` en couche Bottom, une par widget.
-WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "deepseek")
+# Un type par widget disponible dans widgets/ — le panneau coche, `widget_add`
+# valide. Ajouter un fournisseur LLM passe par core/llm_providers.json.
+WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "deepseek", "ollama")
 WIDGET_DEFAULT_OPACITY = 0.35
 
 
@@ -1443,6 +1446,9 @@ def get_full_config_state():
         "hypr_rounding": get_hypr_rounding(),
         "hypr_rounding_power": get_hypr_rounding_power(),
         "api_keys": resume_secrets(),
+        # Liste publique des fournisseurs LLM (sans secret) : le panneau dessine
+        # une ligne par entrée, dans l'ordre du fichier.
+        "llm_providers": list(llm_providers.charger().values()),
         "wallpaper_dir": get_wallpaper_dir(),
         "screenshots_dir": get_screenshots_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),

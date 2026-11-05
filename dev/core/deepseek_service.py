@@ -13,7 +13,9 @@ ni pourcentage de quota ni historique de consommation par clé. Le solde est don
 la seule donnée qui réponde à la question « faut-il remettre des fonds ? » — et
 `is_available` dit si l'API répond encore.
 
-La clé est lue dans `core/secrets.json` (`deepseek.api_key`, fichier préservé au
+L'adresse et la clé viennent de `core/llm_providers.json` (entrée `deepseek`) :
+on peut donc viser un proxy ou un service auto-hébergé sans toucher au code. La
+clé est lue dans `core/secrets.json` (`deepseek.api_key`, fichier préservé au
 déploiement) ou, à défaut, dans l'environnement (`DEEPSEEK_API_KEY`). Rien n'est
 journalisé : la clé ne sort pas de ce script.
 
@@ -35,28 +37,19 @@ import urllib.request
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-SECRETS_FILE = BASE_DIR / "secrets.json"
 CACHE_FILE = BASE_DIR / "deepseek_cache.json"
 
-API_URL = "https://api.deepseek.com/user/balance"
+sys.path.insert(0, str(BASE_DIR))
+import llm_providers  # noqa: E402
+
+API_URL = llm_providers.base_url("deepseek", "https://api.deepseek.com") + "/user/balance"
 TTL = 300
 TIMEOUT = 8
 
 
 def cle_api():
     """Clé de l'API : secrets.json d'abord, environnement ensuite."""
-    try:
-        data = json.loads(SECRETS_FILE.read_text(encoding="utf-8"))
-        valeur = (data or {}).get("deepseek", {})
-        if isinstance(valeur, dict):
-            cle = str(valeur.get("api_key") or "").strip()
-        else:
-            cle = str(valeur or "").strip()
-        if cle:
-            return cle
-    except (OSError, ValueError):
-        pass
-    return str(os.environ.get("DEEPSEEK_API_KEY") or "").strip()
+    return llm_providers.cle("deepseek", "DEEPSEEK_API_KEY")
 
 
 def lire_cache():
@@ -122,7 +115,7 @@ def main(argv):
             return 0
         print(json.dumps({
             "ok": False,
-            "error": "clé absente (core/secrets.json → deepseek.api_key)",
+            "error": "clé absente (core/secrets.json → " + llm_providers.reference_cle("deepseek") + ")",
         }, ensure_ascii=False))
         return 0
 

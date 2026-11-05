@@ -1,0 +1,26 @@
+{
+    "providers": [
+        {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "kind": "balance",
+            "base_url": "https://api.deepseek.com",
+            "key": "deepseek.api_key",
+            "service": "core/deepseek_service.py",
+            "widget": "deepseek",
+            "hint": "sk-…",
+            "summary": "solde de l'API"
+        },
+        {
+            "id": "ollama",
+            "label": "Ollama Cloud",
+            "kind": "balance",
+            "base_url": "https://ollama.com",
+            "key": "ollama.api_key",
+            "service": "core/ollama_service.py",
+            "widget": "ollama",
+            "hint": "clé de ollama.com",
+            "summary": "solde restant et coût des 7 derniers jours"
+        }
+    ]
+}

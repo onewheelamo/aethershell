@@ -97,7 +97,9 @@ fi
 
 # 3. Preservation logic
 MARKER="$CURRENT_HYPR/.quickshell_managed"
-PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json"
+# llm_providers.json : adresses et références de clés choisies par l'utilisateur,
+# préservé comme secrets.json — le dépôt n'en fournit que le modèle initial.
+PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
 # programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et

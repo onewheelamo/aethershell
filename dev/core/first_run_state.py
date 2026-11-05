@@ -52,6 +52,7 @@ WIDGET_LABELS = {
     "combo": "Combo",
     "musique": "Musique",
     "deepseek": "DeepSeek",
+    "ollama": "Ollama Cloud",
 }
 
 DESKTOP_DIRS = [
