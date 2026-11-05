@@ -73,19 +73,19 @@ Rectangle {
         { label: "Forme des coins", words: "arrondi rounding power chanfrein squircle forme coin courbe",
           tab: 0, section: "esthetique_aspect", target: "roundingPowerRow" },
         { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
-          tab: 0, section: "esthetique_aspect", target: "roundingIslandRow" },
+          tab: 0, section: "esthetique_quickshell", target: "roundingIslandRow" },
         { label: "Hauteur de la barre", words: "hauteur barre taille bar",
-          tab: 0, section: "esthetique_aspect", target: "barHeightRow" },
+          tab: 0, section: "esthetique_quickshell", target: "barHeightRow" },
         { label: "Pas de redimensionnement", words: "pas redimensionnement resize step",
           tab: 0, section: "esthetique_aspect", target: "resizeRow" },
         { label: "Opacité des fenêtres", words: "opacite fenetres transparence hyprland",
           tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
         { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
-          tab: 0, section: "esthetique_aspect", target: "shellOpacityRow" },
+          tab: 0, section: "esthetique_quickshell", target: "shellOpacityRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
-          tab: 0, section: "esthetique_aspect", target: "shellBlurRow" },
+          tab: 0, section: "esthetique_quickshell", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
           tab: 2, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
@@ -1319,18 +1319,10 @@ Rectangle {
             // 3. Desktop Aspect: Gaps, Borders, Rounding, Opacity, Blur, Bar (catégorie technique)
             CollapsibleSection {
                 id: secAspect
-                title: "Aspect technique du bureau"
+                title: "Hyprland"
                 icon: "cog"
                 expanded: root.sectionOpen("esthetique_aspect", true)
                 onToggled: expanded => root.setPanelSection("esthetique_aspect", expanded)
-
-            Text {
-                text: "Aspect du Bureau (Hyprland & Quickshell unifiés)"
-                color: Theme.accent
-                font.pixelSize: Theme.textLg
-                font.bold: true
-                width: parent.width
-            }
 
             Grid {
                 width: parent.width
@@ -1490,64 +1482,6 @@ Rectangle {
                     }
                 }
 
-                // 5. Arrondis îlots (Quickshell)
-                Row {
-                    id: roundingIslandRow   // ancre de recherche
-                    objectName: "roundingIslandRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Arrondis îlots (QS) :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Slider {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.globalRadius
-                        minimumValue: 0
-                        maximumValue: 30
-                        stepSize: 1
-                        suffix: " px"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "global_radius", String(newVal)])
-                        }
-                    }
-                }
-
-                // 6. Hauteur de barre
-                Row {
-                    id: barHeightRow   // ancre de recherche
-                    objectName: "barHeightRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Hauteur de barre :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Slider {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.barHeight
-                        minimumValue: 28
-                        maximumValue: 60
-                        stepSize: 2
-                        suffix: " px"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "bar_height", String(newVal)])
-                        }
-                    }
-                }
-
                 // 7. Pas de redimensionnement clavier
                 Row {
                     id: resizeRow   // ancre de recherche
@@ -1579,16 +1513,6 @@ Rectangle {
                 }
 
             }   // fin Grid aspect (gaps, arrondis, opacité, barre)
-
-            Text {
-                text: "Fenêtres (Hyprland)"
-                color: Theme.accent
-                font.pixelSize: Theme.textMd
-                font.bold: true
-                width: parent.width
-                topPadding: 14
-                bottomPadding: 4
-            }
 
             Grid {
                 width: parent.width
@@ -1727,14 +1651,80 @@ Rectangle {
 
             }   // fin Grid fenêtres
 
-            Text {
-                text: "Surfaces du shell (Quickshell)"
-                color: Theme.accent
-                font.pixelSize: Theme.textMd
-                font.bold: true
+        }   // end CollapsibleSection secAspect
+
+        // 4. Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
+        CollapsibleSection {
+            id: secShell
+            title: "Quickshell"
+            icon: "widgets"
+            expanded: root.sectionOpen("esthetique_quickshell", true)
+            onToggled: expanded => root.setPanelSection("esthetique_quickshell", expanded)
+
+            Grid {
                 width: parent.width
-                topPadding: 14
-                bottomPadding: 4
+                columns: 1
+                columnSpacing: 14
+                rowSpacing: 12
+
+                // 5. Arrondis îlots (Quickshell)
+                Row {
+                    id: roundingIslandRow   // ancre de recherche
+                    objectName: "roundingIslandRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Arrondis îlots (QS) :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Slider {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: Theme.globalRadius
+                        minimumValue: 0
+                        maximumValue: 30
+                        stepSize: 1
+                        suffix: " px"
+                        onValueModified: newVal => {
+                            root.runConfigCmd(["style", "global_radius", String(newVal)])
+                        }
+                    }
+                }
+
+                // 6. Hauteur de barre
+                Row {
+                    id: barHeightRow   // ancre de recherche
+                    objectName: "barHeightRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Hauteur de barre :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Slider {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: Theme.barHeight
+                        minimumValue: 28
+                        maximumValue: 60
+                        stepSize: 2
+                        suffix: " px"
+                        onValueModified: newVal => {
+                            root.runConfigCmd(["style", "bar_height", String(newVal)])
+                        }
+                    }
+                }
+
             }
 
             Grid {
@@ -1991,7 +1981,7 @@ Rectangle {
                     }
                 }
             }   // end Grid
-        }   // end CollapsibleSection secAspect
+        }   // end CollapsibleSection secShell
     }   // end Column tabEsthetiqueCol
 
         // ═══════════════════════════════════════════════════════════════════════════
