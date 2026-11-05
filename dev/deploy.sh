@@ -365,9 +365,29 @@ deploy_new_env() {
 
     "$CORE_DIR/generate_rofi_theme.sh"
 
+    # Le marqueur n'est posé qu'après un déploiement réussi : son absence ici
+    # signifie « installation neuve ». On le note avant de le créer.
+    local premiere_fois=0
+    [ -f "$MARKER" ] || premiere_fois=1
     touch "$MARKER"
 
     echo "✅ $TARGET_TITLE deployment complete! Please restart Hyprland or reload config."
+
+    # Installation neuve : dire où sont les raccourcis. La barre est lancée par
+    # l'autostart de Hyprland, pas par ce script — on laisse donc passer quelques
+    # secondes avant de notifier, sinon le message part avant que le serveur de
+    # notifications n'existe et personne ne le voit. `systemd-run` porte le délai
+    # même si le terminal est fermé entre-temps.
+    if [ "$premiere_fois" = "1" ]; then
+        echo "   SUPER + K   tous les raccourcis"
+        echo "   SUPER + H   panneau de réglages"
+        echo "   SUPER + SHIFT + S   captures d'écran et vidéos"
+        systemd-run --user --collect --quiet --on-active=8 --unit="qs-welcome-$$" \
+            notify-send -a "Installation" \
+                "Ton environnement est prêt" \
+                "SUPER + K : tous les raccourcis — SUPER + H : réglages — SUPER + SHIFT + S : captures d'écran" \
+            >/dev/null 2>&1 || true
+    fi
 }
 
 while true; do
