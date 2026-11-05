@@ -28,6 +28,12 @@ Item {
     // Seuil d'alerte : sous 5 unités (¥ ou $), on ne tient plus longtemps.
     readonly property bool bas: root.ok && root.total < 5
 
+    // Minutes entre deux requêtes, réglables par widget (`refresh_min`).
+    readonly property int refreshMin: {
+        const v = Number(options && options.refresh_min)
+        return (v >= 1 && v <= 120) ? Math.round(v) : 5
+    }
+
     readonly property string symbole: {
         if (!root.ok) return ""
         if (solde.currency === "CNY") return "¥"
@@ -50,10 +56,12 @@ Item {
     Component.onCompleted: refresh(false)
 
     Timer {
-        interval: 300000
+        interval: root.refreshMin * 60000
         repeat: true
         running: true
-        onTriggered: root.refresh(false)
+        // La cadence choisie par l'utilisateur est la cadence réelle : sans
+        // --force, le cache de 5 minutes du service ignorerait un réglage à 1 ou 2.
+        onTriggered: root.refresh(true)
     }
 
     Process {

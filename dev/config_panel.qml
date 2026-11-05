@@ -2107,6 +2107,12 @@ Rectangle {
                             }
                             readonly property string wCity: widgetCard.wOptions.city
                                 ? String(widgetCard.wOptions.city) : ""
+                            // Widgets qui interrogent un service : minutes entre deux
+                            // requêtes (5 par défaut, comme le service lui-même).
+                            readonly property int wRefreshMin: {
+                                const v = Number(widgetCard.wOptions.refresh_min)
+                                return (v >= 1 && v <= 120) ? Math.round(v) : 5
+                            }
 
                             width: parent.width
                             height: wcol.implicitHeight + 20
@@ -2299,8 +2305,11 @@ Rectangle {
                                         font.pixelSize: Theme.textXs
                                     }
 
+                                    // Les secondes ne concernent que les widgets qui
+                                    // affichent une horloge.
                                     Rectangle {
-                                        visible: widgetCard.wtype !== "meteo"
+                                        visible: widgetCard.wtype === "horloge"
+                                                 || widgetCard.wtype === "combo"
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 86
                                         height: 24
@@ -2326,8 +2335,37 @@ Rectangle {
                                         }
                                     }
 
+                                    // La ville ne concerne que la météo : elle
+                                    // s'affichait sur tous les autres widgets, avec son
+                                    // « Auto (IP) » qui n'y veut rien dire.
+                                    Row {
+                                        visible: widgetCard.wtype === "deepseek"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
+
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Rafraîchissement"
+                                            color: Qt.alpha(Theme.fg, 0.6)
+                                            font.pixelSize: Theme.text2xs
+                                        }
+
+                                        Stepper {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 108
+                                            value: widgetCard.wRefreshMin
+                                            minimumValue: 1
+                                            maximumValue: 120
+                                            stepSize: 1
+                                            suffix: " min"
+                                            onValueModified: newVal =>
+                                                root.runConfigCmd(["widget_set", widgetCard.wid,
+                                                                   "refresh_min", String(newVal)])
+                                        }
+                                    }
+
                                     Rectangle {
-                                        visible: widgetCard.wtype !== "horloge"
+                                        visible: widgetCard.wtype === "meteo"
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 170
                                         height: 24
