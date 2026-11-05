@@ -1546,7 +1546,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.globalOpacity
                         minimumValue: 0.30
@@ -1759,7 +1759,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: Theme.shellOpacity
                         minimumValue: 0.20
@@ -1831,7 +1831,7 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Slider {
+                    Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.shellBlurAlpha
                         minimumValue: 0.05
