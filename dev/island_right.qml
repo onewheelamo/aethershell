@@ -487,7 +487,10 @@ Item {
                 break
             }
         } else {
-            Quickshell.execDetached(target.cmd)
+            // Même raison que dans le tiroir : l'échec doit être visible.
+            const label = String(entry.summary || entry.appName || "cette notification")
+            Quickshell.execDetached(
+                ["bash", Quickshell.shellPath("core/notif_open.sh"), label, "--"].concat(target.cmd))
         }
         islandRight.forgetNotif(entry)
         if (islandRight.latestToast && String(islandRight.latestToast.id) === String(entry.id))

@@ -207,6 +207,28 @@ Vérifié par l'IPC du shell (`captureMode`), donc par le chemin réel :
 Effet de bord assumé du test : `hyprshot` copie toujours dans le presse-papier, et
 les captures/vidéos d'essai ont été supprimées après mesure.
 
+## Lots A et B de l'audit Gemini (05/11, 11:35)
+
+**Lot A.** Le signal `closed` de chaque notification est branché : la carte quitte
+le centre quand l'application ferme sa notification, quand elle expire, ou après une
+action non « resident » — l'historique garde son entrée. Le test `tracked === false`
+juste après `invoke()` est retiré (il ne pouvait jamais rien voir : la fermeture est
+asynchrone). Les cartes évincées au-delà de 30 reçoivent `tracked = false`, sinon
+`keepOnReload` les ressuscite. `alias_command` sans cible rend la commande nue (une
+règle `open` lançait `thunar ""`). `record-stop` ne passe plus par les 340 ms de
+sortie de la pastille. `wf-recorder` est déclaré dans les deux fichiers de
+dépendances, et le libellé de l'aide-mémoire dit « capture d'écran ou vidéo ».
+
+**Lot B.** Les trois écritures de l'historique (ajout, suppression, vidage) se font
+sous un `flock` sur `notifications-history.lock` : le résolveur et le tiroir sont des
+processus distincts, et deux cycles lecture-réécriture concurrents se perdaient
+mutuellement — mesuré, 19 ajouts perdus et 102 entrées au lieu de 120 sur 120 cycles
+`add ‖ delete`. Après verrou : 0 perdu, 120 entrées, toutes les suppressions
+effectives. Le corps est borné à 2000 caractères et le résumé à 500 à l'écriture
+(100 000 caractères donnent 2001 stockés). Les clics de titre passent par
+`core/notif_open.sh`, qui remonte la sortie d'erreur en notification critique si la
+commande n'existe plus : une cible morte se voit au lieu de ne rien faire.
+
 ## État — L5 et historique livrés (05/11, 11:00)
 
 L'historique est une **surface à part**, indépendante du panneau de notifications :

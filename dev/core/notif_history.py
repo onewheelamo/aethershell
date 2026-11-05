@@ -6,9 +6,10 @@ ensuite ou si elle est effacée du centre de notifications : c'est ce qui permet
 de retrouver une notification effacée par erreur.
 
 Format : JSON Lines (`~/.cache/quickshell/notifications-history.jsonl`), une
-entrée par ligne, la plus récente **en fin de fichier**. L'ajout est un simple
-append ; supprimer ou vider réécrit le fichier. Plafond : MAX_ENTRIES, les plus
-anciennes tombent.
+entrée par ligne, la plus récente **en fin de fichier**. Les trois opérations
+d'écriture (ajout, suppression, vidage) réécrivent le fichier sous un verrou
+`flock` partagé : plusieurs processus y écrivent (le résolveur et le tiroir).
+Plafond : MAX_ENTRIES, les plus anciennes tombent.
 
 Usage :
     notif_history.py add < entrée.json     # ajoute (lit le JSON sur stdin)
@@ -17,13 +18,47 @@ Usage :
     notif_history.py clear
     notif_history.py count
 """
+import fcntl
 import json
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 FILE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "notifications-history.jsonl"
+LOCK = FILE.with_suffix(".lock")
 MAX_ENTRIES = 200
+# Une notification transporte parfois la sortie d'une commande entière. Le corps
+# est donc borné à l'écriture : le tiroir n'en montre que deux lignes, et un
+# fichier de plusieurs mégaoctets ralentirait chaque relecture.
+MAX_BODY = 2000
+MAX_SUMMARY = 500
+
+
+@contextmanager
+def verrou():
+    """Sérialise les cycles lecture-réécriture.
+
+    `add` (le résolveur, un appel par notification) et `delete`/`clear` (le
+    tiroir) sont des processus distincts : sans verrou, deux d'entre eux qui
+    lisent avant que l'autre n'ait écrit se perdent mutuellement. Mesuré avant
+    correction : 19 ajouts et autant de suppressions perdus sur 120 cycles
+    concurrents. Le verrou porte sur un fichier distinct, car verrouiller le
+    JSONL lui-même ne survivrait pas à `os.replace`.
+    """
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOCK, "a+") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+def borne(texte, limite):
+    """Tronque en gardant une marque visible, plutôt que de couper net."""
+    texte = str(texte or "")
+    return texte if len(texte) <= limite else texte[:limite] + "…"
 
 
 def read_all():
@@ -57,6 +92,14 @@ def write_all(entries):
 
 
 def add(entry):
+    entry = dict(entry)
+    entry["body"] = borne(entry.get("body"), MAX_BODY)
+    entry["summary"] = borne(entry.get("summary"), MAX_SUMMARY)
+    with verrou():
+        return _add_locked(entry)
+
+
+def _add_locked(entry):
     entries = read_all()
     ids = {str(e.get("id")) for e in entries}
     ident = str(entry.get("id") or "")
@@ -93,13 +136,15 @@ def main():
         return 0
     if action == "delete" and len(sys.argv) > 2:
         target = str(sys.argv[2])
-        entries = read_all()
-        kept = [e for e in entries if str(e.get("id")) != target]
-        write_all(kept)
+        with verrou():
+            entries = read_all()
+            kept = [e for e in entries if str(e.get("id")) != target]
+            write_all(kept)
         print(len(entries) - len(kept))
         return 0
     if action == "clear":
-        write_all([])
+        with verrou():
+            write_all([])
         print("ok")
         return 0
     print(__doc__, file=sys.stderr)

@@ -108,7 +108,12 @@ Item {
         const target = entry && entry.target ? entry.target : null
         if (!target || target.kind === "action") return false
         if (!target.cmd || target.cmd.length === 0) return false
-        Quickshell.execDetached(target.cmd)
+        // Passer par notif_open.sh plutôt que `execDetached` : une cible morte
+        // (binaire désinstallé, alias renommé) doit se voir, sinon le clic ne
+        // produit rien et rien ne dit pourquoi.
+        const label = String(entry.summary || entry.app || "cette notification")
+        Quickshell.execDetached(
+            ["bash", Quickshell.shellPath("core/notif_open.sh"), label, "--"].concat(target.cmd))
         return true
     }
 
