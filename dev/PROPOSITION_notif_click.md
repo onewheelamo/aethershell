@@ -167,16 +167,26 @@ retombe sur `xdg-open` en le disant dans le journal.
 
 ## Affordance et interaction
 
-- Le titre (`summary`) devient cliquable : `cursorShape: PointingHandCursor`,
-  titre légèrement teinté d'accent au survol (120 ms), et au clic
-  `Quickshell.execDetached(target.cmd)`.
-- Le reste de la carte ne déclenche rien : on lit une notification, on ne veut pas
-  lancer une vidéo en la survolant.
-- Après clic : la carte est retirée de la liste et le centre se ferme ; le toast
-  disparaît. (Aujourd'hui le clic sur un toast ouvre le centre — ce comportement
-  reste sur le corps du toast, le titre prend la cible.)
-- Le ✕ de la carte et « Tout effacer » ne changent pas.
+Précisé le 05/11 : **le centre et le toast n'ont pas le même fond**, mais la même
+règle pour le titre.
+
+| Zone | Centre (centre = popup) | Toast (spontané) |
+|---|---|---|
+| **Titre** (`summary`) | ouvre la cible, retire la notification, ferme le popup | ouvre la cible **et** retire la notification du centre ; le toast disparaît |
+| Reste de la carte | rien (on lit) | ouvre le centre de notifications |
+| ✕ / cloche barrée | retire la carte | écarte l'application des toasts (inchangé) |
+
+- Titre cliquable : `cursorShape: PointingHandCursor`, teinte accent au survol
+  (120 ms), puis `Quickshell.execDetached(target.cmd)`.
+- Pas de cible résolue → le titre redevient du texte simple, sans curseur ni teinte :
+  un clic qui ne ferait rien est pire qu'un clic absent.
+- **Retirer ≠ retirer de la liste.** Une entrée retirée doit aussi être
+  `dismiss()`-ée côté serveur (`raw.tracked = false`), sinon `keepOnReload` la
+  ressuscite au prochain rechargement du shell. Défaut existant à corriger dans le
+  même lot : le ✕ de la carte et « Tout effacer » ne font aujourd'hui que vider la
+  liste, la notification reste suivie par le serveur.
 - Rien à ajouter au thème : `Theme.accent`, `Theme.fontUi`, 120 ms, mêmes rayons.
+
 
 ## Découpage en lots
 
