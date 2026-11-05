@@ -114,6 +114,9 @@ Item {
         if (!root.loaded) return "…"
         if (!root.ok) return String((donnees && donnees.error) || "indisponible").split(" (")[0]
         let texte = ""
+        // Le libellé de la grande mesure porte son contexte (« hebdo · Claude ») :
+        // sans lui, un « 0 % » ne dit pas de quelle fenêtre il parle.
+        const tete = String(principale.libelle || "")
         if (mesures.length > 1) {
             const suivantes = []
             for (let i = 1; i < mesures.length; i++) {
@@ -121,8 +124,9 @@ Item {
                 if (p !== "") suivantes.push(p)
             }
             texte = suivantes.join(" · ")
+            if (texte !== "" && tete !== "") texte = tete + " · " + texte
         }
-        if (texte === "") texte = String(principale.libelle || "")
+        if (texte === "") texte = tete
         // « cached » veut dire « lu du cache », pas « faux » : seule une requête
         // ratée pose stale_reason, et c'est elle qu'il faut signaler.
         if (donnees && donnees.stale_reason !== undefined)

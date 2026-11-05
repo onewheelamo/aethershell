@@ -11,7 +11,9 @@ Une ligne JSON sur stdout, rien d'autre. Deux sources, dans cet ordre :
    est le jeton OAuth que le CLI `agy` range dans le trousseau (libsecret,
    service=gemini / username=antigravity) ; il n'est ni copié ni journalisé.
    Il expire au bout d'une heure environ et le CLI ne le renouvelle qu'en
-   s'exécutant — d'où le repli.
+   s'exécutant : quand c'est le cas, le service lance `agy models` (sans quota,
+   ~2 s, une fois par quart d'heure au plus) et refait l'appel. Si le compte
+   reste hors d'atteinte, le dernier relevé complet est réaffiché avec sa date.
 
 2. Les logs du CLI (`~/.gemini/antigravity/log`, `~/.gemini/antigravity-cli/log`),
    en lecture seule. On y lit « RESOURCE_EXHAUSTED … Resets in 151h24m24s » quand
@@ -30,6 +32,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -39,6 +42,15 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "antigravity_cache.json"
+# Dernier relevé *complet* (pourcentages par modèle) : il survit à l'expiration du
+# jeton, pour que le widget montre une mesure datée plutôt qu'un simple décompte.
+PLEIN_FILE = BASE_DIR / "antigravity_full_cache.json"
+# Un seul essai de renouvellement par quart d'heure : `agy models` coûte ~2 s et
+# un processus, inutile de le relancer à chaque lecture ratée.
+RENEW_FILE = BASE_DIR / "antigravity_renew_cache.json"
+RENEW_DELAI = 900
+PLEIN_TTL = 6 * 3600
+
 
 sys.path.insert(0, str(BASE_DIR))
 import llm_contrat  # noqa: E402
@@ -77,6 +89,41 @@ def ecrire_cache(donnees):
         CACHE_FILE.write_text(json.dumps(donnees, ensure_ascii=False) + "\n", encoding="utf-8")
     except OSError:
         pass
+
+
+def lire_json(chemin):
+    try:
+        return json.loads(chemin.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def ecrire_json(chemin, donnees):
+    try:
+        chemin.write_text(json.dumps(donnees, ensure_ascii=False) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def renouveler():
+    """Fait renouveler le jeton par le CLI lui-même, sans rien écrire nous-mêmes.
+
+    `agy models` ouvre le magasin d'identifiants, rafraîchit le jeton OAuth et sort
+    (mesuré : 1,8 à 3,7 s, aucun quota consommé, code 0). C'est le seul moyen sûr
+    de renouveler sans toucher au refresh_token : un rafraîchissement fait par nos
+    soins pourrait le faire tourner et casser la session du CLI.
+    """
+    maintenant = int(time.time())
+    if maintenant - int(lire_json(RENEW_FILE).get("ts") or 0) < RENEW_DELAI:
+        return False
+    ecrire_json(RENEW_FILE, {"ts": maintenant})
+    binaire = shutil.which("agy") or str(Path.home() / ".local" / "bin" / "agy")
+    try:
+        subprocess.run([binaire, "models"], capture_output=True, timeout=45, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return True
+
 
 
 # ---------------------------------------------------------------- source 1 : API
@@ -127,21 +174,18 @@ def famille(model_id):
     return "autres"
 
 
-def depuis_api():
-    """Compartiments par fenêtre, ou (None, raison) si l'API n'est pas joignable."""
-    jeton_acces, raison = jeton()
-    if not jeton_acces:
-        return None, raison
+def _lire_quota(jeton_acces):
+    """(fenêtres, raison, code HTTP) — le code ne sert qu'à décider d'un renouvellement."""
     try:
         assist = poster(API_ASSIST, {"metadata": {"pluginType": "GEMINI"}}, jeton_acces)
         projet = assist.get("cloudaicompanionProject")
         if not projet:
-            return None, "projet Code Assist introuvable"
+            return None, "projet Code Assist introuvable", None
         quota = poster(API_QUOTA, {"project": projet}, jeton_acces)
     except urllib.error.HTTPError as erreur:
-        return None, f"API quota : HTTP {erreur.code}"
+        return None, f"API quota : HTTP {erreur.code}", erreur.code
     except (urllib.error.URLError, ValueError) as erreur:
-        return None, f"API quota : {erreur}"
+        return None, f"API quota : {erreur}", None
 
     partages = {}
     for compartiment in quota.get("buckets") or []:
@@ -153,7 +197,7 @@ def depuis_api():
             "reste": round(float(compartiment.get("remainingFraction") or 0), 4),
         })
     if not partages:
-        return None, "aucun compartiment quota dans la réponse"
+        return None, "aucun compartiment quota dans la réponse", None
 
     fenetres = []
     for remise, modeles in partages.items():
@@ -171,16 +215,47 @@ def depuis_api():
             "models": modeles,
         })
     if not fenetres:
-        return None, "fenêtres illisibles"
+        return None, "fenêtres illisibles", None
 
     maintenant = time.time()
+    # Deux fenêtres : celle qui rouvre le plus tard est l'hebdomadaire. Un seuil
+    # fixe de 48 h se trompait dès que l'hebdo s'en approchait (il était annoncé
+    # « 5 h » les deux derniers jours). Une seule fenêtre : on retombe sur le seuil.
+    tardive = max(f["reset_at"] for f in fenetres)
     for fenetre in fenetres:
-        # Une fenêtre qui se rouvre dans plus de deux jours est l'hebdomadaire ;
-        # les libellés viennent de la durée, pas d'un nom qu'on supposerait.
-        fenetre["kind"] = "week" if fenetre["reset_at"] - maintenant > 48 * 3600 else "session"
-        fenetre["label"] = "hebdo" if fenetre["kind"] == "week" else "5 h"
+        if len(fenetres) > 1:
+            hebdo = fenetre["reset_at"] == tardive
+        else:
+            hebdo = fenetre["reset_at"] - maintenant > 48 * 3600
+        fenetre["kind"] = "week" if hebdo else "session"
+        fenetre["label"] = "hebdo" if hebdo else "5 h"
     fenetres.sort(key=lambda f: (f["reste"], -f["reset_at"]))
-    return fenetres, None
+    return fenetres, None, None
+
+
+def depuis_api():
+    """Compartiments par fenêtre, ou (None, raison) si l'API n'est pas joignable.
+
+    Un jeton expiré ou un 401 ne sont pas des impasses : le CLI sait le
+    renouveler, et un second essai suffit presque toujours.
+    """
+    jeton_acces, raison = jeton()
+    if not jeton_acces:
+        if "expiré" in str(raison) and renouveler():
+            jeton_acces, raison = jeton()
+        if not jeton_acces:
+            return None, raison
+
+    fenetres, raison, code = _lire_quota(jeton_acces)
+    if fenetres:
+        return fenetres, None
+    if code == 401 and renouveler():
+        jeton_acces, _ = jeton()
+        if jeton_acces:
+            fenetres, raison, _ = _lire_quota(jeton_acces)
+            if fenetres:
+                return fenetres, None
+    return None, raison
 
 
 # ---------------------------------------------------------------- source 2 : logs
@@ -310,9 +385,23 @@ def presenter(donnees):
                     releve=fenetre["reset_at"]))
         # Une fenêtre à zéro sans date de réouverture laisse sans réponse : on
         # l'ajoute en petit, et seulement dans ce cas.
-        if float(fenetres[0]["reste"]) <= 0:
+        depasse = float(fenetres[0]["reste"]) <= 0
+        if depasse:
             mesures.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
                 "%d/%m %H:%M", time.localtime(fenetres[0]["reset_at"]))))
+        if donnees.get("source") == "cache":
+            # Relevé complet mais daté : les logs savent parfois quand la fenêtre
+            # bloquée rouvre, et la date du relevé doit se voir — sinon un
+            # pourcentage d'hier passerait pour une mesure du moment.
+            if not depasse:
+                actives = [f for f in donnees.get("windows") or []
+                           if int(f.get("reset_at") or 0) > int(time.time())]
+                if actives:
+                    mesures.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
+                        "%d/%m %H:%M",
+                        time.localtime(max(f["reset_at"] for f in actives)))))
+            mesures.append(llm_contrat.mesure(
+                texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
         alerte = min(f["reste"] for f in fenetres) <= SEUIL_ALERTE
         return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
 
@@ -350,6 +439,7 @@ def analyser():
     fenetres, raison = depuis_api()
     if fenetres:
         pire = min(f["reste"] for f in fenetres)
+        ecrire_json(PLEIN_FILE, {"ts": int(time.time()), "percent_windows": fenetres})
         return {
             "ok": True, "provider": "antigravity",
             "state": "exhausted" if pire <= 0 else "free",
@@ -357,8 +447,18 @@ def analyser():
             "percent_windows": fenetres,
             "source": "api",
         }
+
     donnees = depuis_logs()
     donnees["api_error"] = raison
+    # Repli de repli : plutôt qu'un simple décompte, montrer le dernier relevé
+    # complet, daté. Un pourcentage d'il y a quarante minutes vaut mieux qu'un
+    # « épuisé » sans ampleur.
+    plein = lire_json(PLEIN_FILE)
+    age = int(time.time()) - int(plein.get("ts") or 0)
+    if plein.get("percent_windows") and -60 <= age < PLEIN_TTL:
+        donnees["percent_windows"] = plein["percent_windows"]
+        donnees["releve_ts"] = int(plein["ts"])
+        donnees["source"] = "cache"
     return donnees
 
 
