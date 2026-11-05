@@ -25,7 +25,11 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-FILE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "notifications-history.jsonl"
+# `or` et non un défaut : une variable posée mais vide donne "" et Path("") =
+# « . », donc un fichier écrit dans le dossier courant. Même piège que côté QML,
+# où `Quickshell.env()` rend `undefined` pour une variable absente.
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache"))
+FILE = CACHE_DIR / "quickshell" / "notifications-history.jsonl"
 LOCK = FILE.with_suffix(".lock")
 MAX_ENTRIES = 200
 # Une notification transporte parfois la sortie d'une commande entière. Le corps

@@ -42,9 +42,18 @@ Item {
 
     signal closeRequested()
 
-    readonly property string cacheDir: Quickshell.env("XDG_CACHE_HOME") !== ""
-        ? Quickshell.env("XDG_CACHE_HOME")
-        : Quickshell.env("HOME") + "/.cache"
+    // `Quickshell.env()` rend `undefined` pour une variable absente, et non une
+    // chaîne vide : un test `!== ""` passait donc toujours, la propriété (typée
+    // string) retombait sur "" et le chemin devenait « /quickshell/… » — le
+    // panneau lisait un fichier inexistant et l'historique paraissait vidé, alors
+    // que le script d'écriture, lui, visait le bon fichier. Tester la valeur
+    // elle-même (faux pour undefined comme pour "").
+    readonly property string cacheDir: {
+        const xdg = Quickshell.env("XDG_CACHE_HOME")
+        if (xdg) return String(xdg)
+        const home = Quickshell.env("HOME")
+        return home ? String(home) + "/.cache" : ""
+    }
 
     // ── lecture de l'historique ─────────────────────────────────────────────
     FileView {
