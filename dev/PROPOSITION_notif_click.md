@@ -65,6 +65,44 @@ Si rien ne répond : pas de cible, **pas d'affordance** (le titre reste du texte
 Si l'alias demandé manque au tiroir, repli sur `xdg-open` et **une ligne dans le
 journal** — c'est ainsi qu'on verra qu'il manque un alias, sans échec muet.
 
+## État — L1 livré (05/11, 10:00)
+
+Le socle tourne : `core/notif_target.py` (résolveur, un processus pour la session,
+une requête JSON par ligne) est lancé par `island_right.qml`, chaque notification
+reçue reçoit sa cible **au moment de la réception** (`entry.target`) et une ligne de
+journal. Rien ne s'ouvre encore : le clic est le lot L2.
+
+Journal : `~/.cache/quickshell/notifications.log`, une ligne par notification —
+`app= desktop= regle= cible= resume= actions=N [alias_manquant=] [hints=]`.
+
+Mesuré dans le shell vivant (notifications réelles via D-Bus) :
+
+| Notification d'essai | Règle | Cible retenue |
+|---|---|---|
+| `-a Arch-Update` « Mises à jour disponibles » | table | `ghostty -e arch-update` |
+| hint `x-amo-open:file://…/Capture….png` | hint | `gwenview <png>` |
+| hint `x-amo-open:file://…/t.mp4` | hint | `mpv <mp4>` |
+| `-a Thunar` « 2 fichiers copiés vers /home/utilisateur/Images/Screenshots » | chemin → `folder` | `thunar <dossier>` |
+| `-a com.example` « voir https://… » | url | `firefox <url>` |
+| actions explicites (`gdbus`) | action native | `Ouvrir` (identifiant `default`) |
+| `-a Firefox` sans action | app émettrice | `/usr/lib/firefox/firefox` |
+| `-a Inconnu` sans rien | aucune | — (pas d'affordance) |
+
+Deux constats de mesure :
+
+- **`notify-send --action` ne transmet pas les actions** dans cette version
+  (0.8.9) : `actions=0` dans le journal, alors que la même notification envoyée
+  par `gdbus` avec `['default','Ouvrir']` arrive avec `actions=2`. Les vraies
+  applications (Firefox, Thunar, arch-update) passent par leur boîte à outils,
+  donc la règle 3 reste utile — mais elle ne se teste pas avec `notify-send`.
+- La clé du hint arrive bien telle quelle : `x-amo-open` (la cascade teste un nom
+  qui finit par `x-amo-open`, insensible à la casse, pour tolérer un préfixe).
+
+Le tiroir a été aligné au passage : `Terminal` = `ghostty` (déjà changé côté
+vivant), plus `Video` = `mpv` et `Images` = `gwenview`, dans `app_vars.json` **et**
+`programs.lua`. `notif_targets.json` est entré dans `PRESERVE_CORE` (état, pas
+code) : une modification du panneau ou du fichier survit au déploiement.
+
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par

@@ -233,6 +233,9 @@ Item {
             }
             const next = [entry].concat(islandRight.notificationsList).slice(0, 30)
             islandRight.notificationsList = next
+            // Cible du clic sur le titre : décidée tout de suite (l'objet peut
+            // mourir ensuite), calculée hors du shell par notif_target.py.
+            islandRight.requestNotifTarget(notification)
             // Application écartée des toasts : la notification va directement au
             // centre, sans apparition spontanée.
             if (Theme.quietNotifApps.indexOf(entry.appName) < 0) {
@@ -247,6 +250,96 @@ Item {
         interval: 4500
         repeat: false
         onTriggered: islandRight.latestToast = null
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SECTION 3bis: CIBLE DU CLIC SUR UNE NOTIFICATION (socle)
+    // ────────────────────────────────────────────────────────────────────────
+    // Ce que le clic sur le TITRE ouvrira, décidé **à la réception** et rangé dans
+    // l'entrée (`target`) : l'objet QsNotification peut être détruit ensuite, et
+    // l'historique doit rester cliquable. Ce bloc ne lance rien — il décide et il
+    // journalise, pour qu'on puisse relire les décisions sans toucher au bureau :
+    //
+    //     ~/.cache/quickshell/notifications.log
+    //
+    // La cascade (hint → table par application → action native → chemin/URL →
+    // application émettrice) vit dans core/notif_target.py, et les programmes
+    // viennent du tiroir « Programmes par défaut » du panneau (core/app_vars.json),
+    // jamais d'un binaire écrit en dur.
+    property var targetQueue: []
+
+    function notifTargetPayload(notification) {
+        const hints = (notification.hints && typeof notification.hints === "object")
+            ? notification.hints : ({})
+        const plainHints = ({})
+        for (const key in hints)
+            plainHints[String(key)] = String(hints[key])
+
+        const actions = []
+        const raw = notification.actions || []
+        for (let i = 0; i < raw.length; i++)
+            actions.push({ identifier: String(raw[i].identifier || ""),
+                           text: String(raw[i].text || "") })
+
+        return JSON.stringify({
+            id: String(notification.id),
+            appName: notification.appName || "",
+            desktopEntry: notification.desktopEntry || "",
+            summary: notification.summary || "",
+            body: notification.body || "",
+            hints: plainHints,
+            actions: actions,
+            actionCount: raw.length
+        })
+    }
+
+    function requestNotifTarget(notification) {
+        islandRight.targetQueue.push(islandRight.notifTargetPayload(notification))
+        islandRight.pumpNotifTargets()
+    }
+
+    // Un seul résolveur pour toute la session : il lit une requête JSON par
+    // ligne et répond de même (le shell est seul à lui écrire).
+    function pumpNotifTargets() {
+        if (!notifResolver.running) return
+        while (islandRight.targetQueue.length > 0)
+            notifResolver.write(islandRight.targetQueue.shift() + "\n")
+    }
+
+    function applyNotifTarget(line) {
+        let res
+        try { res = JSON.parse(String(line)) } catch (e) { return }
+        const id = String(res.id || "")
+        delete res.id
+        const list = islandRight.notificationsList
+        for (let i = 0; i < list.length; i++) {
+            if (String(list[i].id) !== id) continue
+            const copy = list.slice()
+            copy[i] = Object.assign({}, copy[i], { target: res })
+            islandRight.notificationsList = copy
+            return
+        }
+    }
+
+    Process {
+        id: notifResolver
+        running: true
+        stdinEnabled: true
+        command: ["python3", Quickshell.shellPath("core/notif_target.py"), "--serve"]
+        onStarted: islandRight.pumpNotifTargets()
+        onExited: {
+            console.warn("notif_target.py s'est arrêté, nouvelle tentative dans 5 s")
+            notifResolverRestart.restart()
+        }
+        stdout: SplitParser {
+            onRead: line => islandRight.applyNotifTarget(line)
+        }
+    }
+
+    Timer {
+        id: notifResolverRestart
+        interval: 5000
+        onTriggered: { if (!notifResolver.running) notifResolver.running = true }
     }
 
     // Écarte une application des toasts, ou la rétablit. La liste vit dans

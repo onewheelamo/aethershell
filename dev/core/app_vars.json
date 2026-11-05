@@ -1,8 +1,10 @@
 {
-    "Terminal": "kitty",
+    "Terminal": "ghostty",
     "Music": "strawberry",
     "Browser": "firefox",
     "Browser2": "zen-browser",
     "Files": "thunar",
-    "Editor": "code"
+    "Editor": "code",
+    "Video": "mpv",
+    "Images": "gwenview"
 }
