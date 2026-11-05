@@ -11,3 +11,5 @@ NotifHistory 1.0 notif_history.qml
 FirstRun 1.0 first_run.qml
 Applet 1.0 Applet.qml
 AppletRow 1.0 AppletRow.qml
+SystemePopup 1.0 SystemePopup.qml
+IconSvg 1.0 IconSvg.qml

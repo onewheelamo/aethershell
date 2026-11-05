@@ -401,6 +401,8 @@ deploy_new_env() {
     cp "$DEV_DIR/notif_history.qml" "$QS_DIR/notif_history.qml"
     cp "$DEV_DIR/Applet.qml" "$QS_DIR/Applet.qml"
     cp "$DEV_DIR/AppletRow.qml" "$QS_DIR/AppletRow.qml"
+    cp "$DEV_DIR/SystemePopup.qml" "$QS_DIR/SystemePopup.qml"
+    cp "$DEV_DIR/IconSvg.qml" "$QS_DIR/IconSvg.qml"
     cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).

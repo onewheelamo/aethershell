@@ -41,6 +41,9 @@ Item {
     // deux cas on n'invente pas de valeur.
     readonly property string valeur: ok ? String(ligne.valeur || "")
                                        : (charge ? "—" : "…")
+    // Mode jauge : plusieurs mesures, une mini-barre chacune (applet système).
+    readonly property var barres: (ok && ligne.barres && ligne.barres.length)
+                                  ? ligne.barres : []
     readonly property string infobulle: {
         if (!ok) return String((donnees && donnees.error) || "")
         const libelle = String(ligne.libelle || "")
@@ -74,6 +77,10 @@ Item {
         if (root.service === "" || root.occupe) return
         root.occupe = true
         const args = ["python3", Quickshell.shellPath(root.service)]
+        // Les options de l'applet (quelles mesures, quel dossier…) viennent du
+        // registre : le service n'a pas à savoir qui les a choisies.
+        const opts = root.applet.options || ({})
+        if (Object.keys(opts).length > 0) args.push("--options=" + JSON.stringify(opts))
         if (force) args.push("--force")
         proc.command = args
         proc.running = true
@@ -108,10 +115,75 @@ Item {
 
     Row {
         id: contenu
-        spacing: Math.max(3, Math.round(Theme.space2 * root.echelle))
+        // En mode jauge, les mesures ont besoin d'air pour ne pas se lire comme
+        // une seule barre bariolée.
+        spacing: root.barres.length > 0
+                 ? Math.max(8, Math.round(Theme.space3 * root.echelle))
+                 : Math.max(3, Math.round(Theme.space2 * root.echelle))
 
+        // ── Mode jauge : une mini-barre par mesure ───────────────────────────
+        // La piste garde une largeur fixe (26 px) pour que les barres ne
+        // bougent pas quand le pourcentage passe de « 9% » à « 100% ».
+        Repeater {
+            model: root.barres
+
+            delegate: Row {
+                spacing: 4
+
+                // Le remplissage porte la couleur ; le texte reste lisible même
+                // à l'état normal, sinon quatre pourcentages colorés hurlent.
+                function couleur(niveau) {
+                    if (niveau === "critique") return Theme.error
+                    if (niveau === "attention") return Theme.warn
+                    return Theme.accent
+                }
+
+                function couleurTexte(niveau) {
+                    if (niveau === "critique") return Theme.error
+                    if (niveau === "attention") return Theme.warn
+                    return Theme.fg
+                }
+
+                // Icône SVG : Nerd Font n'a ni puce, ni carte graphique, ni
+                // thermomètre (un glyphe absent rend une icône vide et muette).
+                IconSvg {
+                    anchors.verticalCenter: parent.verticalCenter
+                    nom: String(modelData.icone || "")
+                    size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
+                    couleur: parent.couleurTexte(String(modelData.niveau || "ok"))
+                    opacite: 0.75
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.round(26 * root.echelle)
+                    height: Math.max(3, Math.round(4 * root.echelle))
+                    radius: height / 2
+                    color: Qt.alpha(Theme.fg, 0.18)
+
+                    Rectangle {
+                        width: Math.max(0, Math.min(parent.width,
+                                     parent.width * (Number(modelData.remplissage) || 0) / 100))
+                        height: parent.height
+                        radius: parent.radius
+                        color: parent.parent.couleur(String(modelData.niveau || "ok"))
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: String(modelData.texte || "")
+                    color: parent.couleurTexte(String(modelData.niveau || "ok"))
+                    font.pixelSize: Math.round(Theme.textXs * 0.92 * root.echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
+        }
+
+        // ── Mode valeur simple : une icône et un chiffre ─────────────────────
         Icon {
             anchors.verticalCenter: parent.verticalCenter
+            visible: root.barres.length === 0
             glyph: String(root.applet.icone || "circle")
             size: Math.max(10, Math.round(Theme.iconSm * root.echelle))
             color: root.alerte ? Theme.warn : Theme.fg
@@ -121,7 +193,7 @@ Item {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.valeur
-            visible: text !== ""
+            visible: root.barres.length === 0 && text !== ""
             color: root.alerte ? Theme.warn : Theme.fg
             font.pixelSize: Math.round(Theme.textXs * root.echelle)
             font.features: { "tnum": 1 }
@@ -179,9 +251,23 @@ Item {
         }
     }
 
+    // L'attrapeur n'est armé qu'une fois la fenêtre réellement affichée : armé
+    // trop tôt, Hyprland le libère aussitôt (il vise une surface pas encore
+    // mappée) et le popup se refermait dans la même seconde.
+    property bool pretGrab: false
+    onOuvertChanged: {
+        if (root.ouvert) delaiGrab.restart()
+        else root.pretGrab = false
+    }
+    Timer {
+        id: delaiGrab
+        interval: 150
+        onTriggered: root.pretGrab = true
+    }
+
     HyprlandFocusGrab {
         // Rien à saisir ici : le popup externe a déjà son propre attrapeur.
-        active: root.ouvert && !root.popupExterne
+        active: root.ouvert && !root.popupExterne && root.pretGrab
         windows: [fenetre]
         onCleared: {
             if (Theme.activePopup === "applet:" + root.appletId) Theme.activePopup = ""

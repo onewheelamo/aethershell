@@ -38,14 +38,24 @@ import sys
 from llm_contrat import duree, montant  # noqa: F401  (réexportés pour les applets)
 
 
-def compact(valeur="", libelle="", alerte=False, fin=0):
-    """La ligne de barre. `fin` (Unix) remplace la valeur par un décompte."""
-    return {
+def compact(valeur="", libelle="", alerte=False, fin=0, barres=None):
+    """La ligne de barre. `fin` (Unix) remplace la valeur par un décompte.
+
+    `barres` est réservé aux applets qui mesurent plusieurs choses à la fois
+    (l'applet système) : une liste de jauges, chacune avec sa icône, son
+    remplissage 0-100, son texte et son niveau ("ok", "attention", "critique").
+    Quand la liste n'est pas vide, le rendu dessine les jauges et ignore
+    `valeur`.
+    """
+    donnees = {
         "valeur": "" if valeur is None else str(valeur),
         "libelle": "" if libelle is None else str(libelle),
         "alerte": bool(alerte),
         "fin": int(fin or 0),
     }
+    if barres:
+        donnees["barres"] = barres
+    return donnees
 
 
 def presenter(donnees, applet, icone, ligne, mesures=None, lignes=None, alerte=None,

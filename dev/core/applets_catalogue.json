@@ -36,6 +36,19 @@
             "text_scale": 100
         },
         {
+            "id": "systeme",
+            "nom": "Système",
+            "description": "CPU, RAM, GPU et température en jauges ; clic pour le détail",
+            "icone": "monitor",
+            "service": "core/systeme_applet.py",
+            "popup": "SystemePopup.qml",
+            "ile": "droite",
+            "ordre": 20,
+            "cadence": 1,
+            "text_scale": 100,
+            "options": { "mesures": ["cpu", "ram", "gpu", "temp"] }
+        },
+        {
             "id": "comptes",
             "nom": "Comptes LLM",
             "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",

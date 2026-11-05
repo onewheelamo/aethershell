@@ -164,6 +164,26 @@ def echelle(applet_id, pourcentage):
     _ecrire(ETAT, {"version": 1, "actifs": etat})
 
 
+def option(applet_id, cle, valeur):
+    """Change une option d'applet (ex. quelles mesures montrer).
+
+    La valeur est lue comme du JSON quand elle en est (« ["cpu","ram"] »), sinon
+    gardée en chaîne : le panneau et le popup peuvent ainsi écrire une liste
+    sans avoir à connaître le format.
+    """
+    etat = etat_utilisateur()
+    if applet_id not in etat:
+        raise SystemExit(f"applet éteint : {applet_id}")
+    try:
+        valeur = json.loads(valeur)
+    except ValueError:
+        pass
+    options = etat[applet_id].get("options") or {}
+    options[str(cle)] = valeur
+    etat[applet_id]["options"] = options
+    _ecrire(ETAT, {"version": 1, "actifs": etat})
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__)
@@ -186,6 +206,8 @@ def main(argv):
         ordonner(argv[2], argv[3])
     elif action == "echelle" and len(argv) > 3:
         echelle(argv[2], argv[3])
+    elif action == "option" and len(argv) > 4:
+        option(argv[2], argv[3], " ".join(argv[4:]))
     else:
         print(__doc__)
         return 2
