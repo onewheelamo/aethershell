@@ -256,8 +256,9 @@ def log_line(req, res):
         fields.append("alias_manquant=" + res["missingAlias"])
     if not res:
         fields.append("hints=" + clean(",".join(sorted(str(k) for k in (req.get("hints") or {}))), 120))
+    stamp = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(CACHE_LOG, "a", encoding="utf-8") as fh:
-        fh.write(" ".join(fields) + "\n")
+        fh.write(stamp + " | " + " ".join(fields) + "\n")
 
 
 def answer(req):

@@ -150,6 +150,36 @@ Limites de la vérification, à dire plutôt qu'à masquer :
   centre : rien n'écoute `Notification.closed`. C'est un choix d'historique, pas un
   oubli — à trancher si les entrées mortes s'accumulent.
 
+## L2 vérifié à la souris (05/11, 10:35)
+
+Pilotage réel, à la demande de l'utilisateur : warp précis par
+`hyprctl repl 'hl.dispatch(hl.dsp.cursor.move({ x = …, y = … }))'`, puis clic par
+`scripts/uinput_tour.py` (un seul point = le pointeur est déjà sur place).
+
+| Essai | Attendu | Constaté |
+|---|---|---|
+| survol du titre d'un toast | teinte accent | `#fff2ef` → `#ffb59a`, curseur main |
+| clic sur le titre d'un toast (capture) | gwenview sur le PNG + notification retirée | fenêtre « notif-test.png — Gwenview », liste vidée |
+| clic dans le **corps** du toast | centre ouvert, rien d'exécuté | centre ouvert, entrée conservée |
+| clic sur le titre d'un toast Arch-Update | ghostty sur `arch-update` | fenêtre ghostty « arch-update », entrée retirée |
+| clic sur le titre d'une **carte** du centre | exécution + retrait + fermeture | fichier créé, liste vidée, centre refermé |
+
+Deux défauts trouvés par ce test, et corrigés :
+
+1. **Le titre du toast était inerte.** `latestToast` garde la référence de l'entrée
+   affichée, alors que `applyNotifTarget` remplace l'entrée de la liste par une
+   copie enrichie : le toast pointait donc sur l'objet *sans* cible,
+   `notifHasTarget()` répondait faux, et le clic tombait sur le fond (ouvrir le
+   centre). Le toast reçoit maintenant l'entrée fusionnée. Un simple essai par IPC
+   ne pouvait pas le voir : la liste, elle, était correcte.
+2. **Le journal n'était pas horodaté** — impossible de corréler une ligne avec un
+   clic quand on en envoie plusieurs. Chaque ligne commence par
+   `AAAA-MM-JJ HH:MM:SS |`.
+
+Reste non reproduit : une passe où le clic a bien lancé l'application mais où
+l'entrée est restée dans la liste (deux passes propres ensuite, sur les deux
+surfaces). Le journal horodaté permettra de dater une récidive.
+
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par

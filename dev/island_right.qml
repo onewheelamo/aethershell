@@ -324,9 +324,16 @@ Item {
         const list = islandRight.notificationsList
         for (let i = 0; i < list.length; i++) {
             if (String(list[i].id) !== id) continue
+            // Nouvel objet : la liste est un tableau JS, une mutation en place ne
+            // réveillerait aucune liaison (donc pas d'affordance).
+            const merged = Object.assign({}, list[i], { target: res })
             const copy = list.slice()
-            copy[i] = Object.assign({}, copy[i], { target: res })
+            copy[i] = merged
             islandRight.notificationsList = copy
+            // Le toast a été affiché **avant** la réponse : il tient sa propre
+            // référence à l'entrée. Sans cette ligne, son titre restait inerte.
+            if (islandRight.latestToast && String(islandRight.latestToast.id) === id)
+                islandRight.latestToast = merged
             return
         }
     }
@@ -380,6 +387,7 @@ Item {
             islandRight.notificationsList = copy
             return
         }
+        console.warn("notification " + entry.id + " absente de la liste au retrait")
     }
 
     function clearNotifications() {
