@@ -207,6 +207,47 @@ Vérifié par l'IPC du shell (`captureMode`), donc par le chemin réel :
 Effet de bord assumé du test : `hyprshot` copie toujours dans le presse-papier, et
 les captures/vidéos d'essai ont été supprimées après mesure.
 
+## État — L5 et historique livrés (05/11, 11:00)
+
+L'historique est une **surface à part**, indépendante du panneau de notifications :
+celui-ci montre les notifications courantes (toast, actions), le tiroir garde la
+trace de tout ce qui est arrivé — y compris ce qui a été effacé du panneau ou fermé
+par l'application. C'est la réponse à la question ouverte : l'historique n'est pas
+touché par la fermeture côté client, puisqu'il vit sa vie sur disque.
+
+- Magasin : `~/.cache/quickshell/notifications-history.jsonl` (JSON Lines, 200
+  entrées max). Écrit par `core/notif_target.py` en mode `--serve` — le seul endroit
+  qui voit chaque notification avec sa cible déjà décidée. Les essais en `--once`
+  n'écrivent rien.
+- `core/notif_history.py` : `add` / `list` / `delete <id>` / `clear` / `count`.
+- `dev/notif_history.qml` (`NotifHistory`, entrée `qmldir`, copie `deploy.sh`) :
+  tiroir de 380 px glissé depuis la droite, en-tête « Historique » + compteur +
+  « Tout effacer », séparateurs par jour (Aujourd'hui / Hier / date), une carte par
+  notification avec croix de suppression. Le clic sur le **titre rouvre la cible
+  sans supprimer l'entrée** ; une cible de type `action` n'est pas rouvrable (il
+  faudrait le client), son titre reste du texte.
+- Icône d'accès : petite horloge dans l'en-tête du panneau de notifications, à
+  gauche de « Tout effacer » ; elle referme le panneau et ouvre le tiroir. Fermeture
+  par clic extérieur, Échap ou le même geste. Les toasts sont suspendus tant que le
+  tiroir est ouvert (sinon ils le recouvrent).
+- Pas de flou sur cette surface : elle occupe presque toute la hauteur, une règle de
+  flou sur son namespace flouterait tout l'écran. Fond plus dense (0.92) ; mesuré :
+  (33,17,12) dans le tiroir contre (36,21,25) du fond, le texte des fenêtres ne
+  transparaît pas.
+- Panneau : section « Cible du clic sur une notification » dans l'onglet
+  Applications — nature → alias (Vidéo, Image, Dossier, Texte), ligne « Liens »,
+  puis les règles par application (clé, commande éditable, ✓, ✕ ; le drapeau
+  « terminal » de l'entrée est conservé par `notif_app_set`). Quatre sous-commandes
+  ajoutées à `config_manager.py` : `notif_app_set`, `notif_app_del`,
+  `notif_type_set`, `notif_url_set`.
+
+Vérifié à la souris : icône de l'en-tête → tiroir ouvert et panneau refermé ; clic
+sur un titre → cible exécutée (`/tmp/hist-reopen` créé) et entrée **conservée** ;
+croix d'une carte → entrée supprimée (3 → 2) ; « Tout effacer » → fichier vide,
+en-tête sans compteur, état vide affiché. Panneau : section dépliée, valeurs
+correctes, ✓ d'une ligne → fichier réécrit (mtime changé, contenu identique puisque
+même valeur) — la chaîne bouton → `config_manager` → fichier → FileView est bonne.
+
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par

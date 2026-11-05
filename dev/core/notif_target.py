@@ -25,9 +25,14 @@ import os
 import re
 import shlex
 import sys
+import time
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+# Le résolveur qui sert le shell écrit aussi l'historique : c'est le seul endroit
+# qui voit chaque notification avec sa cible déjà décidée. Les essais en `--once`
+# n'écrivent rien, pour ne pas polluer l'historique réel.
+RECORD_HISTORY = False
 CORE_DIR = Path(__file__).resolve().parent
 CACHE_LOG = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "notifications.log"
 
@@ -261,6 +266,24 @@ def log_line(req, res):
         fh.write(stamp + " | " + " ".join(fields) + "\n")
 
 
+def remember(req, res):
+    """Trace l'entrée dans l'historique, cible comprise (elle peut être vide)."""
+    try:
+        import notif_history
+        notif_history.add({
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "ts_ms": int(time.time() * 1000),
+            "app": str(req.get("appName") or ""),
+            "desktop": str(req.get("desktopEntry") or ""),
+            "summary": str(req.get("summary") or ""),
+            "body": str(req.get("body") or ""),
+            "actions": req.get("actions") or [],
+            "target": res or {},
+        })
+    except Exception as exc:
+        print(f"historique non écrit : {exc}", file=sys.stderr)
+
+
 def answer(req):
     try:
         res = resolve(req)
@@ -270,6 +293,8 @@ def answer(req):
         log_line(req, res)
     except Exception:
         pass
+    if RECORD_HISTORY:
+        remember(req, res)
     out = dict(res)
     if "id" in req:
         out["id"] = req["id"]
@@ -277,7 +302,9 @@ def answer(req):
 
 
 def main():
+    global RECORD_HISTORY
     if "--serve" in sys.argv:
+        RECORD_HISTORY = True
         for line in sys.stdin:
             line = line.strip()
             if not line:

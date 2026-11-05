@@ -96,6 +96,8 @@ Rectangle {
           tab: 4, section: "apps_programs", target: "secApps" },
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
           tab: 4, section: "apps_programs", target: "launchHistoryRow" },
+        { label: "Cible du clic sur une notification", words: "notification notifications clic titre cible lien fichier video image dossier commande", 
+          tab: 4, section: "apps_notif_targets", target: "secNotifTargets" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
           tab: 4, section: "apps_autostart", target: "secAutostart" }
     ]
@@ -211,6 +213,26 @@ Rectangle {
     property var widgetsList: []
     property string launcherPosition: "bas-centre"
     property var appVarsModel: []
+    // Cible du clic sur une notification (core/notif_targets.json) : lignes
+    // dérivées pour la section « Cible du clic sur une notification ».
+    property var notifTargets: ({ "apps": ({}), "types": ({}), "url": "Browser" })
+    readonly property var notifTypeRows: [
+        { nature: "video",  label: "Vidéo",   alias: String(root.notifTargets.types.video || "") },
+        { nature: "image",  label: "Image",   alias: String(root.notifTargets.types.image || "") },
+        { nature: "folder", label: "Dossier", alias: String(root.notifTargets.types.folder || "") },
+        { nature: "text",   label: "Texte",   alias: String(root.notifTargets.types.text || "") }
+    ]
+    readonly property var notifAppRows: {
+        const out = []
+        const apps = root.notifTargets.apps || ({})
+        for (const key in apps) {
+            const rule = apps[key]
+            const command = (rule && typeof rule === "object") ? String(rule.run || "") : String(rule || "")
+            out.push({ key: key, command: command,
+                       terminal: Boolean(rule && typeof rule === "object" && rule.terminal) })
+        }
+        return out
+    }
     property var autostartModel: []
     property bool batLimit80: false
 
@@ -401,6 +423,24 @@ Rectangle {
                     root.refreshConfigState()
                 }
             }
+        }
+    }
+
+    FileView {
+        id: notifTargetsFile
+        path: Quickshell.shellPath("core/notif_targets.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const obj = JSON.parse(text())
+                root.notifTargets = {
+                    "apps": (obj && typeof obj.apps === "object") ? obj.apps : ({}),
+                    "types": (obj && typeof obj.types === "object") ? obj.types : ({}),
+                    "url": (obj && typeof obj.url === "string") ? obj.url : "Browser"
+                }
+            } catch (e) {}
         }
     }
 
@@ -3408,6 +3448,301 @@ Rectangle {
                 }
             }
             }   // end CollapsibleSection secApps
+
+            // Cible du clic sur le titre d'une notification (core/notif_targets.json).
+            // Aucun programme n'est écrit ici : les alias renvoient au tiroir
+            // « Programmes par défaut » ci-dessus. Le résolveur relit le fichier à
+            // chaque notification, donc une modification est effective tout de suite.
+            CollapsibleSection {
+                id: secNotifTargets
+                objectName: "secNotifTargets"
+                title: "Cible du clic sur une notification"
+                icon: "history"
+                expanded: root.sectionOpen("apps_notif_targets", false)
+                onToggled: expanded => root.setPanelSection("apps_notif_targets", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Cliquer le titre d'une notification ouvre ce qu'elle annonce. "
+                            + "Les fichiers et les liens passent par les alias de « Programmes par défaut » ; "
+                            + "une application peut avoir sa propre commande."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    // ── par nature de fichier ────────────────────────────
+                    Text {
+                        text: "Fichiers détectés dans le texte"
+                        color: Theme.accent
+                        font.pixelSize: Theme.textMd
+                        font.bold: true
+                    }
+
+                    Repeater {
+                        model: root.notifTypeRows
+
+                        Row {
+                            id: typeRow
+                            required property var modelData
+                            width: parent.width
+                            spacing: 10
+
+                            Rectangle {
+                                width: 84
+                                height: 32
+                                color: Theme.surfaceVariant
+                                radius: Theme.globalRadius
+                                border.color: Theme.accentMuted
+                                border.width: 1
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    text: typeRow.modelData.label
+                                    color: Theme.fg
+                                    font.bold: true
+                                    font.pixelSize: Theme.textSm
+                                }
+                            }
+
+                            Rectangle {
+                                width: typeRow.width - 84 - 32 - 2 * 10
+                                height: 32
+                                color: Theme.bg
+                                radius: Theme.globalRadius
+                                border.color: typeAlias.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+
+                                TextInput {
+                                    id: typeAlias
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: typeRow.modelData.alias
+                                    color: Theme.info
+                                    font.pixelSize: Theme.textSm
+                                    onAccepted: root.runConfigCmd(["notif_type_set", typeRow.modelData.nature, text])
+                                }
+                            }
+
+                            Rectangle {
+                                width: 32
+                                height: 32
+                                color: Theme.surfaceVariant
+                                radius: Theme.globalRadius
+                                border.color: Theme.success
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: Theme.success
+                                    font.pixelSize: Theme.textMd
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["notif_type_set", typeRow.modelData.nature, typeAlias.text])
+                                }
+                            }
+                        }
+                    }
+
+                    // ── liens ───────────────────────────────────────────
+                    Row {
+                        id: urlRow
+                        width: parent.width
+                        spacing: 10
+
+                        Rectangle {
+                            width: 84
+                            height: 32
+                            color: Theme.surfaceVariant
+                            radius: Theme.globalRadius
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                text: "Liens"
+                                color: Theme.fg
+                                font.bold: true
+                                font.pixelSize: Theme.textSm
+                            }
+                        }
+
+                        Rectangle {
+                            width: urlRow.width - 84 - 32 - 2 * 10
+                            height: 32
+                            color: Theme.bg
+                            radius: Theme.globalRadius
+                            border.color: urlAlias.activeFocus ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+
+                            TextInput {
+                                id: urlAlias
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                verticalAlignment: TextInput.AlignVCenter
+                                text: root.notifTargets.url || ""
+                                color: Theme.info
+                                font.pixelSize: Theme.textSm
+                                onAccepted: root.runConfigCmd(["notif_url_set", text])
+                            }
+                        }
+
+                        Rectangle {
+                            width: 32
+                            height: 32
+                            color: Theme.surfaceVariant
+                            radius: Theme.globalRadius
+                            border.color: Theme.success
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Theme.success
+                                font.pixelSize: Theme.textMd
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["notif_url_set", urlAlias.text])
+                            }
+                        }
+                    }
+
+                    // ── par application ─────────────────────────────────
+                    Text {
+                        text: "Par application"
+                        color: Theme.accent
+                        font.pixelSize: Theme.textMd
+                        font.bold: true
+                    }
+
+                    Text {
+                        visible: root.notifAppRows.length === 0
+                        width: parent.width
+                        text: "Aucune règle par application."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    Repeater {
+                        model: root.notifAppRows
+
+                        Row {
+                            id: appRuleRow
+                            required property var modelData
+                            width: parent.width
+                            spacing: 10
+
+                            Rectangle {
+                                width: 116
+                                height: 32
+                                color: Theme.surfaceVariant
+                                radius: Theme.globalRadius
+                                border.color: Theme.accentMuted
+                                border.width: 1
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    width: parent.width - 16
+                                    text: appRuleRow.modelData.key + (appRuleRow.modelData.terminal ? " · terminal" : "")
+                                    color: Theme.fg
+                                    font.bold: true
+                                    font.pixelSize: Theme.text2xs
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            Rectangle {
+                                width: appRuleRow.width - 116 - 32 - 32 - 3 * 10 - 4
+                                height: 32
+                                color: Theme.bg
+                                radius: Theme.globalRadius
+                                border.color: appRuleCmd.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+
+                                TextInput {
+                                    id: appRuleCmd
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: appRuleRow.modelData.command
+                                    color: Theme.info
+                                    font.pixelSize: Theme.textSm
+                                    onAccepted: root.runConfigCmd(["notif_app_set", appRuleRow.modelData.key, text])
+                                }
+                            }
+
+                            Rectangle {
+                                width: 32
+                                height: 32
+                                color: Theme.surfaceVariant
+                                radius: Theme.globalRadius
+                                border.color: Theme.success
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: Theme.success
+                                    font.pixelSize: Theme.textMd
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["notif_app_set", appRuleRow.modelData.key, appRuleCmd.text])
+                                }
+                            }
+
+                            Rectangle {
+                                width: 32
+                                height: 32
+                                color: Theme.surfaceVariant
+                                radius: Theme.globalRadius
+                                border.color: Theme.error
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✕"
+                                    color: Theme.error
+                                    font.pixelSize: Theme.textSm
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["notif_app_del", appRuleRow.modelData.key])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Autostart géré par le panneau (autostart.json -> autostart_managed.lua)
             CollapsibleSection {

@@ -37,6 +37,9 @@ DEV_ROOT = os.path.dirname(BASE_DIR)
 STYLE_FILE = os.path.join(BASE_DIR, "style_vars.json")
 WIDGETS_FILE = os.path.join(BASE_DIR, "widgets.json")
 APP_VARS_FILE = os.path.join(BASE_DIR, "app_vars.json")
+# Cible du clic sur une notification (hint/table/types) : fichier d'état, préservé
+# au déploiement, relu par core/notif_target.py à chaque notification.
+NOTIF_TARGETS_FILE = os.path.join(BASE_DIR, "notif_targets.json")
 AUTOSTART_FILE = os.path.join(BASE_DIR, "autostart.json")
 ROFI_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_rofi_theme.sh")
 COLORS_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_colors.sh")
@@ -1025,6 +1028,73 @@ def set_app_var(alias, command):
     return True
 
 
+def load_notif_targets():
+    try:
+        with open(NOTIF_TARGETS_FILE, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            raise ValueError("racine non-objet")
+    except Exception:
+        data = {}
+    data.setdefault("apps", {})
+    data.setdefault("types", {"video": "Video", "image": "Images",
+                              "folder": "Files", "text": "Editor"})
+    data.setdefault("url", "Browser")
+    data.setdefault("terminal_alias", "Terminal")
+    return data
+
+
+def save_notif_targets(data):
+    with open(NOTIF_TARGETS_FILE, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=4, ensure_ascii=False)
+        fh.write("\n")
+
+
+def set_notif_app(key, command):
+    """Règle par application. Le drapeau « terminal » de l'entrée existante est
+    conservé : éditer la commande d'Arch-Update ne doit pas la sortir du terminal."""
+    key, command = key.strip(), command.strip()
+    if not key or not command:
+        return False
+    data = load_notif_targets()
+    previous = data["apps"].get(key)
+    entry = {"run": command}
+    if isinstance(previous, dict) and previous.get("terminal"):
+        entry["terminal"] = True
+    data["apps"][key] = entry
+    save_notif_targets(data)
+    return True
+
+
+def remove_notif_app(key):
+    data = load_notif_targets()
+    if key not in data["apps"]:
+        return False
+    del data["apps"][key]
+    save_notif_targets(data)
+    return True
+
+
+def set_notif_type(nature, alias):
+    nature, alias = nature.strip(), alias.strip()
+    if not nature or not alias:
+        return False
+    data = load_notif_targets()
+    data["types"][nature] = alias
+    save_notif_targets(data)
+    return True
+
+
+def set_notif_url(alias):
+    alias = alias.strip()
+    if not alias:
+        return False
+    data = load_notif_targets()
+    data["url"] = alias
+    save_notif_targets(data)
+    return True
+
+
 def remove_app_var(alias):
     data = load_json(APP_VARS_FILE)
     if alias in data:
@@ -1349,6 +1419,14 @@ if __name__ == "__main__":
     elif action == "app_del" and len(sys.argv) > 2:
         remove_app_var(sys.argv[2])
         print(json.dumps(get_full_config_state()))
+    elif action == "notif_app_set" and len(sys.argv) > 3:
+        print(json.dumps({"ok": set_notif_app(sys.argv[2], " ".join(sys.argv[3:]))}))
+    elif action == "notif_app_del" and len(sys.argv) > 2:
+        print(json.dumps({"ok": remove_notif_app(sys.argv[2])}))
+    elif action == "notif_type_set" and len(sys.argv) > 3:
+        print(json.dumps({"ok": set_notif_type(sys.argv[2], sys.argv[3])}))
+    elif action == "notif_url_set" and len(sys.argv) > 2:
+        print(json.dumps({"ok": set_notif_url(sys.argv[2])}))
     elif action == "autostart_set" and len(sys.argv) > 3:
         set_autostart(sys.argv[2], enabled=(sys.argv[3] == "true"))
         print(json.dumps(get_full_config_state()))

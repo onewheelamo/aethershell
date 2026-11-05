@@ -552,6 +552,17 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // TIROIR DE L'HISTORIQUE DES NOTIFICATIONS — surface indépendante du panneau :
+    // elle garde tout ce qui est arrivé, y compris ce qui a été effacé du panneau
+    // ou fermé par l'application. Ouverture par l'icône de l'en-tête du panneau,
+    // IPC shell toggleNotifHistory.
+    // ────────────────────────────────────────────────────────────────────────
+    NotifHistory {
+        id: notifHistoryDrawer
+        onCloseRequested: Theme.notifHistoryVisible = false
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // BARRE DE CAPTURE (SUPER + SHIFT + S) — surface plein écran transparente :
     // elle attrape le clic extérieur et le clavier (Échap), tandis que la
     // pastille, elle, glisse depuis le bord gauche sans prendre la hauteur.

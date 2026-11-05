@@ -410,6 +410,10 @@ QtObject {
     // ce qui rend les modes lançables par IPC (tests scriptés).
     property var captureHook: null
 
+    // Tiroir de l'historique des notifications (surface `shell-notif-history`),
+    // indépendant du panneau de notifications et de son toast.
+    property bool notifHistoryVisible: false
+
     // Crochets de diagnostic des notifications, branchés par island_right :
     //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
     //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
@@ -500,6 +504,20 @@ QtObject {
         }
         function notifOpenLatest(): bool {
             return root.notifOpenHook ? Boolean(root.notifOpenHook()) : false
+        }
+        // Tiroir de l'historique : toggle + show/hide idempotents (mêmes règles
+        // que les autres surfaces : un toggle perd un appel, un show non).
+        function toggleNotifHistory() {
+            root.notifHistoryVisible = !root.notifHistoryVisible
+        }
+        function showNotifHistory() {
+            root.notifHistoryVisible = true
+        }
+        function hideNotifHistory() {
+            root.notifHistoryVisible = false
+        }
+        function notifHistoryState(): bool {
+            return root.notifHistoryVisible
         }
     }
 }

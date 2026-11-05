@@ -123,6 +123,7 @@ Item {
         "video-region": "\u{F00FD}",    // md-video_box (caméra dans un cadre : région)
         "video-full": "\u{F0567}",      // md-video (caméra seule : écran entier)
         "stop": "\u{F04DB}",            // md-stop (arrêter l'enregistrement)
+        "history": "\u{F02DA}",         // md-history (historique des notifications)
         "bell": "\u{F009A}"
     })
 }

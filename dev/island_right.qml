@@ -1939,9 +1939,44 @@ Item {
                         }
                     }
 
+                    // Historique : petite icône à gauche de « Tout effacer », qui
+                    // ouvre le tiroir indépendant (tout ce qui est arrivé, y
+                    // compris ce qui a été effacé ici ou fermé par l'application).
+                    Item {
+                        id: historyBtn
+                        anchors.right: clearBtn.left
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 20
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: "history"
+                            size: 12
+                            color: historyMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                            opacityLevel: 1
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                        }
+
+                        MouseArea {
+                            id: historyMa
+                            anchors.fill: parent
+                            anchors.margins: -4
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Theme.activePopup = ""
+                                Theme.notifHistoryVisible = true
+                            }
+                        }
+                    }
+
                     // « Tout effacer » : discret au repos, rouge seulement au survol.
                     // Le rouge reste un signal, pas une décoration.
                     Item {
+                        id: clearBtn
                         visible: islandRight.notificationsList.length > 0
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -2303,7 +2338,9 @@ Item {
         implicitWidth: 300
         implicitHeight: toastCol.implicitHeight + 20
         color: "transparent"
+        // Pas de toast par-dessus le tiroir de l'historique : il le recouvrirait.
         visible: islandRight.latestToast !== null && Theme.activePopup === ""
+            && !Theme.notifHistoryVisible
             && Theme.quietNotifApps.indexOf(islandRight.latestToast ? islandRight.latestToast.appName : "") < 0
 
         Rectangle {
