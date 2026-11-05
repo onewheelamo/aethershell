@@ -122,39 +122,44 @@ Item {
     //    le tiroir posé à droite, qui glisse depuis le bord.
     PanelWindow {
         id: historyWindow
-        visible: Theme.notifHistoryVisible || closeTimer.running
+        // La surface reste montée tant que le tiroir n'est pas complètement sorti :
+        // sinon elle se démapte au premier changement d'état et coupe l'animation.
+        visible: Theme.notifHistoryVisible || historyWindow.reveal > 0
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: Theme.notifHistoryVisible
-            ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        // Toujours Exclusive : la surface n'existe que pendant l'ouverture, et
+        // changer ce paramètre en cours de route recrée la couche — ce qui coupait
+        // net l'animation de sortie (le tiroir disparaissait en deux images).
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         WlrLayershell.namespace: "shell-notif-history"
 
-        property bool shown: false
-
-        Timer { id: closeTimer; interval: 300 }
+        // Avancement du glissement, 0 = hors écran à droite, 1 = posé.
+        // Un nombre plutôt qu'un booléen : la position se déduit d'un ancrage à
+        // droite et d'une marge interpolée, donc elle ne dépend jamais de
+        // parent.width au moment où la fenêtre est encore à 0 px de large.
+        property real reveal: 0
+        Behavior on reveal { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
         // L'animation s'arme une frame après le map (même raison que la pastille
         // de capture) : sinon la première image est déjà à l'arrivée.
         Timer {
             id: openTimer
             interval: 40
-            onTriggered: historyWindow.shown = true
+            onTriggered: historyWindow.reveal = 1
         }
 
         Connections {
             target: Theme
             function onNotifHistoryVisibleChanged() {
                 if (Theme.notifHistoryVisible) {
-                    closeTimer.stop()
                     Theme.activePopup = ""      // le panneau de notifications s'efface
                     historyFile.reload()
                     openTimer.restart()
                 } else {
                     openTimer.stop()
-                    historyWindow.shown = false
-                    closeTimer.restart()
+                    historyWindow.reveal = 0
                 }
             }
         }
@@ -175,8 +180,10 @@ Item {
             width: root.drawerWidth
             height: parent.height - 28
             y: 14
-            x: historyWindow.shown ? parent.width - width - 14 : parent.width + 20
-            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            anchors.right: parent.right
+            // 14 px du bord une fois posé ; à reveal = 0 le tiroir est entièrement
+            // sorti à droite (marge négative de sa propre largeur).
+            anchors.rightMargin: 14 - (1 - historyWindow.reveal) * (width + 20)
             radius: Theme.globalRadius
             color: root.surfaceColor
             border.color: Qt.alpha(Theme.accent, 0.22)
