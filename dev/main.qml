@@ -584,6 +584,15 @@ Item {
     }
 
     function requestCapture(mode) {
+        // Arrêter un enregistrement ne capture rien : attendre que la pastille
+        // sorte n'ajouterait qu'un tiers de seconde de vidéo au fichier.
+        if (mode === "record-stop") {
+            Theme.screenshotPickerVisible = false
+            Quickshell.execDetached([
+                "bash", Quickshell.shellPath("core/screenshot.sh"), mode
+            ])
+            return
+        }
         root.pendingCapture = mode
         Theme.screenshotPickerVisible = false
         captureLaunchTimer.restart()

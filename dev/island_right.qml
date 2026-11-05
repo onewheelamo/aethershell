@@ -234,6 +234,16 @@ Item {
         persistenceSupported: true
         onNotification: notification => {
             notification.tracked = true
+            // La notification peut mourir sans nous : son application la ferme,
+            // elle expire, ou une action non « resident » vient d'être invoquée.
+            // Dans tous ces cas le serveur émet `closed` et la carte doit quitter
+            // le centre — sinon elle reste avec des boutons qui ne répondent plus.
+            // L'historique, lui, garde son entrée : il vit sur disque.
+            try {
+                notification.closed.connect(function () {
+                    islandRight.dropClosedNotif(notification.id)
+                })
+            } catch (e) {}
             const entry = {
                 id: notification.id,
                 appName: notification.appName || "Système",
@@ -246,8 +256,14 @@ Item {
                 actions: islandRight.notifActionList(notification),
                 raw: notification
             }
-            const next = [entry].concat(islandRight.notificationsList).slice(0, 30)
-            islandRight.notificationsList = next
+            const all = [entry].concat(islandRight.notificationsList)
+            // Les évincées doivent être relâchées du serveur : `keepOnReload` garde
+            // tout ce qui est encore `tracked` et les ferait réapparaître au
+            // prochain rechargement du shell.
+            for (let i = 30; i < all.length; i++) {
+                try { all[i].raw.tracked = false } catch (e) {}
+            }
+            islandRight.notificationsList = all.slice(0, 30)
             // Cible du clic sur le titre : décidée tout de suite (l'objet peut
             // mourir ensuite), calculée hors du shell par notif_target.py.
             islandRight.requestNotifTarget(notification)
@@ -381,6 +397,23 @@ Item {
         return Boolean(entry.target.cmd && entry.target.cmd.length > 0)
     }
 
+    // Retrait d'une notification déjà fermée (application, expiration, action).
+    // On ne touche pas à `tracked` : le serveur a déjà statué, et réécrire la
+    // propriété d'un objet mort n'apporterait rien. `forgetNotif` reste réservé
+    // au cas où c'est nous qui décidons de la fermeture.
+    function dropClosedNotif(id) {
+        const list = islandRight.notificationsList
+        for (let i = 0; i < list.length; i++) {
+            if (String(list[i].id) !== String(id)) continue
+            const copy = list.slice()
+            copy.splice(i, 1)
+            islandRight.notificationsList = copy
+            if (islandRight.latestToast && String(islandRight.latestToast.id) === String(id))
+                islandRight.latestToast = null
+            return
+        }
+    }
+
     // Retirer de la liste **et** du serveur : sans `tracked = false`, keepOnReload
     // ressuscite la notification au prochain rechargement du shell.
     function forgetNotif(entry) {
@@ -422,9 +455,10 @@ Item {
         for (let i = 0; i < actions.length; i++) {
             if (String(actions[i].identifier) !== String(identifier)) continue
             try { actions[i].invoke() } catch (e) { return false }
-            // Une action non « resident » fait fermer la notification par le
-            // serveur : on retire alors la carte, sinon on la laisse.
-            if (entry.raw && entry.raw.tracked === false) islandRight.forgetNotif(entry)
+            // Le retrait de la carte ne se décide pas ici : le serveur ferme la
+            // notification de façon asynchrone (sauf action « resident »), et son
+            // signal `closed` s'en charge. Tester `tracked` juste après `invoke()`
+            // ne pouvait rien voir.
             return true
         }
         console.warn("action " + identifier + " introuvable (notification fermée ?)")

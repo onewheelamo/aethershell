@@ -108,8 +108,12 @@ def alias_command(alias_cmd, target):
     """Commande d'alias + cible en argument, jamais concaténée dans la chaîne.
 
     La commande vient de la configuration de l'utilisateur, la cible du texte
-    d'une notification : elle arrive donc en `$1`.
+    d'une notification : elle arrive donc en `$1`. Sans cible (règle qui demande
+    seulement de lancer l'application), l'alias part tel quel : lui passer `""`
+    ferait ouvrir à Thunar ou Gwenview un fichier dont le nom est vide.
     """
+    if not target:
+        return shlex.split(alias_cmd)
     return ["sh", "-c", alias_cmd + ' "$1"', "_", target]
 
 
@@ -148,11 +152,12 @@ def resolve(req):
         cmd = program(alias)
         if not cmd:
             return {"rule": rule + "-repli", "kind": kind, "alias": alias,
-                    "cmd": ["sh", "-c", 'xdg-open "$1"', "_", target],
-                    "display": "xdg-open " + shlex.quote(target),
+                    "cmd": alias_command("xdg-open", target),
+                    "display": "xdg-open " + shlex.quote(target) if target else "xdg-open",
                     "label": target, "missingAlias": alias}
         return {"rule": rule, "kind": kind, "alias": alias, "cmd": alias_command(cmd, target),
-                "display": cmd + " " + shlex.quote(target), "label": target}
+                "display": (cmd + " " + shlex.quote(target)) if target else cmd,
+                "label": target}
 
     # 1. hint explicite (nos propres scripts)
     for key, value in hints.items():

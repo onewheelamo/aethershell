@@ -8,3 +8,4 @@ magick
 awww
 hyprshot
 slurp
+wf-recorder

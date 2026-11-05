@@ -32,7 +32,7 @@ hl.bind("Escape", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/greeter_preview
 
 --: Capture
 -- Sélection de zone ou de fenêtre, presse-papier et fichier.
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"), { description = "capture d'écran" })
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"), { description = "capture d'écran ou vidéo" })
 -- Placement d'un widget de bureau : le shell lit la position du curseur, trouve le
 -- widget dessous et affiche une surface plein écran qui le fait suivre la souris.
 -- SUPER + clic ne peut pas servir (déjà pris par le glisser de fenêtre) et
@@ -104,52 +104,52 @@ hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("playerctl previous"),          
 -- Workspaces permanents 1 à 5 (AZERTY).
 -- Workspace 1 (& / 1)
 hl.bind(mainMod .. " + ampersand",        hl.dsp.focus({ workspace = 1 }), { description = "workspace 1" })
-hl.bind(mainMod .. " + SHIFT + ampersand", hl.dsp.window.move({ workspace = 1, silent = true }))
+hl.bind(mainMod .. " + SHIFT + ampersand", hl.dsp.window.move({ workspace = 1, follow = false }))
 hl.bind(mainMod .. " + ALT + ampersand",  hl.dsp.window.move({ workspace = 1 }))
 
 -- Workspace 2 (é / 2)
 hl.bind(mainMod .. " + eacute",        hl.dsp.focus({ workspace = 2 }), { description = "workspace 2" })
-hl.bind(mainMod .. " + SHIFT + eacute", hl.dsp.window.move({ workspace = 2, silent = true }))
+hl.bind(mainMod .. " + SHIFT + eacute", hl.dsp.window.move({ workspace = 2, follow = false }))
 hl.bind(mainMod .. " + ALT + eacute",  hl.dsp.window.move({ workspace = 2 }))
 
 -- Workspace 3 (" / 3)
 hl.bind(mainMod .. " + quotedbl",        hl.dsp.focus({ workspace = 3 }), { description = "workspace 3" })
-hl.bind(mainMod .. " + SHIFT + quotedbl", hl.dsp.window.move({ workspace = 3, silent = true }))
+hl.bind(mainMod .. " + SHIFT + quotedbl", hl.dsp.window.move({ workspace = 3, follow = false }))
 hl.bind(mainMod .. " + ALT + quotedbl",  hl.dsp.window.move({ workspace = 3 }))
 
 -- Workspace 4 (' / 4)
 hl.bind(mainMod .. " + apostrophe",        hl.dsp.focus({ workspace = 4 }), { description = "workspace 4" })
-hl.bind(mainMod .. " + SHIFT + apostrophe", hl.dsp.window.move({ workspace = 4, silent = true }))
+hl.bind(mainMod .. " + SHIFT + apostrophe", hl.dsp.window.move({ workspace = 4, follow = false }))
 hl.bind(mainMod .. " + ALT + apostrophe",  hl.dsp.window.move({ workspace = 4 }))
 
 -- Workspace 5 (( / 5)
 hl.bind(mainMod .. " + parenleft",        hl.dsp.focus({ workspace = 5 }), { description = "workspace 5" })
-hl.bind(mainMod .. " + SHIFT + parenleft", hl.dsp.window.move({ workspace = 5, silent = true }))
+hl.bind(mainMod .. " + SHIFT + parenleft", hl.dsp.window.move({ workspace = 5, follow = false }))
 hl.bind(mainMod .. " + ALT + parenleft",  hl.dsp.window.move({ workspace = 5 }))
 
 --: Workspaces
 -- Workspaces dynamiques 6 à 10.
 -- Workspace 6 (- / 6)
 hl.bind(mainMod .. " + minus",        hl.dsp.focus({ workspace = 6 }))
-hl.bind(mainMod .. " + SHIFT + minus", hl.dsp.window.move({ workspace = 6, silent = true }))
+hl.bind(mainMod .. " + SHIFT + minus", hl.dsp.window.move({ workspace = 6, follow = false }))
 hl.bind(mainMod .. " + ALT + minus",  hl.dsp.window.move({ workspace = 6 }))
 
 -- Workspace 7 (è / 7)
 hl.bind(mainMod .. " + egrave",        hl.dsp.focus({ workspace = 7 }))
-hl.bind(mainMod .. " + SHIFT + egrave", hl.dsp.window.move({ workspace = 7, silent = true }))
+hl.bind(mainMod .. " + SHIFT + egrave", hl.dsp.window.move({ workspace = 7, follow = false }))
 hl.bind(mainMod .. " + ALT + egrave",  hl.dsp.window.move({ workspace = 7 }))
 
 -- Workspace 8 (_ / 8)
 hl.bind(mainMod .. " + underscore",        hl.dsp.focus({ workspace = 8 }))
-hl.bind(mainMod .. " + SHIFT + underscore", hl.dsp.window.move({ workspace = 8, silent = true }))
+hl.bind(mainMod .. " + SHIFT + underscore", hl.dsp.window.move({ workspace = 8, follow = false }))
 hl.bind(mainMod .. " + ALT + underscore",  hl.dsp.window.move({ workspace = 8 }))
 
 -- Workspace 9 (ç / 9)
 hl.bind(mainMod .. " + ccedilla",        hl.dsp.focus({ workspace = 9 }))
-hl.bind(mainMod .. " + SHIFT + ccedilla", hl.dsp.window.move({ workspace = 9, silent = true }))
+hl.bind(mainMod .. " + SHIFT + ccedilla", hl.dsp.window.move({ workspace = 9, follow = false }))
 hl.bind(mainMod .. " + ALT + ccedilla",  hl.dsp.window.move({ workspace = 9 }))
 
 -- Workspace 10 (à / 0)
 hl.bind(mainMod .. " + agrave",        hl.dsp.focus({ workspace = 10 }))
-hl.bind(mainMod .. " + SHIFT + agrave", hl.dsp.window.move({ workspace = 10, silent = true }))
+hl.bind(mainMod .. " + SHIFT + agrave", hl.dsp.window.move({ workspace = 10, follow = false }))
 hl.bind(mainMod .. " + ALT + agrave",  hl.dsp.window.move({ workspace = 10 }))
