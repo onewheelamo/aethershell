@@ -40,6 +40,10 @@ Item {
         return 0.85
     }
     readonly property int respiration: Math.round(13 * root.echelle)
+    // Retrait latéral du filet : il court sur toute la largeur du widget, mais
+    // s'arrête à une respiration des bords — un trait qui touche le bord se lit
+    // comme une bordure, pas comme une séparation.
+    readonly property int margeFilet: Math.round(6 * root.echelle)
 
     // Largeur de chaque bloc, relevée au chargement : les séparateurs prennent
     // la plus grande, sinon chaque trait s'arrête à la largeur de son propre
@@ -74,11 +78,17 @@ Item {
                 // Séparateur : une ligne fine, à la largeur du bloc, très
                 // discrète — elle coupe sans transformer le widget en carte. La
                 // respiration de la colonne joue au-dessus et en dessous.
-                Rectangle {
+                Item {
                     visible: index > 0
                     width: Math.max(1, root.largeurCommun)
                     height: 1
-                    color: Qt.alpha(Theme.fg, 0.13)
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: root.margeFilet
+                        anchors.rightMargin: root.margeFilet
+                        color: Qt.alpha(Theme.fg, 0.13)
+                    }
                 }
 
                 Loader {
