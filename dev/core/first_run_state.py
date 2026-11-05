@@ -53,6 +53,7 @@ WIDGET_LABELS = {
     "musique": "Musique",
     "deepseek": "DeepSeek",
     "ollama": "Ollama Cloud",
+    "antigravity": "Antigravity",
 }
 
 DESKTOP_DIRS = [

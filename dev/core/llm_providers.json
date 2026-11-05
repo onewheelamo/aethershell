@@ -21,6 +21,17 @@
             "widget": "ollama",
             "hint": "clé de ollama.com",
             "summary": "solde restant et coût des 7 derniers jours"
+        },
+        {
+            "id": "antigravity",
+            "label": "Antigravity (Google AI Pro)",
+            "kind": "quota",
+            "base_url": "",
+            "key": "",
+            "service": "core/antigravity_service.py",
+            "widget": "antigravity",
+            "hint": "",
+            "summary": "quota de l'abonnement, lu dans les logs du CLI — Gemini, Claude et GPT sous le même plafond"
         }
     ]
 }

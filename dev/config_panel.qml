@@ -58,7 +58,7 @@ Rectangle {
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
           tab: 5, section: "greeter_theme", target: "secGreeter" },
-        { label: "Accès API", words: "cle api token deepseek ollama secrets connexion fournisseur", tab: 1,
+        { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 1,
           section: "widgets_api", target: "secApiKeys" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
           tab: 1, section: "widgets", target: "secWidgets" },
@@ -252,7 +252,8 @@ Rectangle {
         { type: "combo",   label: "Combo" },
         { type: "musique", label: "Musique" },
         { type: "deepseek", label: "DeepSeek" },
-        { type: "ollama",   label: "Ollama Cloud" }
+        { type: "ollama",   label: "Ollama Cloud" },
+        { type: "antigravity", label: "Antigravity" }
     ]
     readonly property var widgetTypeRows: {
         const poses = ({})
@@ -2400,6 +2401,7 @@ Rectangle {
                                     Row {
                                         visible: widgetCard.wtype === "deepseek"
                                                  || widgetCard.wtype === "ollama"
+                                                 || widgetCard.wtype === "antigravity"
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 6
 
@@ -2695,9 +2697,22 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                             }
 
+                            // Un fournisseur local (quota lu sur la machine) n'a
+                            // pas de clé : afficher un champ vide laisserait croire
+                            // qu'il en manque une.
+                            Text {
+                                width: parent.width
+                                visible: (modelData.key || "") === ""
+                                text: "aucune clé — la donnée est lue localement"
+                                color: Qt.alpha(Theme.fg, 0.5)
+                                font.pixelSize: Theme.text2xs
+                                font.italic: true
+                            }
+
                             Row {
                                 width: parent.width
                                 spacing: 10
+                                visible: (modelData.key || "") !== ""
 
                                 Rectangle {
                                     width: parent.width - 130

@@ -29,3 +29,6 @@ backups_env/
 
 # Third-party inspiration repos (nested git clones)
 inspirations/
+
+# caches des services (valeurs relues, jamais des sources)
+dev/core/*_cache.json

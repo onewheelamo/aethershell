@@ -41,6 +41,12 @@ DEFAUT = [
         "service": "core/ollama_service.py", "widget": "ollama",
         "hint": "clé de ollama.com", "summary": "solde restant et coût des 7 derniers jours",
     },
+    {
+        "id": "antigravity", "label": "Antigravity (Google AI Pro)", "kind": "quota",
+        "base_url": "", "key": "", "service": "core/antigravity_service.py",
+        "widget": "antigravity", "hint": "",
+        "summary": "quota de l'abonnement, lu dans les logs du CLI — Gemini, Claude et GPT sous le même plafond",
+    },
 ]
 
 
@@ -59,6 +65,13 @@ def charger():
     for entree in entrees:
         if isinstance(entree, dict) and str(entree.get("id") or "").strip():
             sortie[str(entree["id"]).strip()] = entree
+
+    # Le fichier est préservé au déploiement : un fournisseur livré plus tard
+    # (nouvelle version du shell) n'y apparaîtrait jamais tout seul. Les entrées
+    # du fichier gardent la priorité — c'est lui que l'utilisateur édite — et
+    # celles qui manquent sont complétées par la liste par défaut.
+    for entree in DEFAUT:
+        sortie.setdefault(str(entree["id"]), entree)
     return sortie
 
 
