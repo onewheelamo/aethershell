@@ -86,8 +86,24 @@ notify_failure() {
     # Pas d'apostrophe dans un ${var:-défaut} : bash y voit une citation ouverte.
     [ -n "$detail" ] || detail="wf-recorder s'est arrêté sans message"
     log "ÉCHEC : $detail"
-    notify-send -u critical -i "media-record" "Enregistrement vidéo impossible" \
-        "${detail:0:180}"
+    notify-send -a "Captures" -u critical -i "media-record" \
+        "Enregistrement vidéo impossible" "${detail:0:180}"
+}
+
+# Notification d'une capture, avec la cible du clic déclarée dans un hint : le
+# shell ouvre alors le fichier avec l'alias « Images » ou « Video » du tiroir
+# « Programmes par défaut » (cascade de core/notif_target.py, règle 1). Le
+# chemin est passé en `file://` pour que les espaces ne soient pas ambigus.
+notify_capture() {
+    local summary="$1" body="$2" path="${3:-}"
+    local -a args=(-a "Captures")
+    if [ -n "$path" ]; then
+        args+=(-h "string:x-amo-open:file://${path}" -i "$path")
+    else
+        args+=(-i "camera-photo")
+    fi
+    notify-send "${args[@]}" "$summary" "$body"
+    log "notification : $summary${path:+ → $path}"
 }
 
 start_recording() {
@@ -97,7 +113,7 @@ start_recording() {
     local pid i
 
     if [ -n "$(any_recording_pid)" ]; then
-        notify-send -i "media-record" "Enregistrement vidéo" \
+        notify-send -a "Captures" -i "media-record" "Enregistrement vidéo" \
             "Un enregistrement est déjà en cours."
         log "refus : enregistrement déjà en cours"
         exit 0
@@ -136,7 +152,8 @@ start_recording() {
     fi
 
     log "démarré pid $pid ${geometry:+(région $geometry)} → $file"
-    notify-send -i "media-record" "Enregistrement vidéo démarré" \
+    # Pas de hint ici : le mp4 est en cours d'écriture, il n'y a rien à ouvrir.
+    notify-send -a "Captures" -i "media-record" "Enregistrement vidéo démarré" \
         "${geometry:+Région $geometry — }SUPER + SHIFT + S, puis le carré pour arrêter. Fichier : $(basename "$file")"
 }
 
@@ -146,7 +163,7 @@ stop_recording() {
     file="$(sed -n '2p' "$RECORD_STATE" 2>/dev/null)"
     if [ -z "$pid" ]; then
         rm -f "$RECORD_STATE"
-        notify-send "Enregistrement vidéo" "Aucun enregistrement en cours."
+        notify-send -a "Captures" "Enregistrement vidéo" "Aucun enregistrement en cours."
         log "arrêt demandé, rien ne tournait"
         exit 0
     fi
@@ -161,8 +178,8 @@ stop_recording() {
 
     if [ -n "$file" ] && [ -s "$file" ]; then
         log "arrêté pid $pid → $file ($(du -h "$file" | cut -f1))"
-        notify-send -i "$file" "Enregistrement vidéo arrêté" \
-            "Fichier : $(basename "$file")"
+        notify_capture "Enregistrement vidéo arrêté" \
+            "Fichier : $(basename "$file")" "$file"
     else
         log "arrêté pid $pid, fichier absent ou vide${file:+ ($file)}"
         notify-send -u critical -i "media-record" "Enregistrement vidéo" \
@@ -195,15 +212,24 @@ pick_geometry() {
 
 case "$MODE" in
     region)
-        # 1. hyprshot (sélection native Hyprland + presse-papier + notification)
+        # 1. hyprshot (sélection native Hyprland + presse-papier). `-s` coupe SA
+        # notification : c'est la nôtre qui part, avec la cible du clic (hint).
         if command -v hyprshot &>/dev/null; then
-            hyprshot -m region --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
-            log "hyprshot region → $FILEPATH"
+            hyprshot -s -m region --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
+            if [ -s "$FILEPATH" ]; then
+                notify_capture "Capture d'écran" \
+                    "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
+                log "hyprshot region → $FILEPATH"
+            else
+                log "hyprshot region : rien produit (sélection annulée ?)"
+            fi
             exit 0
         fi
-        # 2. grimblast
+        # 2. grimblast (sans --notify : la notification est la nôtre)
         if command -v grimblast &>/dev/null; then
-            grimblast --notify copysave area "$FILEPATH"
+            grimblast copysave area "$FILEPATH"
+            [ -s "$FILEPATH" ] && notify_capture "Capture d'écran" \
+                "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
             log "grimblast area → $FILEPATH"
             exit 0
         fi
@@ -213,24 +239,31 @@ case "$MODE" in
             if [ -n "$GEOM" ]; then
                 grim -g "$GEOM" "$FILEPATH"
                 command -v wl-copy &>/dev/null && wl-copy < "$FILEPATH"
-                command -v notify-send &>/dev/null && \
-                    notify-send -i "$FILEPATH" "Capture d'écran" \
-                    "Enregistrée dans $FILENAME et copiée dans le presse-papier"
+                notify_capture "Capture d'écran" \
+                    "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
                 log "grim+slurp région → $FILEPATH"
             fi
             exit 0
         fi
         ;;
     full)
-        # 1. hyprshot — la sortie qui a le focus
+        # 1. hyprshot — la sortie qui a le focus, sans sa notification
         if command -v hyprshot &>/dev/null; then
-            hyprshot -m output --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
-            log "hyprshot output → $FILEPATH"
+            hyprshot -s -m output --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
+            if [ -s "$FILEPATH" ]; then
+                notify_capture "Capture d'écran" \
+                    "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
+                log "hyprshot output → $FILEPATH"
+            else
+                log "hyprshot output : rien produit"
+            fi
             exit 0
         fi
         # 2. grimblast
         if command -v grimblast &>/dev/null; then
-            grimblast --notify copysave screen "$FILEPATH"
+            grimblast copysave screen "$FILEPATH"
+            [ -s "$FILEPATH" ] && notify_capture "Capture d'écran" \
+                "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
             log "grimblast screen → $FILEPATH"
             exit 0
         fi
@@ -238,9 +271,8 @@ case "$MODE" in
         if command -v grim &>/dev/null; then
             grim "$FILEPATH"
             command -v wl-copy &>/dev/null && wl-copy < "$FILEPATH"
-            command -v notify-send &>/dev/null && \
-                notify-send -i "$FILEPATH" "Capture d'écran" \
-                "Enregistrée dans $FILENAME et copiée dans le presse-papier"
+            notify_capture "Capture d'écran" \
+                "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
             log "grim écran → $FILEPATH"
             exit 0
         fi

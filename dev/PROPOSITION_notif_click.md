@@ -180,6 +180,33 @@ Reste non reproduit : une passe où le clic a bien lancé l'application mais où
 l'entrée est restée dans la liste (deux passes propres ensuite, sur les deux
 surfaces). Le journal horodaté permettra de dater une récidive.
 
+## État — L3 livré (05/11, 10:40)
+
+`screenshot.sh` déclare désormais la cible de ses notifications au lieu de la
+laisser deviner :
+
+- `notify_capture` : `notify-send -a "Captures" -h string:x-amo-open:file://<chemin>
+  -i <chemin>` — l'application affichée devient « Captures » (au lieu de
+  « notify-send »), l'icône est le fichier, la cible est explicite (règle 1) ;
+- **`hyprshot -s`** : sa propre notification est coupée. Mesuré : sur ses captures
+  de région, il annonçait « Hyprshot — Screenshot saved » sans la moindre cible ;
+  c'est maintenant la nôtre qui part, avec le hint. Idem pour `grimblast` (appelé
+  sans `--notify`) et pour le chemin `grim` + `slurp` ;
+- l'enregistrement vidéo ne pose un hint que sur la notification **d'arrêt** : au
+  démarrage le mp4 s'écrit encore, il n'y a rien à ouvrir ;
+- échecs et refus (« déjà en cours », « impossible ») restent sans cible, mais
+  portent aussi `-a "Captures"`.
+
+Vérifié par l'IPC du shell (`captureMode`), donc par le chemin réel :
+
+| Essai | Journal des cibles |
+|---|---|
+| `full` (hyprshot `-s`) | `app=Captures regle=hint cible=gwenview …/Capture_….png` |
+| `record-full` puis `record-stop` | démarrage : `regle=aucune` ; arrêt : `regle=hint cible=mpv …/Video_….mp4` |
+
+Effet de bord assumé du test : `hyprshot` copie toujours dans le presse-papier, et
+les captures/vidéos d'essai ont été supprimées après mesure.
+
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par
