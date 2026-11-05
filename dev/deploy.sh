@@ -12,8 +12,33 @@ BACKUP_DIR="$HOME/.config/backups_env"
 DEV_DIR="$SCRIPT_DIR"
 QS_DIR="$HOME/.config/quickshell"
 CORE_DIR="$QS_DIR/core"
+DEPS_FILE="$DEV_DIR/dependencies.txt"
 
 mkdir -p "$BACKUP_DIR"
+
+# Dépendances applicables à une cible, d'après les portées du fichier :
+#   #: commun            → les deux machines
+#   #: station|portable  → une seule
+# Un binaire par ligne ; le reste est commentaire. Sert au contrôle avant
+# déploiement et à `--deps`, qui affiche la liste résolue sans rien installer.
+deps_pour_cible() {
+    local cible="$1" portee="commun" ligne dep
+    [ -f "$DEPS_FILE" ] || return 1
+    while IFS= read -r ligne || [ -n "$ligne" ]; do
+        case "$ligne" in
+            "#:"*)
+                portee="$(printf '%s' "${ligne#\#:}" | tr -d '[:space:]')"
+                continue
+                ;;
+            ""|\#*) continue ;;
+        esac
+        dep="$(printf '%s' "${ligne%%#*}" | tr -d '[:space:]')"
+        [ -z "$dep" ] && continue
+        if [ "$portee" = "commun" ] || [ "$portee" = "$cible" ]; then
+            printf '%s\n' "$dep"
+        fi
+    done < "$DEPS_FILE"
+}
 
 # 1. Target Detection (CLI argument > /etc/hostname > /etc/os-release)
 TARGET=""
@@ -26,6 +51,7 @@ for arg in "$@"; do
             shift
             TARGET="${1:-}"
             ;;
+        --deps) PRINT_DEPS=1 ;;
     esac
 done
 
@@ -50,8 +76,6 @@ case "$TARGET" in
     portable)
         TARGET_TITLE="Portable (Fedora Laptop)"
         TARGET_TAG="portable"
-        DEPS_FILE="$DEV_DIR/dependencies_portable.txt"
-        [ -f "$DEPS_FILE" ] || DEPS_FILE="$DEV_DIR/dependencies.txt"
         PKG_MGR="dnf"
         HN_ALIAS="$BACKUP_DIR/backup_hn.tar.gz"
         HQ_ALIAS="$BACKUP_DIR/backup_hq.tar.gz"
@@ -59,12 +83,17 @@ case "$TARGET" in
     station|*)
         TARGET_TITLE="Station (Arch Linux Desktop Tower)"
         TARGET_TAG="station"
-        DEPS_FILE="$DEV_DIR/dependencies_station.txt"
         PKG_MGR="pacman"
         HN_ALIAS="$BACKUP_DIR/backup_station_hn.tar.gz"
         HQ_ALIAS="$BACKUP_DIR/backup_station_hq.tar.gz"
         ;;
 esac
+
+# `--deps` : la liste que ce fichier donne pour la cible, sans rien toucher.
+if [ "${PRINT_DEPS:-0}" = "1" ]; then
+    deps_pour_cible "$TARGET_TAG" || { echo "❌ $DEPS_FILE introuvable." >&2; exit 1; }
+    exit 0
+fi
 
 # 3. Preservation logic
 MARKER="$CURRENT_HYPR/.quickshell_managed"
@@ -190,7 +219,8 @@ check_dependencies() {
         return 1
     fi
 
-    mapfile -t deps < "$DEPS_FILE"
+    local deps=()
+    mapfile -t deps < <(deps_pour_cible "$TARGET_TAG")
     local missing=()
     local missing_pkgs=()
     for dep in "${deps[@]}"; do

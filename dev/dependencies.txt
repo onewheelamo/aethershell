@@ -1,15 +1,32 @@
+# Dépendances du shell, du compositeur et de ce que le panneau pilote.
+#
+# Un binaire par ligne, contrôlé par `command -v`. Les commentaires sont libres.
+# Les portées remplacent les trois anciens fichiers (dependencies.txt,
+# dependencies_station.txt, dependencies_portable.txt) :
+#
+#   #: commun     → les deux machines
+#   #: station  → cette cible seulement
+#   #: portable     → cette cible seulement
+#
+# Une ligne hors de toute portée est ignorée : un ajout en tête de fichier ne
+# peut donc pas se retrouver silencieusement dans la liste.
+
+#: commun
 quickshell
 hyprland
 rofi
 matugen
-brightnessctl
-wpctl
 nmcli
-powerprofilesctl
-monitor-sensor
 jq
 magick
 awww
 hyprshot
 slurp
 wf-recorder
+
+#: portable
+# Portable seulement : luminosité, volume, profil d'énergie, capteur d'écran.
+brightnessctl
+wpctl
+powerprofilesctl
+monitor-sensor
