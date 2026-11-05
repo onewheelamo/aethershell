@@ -5,6 +5,14 @@ import Quickshell.Io
 // ════════════════════════════════════════════════════════════════════════════
 // SYSTEM CONFIGURATION PANEL (config_panel.qml)
 // ════════════════════════════════════════════════════════════════════════════
+// Choix du contrôle numérique (règle du 05/11) :
+//   • plage > 12 unités  → Slider (curseur) : viser une valeur dans une large
+//     plage au glissement est plus rapide qu'au clic.
+//   • plage ≤ 12 unités  → Stepper (compteur [−] valeur [+]) : plus précis, et
+//     la valeur exacte reste lisible.
+//   • exceptions assumées : la position x/y des widgets (plage de 1800 px, mais
+//     on veut du pas régulier), et l'opacité « Fond » des cartes de widgets
+//     (coincée entre trois interrupteurs dans une rangée à largeur calculée).
 // Architecture Overview:
 //   • Section 1: Backend IPC & State Synchronization
 //       - Communicates with core/config_manager.py (CLI commands and state queries)
