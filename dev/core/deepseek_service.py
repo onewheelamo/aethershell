@@ -107,7 +107,9 @@ def main(argv):
 
     cache = lire_cache()
     if cache and not force and (time.time() - int(cache.get("ts") or 0)) < TTL:
+        # Simple lecture du cache : la valeur est fraîche, elle n'a rien de périmé.
         cache["cached"] = True
+        cache.pop("stale_reason", None)
         print(json.dumps(cache, ensure_ascii=False))
         return 0
 
@@ -143,6 +145,8 @@ def main(argv):
     # Échec : la dernière valeur connue vaut mieux qu'un tiret, à condition de
     # dire qu'elle est périmée.
     if cache and cache.get("ok"):
+        # Là, la valeur est périmée : elle n'est servie que parce que la requête a
+        # échoué. `stale_reason` est ce que le widget affiche.
         cache["cached"] = True
         cache["stale_reason"] = donnees.get("error")
         print(json.dumps(cache, ensure_ascii=False))

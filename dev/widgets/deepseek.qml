@@ -112,8 +112,10 @@ Item {
                     // taille, seul le début tient et suffit à agir.
                     if (!root.ok) return String(root.solde.error || "solde indisponible").split(" (")[0]
                     if (!root.solde.available) return "solde épuisé · DeepSeek"
-                    const perime = root.solde.cached === true
-                    return (root.bas ? "à recharger" : "DeepSeek") + (perime ? " · hors ligne" : "")
+                    // « cached » veut dire « lu du cache de 5 minutes », pas
+                    // « périmé » : seule une requête ratée pose stale_reason.
+                    const perime = root.solde.stale_reason !== undefined
+                    return (root.bas ? "à recharger" : "DeepSeek") + (perime ? " · valeur périmée" : "")
                 }
                 color: Qt.alpha(Theme.fg, 0.78)
                 font.pixelSize: Theme.widgetLabel
