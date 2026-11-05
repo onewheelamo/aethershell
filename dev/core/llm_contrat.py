@@ -15,7 +15,9 @@ Règles que le widget applique, et qui suffisent aux trois cas :
   - `mesures[0]` est la grande ligne, `mesures[1:]` forment la petite ligne,
     séparées par « · » ;
   - `fin` (horodatage Unix) remplace la valeur par un décompte qui avance seul :
-    Antigravity ne connaît que des échéances, pas des pourcentages ;
+    c'est ce qu'on affiche quand on ne connaît qu'une échéance ;
+  - `releve` (horodatage Unix) ne s'affiche pas : il dit quand relancer le
+    service, parce que la valeur va changer à cet instant ;
   - `depuis` (horodatage passé) ajoute « il y a 1 h 12 » à la mesure — c'est ce
     qui donne un sens à « libre », qui sans ça n'informe de rien ;
   - `alerte` passe le texte en couleur d'avertissement ;
@@ -53,13 +55,24 @@ def duree(secondes):
     return f"{minutes} min"
 
 
-def mesure(valeur="", libelle="", fin=0, depuis=0):
-    """Une ligne du widget : `valeur` en grand (si première), `libelle` en petit."""
+def mesure(valeur="", libelle="", fin=0, depuis=0, texte="", releve=0):
+    """Une ligne du widget : `valeur` en grand (si première), `libelle` en petit.
+
+    `texte` est une phrase toute faite, prioritaire sur valeur/libelle : certaines
+    mesures ne s'écrivent pas « valeur libelle » (Antigravity affiche
+    « 5 h · Gemini 96 % », où le séparateur appartient à la donnée).
+    """
     return {
         "valeur": "" if valeur is None else str(valeur),
         "libelle": "" if libelle is None else str(libelle),
+        "texte": "" if texte is None else str(texte),
         "fin": int(fin or 0),
         "depuis": int(depuis or 0),
+        # `releve` : instant où la valeur va changer. Le widget relance le service
+        # à ce moment sans rien afficher ; `fin`, lui, remplace la valeur par un
+        # décompte. Les deux existent parce qu'un « 0 % » et un « 2 j 01 » ne
+        # disent pas la même chose du même instant.
+        "releve": int(releve or 0),
     }
 
 

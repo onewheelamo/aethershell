@@ -1,44 +1,40 @@
 #!/usr/bin/env python3
-"""Quota Antigravity (Google AI Pro) — quand le compte sera de nouveau utilisable.
+"""Quota Antigravity (Google AI Pro) — pourcentage par modèle et fenêtre.
 
     antigravity_service.py [--force]
 
-Une ligne JSON sur stdout, rien d'autre :
+Une ligne JSON sur stdout, rien d'autre. Deux sources, dans cet ordre :
 
-    {"ok": true, "provider": "antigravity", "state": "exhausted",
-     "windows": [{"kind": "session", "reset_at": 1793890000, "seconds_left": 10800},
-                 {"kind": "week",    "reset_at": 1794140000, "seconds_left": 180000}],
-     "source": "...log", "ts": 1699..., "cached": false}
+1. L'API Code Assist (`cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`),
+   la même que Gemini CLI. Elle rend, par modèle, une fraction restante et l'heure
+   de remise à zéro : c'est la seule mesure réelle du quota. L'authentification
+   est le jeton OAuth que le CLI `agy` range dans le trousseau (libsecret,
+   service=gemini / username=antigravity) ; il n'est ni copié ni journalisé.
+   Il expire au bout d'une heure environ et le CLI ne le renouvelle qu'en
+   s'exécutant — d'où le repli.
 
-Pourquoi les logs et pas une API : Antigravity (le client `agy`) ne parle à son
-service de quota que par un protocole binaire local (WebSocket protobuf, non
-documenté) et par `cloudcode-pa.googleapis.com` avec un jeton OAuth qu'aucun
-fichier lisible ne contient — le rafraîchissement échoue (`invalid_client`).
-L'abonnement Google AI Pro n'expose donc aucun point d'entrée interrogeable.
+2. Les logs du CLI (`~/.gemini/antigravity/log`, `~/.gemini/antigravity-cli/log`),
+   en lecture seule. On y lit « RESOURCE_EXHAUSTED … Resets in 151h24m24s » quand
+   le quota est atteint, et on en déduit une échéance. Ce n'est pas un
+   pourcentage : c'est « bloqué jusqu'à telle heure », et l'absence de 429 veut
+   dire « aucun refus journalisé », pas « quota mesuré ».
 
-Ce qui est lisible, en revanche : quand le quota est atteint, le CLI écrit dans
-ses logs « RESOURCE_EXHAUSTED (code 429): Individual quota reached … Resets in
-2h58m19s ». On en déduit l'instant de remise à zéro (horodatage de la ligne +
-durée annoncée) et il suffit de comparer à maintenant. Deux fenêtres distinctes
-apparaissent : une courte (~3 h, celle des modèles courants) et une longue
-(~151 h, hebdomadaire, réservée aux modèles premium).
-
-Limite assumée : le service ne dit pas « il reste 40 % », il dit « épuisé
-jusqu'à telle heure » — et si aucun 429 n'a été journalisé, il se tait
-(`state: "free"` veut dire « rien ne prouve le contraire », pas « c'est mesuré »).
-C'est une inférence sur des logs, pas une lecture de quota ; le widget l'affiche
-comme telle.
-
-Les logs sont ceux de `~/.gemini/antigravity/log` et `~/.gemini/antigravity-cli/log`,
-en lecture seule : rien n'est écrit, rien n'est modifié.
+Le widget affiche la fenêtre la plus contrainte en grand, l'autre en dessous.
+Deux fenêtres coexistent : une courte (~5 h) pour Gemini, une hebdomadaire pour
+Claude et GPT-OSS — c'est l'API qui les distingue par leur heure de reset, pas
+des noms que les logs donneraient.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import re
+import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -47,17 +43,27 @@ CACHE_FILE = BASE_DIR / "antigravity_cache.json"
 sys.path.insert(0, str(BASE_DIR))
 import llm_contrat  # noqa: E402
 
+API_QUOTA = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
+API_ASSIST = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+AGENT = "antigravity/1.10.0"
+TTL = 120
+TIMEOUT = 20
+SEUIL_ALERTE = 0.05      # 5 % restants : on prévient avant le blocage
+
 LOG_DIRS = [
     Path(os.path.expanduser("~/.gemini/antigravity/log")),
     Path(os.path.expanduser("~/.gemini/antigravity-cli/log")),
 ]
-TTL = 120          # local et bon marché, mais pas utile de relire à chaque cycle
 
 # « E1101 09:51:02.966262   72205 errorreport.go:224] … Resets in 151h24m24s. »
 LIGNE = re.compile(r"^([IWEF])(\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.\d+\s+\d+\s+\S+\]\s*(.*)$")
 DELAI = re.compile(r"Resets in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
 QUOTA = "Individual quota reached"
 
+FAMILLES = (("claude", "Claude"), ("gemini", "Gemini"), ("gpt", "GPT"))
+
+
+# ---------------------------------------------------------------- cache
 
 def lire_cache():
     try:
@@ -72,6 +78,112 @@ def ecrire_cache(donnees):
     except OSError:
         pass
 
+
+# ---------------------------------------------------------------- source 1 : API
+
+def jeton():
+    """Jeton OAuth rangé par `agy` dans le trousseau — jamais écrit sur disque.
+
+    Aucun repli sur un fichier : `~/.gemini/oauth_creds.json` date de janvier et
+    son rafraîchissement échoue (`invalid_client`), il ne sert plus à rien.
+    """
+    try:
+        brut = subprocess.run(
+            ["secret-tool", "lookup", "service", "gemini", "username", "antigravity"],
+            capture_output=True, text=True, timeout=10).stdout.strip()
+        charge = json.loads(brut)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None, "jeton absent du trousseau"
+    bloc = charge.get("token") or {}
+    acces = bloc.get("access_token")
+    if not acces:
+        return None, "jeton sans access_token"
+    echeance = bloc.get("expiry") or ""
+    if echeance:
+        try:
+            quand = dt.datetime.fromisoformat(echeance.replace("Z", "+00:00"))
+            if quand <= dt.datetime.now(dt.timezone.utc):
+                return None, "jeton expiré (relancer agy le renouvelle)"
+        except ValueError:
+            pass
+    return acces, None
+
+
+def poster(url, corps, jeton_acces):
+    requete = urllib.request.Request(
+        url, data=json.dumps(corps).encode(),
+        headers={"Authorization": "Bearer " + jeton_acces,
+                 "Content-Type": "application/json",
+                 "User-Agent": AGENT},
+        method="POST")
+    with urllib.request.urlopen(requete, timeout=TIMEOUT) as reponse:
+        return json.loads(reponse.read().decode("utf-8", errors="replace"))
+
+
+def famille(model_id):
+    for prefixe, nom in FAMILLES:
+        if model_id.startswith(prefixe):
+            return nom
+    return "autres"
+
+
+def depuis_api():
+    """Compartiments par fenêtre, ou (None, raison) si l'API n'est pas joignable."""
+    jeton_acces, raison = jeton()
+    if not jeton_acces:
+        return None, raison
+    try:
+        assist = poster(API_ASSIST, {"metadata": {"pluginType": "GEMINI"}}, jeton_acces)
+        projet = assist.get("cloudaicompanionProject")
+        if not projet:
+            return None, "projet Code Assist introuvable"
+        quota = poster(API_QUOTA, {"project": projet}, jeton_acces)
+    except urllib.error.HTTPError as erreur:
+        return None, f"API quota : HTTP {erreur.code}"
+    except (urllib.error.URLError, ValueError) as erreur:
+        return None, f"API quota : {erreur}"
+
+    partages = {}
+    for compartiment in quota.get("buckets") or []:
+        remise = compartiment.get("resetTime")
+        if not remise:
+            continue                      # modèles sans quota horaire : toujours libres
+        partages.setdefault(remise, []).append({
+            "model": str(compartiment.get("modelId") or "?"),
+            "reste": round(float(compartiment.get("remainingFraction") or 0), 4),
+        })
+    if not partages:
+        return None, "aucun compartiment quota dans la réponse"
+
+    fenetres = []
+    for remise, modeles in partages.items():
+        try:
+            reset_at = int(dt.datetime.fromisoformat(remise.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            continue
+        pire = min(m["reste"] for m in modeles)
+        familles = sorted({famille(m["model"]) for m in modeles
+                           if m["reste"] <= pire + 1e-9})
+        fenetres.append({
+            "reset_at": reset_at,
+            "reste": pire,
+            "familles": familles,
+            "models": modeles,
+        })
+    if not fenetres:
+        return None, "fenêtres illisibles"
+
+    maintenant = time.time()
+    for fenetre in fenetres:
+        # Une fenêtre qui se rouvre dans plus de deux jours est l'hebdomadaire ;
+        # les libellés viennent de la durée, pas d'un nom qu'on supposerait.
+        fenetre["kind"] = "week" if fenetre["reset_at"] - maintenant > 48 * 3600 else "session"
+        fenetre["label"] = "hebdo" if fenetre["kind"] == "week" else "5 h"
+    fenetres.sort(key=lambda f: (f["reste"], -f["reset_at"]))
+    return fenetres, None
+
+
+# ---------------------------------------------------------------- source 2 : logs
 
 def annee_du_fichier(chemin):
     """cli-20261105_145455.log → 2026 ; sinon l'année de modification."""
@@ -125,19 +237,19 @@ def collecter():
         if not dossier.is_dir():
             continue
         for fichier in sorted(dossier.glob("*.log")):
-            tous.extend((instant, secondes, texte, fichier) for instant, secondes, texte in evenements(fichier))
+            tous.extend((instant, secondes, texte, fichier)
+                        for instant, secondes, texte in evenements(fichier))
     return tous
 
 
-def analyser():
+def depuis_logs():
     now = time.time()
     tous = collecter()
     if not tous:
         return {"ok": True, "provider": "antigravity", "state": "free", "windows": [],
-                "source": None, "detail": "aucun épuisement journalisé"}
+                "source": "logs", "detail": "aucun épuisement journalisé"}
 
-    # Le dernier épuisement de chaque fenêtre fait foi : une fenêtre courte
-    # (~3 h) et une longue (~151 h, hebdomadaire).
+    # Le dernier épuisement de chaque fenêtre fait foi.
     fenetres = {}
     for instant, secondes, texte, fichier in tous:
         genre = "session" if secondes < 24 * 3600 else "week"
@@ -147,79 +259,107 @@ def analyser():
     sortie = []
     for genre, (instant, secondes, fichier) in fenetres.items():
         remise = int(instant + secondes)
-        sortie.append({
-            "kind": genre,
-            "reset_at": remise,
-            "seconds_left": max(0, remise - int(now)),
-            "logged_at": int(instant),
-        })
+        sortie.append({"kind": genre, "reset_at": remise,
+                       "seconds_left": max(0, remise - int(now))})
     sortie.sort(key=lambda f: f["reset_at"])
 
     actives = [f for f in sortie if f["seconds_left"] > 0]
     dernier = max(tous, key=lambda e: e[0])
-    # Échéances déjà passées : « libre » seul n'informe de rien, alors que
-    # « reset hebdo il y a 1 h 12 » dit que le blocage vient de se lever.
+    # « libre » seul n'informe de rien ; la dernière échéance passée, si.
     passees = [(int(instant + secondes), "session" if secondes < 24 * 3600 else "week")
                for instant, secondes, _, _ in tous if instant + secondes < now]
     remise, genre_remise = max(passees) if passees else (0, "")
     return {
-        "ok": True,
-        "provider": "antigravity",
+        "ok": True, "provider": "antigravity",
         "state": "exhausted" if actives else "free",
         "windows": sortie,
-        "source": str(dernier[3]),
+        "source": "logs",
+        "source_log": str(dernier[3]),
         "last_event": int(dernier[0]),
         "last_reset_at": remise,
         "last_reset_kind": genre_remise,
-        "detail": "déduit des logs (aucun point d'entrée de quota côté abonnement)",
+        "detail": "déduit des logs (API indisponible)",
     }
 
 
-LIBELLES = {"session": "session", "week": "hebdo"}
-
+# ---------------------------------------------------------------- présentation
 
 def presenter(donnees):
-    """Les deux fenêtres de quota, et depuis quand la dernière est retombée.
+    """La fenêtre la plus contrainte en grand, l'autre en dessous.
 
-    Ce que le service sait est une échéance, pas un pourcentage : quand rien
-    n'est épuisé il dit « libre », ce qui veut dire « aucun refus journalisé »,
-    jamais « quota mesuré ». La fenêtre la plus lointaine passe en grand, parce
-    qu'elle bloque encore quand la courte est passée ; l'autre reste lisible en
-    petit — c'est la distinction que le widget perdait en ne gardant que la
-    première.
+    Avec l'API on a de vrais pourcentages : la mesure porte le modèle le plus
+    touché et sa fenêtre. Sans elle, on retombe sur des échéances, et le widget
+    décompte — c'est tout ce que les logs permettent de dire.
     """
     if not donnees.get("ok"):
         return donnees
-    maintenant = int(time.time())
-    fenetres = {f.get("kind"): f for f in donnees.get("windows") or []}
-    actives = [f for f in fenetres.values() if int(f.get("reset_at") or 0) > maintenant]
 
+    fenetres = donnees.get("percent_windows")
+    if fenetres:
+        mesures = []
+        for i, fenetre in enumerate(fenetres):
+            pourcent = int(round(float(fenetre["reste"]) * 100))
+            familles = " · ".join(fenetre.get("familles") or []) or "quota"
+            if i == 0:
+                mesures.append(llm_contrat.mesure(
+                    f"{pourcent} %", f'{fenetre["label"]} · {familles}',
+                    releve=fenetre["reset_at"]))
+            else:
+                mesures.append(llm_contrat.mesure(
+                    texte=f'{fenetre["label"]} · {familles} {pourcent} %',
+                    releve=fenetre["reset_at"]))
+        # Une fenêtre à zéro sans date de réouverture laisse sans réponse : on
+        # l'ajoute en petit, et seulement dans ce cas.
+        if float(fenetres[0]["reste"]) <= 0:
+            mesures.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
+                "%d/%m %H:%M", time.localtime(fenetres[0]["reset_at"]))))
+        alerte = min(f["reste"] for f in fenetres) <= SEUIL_ALERTE
+        return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
+
+    # Repli : échéances issues des logs.
+    maintenant = int(time.time())
+    par_genre = {f.get("kind"): f for f in donnees.get("windows") or []}
+    libelles = {"session": "5 h", "week": "hebdo"}
+    actives = [f for f in par_genre.values() if int(f.get("reset_at") or 0) > maintenant]
     mesures = []
-    alerte = bool(actives)
     if actives:
         principale = max(actives, key=lambda f: f["reset_at"])
-        genre = principale.get("kind")
+        genre = str(principale.get("kind"))
         mesures.append(llm_contrat.mesure(
             llm_contrat.duree(principale["reset_at"] - maintenant),
-            LIBELLES.get(str(genre), str(genre)) + " · quota épuisé",
-            fin=principale["reset_at"]))
+            libelles.get(genre, genre) + " · épuisé", fin=principale["reset_at"]))
         autre = "session" if genre == "week" else "week"
-        if autre in fenetres and int(fenetres[autre].get("reset_at") or 0) > maintenant:
+        if autre in par_genre and int(par_genre[autre].get("reset_at") or 0) > maintenant:
             mesures.append(llm_contrat.mesure(
-                llm_contrat.duree(fenetres[autre]["reset_at"] - maintenant),
-                LIBELLES[autre] + " épuisée",
-                fin=fenetres[autre]["reset_at"]))
+                llm_contrat.duree(par_genre[autre]["reset_at"] - maintenant),
+                libelles[autre] + " épuisée", fin=par_genre[autre]["reset_at"]))
         else:
-            mesures.append(llm_contrat.mesure(LIBELLES[autre], "libre"))
+            mesures.append(llm_contrat.mesure(libelles[autre], "libre"))
     else:
         mesures.append(llm_contrat.mesure("libre", "Antigravity"))
         remise = int(donnees.get("last_reset_at") or 0)
         if remise > 0:
-            genre = donnees.get("last_reset_kind") or ""
+            genre = str(donnees.get("last_reset_kind") or "")
             mesures.append(llm_contrat.mesure(
-                "reset " + LIBELLES.get(genre, genre), "", depuis=remise))
+                "reset " + libelles.get(genre, genre), "", depuis=remise))
+    return llm_contrat.presenter(
+        donnees, "Antigravity", "rocket", mesures, bool(actives))
 
-    return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
+
+def analyser():
+    fenetres, raison = depuis_api()
+    if fenetres:
+        pire = min(f["reste"] for f in fenetres)
+        return {
+            "ok": True, "provider": "antigravity",
+            "state": "exhausted" if pire <= 0 else "free",
+            "reste_min": pire,
+            "percent_windows": fenetres,
+            "source": "api",
+        }
+    donnees = depuis_logs()
+    donnees["api_error"] = raison
+    return donnees
 
 
 def main(argv):

@@ -52,7 +52,19 @@ Item {
     // Première mesure : la grande ligne. Son échéance, si elle est encore à venir,
     // remplace la valeur et défile toute seule.
     readonly property var principale: mesures.length > 0 ? mesures[0] : ({})
+    // Deux horodatages, deux rôles : `fin` remplace la valeur par un décompte,
+    // `releve` ne s'affiche pas et sert seulement à relancer le service au bon
+    // moment (une valeur en pourcentage change à l'échéance, mais reste un
+    // pourcentage : on ne l'efface pas par un compte à rebours).
     readonly property real echeance: Number(principale.fin) || 0
+    readonly property real releve: {
+        let prochain = 0
+        for (let i = 0; i < mesures.length; i++) {
+            const t = Number(mesures[i].releve) || 0
+            if (t > root.maintenant && (prochain === 0 || t < prochain)) prochain = t
+        }
+        return prochain
+    }
     readonly property bool aRebours: root.echeance > root.maintenant
 
     readonly property int refreshMin: {
@@ -76,6 +88,9 @@ Item {
     // « libre depuis 1 h 12 ». Les parties vides sont retirées, pas remplacées.
     function phrase(m) {
         if (!m) return ""
+        // Phrase déjà composée par le service : certaines mesures ne s'écrivent
+        // pas « valeur libelle » (« 5 h · Gemini 96 % »).
+        if (String(m.texte || "") !== "") return String(m.texte)
         const parties = []
         if (String(m.valeur || "") !== "") parties.push(String(m.valeur))
         if (String(m.libelle || "") !== "") parties.push(String(m.libelle))
@@ -142,7 +157,12 @@ Item {
         running: true
         onTriggered: {
             root.maintenant = Date.now() / 1000
-            if (root.echeance > 0 && root.maintenant >= root.echeance && !root.relanceFaite) {
+            // L'échéance affichée est tombée, ou une valeur doit changer : une
+            // seule relance, c'est le service qui sait ce qu'il en est ensuite.
+            const bascule = root.echeance > 0 && root.maintenant >= root.echeance
+            const change = root.echeance === 0 && root.releve > 0
+                           && root.maintenant >= root.releve
+            if ((bascule || change) && !root.relanceFaite) {
                 root.relanceFaite = true
                 root.refresh(true)
             }
