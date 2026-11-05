@@ -43,52 +43,84 @@ l'entrée : `entry.target = { kind, label, cmd }`. Trois raisons : l'objet `raw`
 être détruit ensuite, l'affordance visuelle (curseur, teinte) doit être connue tout
 de suite, et l'historique doit rester cliquable après coup.
 
-Résolution en cascade, **on s'arrête à la première règle qui répond** :
+Résolution en cascade, **on s'arrête à la première règle qui répond**. Les
+programmes ne sont **jamais écrits en dur** : ils viennent du tiroir « Programmes par
+défaut des raccourcis » du panneau (`core/app_vars.json`, lu par `Theme.program()`).
 
 1. **Hint explicite** posé par nous : `x-amo-open` (`file:///…`) ou `x-amo-cmd`.
    Déterministe, insensible au texte. C'est la voie pour `screenshot.sh`.
 2. **Table par application** (`core/notif_targets.json`) : `appName` ou `desktopEntry`
-   → commande. Arch-Update y entre, Dolphin aussi.
+   → soit une commande à lancer, soit « lancer ceci dans un terminal ». Arch-Update
+   y entre.
 3. **Action par défaut de la notification** (`actions` avec `identifier == "default"`) :
    `invoke()`. L'application sait mieux que nous quoi faire.
 4. **Chemin ou URL repéré dans le texte** : premier `/…`, `~/…` ou `file://…` dont le
-   fichier existe, sinon première `http(s)://`. Ouverture par type (voir table
-   ci-dessous) ; une URL part au navigateur.
+   fichier existe, sinon première `http(s)://`. Le fichier est classé par nature
+   (vidéo, image, dossier, texte) et cette nature désigne un **alias** du tiroir ;
+   une URL part au navigateur.
 5. **Application émettrice** : `desktopEntry` → `exec` via `app_index.json`, sinon
    `appName` → entrée du même nom.
 
 Si rien ne répond : pas de cible, **pas d'affordance** (le titre reste du texte).
+Si l'alias demandé manque au tiroir, repli sur `xdg-open` et **une ligne dans le
+journal** — c'est ainsi qu'on verra qu'il manque un alias, sans échec muet.
 
 ## La table `core/notif_targets.json`
 
 Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveillé par
-`FileView` : éditer le fichier suffit, pas besoin de redémarrer le shell.
+`FileView` : éditer le fichier suffit, pas besoin de redémarrer le shell. Elle ne
+nomme **aucun binaire** : elle nomme des alias du tiroir.
 
 ```json
 {
   "apps": {
-    "Arch-Update": "kitty arch-update",
-    "arch-update-tray.desktop": "kitty arch-update",
-    "Dolphin": { "path": "/usr/bin/thunar %d" }
+    "Arch-Update":          { "run": "arch-update", "terminal": true },
+    "arch-update-tray.desktop": { "run": "arch-update", "terminal": true }
   },
   "types": {
-    "video": "mpv %f",
-    "image": "gwenview %f",
-    "folder": "thunar %d",
-    "text": "kitty -e nvim %f"
+    "video":  "Video",
+    "image":  "Images",
+    "folder": "Files",
+    "text":   "Editor"
   },
-  "terminal": "kitty",
-  "browser": "firefox"
+  "url": "Browser"
 }
 ```
 
 - Les clés `apps` matchent `appName` **ou** `desktopEntry` (les deux, sans distinction).
-- `%f` = le fichier, `%d` = son dossier, `%u` = l'URL. Toujours substitué en **argument
-  d'un argv**, jamais passé à `sh -c` : le texte d'une notification n'est pas une
-  commande.
-- `types` sert aux chemins détectés à la règle 4. Il est **nécessaire** ici :
-  `xdg-open` est mal réglé sur cette machine (mesuré : `image/png` → **Chrome**,
-  `inode/directory` → **Filelight**), il reste en dernier recours seulement.
+- `{"run": …, "terminal": true}` : la commande est lancée **dans le terminal du
+  tiroir** (alias `Terminal`). Le résolveur connaît deux formes de terminal — `kitty
+  <cmd>` (le binaire prend la commande directement) et `<term> -e <cmd>` pour les
+  autres (ghostty, foot, alacritty, wezterm) — une seule ligne de connaissance, dans
+  le résolveur, pas dans la table.
+- `types` associe une **nature** à un **alias**, jamais à un binaire. Aujourd'hui le
+  tiroir n'a ni `Video` ni `Images` : ils s'ajoutent (voir plus bas).
+- Le chemin détecté est passé en **argument** : `sh -c '<commande de l’alias> "$1"' _
+  <chemin>`. L'alias est la config de l'utilisateur, le chemin vient d'une
+  notification — il n'est jamais concaténé dans la chaîne de commande.
+- Repli final : `xdg-open`, qui est mal réglé ici (mesuré : `image/png` → **Chrome**,
+  `inode/directory` → **Filelight**). D'où la résolution par alias plutôt que par
+  type MIME.
+
+## Le tiroir « Programmes par défaut » est la source de vérité
+
+Trois changements dans `core/app_vars.json` (donc visibles et modifiables dans le
+panneau, et repris par `programs.lua` pour les binds Hyprland) :
+
+| Alias | Aujourd'hui | Après | Effet de bord assumé |
+|---|---|---|---|
+| `Terminal` | `kitty` | **`ghostty`** | `SUPER + Retour` ouvre ghostty |
+| `Video` | — | **`mpv`** | nouvel alias, utilisé par les notifications de capture vidéo |
+| `Images` | — | **`gwenview`** | nouvel alias, utilisé par les notifications de capture d'écran |
+
+Les alias restent **sans accent** (`Video`, `Images`) : `config_manager.py` en dérive
+un identifiant Lua pour `programs.lua`. `Files` (`thunar`), `Editor` et `Browser`
+sont déjà là et servent tels quels.
+
+Conséquence de méthode : si tu changes un jour un de ces programmes dans le panneau,
+les notifications suivent sans redéploiement. Et un alias absent ne casse rien — il
+retombe sur `xdg-open` en le disant dans le journal.
+
 
 ## Affordance et interaction
 
@@ -133,32 +165,34 @@ Fichier d'état (préservé au déploiement, comme `style_vars.json`), surveill�
 |---|---|---|
 | 1 | Élément cliquable | **Le titre seul** — curseur main + teinte accent au survol ; le reste de la carte ne déclenche rien, le ✕ reste le ✕ |
 | 2 | Résolution | **Cascade complète** : hint → table par application → action native → chemin/URL dans le texte → application émettrice |
-| 3 | Terminal | **`ghostty`** (partout où une cible demande un terminal) |
-| 4 | Après le clic | La notification **disparaît** de la liste et le centre **se ferme** |
-| 5 | Notifications de copie | Elles viennent de **Thunar** → entrée dédiée dans la table (dossier d'arrivée → `thunar %d`) |
-
-Ouverture des fichiers, décidé sans question parce que la mesure l'impose : **table
-`types` explicite** (vidéo → `mpv`, image → `gwenview`, dossier → `thunar`,
-texte → `kitty -e nvim`), `xdg-open` en dernier recours seulement.
+| 3 | Programmes | **Le tiroir « Programmes par défaut » du panneau** (`app_vars.json`), jamais un binaire en dur dans la table |
+| 4 | Terminal | L'alias `Terminal` passe de `kitty` à **`ghostty`** — donc `SUPER + Retour` aussi |
+| 5 | Vidéo / images | Deux alias ajoutés au tiroir : **`Video` → `mpv`**, **`Images` → `gwenview`** |
+| 6 | Après le clic | La notification **disparaît** de la liste et le centre **se ferme** |
+| 7 | Notifications de copie | Elles viennent de **Thunar** ; le dossier d'arrivée repéré dans le texte part à l'alias `Files` (aucune entrée d'application nécessaire si le chemin est dans le texte) |
 
 Reste à mesurer au moment de coder, sans effet sur le plan :
 
-- le `appName` et le `desktopEntry` exacts des notifications de Thunar (et de
-  Arch-Update) — une copie de fichier et une notification de test suffisent ;
+- le `appName` / `desktopEntry` exacts des notifications de Thunar et d'Arch-Update
+  (une copie de fichier et une notification de test suffisent) ;
 - la clé exacte rendue par `Notification.hints` pour `-h string:x-amo-open:…` ;
-- la syntaxe de lancement de ghostty (`ghostty -e arch-update` a priori).
+- la syntaxe de lancement de ghostty avec une commande (`ghostty -e arch-update`
+  a priori) et le fait qu'elle rende bien la main (pas d'attente du shell).
 
-## Commandes de départ de la table
 
-```json
-"apps": {
-  "Arch-Update": "ghostty -e arch-update",
-  "Thunar": "thunar %d",
-  "thunar.desktop": "thunar %d"
-}
-```
+## Ce que ça donne concrètement
 
-Le nom exact de Thunar (`Thunar`, `File Operations`, `thunar.desktop`) sera fixé
-après la mesure ; les trois formes voisines peuvent cohabiter dans la table, une
-clé qui ne matche jamais ne coûte rien.
+| Notification | Règle | Commande lancée |
+|---|---|---|
+| Arch-Update | table (`terminal: true`) | `ghostty -e arch-update` |
+| « Enregistrement vidéo arrêté » (hint) | hint | `mpv <fichier>` (alias `Video`) |
+| « Capture d'écran » (hint) | hint | `gwenview <fichier>` (alias `Images`) |
+| « Copie terminée » de Thunar | chemin dans le texte → `folder` | `thunar <dossier>` (alias `Files`) |
+| Firefox « téléchargement terminé » | action native (`default`) | l'action de Firefox |
+| n'importe quelle autre | application émettrice | son `Exec` de `app_index.json` |
+
+Une commande d'alias rendue par `Theme.program()` est lancée telle quelle ; le chemin,
+lui, arrive en `$1` (`sh -c '<alias> "$1"' _ <chemin>`). Rien du texte d'une
+notification n'entre dans une chaîne de commande.
+
 
