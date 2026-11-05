@@ -34,6 +34,7 @@ Item {
     property var widgets: []           // [{ type, label, pose }]
     property bool pret: false
     property bool applicationEnCours: false
+    property string chargeAAppliquer: ""
     property string rapport: ""        // résumé de l'application, en cas d'échec
 
     readonly property var dispositions: [
@@ -207,9 +208,21 @@ Item {
             widgets_ajouter: ajouter,
             widgets_retirer: retirer
         })
+        chargeAAppliquer = charge
+        ecrireEtAppliquer()
+    }
+
+    // « Passer » : on ne change rien, on pose seulement la marque de premier
+    // lancement. La charge vide dit exactement cela au script.
+    function passer() {
+        chargeAAppliquer = "{}"
+        ecrireEtAppliquer()
+    }
+
+    function ecrireEtAppliquer() {
         applicationEnCours = true
         rapport = ""
-        chargeFile.setText(charge)      // → onSaved → lancerApplication()
+        chargeFile.setText(chargeAAppliquer)   // → onSaved → lancerApplication()
     }
 
     function lancerApplication() {
@@ -701,6 +714,33 @@ Item {
                     width: parent.width
                     spacing: 10
 
+                    // Sortie rapide : tout garder tel quel et refermer.
+                    Rectangle {
+                        width: 78
+                        height: 40
+                        radius: Theme.globalRadius
+                        visible: root.etape < root.etapeFinale
+                        color: passerSouris.containsMouse ? Qt.alpha(Theme.accent, 0.18) : "transparent"
+                        border.width: 1
+                        border.color: Qt.alpha(Theme.fg, 0.22)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.applicationEnCours ? "…" : "Passer"
+                            color: passerSouris.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.65)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        MouseArea {
+                            id: passerSouris
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            enabled: root.pret && !root.applicationEnCours
+                            onClicked: root.passer()
+                        }
+                    }
+
                     Rectangle {
                         width: 110
                         height: 40
@@ -727,7 +767,9 @@ Item {
                     }
 
                     Rectangle {
-                        width: parent.width - (root.etape > 0 ? 120 : 0)
+                        width: parent.width
+                             - (root.etape > 0 ? 120 : 0)
+                             - (root.etape < root.etapeFinale ? 88 : 0)
                         height: 40
                         radius: Theme.globalRadius
                         color: suivant.containsMouse ? Theme.accentMuted : Theme.accent
