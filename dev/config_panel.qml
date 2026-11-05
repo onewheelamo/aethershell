@@ -230,7 +230,8 @@ Rectangle {
         { type: "date",    label: "Date" },
         { type: "meteo",   label: "Météo" },
         { type: "combo",   label: "Combo" },
-        { type: "musique", label: "Musique" }
+        { type: "musique", label: "Musique" },
+        { type: "deepseek", label: "DeepSeek" }
     ]
     readonly property var widgetTypeRows: {
         const poses = ({})

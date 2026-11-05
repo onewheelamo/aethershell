@@ -51,6 +51,7 @@ WIDGET_LABELS = {
     "meteo": "Météo",
     "combo": "Combo",
     "musique": "Musique",
+    "deepseek": "DeepSeek",
 }
 
 DESKTOP_DIRS = [

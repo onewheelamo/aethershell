@@ -1,0 +1,120 @@
+import QtQuick
+// Les singletons du shell (Theme, Icon) sont déclarés dans le qmldir du dossier
+// parent : sans cet import, un composant en sous-dossier les voit « not defined ».
+import ".."
+import Quickshell
+import Quickshell.Io
+
+// DEEPSEEK — solde de l'API, pour savoir quand remettre des fonds.
+//
+// Les données viennent de core/deepseek_service.py (GET /user/balance), lancé
+// par un Process : c'est le patron des autres widgets, un script Python qui rend
+// une ligne de JSON. L'API publique ne donne que le solde — pas de pourcentage
+// de quota ni d'historique — donc c'est le solde qui s'affiche, avec une alerte
+// visuelle quand il devient bas.
+//
+// Sans clé, le widget reste en place et dit « clé absente » plutôt que de
+// disparaître : un widget qui s'évapore ne dit pas qu'il manque une clé.
+Item {
+    id: root
+    property var options: ({})
+    property string widgetId: ""
+
+    property var solde: ({})
+    property bool loaded: false
+
+    readonly property bool ok: loaded && solde && solde.ok === true
+    readonly property real total: root.ok ? Number(solde.total) : 0
+    // Seuil d'alerte : sous 5 unités (¥ ou $), on ne tient plus longtemps.
+    readonly property bool bas: root.ok && root.total < 5
+
+    readonly property string symbole: {
+        if (!root.ok) return ""
+        if (solde.currency === "CNY") return "¥"
+        if (solde.currency === "USD") return "$"
+        return ""
+    }
+
+    function montant(valeur) {
+        if (!root.ok) return "—"
+        return root.symbole + Number(valeur).toFixed(2)
+    }
+
+    function refresh(force) {
+        const args = ["python3", Quickshell.shellPath("core/deepseek_service.py")]
+        if (force) args.push("--force")
+        proc.command = args
+        proc.running = true
+    }
+
+    Component.onCompleted: refresh(false)
+
+    Timer {
+        interval: 300000
+        repeat: true
+        running: true
+        onTriggered: root.refresh(false)
+    }
+
+    Process {
+        id: proc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.solde = JSON.parse(text.trim())
+                } catch (e) {
+                    root.solde = { ok: false, error: "réponse illisible" }
+                }
+                root.loaded = true
+            }
+        }
+    }
+
+    Row {
+        id: contentRow
+        spacing: Theme.space3
+
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            glyph: "wallet"
+            size: Theme.widgetWeatherIcon
+            color: root.bas ? Theme.warn : Theme.accent
+            opacityLevel: root.ok ? 1.0 : 0.45
+        }
+
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 0
+
+            Text {
+                text: root.montant(root.total)
+                color: root.bas ? Theme.warn : Theme.fg
+                font.pixelSize: Theme.widgetTemp
+                font.weight: Font.Light
+                font.features: { "tnum": 1 }
+                // Lisible sur un wallpaper clair sans ajouter de carte.
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+
+            Text {
+                text: {
+                    if (!root.loaded) return "…"
+                    // Le service détaille la cause entre parenthèses ; à cette
+                    // taille, seul le début tient et suffit à agir.
+                    if (!root.ok) return String(root.solde.error || "solde indisponible").split(" (")[0]
+                    if (!root.solde.available) return "solde épuisé · DeepSeek"
+                    const perime = root.solde.cached === true
+                    return (root.bas ? "à recharger" : "DeepSeek") + (perime ? " · hors ligne" : "")
+                }
+                color: Qt.alpha(Theme.fg, 0.78)
+                font.pixelSize: Theme.widgetLabel
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+        }
+    }
+
+    implicitWidth: contentRow.implicitWidth
+    implicitHeight: contentRow.implicitHeight
+}

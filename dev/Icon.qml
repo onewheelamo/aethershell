@@ -124,6 +124,7 @@ Item {
         "video-full": "\u{F0567}",      // md-video (caméra seule : écran entier)
         "stop": "\u{F04DB}",            // md-stop (arrêter l'enregistrement)
         "history": "\u{F02DA}",         // md-history (historique des notifications)
+        "wallet": "\u{F0584}",          // md-wallet (solde d'API, widget DeepSeek)
         "bell": "\u{F009A}"
     })
 }
