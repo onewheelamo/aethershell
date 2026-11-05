@@ -517,15 +517,22 @@ def presenter(donnees):
         pied = []
         bloquees = [f for f in fenetres if float(f["reste"]) <= 0]
         if bloquees:
-            pied.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
-                "%d/%m %H:%M", time.localtime(bloquees[0]["reset_at"]))))
+            # « rouvre » seul ne disait ni de quelle tranche ni de quels modèles :
+            # c'est la fenêtre bloquée qui porte la date, et les lignes à 0 % du
+            # tableau sont exactement celles qu'elle borne.
+            fenetre = bloquees[0]
+            pied.append(llm_contrat.mesure(
+                texte=f'{fenetre["label"]} rouvre ' + time.strftime(
+                    "%d/%m %H:%M", time.localtime(fenetre["reset_at"]))))
         elif donnees.get("source") == "cache":
             actives = [f for f in donnees.get("windows") or []
                        if int(f.get("reset_at") or 0) > int(time.time())]
             if actives:
-                pied.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
-                    "%d/%m %H:%M",
-                    time.localtime(max(f["reset_at"] for f in actives)))))
+                plus_tard = max(actives, key=lambda f: f["reset_at"])
+                pied.append(llm_contrat.mesure(
+                    texte=("hebdo" if plus_tard.get("kind") == "week" else "5 h")
+                    + " rouvre " + time.strftime(
+                        "%d/%m %H:%M", time.localtime(plus_tard["reset_at"]))))
         if donnees.get("source") == "cache":
             pied.append(llm_contrat.mesure(
                 texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
