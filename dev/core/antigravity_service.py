@@ -190,6 +190,55 @@ def court(nom):
     return nom
 
 
+# Un identifiant de modèle → le nom qu'on veut lire sur le widget. Les variantes
+# (High / Medium / Low) partagent le même quota : les fusionner est voulu.
+ETIQUETTES = (
+    ("claude-opus", "Claude Opus"),
+    ("claude-sonnet", "Claude Sonnet"),
+    ("gpt", "GPT-OSS 120B"),
+    ("argon", "Gemini Argon"),
+    ("-pro", "Gemini Pro"),
+    ("flash", "Gemini Flash"),
+)
+
+
+def etiquette(model):
+    """« claude-opus-5-5-high » → « Claude Opus » ; "" si le modèle n'intéresse pas."""
+    bas = str(model or "").lower()
+    for motif, nom in ETIQUETTES:
+        if motif in bas:
+            return nom
+    return ""
+
+
+def lignes_de(fenetres):
+    """Un tableau : un modèle par ligne, sa tranche et le pourcentage qui reste.
+
+    L'API ne donne qu'une tranche par modèle (les Gemini sont bornés par la fenêtre
+    de 5 h, les Claude et GPT par l'hebdomadaire) : il n'y a donc pas deux nombres
+    à écrire en face d'un nom, et la tranche est ce qui manquait pour lire.
+    """
+    pires = {}
+    for fenetre in fenetres:
+        tranche = "7 j" if fenetre.get("kind") == "week" else "5 h"
+        for modele in fenetre.get("models") or []:
+            nom = etiquette(modele.get("model"))
+            if not nom:
+                continue
+            reste = float(modele.get("reste") or 0)
+            cle = (nom, tranche)
+            if cle not in pires or reste < pires[cle]:
+                pires[cle] = reste
+    lignes = [{
+        "nom": nom,
+        "tranche": tranche,
+        "valeur": f"{int(round(reste * 100)):>3} %",
+        "alerte": reste <= SEUIL_ALERTE,
+    } for (nom, tranche), reste in pires.items()]
+    lignes.sort(key=lambda l: (0 if l["alerte"] else 1, l["nom"]))
+    return lignes
+
+
 def fenetres_de(modeles):
     """[{reset_at, reste, familles, noms, models}] regroupés par heure de remise."""
     partages = {}
@@ -462,54 +511,53 @@ def presenter(donnees):
 
     fenetres = donnees.get("percent_windows")
     if fenetres:
-        mesures = []
-        for i, fenetre in enumerate(fenetres):
-            pourcent = int(round(float(fenetre["reste"]) * 100))
-            familles = " · ".join(fenetre.get("familles") or []) or "quota"
-            # La grande ligne dit *quoi* est bloqué : les modèles nommés quand la
-            # réponse les donne (« Opus 5.5 · Sonnet 5.5 · GPT-OSS 120B »), les
-            # familles sinon. Les fenêtres suivantes restent en familles, plus court.
-            noms = " · ".join(fenetre.get("noms") or [])
-            # La petite ligne du widget est étroite : des noms trop longs y
-            # débordent, on retombe alors sur « Claude/GPT », qui tient en dix
-            # caractères et dit déjà l'essentiel.
-            contexte = noms if noms and len(noms) <= 30 else "/".join(
-                fenetre.get("familles") or []) or familles
-            if i == 0:
-                mesures.append(llm_contrat.mesure(
-                    f"{pourcent} %", f'{fenetre["label"]} · {contexte}',
-                    releve=fenetre["reset_at"]))
-            else:
-                mesures.append(llm_contrat.mesure(
-                    texte=f'{fenetre["label"]} · {familles} {pourcent} %',
-                    releve=fenetre["reset_at"]))
-        # Une fenêtre à zéro sans date de réouverture laisse sans réponse : on
-        # l'ajoute en petit, et seulement dans ce cas.
-        depasse = float(fenetres[0]["reste"]) <= 0
-        if depasse:
-            mesures.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
-                "%d/%m %H:%M", time.localtime(fenetres[0]["reset_at"]))))
+        lignes = lignes_de(fenetres)
+        # Le pied ne garde que ce que le tableau ne dit pas : réouverture,
+        # fraîcheur d'un relevé repris du cache, palier d'abonnement.
+        pied = []
+        bloquees = [f for f in fenetres if float(f["reste"]) <= 0]
+        if bloquees:
+            pied.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
+                "%d/%m %H:%M", time.localtime(bloquees[0]["reset_at"]))))
+        elif donnees.get("source") == "cache":
+            actives = [f for f in donnees.get("windows") or []
+                       if int(f.get("reset_at") or 0) > int(time.time())]
+            if actives:
+                pied.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
+                    "%d/%m %H:%M",
+                    time.localtime(max(f["reset_at"] for f in actives)))))
         if donnees.get("source") == "cache":
-            # Relevé complet mais daté : les logs savent parfois quand la fenêtre
-            # bloquée rouvre, et la date du relevé doit se voir — sinon un
-            # pourcentage d'hier passerait pour une mesure du moment.
-            if not depasse:
-                actives = [f for f in donnees.get("windows") or []
-                           if int(f.get("reset_at") or 0) > int(time.time())]
-                if actives:
-                    mesures.append(llm_contrat.mesure(texte="rouvre " + time.strftime(
-                        "%d/%m %H:%M",
-                        time.localtime(max(f["reset_at"] for f in actives)))))
-            mesures.append(llm_contrat.mesure(
+            pied.append(llm_contrat.mesure(
                 texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
         # Un palier sans abonnement payant change tout ce que le widget raconte :
         # mieux vaut le dire que laisser lire des quotas sans portée.
         palier = str(donnees.get("palier") or "")
         sans_pro = palier != "" and "pro" not in palier.lower()
         if sans_pro:
-            mesures.append(llm_contrat.mesure(
-                texte="palier " + palier.replace("-", " ")))
-        alerte = sans_pro or min(f["reste"] for f in fenetres) <= SEUIL_ALERTE
+            pied.append(llm_contrat.mesure(texte="palier " + palier.replace("-", " ")))
+        alerte = (sans_pro or any(l["alerte"] for l in lignes)
+                  or min(f["reste"] for f in fenetres) <= SEUIL_ALERTE)
+
+        if lignes:
+            resultat = llm_contrat.presenter(
+                donnees, "Antigravity", "rocket", pied, alerte)
+            resultat["lignes"] = lignes
+            return resultat
+
+        # Aucun modèle reconnaissable : deux lignes de fenêtres, comme avant.
+        mesures = []
+        for i, fenetre in enumerate(fenetres):
+            pourcent = int(round(float(fenetre["reste"]) * 100))
+            familles = " · ".join(fenetre.get("familles") or []) or "quota"
+            if i == 0:
+                mesures.append(llm_contrat.mesure(
+                    f"{pourcent} %", f'{fenetre["label"]} · {familles}',
+                    releve=fenetre["reset_at"]))
+            else:
+                mesures.append(llm_contrat.mesure(
+                    texte=f'{fenetre["label"]} · {familles} {pourcent} %',
+                    releve=fenetre["reset_at"]))
+        mesures.extend(pied)
         return llm_contrat.presenter(donnees, "Antigravity", "rocket", mesures, alerte)
 
     # Repli : échéances issues des logs.

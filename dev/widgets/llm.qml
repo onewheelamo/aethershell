@@ -38,6 +38,10 @@ Item {
         return 0.85
     }
 
+    // Hauteur d'une ligne de tableau, un cran sous les libellés du thème : le
+    // tableau doit tenir sur cinq lignes sans manger le bureau.
+    readonly property int tailleLigne: Math.max(8, Math.round(Theme.widgetLabel * 0.86 * root.echelle))
+
     property var donnees: ({})
     property bool loaded: false
     // Horloge : les décomptes avancent sans relancer le service.
@@ -48,6 +52,22 @@ Item {
     readonly property bool ok: root.loaded && donnees && donnees.ok === true
     readonly property var mesures: (root.ok && donnees.mesures) ? donnees.mesures : []
     readonly property bool alerte: root.ok && donnees.alerte === true
+
+    // Certains services décrivent un tableau plutôt que deux lignes : un modèle
+    // par ligne, sa tranche et ce qui lui reste (Antigravity). Le pied garde ce
+    // qui ne se lit pas dans les lignes (réouverture, fraîcheur, palier).
+    readonly property var lignes: (root.ok && donnees.lignes && donnees.lignes.length)
+                                  ? donnees.lignes : []
+    readonly property bool enTableau: lignes.length > 0
+    readonly property string pied: {
+        if (!enTableau) return ""
+        const morceaux = []
+        for (let i = 0; i < mesures.length; i++) {
+            const p = root.phrase(mesures[i])
+            if (p !== "") morceaux.push(p)
+        }
+        return morceaux.join(" · ")
+    }
 
     // Première mesure : la grande ligne. Son échéance, si elle est encore à venir,
     // remplace la valeur et défile toute seule.
@@ -197,6 +217,7 @@ Item {
 
     Row {
         id: contentRow
+        visible: !root.enTableau
         spacing: Theme.space3
 
         Icon {
@@ -233,6 +254,81 @@ Item {
         }
     }
 
-    implicitWidth: contentRow.implicitWidth
-    implicitHeight: contentRow.implicitHeight
+    Row {
+        id: tableauRow
+        visible: root.enTableau
+        spacing: Theme.space3
+
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            glyph: (root.ok && donnees.icone) ? String(donnees.icone) : "rocket"
+            size: Math.round(Theme.widgetWeatherIcon * root.echelle)
+            color: root.alerte ? Theme.warn : Theme.accent
+            opacityLevel: root.ok ? 1.0 : 0.45
+        }
+
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 0
+
+            Row {
+                spacing: Math.round(9 * root.echelle)
+
+                // Trois colonnes plutôt qu'une grille : chacune prend la largeur
+                // de son plus long texte, donc les pourcentages s'alignent sans
+                // qu'on ait à mesurer quoi que ce soit.
+                Column {
+                    Repeater {
+                        model: root.lignes
+                        Text {
+                            text: String(modelData.nom || "")
+                            color: Theme.fg
+                            font.pixelSize: root.tailleLigne
+                            style: Text.Raised
+                            styleColor: Qt.alpha(Theme.bg, 0.55)
+                        }
+                    }
+                }
+
+                Column {
+                    Repeater {
+                        model: root.lignes
+                        Text {
+                            text: String(modelData.tranche || "")
+                            color: Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: root.tailleLigne
+                            style: Text.Raised
+                            styleColor: Qt.alpha(Theme.bg, 0.55)
+                        }
+                    }
+                }
+
+                Column {
+                    Repeater {
+                        model: root.lignes
+                        Text {
+                            text: String(modelData.valeur || "")
+                            color: modelData.alerte ? Theme.warn : Theme.fg
+                            font.pixelSize: root.tailleLigne
+                            font.features: { "tnum": 1 }
+                            style: Text.Raised
+                            styleColor: Qt.alpha(Theme.bg, 0.55)
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: root.pied
+                visible: text !== ""
+                color: Qt.alpha(Theme.fg, 0.7)
+                font.pixelSize: Math.round(Theme.widgetLabel * 0.8 * root.echelle)
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+        }
+    }
+
+    implicitWidth: root.enTableau ? tableauRow.implicitWidth : contentRow.implicitWidth
+    implicitHeight: root.enTableau ? tableauRow.implicitHeight : contentRow.implicitHeight
 }
