@@ -63,7 +63,12 @@ Item {
         }
     }
 
-    Component.onCompleted: Theme.placeWidgetHook = function() { root.startPlacementFromCursor() }
+    // Les deux crochets IPC du shell (placement d'un widget, lancement d'une
+    // capture) : un seul gestionnaire, QML n'en accepte qu'un par objet.
+    Component.onCompleted: {
+        Theme.placeWidgetHook = function() { root.startPlacementFromCursor() }
+        Theme.captureHook = function(mode) { root.requestCapture(mode) }
+    }
 
     function beginPlacement(win, grabX, grabY) {
         placingWindow = win
@@ -606,7 +611,6 @@ Item {
                 if (Theme.screenshotPickerVisible) {
                     closeTimer.stop()
                     openTimer.restart()
-                    shotBar.recordMode = false
                     recordingCheckProc.running = true
                 } else {
                     openTimer.stop()
@@ -638,10 +642,6 @@ Item {
 
             onRegionRequested: root.requestCapture("region")
             onFullRequested: root.requestCapture("full")
-            // La vidéo demande un choix que la pastille ne peut pas afficher :
-            // on bascule sur la seconde page au lieu de fermer.
-            onRecordMenuRequested: shotBar.recordMode = true
-            onBackRequested: shotBar.recordMode = false
             onRecordRegionRequested: root.requestCapture("record-region")
             onRecordFullRequested: root.requestCapture("record-full")
             onRecordStopRequested: root.requestCapture("record-stop")

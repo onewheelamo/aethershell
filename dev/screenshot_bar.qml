@@ -3,18 +3,26 @@ import QtQuick
 // ────────────────────────────────────────────────────────────────────────────
 // BARRE DE CAPTURE (SUPER + SHIFT + S) — pastille verticale, bord gauche.
 // ────────────────────────────────────────────────────────────────────────────
-// Trois entrées : région, écran entier, enregistrement vidéo. La surface qui
-// l'héberge (main.qml) est plein écran pour attraper le clic extérieur, mais la
-// pastille, elle, ne prend pas la hauteur : elle est centrée et glisse depuis
-// le bord gauche. Géométrie maquettée dans dev/mockups/shotbar_mock.html.
+// Quatre entrées sur une seule page, en deux paires : la photo (accent) puis
+// la vidéo (rouge), séparées par un trait. Chaque paire va du plus petit au plus
+// grand — région puis écran entier — pour que le regard n'ait qu'un axe à suivre
+// (« la même chose, en plus large »).
 //
-// L'enregistrement a besoin d'un choix (région / écran entier) que trois icônes
-// ne peuvent pas porter : le bouton vidéo bascule la pastille sur une seconde
-// page de deux entrées, et un chevron ramène à la première. Pendant qu'un
-// enregistrement tourne, l'entrée vidéo devient « arrêter » (carré plein).
+//   région photo  sélection pointillée      vidéo région  caméra dans un cadre
+//   écran photo   moniteur + cadre          vidéo écran   caméra
 //
-// Variante « icônes + libellés » (maquette B) : `barWidth: 188`, un libellé dans
-// chaque entrée et la marge du bouton qui va avec — la variante A est retenue.
+// La version précédente cachait le choix vidéo derrière une seconde page (le
+// bouton vidéo basculait la pastille) : le chemin existait mais ne se voyait pas,
+// et « la vidéo ne marche pas » voulait dire « je n'ai jamais atteint l'entrée ».
+// Quatre icônes tiennent dans la même pastille : plus de page, plus de chevron.
+//
+// Pendant un enregistrement, les deux entrées vidéo laissent la place à un seul
+// carré « arrêter » : il n'y a rien d'autre à faire tant que ça tourne.
+//
+// La surface qui héberge la pastille (main.qml) est plein écran pour attraper le
+// clic extérieur ; la pastille, elle, ne prend pas la hauteur : elle est centrée
+// et glisse depuis le bord gauche. Géométrie maquettée dans
+// dev/mockups/shotbar_mock.html.
 // ────────────────────────────────────────────────────────────────────────────
 Item {
     id: root
@@ -25,31 +33,27 @@ Item {
     readonly property int gap: 6
     readonly property color surfaceColor: Qt.alpha(Theme.surface, 0.88)
 
-    // Page courante et état de l'enregistrement (renseigné à l'ouverture de la
-    // barre par un `pgrep -x wf-recorder` dans main.qml).
-    property bool recordMode: false
+    // Renseigné à l'ouverture de la barre par un `pgrep -x wf-recorder` dans
+    // main.qml : un enregistrement peut tourner depuis une ouverture précédente.
     property bool recording: false
 
     signal regionRequested()
     signal fullRequested()
-    signal recordMenuRequested()
     signal recordRegionRequested()
     signal recordFullRequested()
     signal recordStopRequested()
-    signal backRequested()
 
-    readonly property var entries: recordMode
+    readonly property var entries: recording
         ? [
-            { glyph: "selection",   action: "recordRegion",  record: true },
-            { glyph: "screen-shot", action: "recordFull",    record: true },
-            { glyph: "chevron-left", action: "back",         record: false, sep: true }
+            { glyph: "selection",   action: "region",       video: false },
+            { glyph: "screen-shot", action: "full",         video: false },
+            { glyph: "stop",        action: "recordStop",   video: true, sep: true }
           ]
         : [
-            { glyph: "selection",   action: "region", record: false },
-            { glyph: "screen-shot", action: "full",   record: false },
-            recording
-                ? { glyph: "stop",   action: "recordStop", record: true, sep: true }
-                : { glyph: "record", action: "recordMenu", record: true, sep: true }
+            { glyph: "selection",   action: "region",       video: false },
+            { glyph: "screen-shot", action: "full",         video: false },
+            { glyph: "video-region", action: "recordRegion", video: true, sep: true },
+            { glyph: "video-full",  action: "recordFull",   video: true }
           ]
 
     implicitWidth: barWidth
@@ -92,14 +96,14 @@ Item {
                         height: root.buttonSize
                         radius: 14
                         color: entryMouse.containsMouse
-                            ? Qt.alpha(entry.modelData.record ? Theme.error : Theme.accent, 0.14)
+                            ? Qt.alpha(entry.modelData.video ? Theme.error : Theme.accent, 0.14)
                             : "transparent"
 
                         Icon {
                             anchors.centerIn: parent
                             glyph: entry.modelData.glyph
                             size: 21
-                            color: entry.modelData.record ? Theme.error : Theme.accent
+                            color: entry.modelData.video ? Theme.error : Theme.accent
                         }
 
                         MouseArea {
@@ -111,11 +115,9 @@ Item {
                                 switch (entry.modelData.action) {
                                 case "region":       root.regionRequested(); break
                                 case "full":         root.fullRequested(); break
-                                case "recordMenu":   root.recordMenuRequested(); break
                                 case "recordRegion": root.recordRegionRequested(); break
                                 case "recordFull":   root.recordFullRequested(); break
                                 case "recordStop":   root.recordStopRequested(); break
-                                case "back":         root.backRequested(); break
                                 }
                             }
                         }

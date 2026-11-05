@@ -406,6 +406,10 @@ QtObject {
     // fiable — dans un événement souris QML, `mouse.modifiers` vaut 0.
     property var placeWidgetHook: null
 
+    // Crochet symétrique pour la capture : main.qml y branche requestCapture,
+    // ce qui rend les modes lançables par IPC (tests scriptés).
+    property var captureHook: null
+
     property IpcHandler ipc: IpcHandler {
         target: "shell"
         function placeWidget() {
@@ -473,6 +477,14 @@ QtObject {
         }
         function screenshotPickerState(): bool {
             return root.screenshotPickerVisible
+        }
+        // Lance une capture sans passer par la pastille :
+        //   quickshell ipc call shell captureMode record-full
+        // Même chemin que les boutons (requestCapture dans main.qml), donc
+        // testable au clavier — le clic sur une icône n'ajoute rien à couvrir.
+        function captureMode(mode: string) {
+            if (root.captureHook)
+                root.captureHook(mode)
         }
     }
 }
