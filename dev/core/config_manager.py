@@ -215,24 +215,18 @@ def set_kb_layout(layout, mark_first_run_done=True):
             with open(binds_path, "r") as f:
                 btxt = f.read()
             for idx, new_key in enumerate(ws_keys, start=1):
-                # Focus workspace idx
-                btxt = re.sub(
-                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.focus\(\{{\s*workspace\s*=\s*{idx}\s*\}}\)\s*\))',
-                    rf"\g<1>{new_key}\g<2>",
-                    btxt,
-                )
-                # Move silent workspace idx (CTRL)
-                btxt = re.sub(
-                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*CTRL\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.window\.move\(\{{\s*workspace\s*=\s*{idx}\s*,\s*silent\s*=\s*true\s*\}}\)\s*\))',
-                    rf"\g<1>{new_key}\g<2>",
-                    btxt,
-                )
-                # Move follow workspace idx (ALT)
-                btxt = re.sub(
-                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"\s*\+\s*ALT\s*\+\s*)[^"+]+("\s*,\s*hl\.dsp\.window\.move\(\{{\s*workspace\s*=\s*{idx}\s*\}}\)\s*\))',
-                    rf"\g<1>{new_key}\g<2>",
-                    btxt,
-                )
+                # Le préfixe (modificateurs éventuels) est conservé tel quel et les
+                # motifs sont indépendants du modificateur : la version précédente
+                # n'acceptait que « CTRL + » pour le déplacement silencieux, alors
+                # que binds.lua écrit ce bind avec SHIFT — la touche gardait donc
+                # son nom AZERTY sur un clavier QWERTY.
+                for motif in (
+                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"[^"]*\+\s*)([^"+]+)'
+                    rf'("\s*,\s*hl\.dsp\.focus\(\{{\s*workspace\s*=\s*{idx}\s*\}}\s*\))',
+                    rf'(hl\.bind\(\s*mainMod\s*\.\.\s*"[^"]*\+\s*)([^"+]+)'
+                    rf'("\s*,\s*hl\.dsp\.window\.move\(\{{\s*workspace\s*=\s*{idx}\b[^}}]*\}}\s*\))',
+                ):
+                    btxt = re.sub(motif, rf"\g<1>{new_key}\g<3>", btxt)
             with open(binds_path, "w") as f:
                 f.write(btxt)
         except Exception as e:

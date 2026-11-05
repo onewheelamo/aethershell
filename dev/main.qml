@@ -11,7 +11,6 @@ import Quickshell.Wayland
 Item {
     id: root
 
-    property string pendingKbLayout: Theme.kbLayout || "fr"
 
     // ────────────────────────────────────────────────────────────────────────
     // MODE PLACEMENT D'UN WIDGET (SUPER + clic sur le widget)
@@ -104,15 +103,6 @@ Item {
         command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
     }
 
-    Process {
-        id: applyKbProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                Theme.showKeyboardOnboarding = false
-                Theme.firstRunCompleted = true
-            }
-        }
-    }
 
     // Écrit la nouvelle position dans core/widgets.json (le shell la relira par
     // FileView : c'est le fichier qui fait foi, pas l'état local du glissement).
@@ -127,16 +117,6 @@ Item {
             "widget_move", String(id), String(Math.round(x)), String(Math.round(y))
         ]
         moveWidgetProc.running = true
-    }
-
-    function applyInitialKeyboard(layoutCode) {
-        applyKbProc.command = [
-            "python3",
-            Quickshell.shellPath("core/config_manager.py"),
-            "kb_layout",
-            layoutCode
-        ]
-        applyKbProc.running = true
     }
 
     // Top Bar Window hosting the 3 distinct islands (Left, Center, Right)
@@ -563,6 +543,16 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // ASSISTANT DE PREMIER LANCEMENT — cinq pages (clavier, dossiers, programmes,
+    // widgets, astuce), affichées une seule fois. La surface et son état vivent
+    // dans first_run.qml ; elle ne s'affiche que tant que `first_run_completed`
+    // est faux dans style_vars.json.
+    // ────────────────────────────────────────────────────────────────────────
+    FirstRun {
+        id: assistantPremierLancement
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // BARRE DE CAPTURE (SUPER + SHIFT + S) — surface plein écran transparente :
     // elle attrape le clic extérieur et le clavier (Échap), tandis que la
     // pastille, elle, glisse depuis le bord gauche sans prendre la hauteur.
@@ -836,179 +826,6 @@ Item {
 
             Keys.onEscapePressed: root.endPlacement(false)
             focus: true
-        }
-    }
-
-    // First-Run Keyboard Layout Selection Window (100% Mouse Operated)
-    PanelWindow {
-        id: firstRunOverlayWindow
-        screen: topBarWindow.screen
-        visible: Theme.showKeyboardOnboarding
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        exclusionMode: ExclusionMode.Ignore
-        color: Qt.alpha("#000000", 0.55)
-        aboveWindows: true
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-onboarding"
-
-        Rectangle {
-            id: onboardingCard
-            width: 540
-            height: onboardingCol.implicitHeight + 44
-            anchors.centerIn: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 2
-
-            Column {
-                id: onboardingCol
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.margins: 22
-                spacing: 16
-
-                Text {
-                    text: "⌨ Premier Lancement — Disposition du Clavier"
-                    color: Theme.accent
-                    font.pixelSize: Theme.textXl
-                    font.bold: true
-                }
-
-                Text {
-                    width: parent.width
-                    text: "Sélectionnez la langue de votre clavier à la souris (Français AZERTY par défaut).\nCe choix configure Hyprland (input.lua) et adapte automatiquement la nomenclature des raccourcis Workspaces 1 à 5 dans binds.lua pour éviter tout conflit."
-                    color: Theme.fg
-                    font.pixelSize: Theme.textSm
-                    wrapMode: Text.WordWrap
-                }
-
-                // Mouse-selectable keyboard layout cards
-                Grid {
-                    width: parent.width
-                    columns: 2
-                    columnSpacing: 12
-                    rowSpacing: 10
-
-                    Repeater {
-                        model: [
-                            { code: "fr", title: "🇫🇷 Français (AZERTY)", sub: "Défaut — Workspaces : &  é  \"  '  (" },
-                            { code: "us", title: "🇺🇸 English (US QWERTY)", sub: "Workspaces : 1  2  3  4  5" },
-                            { code: "be", title: "🇧🇪 Belge (AZERTY)", sub: "Workspaces : &  é  \"  '  (" },
-                            { code: "gb", title: "🇬🇧 English (UK QWERTY)", sub: "Workspaces : 1  2  3  4  5" },
-                            { code: "de", title: "🇩🇪 Deutsch (QWERTZ)", sub: "Workspaces : 1  2  3  4  5" },
-                            { code: "ch", title: "🇨🇭 Suisse (QWERTZ)", sub: "Workspaces : 1  2  3  4  5" }
-                        ]
-
-                        Rectangle {
-                            id: kbCard
-                            required property var modelData
-                            readonly property bool selected: root.pendingKbLayout === modelData.code
-                            width: (parent.width - 12) / 2
-                            height: 58
-                            radius: Theme.globalRadius
-                            color: selected
-                                ? Qt.alpha(Theme.accent, 0.25)
-                                : (kbCardMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.55))
-                            border.color: selected ? Theme.accent : Theme.surfaceVariant
-                            border.width: selected ? 2 : 1
-
-                            Column {
-                                anchors.left: parent.left
-                                anchors.leftMargin: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 4
-
-                                Text {
-                                    text: kbCard.modelData.title
-                                    color: kbCard.selected ? Theme.accent : Theme.fg
-                                    font.pixelSize: Theme.textMd
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    text: kbCard.modelData.sub
-                                    color: Qt.alpha(Theme.fg, 0.75)
-                                    font.pixelSize: Theme.textXs
-                                }
-                            }
-
-                            MouseArea {
-                                id: kbCardMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.pendingKbLayout = kbCard.modelData.code
-                            }
-                        }
-                    }
-                }
-
-                // Summary box showing exact binds.lua nomenclature
-                Rectangle {
-                    width: parent.width
-                    height: 38
-                    radius: Theme.globalRadius
-                    color: Theme.bg
-                    border.color: Theme.accentMuted
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: (root.pendingKbLayout === "fr" || root.pendingKbLayout === "be")
-                            ? "Nomenclature binds.lua : ampersand, eacute, quotedbl, apostrophe, parenleft"
-                            : "Nomenclature binds.lua : 1, 2, 3, 4, 5 (aucun conflit QWERTY)"
-                        color: Theme.info
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-                }
-
-                // Confirm & Apply button (Mouse only)
-                Rectangle {
-                    width: parent.width
-                    height: 40
-                    radius: Theme.globalRadius
-                    color: confirmKbMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓ Valider la disposition « " + root.pendingKbLayout.toUpperCase() + " » et Appliquer"
-                        color: Theme.bg
-                        font.pixelSize: Theme.textMd
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        id: confirmKbMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.applyInitialKeyboard(root.pendingKbLayout)
-                    }
-                }
-
-                // L'aide-mémoire est généré depuis binds.lua, donc il affiche la
-                // nomenclature de la disposition choisie juste au-dessus : c'est
-                // l'endroit pour dire qu'il existe, au moment où l'utilisateur
-                // découvre le clavier.
-                Text {
-                    width: parent.width
-                    text: "Astuce — SUPER + K ouvre l'aide-mémoire : tous les raccourcis, "
-                        + "avec les touches de la disposition choisie."
-                    color: Qt.alpha(Theme.fg, 0.62)
-                    font.pixelSize: Theme.textXs
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
         }
     }
 }
