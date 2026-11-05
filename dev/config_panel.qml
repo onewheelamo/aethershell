@@ -2782,6 +2782,57 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 6
 
+                                    // Ordre d'affichage : échange avec le voisin
+                                    // du même îlot. Deux flèches plutôt qu'un
+                                    // numéro à saisir — l'ordre n'a de sens que
+                                    // relativement aux autres.
+                                    Row {
+                                        spacing: 3
+                                        opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "‹"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["monter", appletRow.donnee.id])
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "›"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["descendre", appletRow.donnee.id])
+                                            }
+                                        }
+                                    }
+
                                     // Échelle de texte de cet applet : la même
                                     // règle que les widgets, appliquée par applet.
                                     // Boutons dans des Rectangles : un MouseArea

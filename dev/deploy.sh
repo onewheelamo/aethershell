@@ -409,6 +409,8 @@ deploy_new_env() {
     cp "$DEV_DIR/SystrayApplet.qml" "$QS_DIR/SystrayApplet.qml"
     cp "$DEV_DIR/PowerApplet.qml" "$QS_DIR/PowerApplet.qml"
     cp "$DEV_DIR/ReseauApplet.qml" "$QS_DIR/ReseauApplet.qml"
+    cp "$DEV_DIR/NotifsApplet.qml" "$QS_DIR/NotifsApplet.qml"
+    cp "$DEV_DIR/ArchApplet.qml" "$QS_DIR/ArchApplet.qml"
     cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).

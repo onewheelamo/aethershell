@@ -6,26 +6,19 @@ import Quickshell.Services.SystemTray
 import Quickshell.Services.Notifications
 
 // ════════════════════════════════════════════════════════════════════════════
-// RIGHT ISLAND: HARDWARE CONTROLS, SYSTRAY & POWER MENU (island_right.qml)
+// ÎLOT DROIT — ce qui reste quand la barre est devenue modulaire.
 // ════════════════════════════════════════════════════════════════════════════
-// Architecture Overview:
-//   • Section 1: Popup Geometry & System State Properties
-//   • Section 2: Helper Functions & Formatters (signal, battery, volume icons)
-//   • Section 3: IPC & Hardware Background Processes (system info, actions, WiFi, notifications)
-//   • Section 4: Arch-Update Check Service (pacman + AUR update counter & timer)
-//   • Section 5: Main Right Island Bar UI:
-//       - 5.1 Systray & Notifications (Arch-Update badge, Tray icons, Notif bell)
-//       - 5.2 WiFi / Network Button (status, SSID, signal strength)
-//       - 5.3 System Controls Box (Battery status, Volume, Brightness)
-//       - 5.4 Tablet Mode Virtual Keyboard Button (on-screen keyboard toggle)
-//       - 5.5 Power Menu Button (scaled dynamically to bar height)
-//   • Section 6: Hyprland Focus Grab (dismiss popups on outside click)
-//   • Section 7: Popups:
-//       - 7.1 Interactive WiFi Network Selection Panel
-//       - 7.2 System Controls Panel (ASUS Battery 80% limit, Volume slider, Brightness slider)
-//       - 7.3 Power & Session Management Menu (Shutdown, Reboot, Lock, Suspend, Logout)
-//       - 7.4 Notification Center Popup (notification list & history)
-//       - 7.5 Ephemeral Toast Popup (incoming desktop notifications)
+// Tous les éléments de barre sont des applets, posés par `AppletRow` selon le
+// registre `bar_applets.json` : comptes, système, volume, systray, réseau,
+// notifications, mises à jour, alimentation.
+//
+// Il reste ici trois choses qui ne sont pas des éléments de barre :
+//   • Section 1-3 : le centre de notifications (serveur, historique, cibles,
+//     toasts) — un service, pas un bouton ; l'applet « notifications » n'en est
+//     que la cloche et publie son compte dans Theme.notifCount ;
+//   • Section 5 : le bouton clavier virtuel (mode tablette) ;
+//   • Section 6-7 : l'attrapeur de clic extérieur et les deux fenêtres du centre
+//     de notifications (panneau et toast).
 // ════════════════════════════════════════════════════════════════════════════
 
 Item {
@@ -53,30 +46,20 @@ Item {
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
     // Host & hardware properties
-    property string hostName: "Station"
-    property bool hasBattery: false
-    property bool hasBacklight: false
-
-    property int batPercent: 0
-    property string batStatus: "Unknown"
-    property bool batLimit80: false
-
-    property int volPercent: 0
-    property bool volMuted: false
-
-    property int briPercent: 100
-
-
+    // Batterie, volume et luminosité sont partis dans les applets
+    // « alimentation » et « volume ». Il ne reste ici que le mode tablette,
+    // qui commande le bouton clavier virtuel.
     property bool tabletMode: false
 
 
     // Notifications State
     property var notificationsList: []
+    // L'applet de la cloche ne peut pas lire cette liste (identifiants locaux au
+    // fichier) : le compte est publié dans le singleton Theme.
+    onNotificationsListChanged: Theme.notifCount = notificationsList.length
     property var latestToast: null
 
-    // Arch-Update State
-    property bool hasArchUpdate: false
-    property int pendingUpdatesCount: 0
+    // Le compteur de paquets en attente vit dans l'applet « maj ».
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 2: HELPER FUNCTIONS & FORMATTERS
@@ -84,71 +67,6 @@ Item {
     // Renvoient un NOM d'icône (Icon.qml), plus un glyphe brut : c'est ce qui
     // garantit une seule famille, une seule taille et un seul centrage.
 
-    function batteryIconFor(pct, status) {
-        if (status === "Charging" || status === "Full") return "battery-charging"
-        if (pct >= 90) return "battery-full"
-        if (pct >= 70) return "battery-70"
-        if (pct >= 50) return "battery-50"
-        if (pct >= 25) return "battery-25"
-        if (pct >= 10) return "battery-10"
-        return "battery-outline"
-    }
-
-    function applySystemInfo(data) {
-        if (!data) return
-        if (typeof data.hostname === "string" && data.hostname.length > 0) {
-            hostName = data.hostname.charAt(0).toUpperCase() + data.hostname.slice(1)
-        }
-        if (typeof data.has_battery === "boolean") {
-            hasBattery = data.has_battery
-        }
-        if (typeof data.has_backlight === "boolean") {
-            hasBacklight = data.has_backlight
-        }
-        if (data.battery) {
-            batPercent = Number(data.battery.level || 0)
-            batStatus = String(data.battery.status || "Unknown")
-            batLimit80 = Boolean(data.battery.limit_80)
-        }
-        if (data.volume) {
-            volPercent = Number(data.volume.level || 0)
-            volMuted = Boolean(data.volume.muted)
-        }
-        if (typeof data.brightness === "number") {
-            briPercent = data.brightness
-        }
-        if (typeof data.tablet_mode === "boolean") {
-            tabletMode = data.tablet_mode
-        }
-    }
-
-    function refreshSystemInfo() {
-        if (!sysInfoProc.running) sysInfoProc.running = true
-    }
-
-
-    // Actions (volume, brightness...) are serialized: while one runs, newer ones are queued.
-    // A queued action replaces an older queued one of the same kind so that dragging a slider
-    // only applies the latest value instead of dropping it.
-    property var sysActionQueue: []
-
-    function startSysAction(args) {
-        sysActionProc.command = ["python3", Quickshell.shellPath("core/system_service.py")].concat(args)
-        sysActionProc.running = true
-    }
-
-    function runSysAction(args) {
-        if (!sysActionProc.running) {
-            startSysAction(args)
-            return
-        }
-        // "mute" is a toggle action: do not deduplicate / replace previous mute toggles.
-        // For continuous values (volume, brightness), replace older pending requests of the same type.
-        const isToggle = (args[0] === "mute")
-        const q = isToggle ? sysActionQueue.slice() : sysActionQueue.filter(a => a[0] !== args[0])
-        q.push(args)
-        sysActionQueue = q
-    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 3: IPC & HARDWARE BACKGROUND PROCESSES
@@ -509,116 +427,32 @@ Item {
 
     property Process quietNotifProc: Process {}
 
+    // Le seul sondage système qui reste : le mode tablette, qui commande le
+    // bouton clavier virtuel (Yoga). Batterie, volume et luminosité sont lus par
+    // les applets concernés, chacun pour son compte.
     Process {
-        id: sysInfoProc
+        id: modeTabletteProc
         command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    islandRight.applySystemInfo(JSON.parse(text.trim()))
+                    const d = JSON.parse(text.trim())
+                    if (typeof d.tablet_mode === "boolean") islandRight.tabletMode = d.tablet_mode
                 } catch (e) {}
             }
         }
     }
 
-    Process {
-        id: sysActionProc
-        onExited: {
-            if (islandRight.sysActionQueue.length > 0) {
-                const q = islandRight.sysActionQueue.slice()
-                const next = q.shift()
-                islandRight.sysActionQueue = q
-                islandRight.startSysAction(next)
-            }
-        }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // Stale result: a newer action is queued, don't overwrite the optimistic UI value
-                if (islandRight.sysActionQueue.length > 0) return
-                try {
-                    const parsed = JSON.parse(text.trim())
-                    if (typeof parsed.limit_80 === "boolean" && !parsed.battery) {
-                        islandRight.batLimit80 = parsed.limit_80
-                        islandRight.refreshSystemInfo()
-                    } else {
-                        // Full info or partial ({volume} / {brightness}) payload
-                        islandRight.applySystemInfo(parsed)
-                    }
-                } catch (e) {
-                    islandRight.refreshSystemInfo()
-                }
-            }
-        }
-    }
-
-
     Timer {
-        interval: 5000
+        interval: 30000
         running: true
         repeat: true
         triggeredOnStart: true
-        onTriggered: islandRight.refreshSystemInfo()
+        onTriggered: if (!modeTabletteProc.running) modeTabletteProc.running = true
     }
 
-    // Les touches média changent le volume via osd.sh : l'OSD est le seul signal
-    // disponible, on s'en sert pour rafraîchir l'icône tout de suite au lieu
-    // d'attendre le prochain sondage de 5 s. On ne teste pas `osdVisible` :
-    // showOsd() écrit kind puis valeur avant de passer visible, donc au moment
-    // du signal la surface est encore masquée.
-    Connections {
-        target: Theme
-        function onOsdValueChanged() {
-            if (Theme.osdKind === "volume" || Theme.osdKind === "mute") islandRight.refreshSystemInfo()
-        }
-        function onOsdKindChanged() {
-            if (Theme.osdKind === "volume" || Theme.osdKind === "mute") islandRight.refreshSystemInfo()
-        }
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // SECTION 4: ARCH-UPDATE CHECK SERVICE
-    // ────────────────────────────────────────────────────────────────────────
-    Process {
-        id: checkArchUpdateInstalledProc
-        command: ["sh", "-c", "command -v arch-update >/dev/null && echo 1 || echo 0"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                islandRight.hasArchUpdate = (text.trim() === "1")
-                if (islandRight.hasArchUpdate && !checkUpdatesProc.running) {
-                    checkUpdatesProc.running = true
-                }
-            }
-        }
-    }
-
-    Process {
-        id: checkUpdatesProc
-        command: ["sh", "-c", "timeout 15 sh -c '(checkupdates 2>/dev/null; yay -Qua 2>/dev/null)' | grep -v '^\\s*$' | wc -l"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const count = parseInt(text.trim(), 10)
-                    islandRight.pendingUpdatesCount = isNaN(count) ? 0 : count
-                } catch (e) {
-                    islandRight.pendingUpdatesCount = 0
-                }
-            }
-        }
-    }
-
-    Timer {
-        id: checkUpdatesTimer
-        interval: 1800000 // Refresh every 30 minutes
-        running: islandRight.hasArchUpdate
-        repeat: true
-        onTriggered: {
-            if (!checkUpdatesProc.running) checkUpdatesProc.running = true
-        }
-    }
 
     Component.onCompleted: {
-        checkArchUpdateInstalledProc.running = true
-
         // Crochets de diagnostic, exposés par IPC depuis Theme :
         //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
         //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
@@ -679,205 +513,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // SUB-SECTION 5.1: SYSTRAY & NOTIFICATIONS
-            // ────────────────────────────────────────────────────────────────
-            Row {
-                id: systraySection
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
 
-                // Notification Center Trigger Button
-                Rectangle {
-                    id: notifBtn
-                    width: notifRow.implicitWidth + 10
-                    height: 26
-                    anchors.verticalCenter: parent.verticalCenter
-                    radius: Theme.globalRadius
-                    color: Theme.activePopup === "notifications"
-                        ? Theme.accent
-                        : (notifMa.containsMouse ? Theme.surfaceVariant : "transparent")
-
-                    Row {
-                        id: notifRow
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: islandRight.notificationsList.length > 0 ? "bell" : "bell-off"
-                            size: Theme.iconSm
-                            color: Theme.activePopup === "notifications"
-                                ? Theme.bg
-                                : (islandRight.notificationsList.length > 0 ? Theme.warn : Theme.fg)
-                        }
-
-                        Text {
-                            visible: islandRight.notificationsList.length > 0
-                            text: String(islandRight.notificationsList.length)
-                            color: Theme.activePopup === "notifications" ? Theme.bg : Theme.warn
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-                    }
-
-                    MouseArea {
-                        id: notifMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            islandRight.latestToast = null
-                            Theme.togglePopup("notifications")
-                        }
-                    }
-                }
-
-                // Arch-Update Tray Button
-                Rectangle {
-                    id: archUpdateBtn
-                    visible: islandRight.hasArchUpdate
-                    width: archUpdateRow.implicitWidth + 10
-                    height: 26
-                    anchors.verticalCenter: parent.verticalCenter
-                    radius: Theme.globalRadius
-                    color: archUpdateMa.containsMouse ? Theme.surfaceVariant : "transparent"
-
-                    Behavior on color { ColorAnimation { duration: 120 } }
-
-                    Row {
-                        id: archUpdateRow
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: "arch"
-                            size: Theme.iconSm
-                            color: islandRight.pendingUpdatesCount > 0 ? Theme.warn : Theme.fg
-                            opacityLevel: islandRight.pendingUpdatesCount > 0 ? 1 : 0.6
-                        }
-
-                        Text {
-                            visible: islandRight.pendingUpdatesCount > 0
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: String(islandRight.pendingUpdatesCount)
-                            color: Theme.accent
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-                    }
-
-                    MouseArea {
-                        id: archUpdateMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: mouse => {
-                            if (mouse.button === Qt.RightButton) {
-                                if (!checkUpdatesProc.running) checkUpdatesProc.running = true
-                            } else {
-                                Quickshell.execDetached(["kitty", "arch-update"])
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            // Visual Separator 1 (Between Systray and Network)
-            Rectangle {
-                width: 1
-                height: 20
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.surfaceVariant
-            }
-
-
-            // Visual Separator 2 (Visually separating Systray/Network from System Controls)
-            Rectangle {
-                width: 2
-                height: 22
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.accentMuted
-                opacity: 0.6
-            }
-
-            // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 5.3: SYSTEM CONTROLS & HARDWARE MONITORS
-            // ────────────────────────────────────────────────────────────────
-            // Battery status & 80% limit, volume slider, brightness slider
-            Rectangle {
-                id: systemControlsBox
-                // Volume parti dans son applet : ce bloc ne garde que ce qui
-                // existe sur la machine (batterie, rétroéclairage). Sur une tour,
-                // il n'a plus rien à montrer et ne prend plus de place.
-                visible: islandRight.hasBattery || islandRight.hasBacklight
-                width: sysControlsRow.implicitWidth + 14
-                height: 28
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: Theme.activePopup === "system"
-                    ? Qt.alpha(Theme.accent, 0.25)
-                    : (sysBoxMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.45))
-                border.color: Theme.activePopup === "system" ? Theme.accent : "transparent"
-                border.width: 1
-
-                MouseArea {
-                    id: sysBoxMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.togglePopup("system")
-                }
-
-                Row {
-                    id: sysControlsRow
-                    anchors.centerIn: parent
-                    spacing: 12
-
-                    // Battery indicator (+ 80% shield badge when limiter is active, hidden on Desktop Tower)
-                    Row {
-                        visible: islandRight.hasBattery
-                        spacing: 4
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: islandRight.batteryIconFor(islandRight.batPercent, islandRight.batStatus)
-                            size: Theme.iconSm
-                            color: (islandRight.batPercent <= 15 && islandRight.batStatus !== "Charging")
-                                ? Theme.error
-                                : (islandRight.batStatus === "Charging" ? Theme.success : Theme.accent)
-                        }
-
-                        Text {
-                            text: islandRight.batPercent + "%"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            font.bold: islandRight.batPercent <= 15
-                        }
-
-                        Rectangle {
-                            visible: islandRight.batLimit80
-                            width: 24
-                            height: 14
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: 2
-                            color: Theme.success
-                            Text {
-                                anchors.centerIn: parent
-                                text: "80%"
-                                color: Theme.bg
-                                font.pixelSize: Theme.text2xs
-                                font.bold: true
-                            }
-                        }
-                    }
-
-                    // Entrée unique vers le panneau système (volume, luminosité, batterie).
-                }
-            }
 
             // ────────────────────────────────────────────────────────────────
             // SUB-SECTION 5.4: TABLET MODE VIRTUAL KEYBOARD BUTTON
@@ -908,30 +544,6 @@ Item {
                 }
             }
 
-            // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 5.5: POWER MENU BUTTON (Scaled to bar height)
-            // ────────────────────────────────────────────────────────────────
-            Rectangle {
-                Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: "power"
-                    size: Theme.iconSm
-                    color: Theme.activePopup === "power"
-                        ? Theme.bg
-                        : (powerMa.containsMouse ? Theme.error : Theme.fg)
-                    opacityLevel: Theme.activePopup === "power" ? 1 : 0.85
-                }
-
-                MouseArea {
-                    id: powerMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.togglePopup("power")
-                }
-            }
         }
     }
 
@@ -940,10 +552,8 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // Dismisses open right-island popups when clicking anywhere on the desktop
     HyprlandFocusGrab {
-        active: Theme.activePopup === "system"
-            || Theme.activePopup === "notifications"
+        active: Theme.activePopup === "notifications"
         windows: [
-            systemPanelPopup,
             notificationsPopup,
             islandRight.QsWindow.window
         ]
@@ -958,217 +568,6 @@ Item {
     // SECTION 7: POPUP WINDOWS
     // ────────────────────────────────────────────────────────────────────────
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SUB-SECTION 7.2: SYSTEM HARDWARE & CONTROLS POPUP
-    // ────────────────────────────────────────────────────────────────────────
-    // Controls ASUS Battery 80% charge threshold, audio volume slider, and backlight brightness slider
-    PopupWindow {
-        id: systemPanelPopup
-        anchor.item: systemControlsBox
-        anchor.rect.x: (systemControlsBox.width - implicitWidth) / 2
-        anchor.rect.y: islandRight.popupY(systemControlsBox)
-        anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(islandRight.clampPopupX(systemControlsBox, (systemControlsBox.width - implicitWidth) / 2, implicitWidth), islandRight.popupY(systemControlsBox), anchor.rect.width, anchor.rect.height)
-        implicitWidth: 310
-        implicitHeight: sysCol.implicitHeight + 28
-        color: "transparent"
-        visible: Theme.activePopup === "system"
-
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
-
-            Column {
-                id: sysCol
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.margins: 14
-                spacing: 14
-
-                Row {
-                    spacing: Theme.space2
-
-                    Icon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        glyph: "cog"
-                        size: Theme.iconSm
-                        color: Theme.accent
-                        opacityLevel: 1
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Contrôles système · " + islandRight.hostName
-                        color: Theme.fg
-                        font.pixelSize: Theme.textLg
-                        font.bold: true
-                    }
-                }
-
-                // 2. Brightness Slider Control (Laptop / Backlight only)
-                Column {
-                    visible: islandRight.hasBacklight
-                    width: parent.width
-                    spacing: 6
-
-                    Item {
-                        width: parent.width
-                        height: 18
-                        Row {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: Theme.space2
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: "brightness"
-                                size: Theme.iconSm
-                                color: Theme.accent
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "Luminosité de l'écran"
-                                color: Theme.fg
-                                font.pixelSize: Theme.textSm
-                                font.bold: true
-                            }
-                        }
-                        Text {
-                            anchors.right: parent.right
-                            text: islandRight.briPercent + "%"
-                            color: Theme.accent
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-                    }
-
-                    Rectangle {
-                        id: briTrack
-                        width: parent.width
-                        height: 12
-                        radius: Theme.globalRadius
-                        color: Theme.surfaceVariant
-
-                        Rectangle {
-                            width: Math.min(1, Math.max(0.05, islandRight.briPercent / 100)) * parent.width
-                            height: parent.height
-                            radius: Theme.globalRadius
-                            color: Theme.accentMuted
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            function applyPos(mx) {
-                                const pct = Math.round(Math.max(0.05, Math.min(1, mx / briTrack.width)) * 100)
-                                islandRight.briPercent = pct
-                                islandRight.runSysAction(["brightness", String(pct)])
-                            }
-                            onPressed: mouse => applyPos(mouse.x)
-                            onPositionChanged: mouse => { if (pressed) applyPos(mouse.x) }
-                        }
-                    }
-                }
-
-                // Divider
-                Rectangle {
-                    visible: islandRight.hasBattery
-                    width: parent.width
-                    height: 1
-                    color: Theme.surfaceVariant
-                }
-
-                // 3. Battery Status & 80% Charge Limiter Card (Laptop only)
-                Rectangle {
-                    visible: islandRight.hasBattery
-                    width: parent.width
-                    height: 68
-                    radius: Theme.globalRadius
-                    color: Theme.surfaceVariant
-                    border.color: islandRight.batLimit80 ? Theme.success : "transparent"
-                    border.width: 1
-
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 6
-
-                        Item {
-                            width: parent.width
-                            height: 20
-
-                            Row {
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: Theme.space1
-
-                                Icon {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    glyph: "battery"
-                                    size: Theme.iconSm
-                                    color: Theme.fg
-                                    opacityLevel: 0.9
-                                }
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "Batterie : " + islandRight.batPercent + "% (" + islandRight.batStatus + ")"
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textSm
-                                    font.bold: true
-                                }
-                            }
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: 24
-
-                            Text {
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "Limiter la charge à 80% (Santé)"
-                                color: Qt.alpha(Theme.fg, 0.9)
-                                font.pixelSize: Theme.textXs
-                            }
-
-                            // 80% Limiter Toggle Button
-                            Rectangle {
-                                width: 64
-                                height: 22
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                radius: Theme.globalRadius
-                                color: islandRight.batLimit80 ? Theme.success : Theme.bg
-                                border.color: islandRight.batLimit80 ? Theme.success : Theme.accentMuted
-                                border.width: 1
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: islandRight.batLimit80 ? "80% ON" : "100%"
-                                    color: islandRight.batLimit80 ? Theme.bg : Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                    font.bold: true
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        const nextTarget = islandRight.batLimit80 ? 100 : 80
-                                        islandRight.batLimit80 = !islandRight.batLimit80
-                                        islandRight.runSysAction(["limit", String(nextTarget)])
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
 
     // ────────────────────────────────────────────────────────────────────────
@@ -1177,11 +576,12 @@ Item {
     // Chronological notification history with dismiss & clear-all controls
     PopupWindow {
         id: notificationsPopup
-        anchor.item: notifBtn
-        anchor.rect.x: (notifBtn.width - implicitWidth) / 2
-        anchor.rect.y: islandRight.popupY(notifBtn)
+        // La cloche est devenue l'applet « notifications » : le panneau s'ancre
+        // au bord droit de l'îlot, comme l'ancien menu d'alimentation.
+        anchor.item: islandRight
+        anchor.rect.x: islandRight.width - implicitWidth
+        anchor.rect.y: Theme.barHeight + 6
         anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(islandRight.clampPopupX(notifBtn, (notifBtn.width - implicitWidth) / 2, implicitWidth), islandRight.popupY(notifBtn), anchor.rect.width, anchor.rect.height)
         implicitWidth: 320
         implicitHeight: 340
         color: "transparent"

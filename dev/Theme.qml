@@ -179,7 +179,12 @@ QtObject {
     onSpotlightVisibleChanged: {
         if (spotlightVisible) spotlightOpenedAt = Date.now()
     }
-    property string activePopup: "" // "", "weather", "calendar", "media", "wifi", "power", "system", "notifications"
+    // Compte des notifications en cours : publié par l'îlot droit (qui possède
+    // le serveur) pour que l'applet de la cloche puisse l'afficher.
+    property int notifCount: 0
+    // Clés des panneaux : celles des îlots ("calendar", "media", "notifications")
+    // et celles des applets ("applet:<id>", rendues par le composant lui-même).
+    property string activePopup: ""
 
     // Applications dont les notifications n'apparaissent pas en toast (elles vont
     // directement au centre). Alimentée par core/style_vars.json.

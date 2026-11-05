@@ -36,6 +36,26 @@
             "text_scale": 100
         },
         {
+            "id": "notifications",
+            "nom": "Notifications",
+            "description": "Cloche et compteur ; clic pour le centre de notifications",
+            "genre": "qml",
+            "composant": "NotifsApplet.qml",
+            "ile": "droite",
+            "ordre": 60,
+            "text_scale": 100
+        },
+        {
+            "id": "maj",
+            "nom": "Mises à jour",
+            "description": "Paquets en attente ; clic pour lancer arch-update",
+            "genre": "qml",
+            "composant": "ArchApplet.qml",
+            "ile": "droite",
+            "ordre": 70,
+            "text_scale": 100
+        },
+        {
             "id": "reseau",
             "nom": "Réseau",
             "description": "Wi-Fi : réseau, signal ; clic pour la liste et la connexion",

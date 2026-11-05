@@ -164,6 +164,35 @@ def echelle(applet_id, pourcentage):
     _ecrire(ETAT, {"version": 1, "actifs": etat})
 
 
+def deplacer(applet_id, sens):
+    """Échange la place avec l'applet voisin du même îlot.
+
+    L'ordre affiché est celui des `ordre` croissants. Deux applets peuvent porter
+    le même ordre (catalogue recopié à la main) : on renumérote donc l'îlot en
+    10, 20, 30… avant d'échanger, sinon l'échange ne changerait rien à l'écran.
+    """
+    etat = etat_utilisateur()
+    if applet_id not in etat:
+        raise SystemExit(f"applet éteint : {applet_id}")
+    ile = (etat[applet_id] or {}).get("ile")
+    voisins = sorted(
+        ((int((a or {}).get("ordre", 100)), k) for k, a in etat.items()
+         if (a or {}).get("ile") == ile),
+        key=lambda t: (t[0], t[1]),
+    )
+    ids = [k for _, k in voisins]
+    i = ids.index(applet_id)
+    j = i + int(sens)
+    if j < 0 or j >= len(ids):
+        return etat  # déjà au bout de l'îlot
+    ordres = {k: (n + 1) * 10 for n, k in enumerate(ids)}
+    ordres[ids[i]], ordres[ids[j]] = ordres[ids[j]], ordres[ids[i]]
+    for k, o in ordres.items():
+        etat[k]["ordre"] = o
+    _ecrire(ETAT, {"version": 1, "actifs": etat})
+    return etat
+
+
 def option(applet_id, cle, valeur):
     """Change une option d'applet (ex. quelles mesures montrer).
 
@@ -206,6 +235,8 @@ def main(argv):
         ordonner(argv[2], argv[3])
     elif action == "echelle" and len(argv) > 3:
         echelle(argv[2], argv[3])
+    elif action in ("monter", "descendre") and len(argv) > 2:
+        deplacer(argv[2], -1 if action == "monter" else 1)
     elif action == "option" and len(argv) > 4:
         option(argv[2], argv[3], " ".join(argv[4:]))
     else:

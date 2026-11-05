@@ -19,3 +19,5 @@ WorkspacesApplet 1.0 WorkspacesApplet.qml
 SystrayApplet 1.0 SystrayApplet.qml
 PowerApplet 1.0 PowerApplet.qml
 ReseauApplet 1.0 ReseauApplet.qml
+NotifsApplet 1.0 NotifsApplet.qml
+ArchApplet 1.0 ArchApplet.qml
