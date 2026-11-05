@@ -37,6 +37,12 @@ Item {
     // main.qml : un enregistrement peut tourner depuis une ouverture précédente.
     property bool recording: false
 
+    // Étiquette du bouton survolé, posée à droite de la pastille (elle déborde
+    // volontairement la largeur de l'Item : la surface qui l'héberge est plein
+    // écran). Une icône seule ne dit pas « région » ou « écran entier ».
+    property string hoveredLabel: ""
+    property real hoveredCenterY: 0
+
     signal regionRequested()
     signal fullRequested()
     signal recordRegionRequested()
@@ -45,15 +51,15 @@ Item {
 
     readonly property var entries: recording
         ? [
-            { glyph: "selection",   action: "region",       video: false },
-            { glyph: "screen-shot", action: "full",         video: false },
-            { glyph: "stop",        action: "recordStop",   video: true, sep: true }
+            { glyph: "selection",   action: "region",       label: "Capturer une région",      video: false },
+            { glyph: "screen-shot", action: "full",         label: "Capturer l'écran",         video: false },
+            { glyph: "stop",        action: "recordStop",   label: "Arrêter l'enregistrement", video: true, sep: true }
           ]
         : [
-            { glyph: "selection",   action: "region",       video: false },
-            { glyph: "screen-shot", action: "full",         video: false },
-            { glyph: "video-region", action: "recordRegion", video: true, sep: true },
-            { glyph: "video-full",  action: "recordFull",   video: true }
+            { glyph: "selection",    action: "region",       label: "Capturer une région", video: false },
+            { glyph: "screen-shot",  action: "full",         label: "Capturer l'écran",     video: false },
+            { glyph: "video-region", action: "recordRegion", label: "Filmer une région",   video: true, sep: true },
+            { glyph: "video-full",   action: "recordFull",   label: "Filmer l'écran",      video: true }
           ]
 
     implicitWidth: barWidth
@@ -92,6 +98,7 @@ Item {
                     }
 
                     Rectangle {
+                        id: entryButton
                         width: root.buttonSize
                         height: root.buttonSize
                         radius: 14
@@ -111,6 +118,14 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
+                            // L'étiquette est posée dans le repère de `root` : on y
+                            // remonte le centre du bouton, pas celui du délégué.
+                            onEntered: {
+                                const p = entryButton.mapToItem(root, 0, 0)
+                                root.hoveredLabel = entry.modelData.label
+                                root.hoveredCenterY = p.y + entryButton.height / 2
+                            }
+                            onExited: root.hoveredLabel = ""
                             onClicked: {
                                 switch (entry.modelData.action) {
                                 case "region":       root.regionRequested(); break
@@ -124,6 +139,34 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Étiquette du bouton survolé : elle sort de la pastille (à droite), suit la
+    // ligne du bouton et s'efface avec le survol. Pas de MouseArea dedans, donc
+    // elle ne mange ni clic ni survol.
+    Rectangle {
+        id: tooltip
+        visible: opacity > 0.01
+        opacity: root.hoveredLabel !== "" ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+        x: root.barWidth + 10
+        y: root.hoveredCenterY - height / 2
+        width: tooltipText.implicitWidth + Theme.space3 * 2
+        height: tooltipText.implicitHeight + Theme.space2
+        radius: 8
+        color: Qt.alpha(Theme.surface, 0.95)
+        border.color: Qt.alpha(Theme.fg, 0.10)
+        border.width: 1
+
+        Text {
+            id: tooltipText
+            anchors.centerIn: parent
+            text: root.hoveredLabel
+            font.family: Theme.fontUi
+            font.pixelSize: Theme.textSm
+            color: Theme.fg
         }
     }
 }
