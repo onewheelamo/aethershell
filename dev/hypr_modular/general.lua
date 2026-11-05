@@ -16,7 +16,9 @@ hl.config({
     },
     decoration = {
         rounding         = 0,
-        rounding_power   = 1,
+        -- 2 = arc de cercle ; en dessous, Hyprland coupe le coin en droite
+        -- (à 1, cela donne un chanfrein au lieu d'un arrondi).
+        rounding_power   = 2,
         active_opacity   = 0.85,
         inactive_opacity = 0.85,
         shadow = {
