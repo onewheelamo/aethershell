@@ -1469,13 +1469,15 @@ Rectangle {
                     // Stepper comme les bordures : clic ou molette au dixième. Le
                     // suffixe vit à côté plutôt que dans le compteur, où « coupe
                     // droite » déborderait entre les deux boutons.
+                    // Deux valeurs utiles seulement : 1 coupe le coin en droite,
+                    // 2 trace un arc. Au-delà, Hyprland ne fait qu'arrondir la
+                    // transition vers le carré, ce qui ne se distingue pas à l'œil.
                     Stepper {
                         anchors.verticalCenter: parent.verticalCenter
                         value: root.hyprRoundingPower
                         minimumValue: 1
-                        maximumValue: 4
-                        stepSize: 0.1
-                        decimals: 1
+                        maximumValue: 2
+                        stepSize: 1
                         onValueModified: newVal => {
                             root.hyprRoundingPower = newVal
                             root.runConfigCmd(["style", "hypr_rounding_power", String(newVal)])
@@ -1484,8 +1486,7 @@ Rectangle {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.hyprRoundingPower < 1.95 ? "coupe droite"
-                              : (root.hyprRoundingPower > 2.6 ? "arrondi carré" : "cercle")
+                        text: root.hyprRoundingPower < 2 ? "coupe droite" : "cercle"
                         color: Qt.alpha(Theme.fg, 0.55)
                         font.pixelSize: Theme.textXs
                     }

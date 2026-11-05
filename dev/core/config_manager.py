@@ -315,11 +315,11 @@ def get_hypr_rounding_power():
                 txt = f.read()
             m = re.search(r"\brounding_power\s*=\s*([\d.]+)", txt)
             if m:
-                return round(float(m.group(1)), 1)
+                return max(1, min(2, int(round(float(m.group(1))))))
         except Exception:
             pass
     style_data = load_json(STYLE_FILE)
-    return round(float(style_data.get("hypr_rounding_power", 2.0)), 1)
+    return max(1, min(2, int(round(float(style_data.get("hypr_rounding_power", 2))))))
 
 
 def update_hypr_gaps(key, val):
@@ -561,7 +561,9 @@ def update_style_var(key, value):
             check=False,
         )
     elif key == "hypr_rounding_power":
-        fval = round(max(1.0, min(4.0, float(value))), 1)
+        # 1 = coin coupé en droite, 2 = arc de cercle : au-delà, la différence ne
+        # se voit pas, et le panneau ne propose que ces deux valeurs.
+        fval = max(1, min(2, int(round(float(value)))))
         data[key] = fval
         gen_path = os.path.join(HYPR_DIR, "general.lua")
         if os.path.exists(gen_path):
