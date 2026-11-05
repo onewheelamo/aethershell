@@ -3741,6 +3741,114 @@ Rectangle {
                             }
                         }
                     }
+
+                    Item { width: 1; height: 4 }
+
+                    // Ajout d'une règle : le nom de l'application tel qu'il apparaît
+                    // dans ses notifications, et la commande à lancer.
+                    Row {
+                        id: newNotifAppRow
+                        width: parent.width
+                        spacing: 10
+
+                        function ajouter() {
+                            const cle = newNotifAppKey.text.trim()
+                            const cmd = newNotifAppCmd.text.trim()
+                            if (cle === "" || cmd === "") return
+                            root.runConfigCmd(["notif_app_set", cle, cmd])
+                            newNotifAppKey.text = ""
+                            newNotifAppCmd.text = ""
+                        }
+
+                        Rectangle {
+                            width: 116
+                            height: 34
+                            color: Theme.bg
+                            radius: Theme.globalRadius
+                            border.color: newNotifAppKey.activeFocus ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+
+                            Text {
+                                visible: newNotifAppKey.text.length === 0
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                text: "Application"
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            TextInput {
+                                id: newNotifAppKey
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                            }
+                        }
+
+                        Rectangle {
+                            width: parent.width - 116 - 84 - 2 * 10
+                            height: 34
+                            color: Theme.bg
+                            radius: Theme.globalRadius
+                            border.color: newNotifAppCmd.activeFocus ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+
+                            Text {
+                                visible: newNotifAppCmd.text.length === 0
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                text: "Commande"
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            TextInput {
+                                id: newNotifAppCmd
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.info
+                                font.pixelSize: Theme.textSm
+                                onAccepted: newNotifAppRow.ajouter()
+                            }
+                        }
+
+                        Rectangle {
+                            width: 84
+                            height: 34
+                            radius: Theme.globalRadius
+                            color: Theme.accent
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "+ Ajouter"
+                                color: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: newNotifAppRow.ajouter()
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: "Commande telle qu'on la taperait dans un terminal : les guillemets "
+                            + "protègent les espaces (« gwenview \"mon dossier/image.png\" »)."
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.pixelSize: Theme.text2xs
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
 

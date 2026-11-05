@@ -207,6 +207,19 @@ Vérifié par l'IPC du shell (`captureMode`), donc par le chemin réel :
 Effet de bord assumé du test : `hyprshot` copie toujours dans le presse-papier, et
 les captures/vidéos d'essai ont été supprimées après mesure.
 
+## Lot D (05/11, 12:20)
+
+Section « Cible du clic sur une notification », « Par application » : un formulaire
+d'ajout sous les règles existantes — nom de l'application tel qu'il apparaît dans ses
+notifications, commande, « + Ajouter ». Une phrase sous le formulaire dit comment les
+arguments sont découpés : la commande est lue comme une ligne de terminal, donc les
+guillemets protègent les espaces.
+
+Vérifié sur la chaîne réelle : `notif_app_set MonApp 'mpv "/tmp/mon film.mp4"'` écrit
+`{"run": "mpv \"/tmp/mon film.mp4\""}`, et le résolveur en tire
+`["mpv", "/tmp/mon film.mp4"]` — l'argument contenant une espace survit. Règle de test
+retirée ensuite.
+
 ## Lot C (05/11, 12:05)
 
 `SUPER + SHIFT + N` ouvre le tiroir (`showNotifHistory`, idempotent : un bind
