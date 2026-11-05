@@ -1252,6 +1252,11 @@ def widget_add(wtype, workspace=1, x=120, y=160):
     if wtype not in WIDGET_TYPES:
         raise SystemExit(f"type de widget inconnu: {wtype} (attendu: {', '.join(WIDGET_TYPES)})")
     items = load_widgets()
+    # Une seule instance par nature : le panneau coche, il ne compte pas. Un
+    # double clic sur la case ne doit pas créer deux horloges.
+    for w in items:
+        if str(w.get("type")) == wtype:
+            return str(w.get("id"))
     wid = f"{wtype}-{len(items) + 1}"
     while any(w.get("id") == wid for w in items):
         wid += "x"

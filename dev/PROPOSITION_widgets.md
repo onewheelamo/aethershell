@@ -280,3 +280,19 @@ Mécanique retenue dans les trois cas :
 - `hyprctl configerrors` vide, log Quickshell sans `WARN scene`.
 - Le panneau (onglet Widgets) relu après ajout : la valeur écrite dans
   `widgets.json` est celle affichée au refresh suivant.
+
+## Sélecteur de widgets — cases à cocher en colonnes (05/11)
+
+La ligne « Ajouter » alignait cinq pastilles de 96 px à côté d'un libellé de 76 px :
+596 px pour 584 px disponibles, donc la dernière (« + Musique ») était rognée. Elle est
+remplacée par une grille de trois colonnes de cases à cocher, sous le libellé
+« Widgets » : une case cochée = widget posé (bordure et fond accent), décocher retire
+le widget. La grille vit dans un `Flickable` haut de trois rangées (98 px) : au-delà,
+la molette fait défiler et un repère de 3 px apparaît dans la gouttière de droite.
+
+Une seule instance par nature : c'est ce que la case signifie. Le panneau retire
+toutes les instances du type quand on décoche, et `config_manager.widget_add` renvoie
+l'identifiant existant au lieu d'en créer un second (vérifié : deux `widget_add date`
+sur deux bureaux différents laissent un seul widget). Le placement reste soit un
+bureau précis, soit tous (`workspace: 0`), réglé par la carte du widget.
+

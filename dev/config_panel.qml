@@ -211,6 +211,40 @@ Rectangle {
     property var bindsList: []
     // Widgets de bureau (core/widgets.json) et position de la capsule du lanceur.
     property var widgetsList: []
+    // Une seule instance par nature de widget : elle est posée sur un bureau
+    // ou sur tous (workspace 0), jamais deux fois. Le sélecteur du panneau est
+    // donc une liste de cases à cocher, pas des boutons « ajouter ».
+    readonly property var widgetTypes: [
+        { type: "horloge", label: "Horloge" },
+        { type: "date",    label: "Date" },
+        { type: "meteo",   label: "Météo" },
+        { type: "combo",   label: "Combo" },
+        { type: "musique", label: "Musique" }
+    ]
+    readonly property var widgetTypeRows: {
+        const poses = ({})
+        for (let i = 0; i < widgetsList.length; i++) {
+            const nature = String(widgetsList[i].type || "")
+            poses[nature] = (poses[nature] || 0) + 1
+        }
+        return widgetTypes.map(function (nature) {
+            const combien = poses[nature.type] || 0
+            return { type: nature.type, label: nature.label, count: combien, present: combien > 0 }
+        })
+    }
+
+    // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
+    // toutes ses instances — il ne doit pas y en avoir plusieurs.
+    function toggleWidgetType(nature, present) {
+        if (present) {
+            for (let i = 0; i < widgetsList.length; i++) {
+                if (String(widgetsList[i].type) === String(nature))
+                    root.runConfigCmd(["widget_remove", widgetsList[i].id])
+            }
+            return
+        }
+        root.runConfigCmd(["widget_add", String(nature), "1", "120", "160"])
+    }
     property string launcherPosition: "bas-centre"
     property var appVarsModel: []
     // Cible du clic sur une notification (core/notif_targets.json) : lignes
@@ -2237,49 +2271,125 @@ Rectangle {
 
                     Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
 
-                    // Ajout d'un widget
+                    // Widgets disponibles : une case par nature, cochée quand le
+                    // widget est posé. Trois colonnes dans une zone qui défile à
+                    // la molette : cinq pastilles côte à côte débordaient du
+                    // panneau et la dernière (« + Musique ») était rognée.
                     Row {
                         width: parent.width
                         spacing: Theme.space2
 
                         Text {
-                            anchors.verticalCenter: parent.verticalCenter
                             width: 76
-                            text: "Ajouter"
+                            text: "Widgets"
                             color: Qt.alpha(Theme.fg, 0.75)
                             font.pixelSize: Theme.textXs
+                            topPadding: 6
                         }
 
-                        Repeater {
-                            model: [
-                                { type: "horloge", label: "Horloge" },
-                                { type: "date",    label: "Date" },
-                                { type: "meteo",   label: "Météo" },
-                                { type: "combo",   label: "Combo" },
-                                { type: "musique", label: "Musique" }
-                            ]
+                        Item {
+                            width: parent.width - 76 - Theme.space2
+                            // Trois rangées visibles (28 px + 6 d'écart), puis on
+                            // fait défiler à la molette quand la liste grandit.
+                            height: Math.min(gridPicker.implicitHeight, 3 * 28 + 2 * 6 + 2)
 
+                            Flickable {
+                                id: widgetPicker
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.rightMargin: 7
+                                anchors.top: parent.top
+                                height: parent.height
+                                contentWidth: width
+                                contentHeight: gridPicker.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                Grid {
+                                    id: gridPicker
+                                    width: widgetPicker.width
+                                    columns: 3
+                                    rowSpacing: 6
+                                    columnSpacing: 6
+
+                                    Repeater {
+                                        model: root.widgetTypeRows
+
+                                        Rectangle {
+                                            id: typeCell
+                                            required property var modelData
+                                            width: (gridPicker.width - 2 * gridPicker.columnSpacing) / 3
+                                            height: 28
+                                            radius: Theme.globalRadius
+                                            color: modelData.present
+                                                ? Qt.alpha(Theme.accent, 0.16) : Theme.surfaceVariant
+                                            border.width: 1
+                                            border.color: modelData.present
+                                                ? Theme.accent : Theme.surfaceVariant
+
+                                            Row {
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 8
+                                                anchors.right: parent.right
+                                                anchors.rightMargin: 6
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                spacing: 6
+
+                                                Rectangle {
+                                                    width: 12
+                                                    height: 12
+                                                    radius: 3
+                                                    color: typeCell.modelData.present
+                                                        ? Theme.accent : "transparent"
+                                                    border.width: 1
+                                                    border.color: typeCell.modelData.present
+                                                        ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        visible: typeCell.modelData.present
+                                                        text: "✓"
+                                                        color: Theme.bg
+                                                        font.pixelSize: 9
+                                                        font.bold: true
+                                                    }
+                                                }
+
+                                                Text {
+                                                    width: parent.width - 18
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: typeCell.modelData.label
+                                                    color: Theme.fg
+                                                    font.pixelSize: Theme.textXs
+                                                    elide: Text.ElideRight
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.toggleWidgetType(typeCell.modelData.type,
+                                                                                typeCell.modelData.present)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Repère de défilement : n'apparaît que si la liste
+                            // dépasse les trois rangées visibles.
                             Rectangle {
-                                required property var modelData
-                                width: 96
-                                height: 26
-                                radius: Theme.globalRadius
-                                color: Theme.surfaceVariant
-                                border.width: 1
-                                border.color: Theme.surfaceVariant
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "+ " + modelData.label
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.runConfigCmd(["widget_add", modelData.type, "1", "120", "160"])
-                                }
+                                visible: gridPicker.implicitHeight > widgetPicker.height
+                                width: 3
+                                radius: 2
+                                color: Qt.alpha(Theme.accent, 0.45)
+                                x: parent.width - 4
+                                height: Math.max(18, widgetPicker.height * widgetPicker.height
+                                                     / Math.max(1, gridPicker.implicitHeight))
+                                y: widgetPicker.contentY + widgetPicker.contentY
+                                     * (widgetPicker.height - height)
+                                     / Math.max(1, gridPicker.implicitHeight - widgetPicker.height)
                             }
                         }
                     }
