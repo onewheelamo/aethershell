@@ -302,6 +302,26 @@ def get_hypr_rounding():
     return int(style_data.get("hypr_rounding", 2))
 
 
+def get_hypr_rounding_power():
+    """Forme des coins : decoration.rounding_power (2 = arc de cercle).
+
+    En dessous de 2, Hyprland redresse le coin jusqu'à la droite à 45° (1 donne
+    un chanfrein) ; au-dessus, il l'arrondit en « squircle ».
+    """
+    gen_path = os.path.join(HYPR_DIR, "general.lua")
+    if os.path.exists(gen_path):
+        try:
+            with open(gen_path, "r") as f:
+                txt = f.read()
+            m = re.search(r"\brounding_power\s*=\s*([\d.]+)", txt)
+            if m:
+                return round(float(m.group(1)), 1)
+        except Exception:
+            pass
+    style_data = load_json(STYLE_FILE)
+    return round(float(style_data.get("hypr_rounding_power", 2.0)), 1)
+
+
 def update_hypr_gaps(key, val):
     """Update gaps_in, gaps_out, or border_size in general.lua and apply live via hyprctl eval."""
     if key not in ("gaps_in", "gaps_out", "border_size"):
@@ -536,6 +556,25 @@ def update_style_var(key, value):
                 print(f"Error updating general.lua: {e}")
         subprocess.run(
             ["hyprctl", "eval", f"hl.config({{ decoration = {{ rounding = {ival} }} }})"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    elif key == "hypr_rounding_power":
+        fval = round(max(1.0, min(4.0, float(value))), 1)
+        data[key] = fval
+        gen_path = os.path.join(HYPR_DIR, "general.lua")
+        if os.path.exists(gen_path):
+            try:
+                with open(gen_path, "r") as f:
+                    txt = f.read()
+                txt = re.sub(r"(\brounding_power\s*=\s*)[\d.]+", rf"\g<1>{fval:g}", txt)
+                with open(gen_path, "w") as f:
+                    f.write(txt)
+            except Exception as e:
+                print(f"Error updating general.lua: {e}")
+        subprocess.run(
+            ["hyprctl", "eval", f"hl.config({{ decoration = {{ rounding_power = {fval:g} }} }})"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
@@ -1325,6 +1364,7 @@ def get_full_config_state():
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
         "bar_border": bool(style_data.get("bar_border", True)),
         "hypr_rounding": get_hypr_rounding(),
+        "hypr_rounding_power": get_hypr_rounding_power(),
         "wallpaper_dir": get_wallpaper_dir(),
         "screenshots_dir": get_screenshots_dir(),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),

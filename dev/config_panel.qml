@@ -70,6 +70,8 @@ Rectangle {
           tab: 0, section: "esthetique_aspect", target: "borderRow" },
         { label: "Arrondis des fenêtres", words: "arrondi rounding rayon fenetre",
           tab: 0, section: "esthetique_aspect", target: "roundingWinRow" },
+        { label: "Forme des coins", words: "arrondi rounding power chanfrein squircle forme coin courbe",
+          tab: 0, section: "esthetique_aspect", target: "roundingPowerRow" },
         { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
           tab: 0, section: "esthetique_aspect", target: "roundingIslandRow" },
         { label: "Hauteur de la barre", words: "hauteur barre taille bar",
@@ -204,6 +206,7 @@ Rectangle {
     property int gapsOut: 8
     property int borderSize: 2
     property int hyprRounding: 2
+    property real hyprRoundingPower: 2.0
     property var monitorsList: []
     property string selectedMonitorName: "HDMI-A-1"
     property string timezoneStr: "Europe/Paris"
@@ -372,6 +375,8 @@ Rectangle {
             if (typeof data.gaps.border_size === "number") root.borderSize = data.gaps.border_size
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
+        if (typeof data.hypr_rounding_power === "number")
+            root.hyprRoundingPower = data.hypr_rounding_power
         if (data.display) {
             root.monitorsList = data.display.monitors || []
             if (root.monitorsList.length > 0) {
@@ -1447,6 +1452,40 @@ Rectangle {
                         onValueModified: newVal => {
                             root.hyprRounding = newVal
                             root.runConfigCmd(["style", "hypr_rounding", String(newVal)])
+                        }
+                    }
+                }
+
+                // 4 bis. Forme des coins (decoration:rounding_power) : ce n'est pas
+                // le rayon mais la courbe. 2 = arc de cercle ; en dessous le coin se
+                // redresse jusqu'au chanfrein, au-dessus il s'arrondit en « squircle ».
+                Row {
+                    id: roundingPowerRow   // ancre de recherche
+                    objectName: "roundingPowerRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Forme des coins :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Slider {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: root.hyprRoundingPower
+                        minimumValue: 1
+                        maximumValue: 4
+                        stepSize: 0.1
+                        decimals: 1
+                        suffix: root.hyprRoundingPower < 1.95 ? " · coupe droite"
+                              : (root.hyprRoundingPower > 2.6 ? " · arrondi carré" : " · cercle")
+                        onValueModified: newVal => {
+                            root.hyprRoundingPower = newVal
+                            root.runConfigCmd(["style", "hypr_rounding_power", String(newVal)])
                         }
                     }
                 }
