@@ -10,6 +10,32 @@
     ],
     "applets": [
         {
+            "id": "musique",
+            "nom": "Morceau en cours",
+            "description": "Titre et artiste ; clic pour les contrôles de lecture",
+            "icone": "music",
+            "service": "core/musique_applet.py",
+            "_popup_externe": "le panneau média vit encore dans l'îlot central",
+            "popup_cle": "media",
+            "ile": "centre",
+            "ordre": 10,
+            "cadence": 1,
+            "text_scale": 100
+        },
+        {
+            "id": "calendrier",
+            "nom": "Calendrier",
+            "description": "Date et prochain rendez-vous ; clic pour le mois et les événements Nextcloud",
+            "icone": "calendar",
+            "service": "core/calendrier_applet.py",
+            "_popup_externe": "le panneau du calendrier vit encore dans l'îlot central",
+            "popup_cle": "calendar",
+            "ile": "centre",
+            "ordre": 20,
+            "cadence": 15,
+            "text_scale": 100
+        },
+        {
             "id": "comptes",
             "nom": "Comptes LLM",
             "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",

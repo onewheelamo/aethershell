@@ -392,14 +392,6 @@ Item {
             anchors.centerIn: parent
             spacing: 0
 
-            // ────────────────────────────────────────────────────────────────
-            // Applets posés sur l'îlot central (registre bar_applets.json) :
-            // largeur nulle tant qu'aucun n'y est allumé.
-            AppletRow {
-                ile: "centre"
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
             // SUB-SECTION 6.1: DIGITAL CLOCK (HH:MM)
             // ────────────────────────────────────────────────────────────────
             Text {
@@ -421,89 +413,38 @@ Item {
                         }
                     }
                 }
-            }
 
-            // ────────────────────────────────────────────────────────────────
-            // SUB-SECTION 6.2: EXPANDABLE DATE / MPRIS TITLE ON HOVER
-            // ────────────────────────────────────────────────────────────────
-            Item {
-                id: dateExpandBox
-                anchors.verticalCenter: parent.verticalCenter
-                height: 24
-                width: Math.round(islandCenter.expandProgress * (dateInnerRow.implicitWidth + 10))
-                clip: true
-
-                Row {
-                    id: dateInnerRow
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
-                    opacity: Math.max(0.0, Math.min(1.0, (islandCenter.expandProgress - 0.25) / 0.75))
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "·"
-                        color: Theme.accent
-                        font.pixelSize: Theme.textLg
-                        font.bold: true
-                    }
-
-                    // Zone média : le clic ouvre le popup MPRIS. Elle n'existe que
-                    // lorsqu'une piste joue ; sinon la date occupe seule la place.
-                    Item {
-                        id: mediaZone
-                        visible: islandCenter.activeMediaInfo !== null
-                        anchors.verticalCenter: parent.verticalCenter
-                        implicitWidth: visible ? Math.min(mediaText.implicitWidth, 200) : 0
-                        implicitHeight: mediaText.implicitHeight
-                        width: implicitWidth
-                        height: implicitHeight
-                        clip: true
-
-                        Text {
-                            id: mediaText
-                            anchors.fill: parent
-                            text: islandCenter.activeMediaInfo ? islandCenter.activeMediaInfo.label : ""
-                            color: Theme.accent
-                            font.pixelSize: Theme.textMd
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    Text {
-                        id: mediaSep
-                        visible: islandCenter.activeMediaInfo !== null
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "·"
-                        color: Theme.accent
-                        font.pixelSize: Theme.textLg
-                        font.bold: true
-                    }
-
-                    Item {
-                        id: dateZone
-                        anchors.verticalCenter: parent.verticalCenter
-                        implicitWidth: Math.min(dateText.implicitWidth, 340)
-                        implicitHeight: dateText.implicitHeight
-                        width: implicitWidth
-                        height: implicitHeight
-
-                        Text {
-                            id: dateText
-                            anchors.fill: parent
-                            text: islandCenter.hoverDateText
-                            color: Theme.accentMuted
-                            font.pixelSize: Theme.textMd
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
+                // L'heure rouvre le calendrier : c'est le seul déclencheur resté
+                // dans l'îlot, la date et la piste étant devenues des applets.
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onEntered: islandCenter.hovered = true
+                    onExited: islandCenter.hovered = false
+                    onClicked: {
+                        if (!islandCenter.calendarOpen) islandCenter.monthOffset = 0
+                        Theme.togglePopup("calendar")
                     }
                 }
             }
 
+            // La date et le titre du morceau ne sont plus ici : ce sont deux
+            // applets (« calendrier » et « musique »), posés dans cette rangée
+            // par AppletRow. Le survol n'a donc plus rien à déplier.
+
             // ────────────────────────────────────────────────────────────────
+            // Applets de l'îlot central, après l'heure (registre
+            // bar_applets.json) : « jeu. 5 nov. », puis le morceau s'il joue.
+            // La rangée du centre n'a pas d'espacement propre (chaque enfant
+            // gère sa marge) : d'où l'écart posé ici.
+            Item { width: 10; height: 1 }
+            AppletRow {
+                ile: "centre"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Item { width: 4; height: 1 }
+
             // SUB-SECTION 6.3: SYSTEM CONFIGURATION PANEL GEAR BUTTON
             // ────────────────────────────────────────────────────────────────
             Row {
@@ -552,37 +493,8 @@ Item {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // SUB-SECTION 6.4: CLOCK CLICK AREA (Toggles Calendar Popup)
-        // ────────────────────────────────────────────────────────────────────
-        MouseArea {
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.showConfigButton ? 38 : 0
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onEntered: islandCenter.hovered = true
-            onExited: islandCenter.hovered = false
-            onClicked: {
-                const pt = mapToItem(islandCenter, mouse.x, mouse.y)
-                // zone média : seulement quand la boîte est ouverte et qu'une piste joue
-                if (islandCenter.activeMediaInfo !== null && islandCenter.expandProgress > 0.5) {
-                    const mz = mediaZone.mapToItem(islandCenter, 0, 0)
-                    if (pt.x >= mz.x && pt.x <= mz.x + mediaZone.width) {
-                        Theme.togglePopup("media")
-                        return
-                    }
-                }
-                // zone date : ouvre le calendrier (seule zone qui le fait encore)
-                const dz = dateZone.mapToItem(islandCenter, 0, 0)
-                if (pt.x >= dz.x && pt.x <= dz.x + dateZone.width) {
-                    if (!islandCenter.calendarOpen) islandCenter.monthOffset = 0
-                    Theme.togglePopup("calendar")
-                }
-                // l'heure et les marges ne font rien
-            }
-        }
+        // Le clic est porté par l'heure elle-même (voir 6.1) : un attrapeur plein
+        // îlot aurait recouvert les applets posés dans la même rangée.
     }
 
     // ────────────────────────────────────────────────────────────────────────

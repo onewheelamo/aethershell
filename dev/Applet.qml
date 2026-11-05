@@ -47,9 +47,25 @@ Item {
         const nom = String(applet.nom || "")
         return libelle !== "" ? nom + " · " + libelle : nom
     }
+    // Deux façons d'ouvrir un popup, selon ce que déclare le catalogue :
+    //  - `popup` : un fichier QML chargé dans la fenêtre de l'applet (cas général) ;
+    //  - `popup_cle` : un panneau qui vit encore dans un îlot (calendrier, média).
+    //    C'est une dette assumée : ces panneaux font plusieurs centaines de lignes
+    //    et les déplacer n'apporterait rien à l'utilisateur ; l'applet en est le
+    //    seul déclencheur, et la clé est la même que celle des îlots.
+    readonly property string popupCle: String(applet.popup_cle || "")
+    readonly property bool popupExterne: popupCle !== ""
+
+    // Valeur vide : l'applet s'efface au lieu d'afficher un tiret (cas du
+    // morceau : rien ne joue).
+    readonly property bool sansValeur: ok && valeur === ""
+    visible: !sansValeur
+
     // Un seul popup ouvert à la fois, et il est identifié par son applet : deux
     // applets ne peuvent donc pas s'ouvrir l'un sur l'autre.
-    readonly property bool ouvert: Theme.activePopup === "applet:" + appletId
+    readonly property bool ouvert: popupExterne
+                                   ? (Theme.activePopup === popupCle)
+                                   : (Theme.activePopup === "applet:" + appletId)
 
     implicitWidth: contenu.implicitWidth
     implicitHeight: contenu.implicitHeight
@@ -116,7 +132,8 @@ Item {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         onClicked: {
-            Theme.activePopup = root.ouvert ? "" : ("applet:" + root.appletId)
+            const cle = root.popupExterne ? root.popupCle : ("applet:" + root.appletId)
+            Theme.activePopup = root.ouvert ? "" : cle
             // Une ouverture est aussi une occasion de rafraîchir le détail.
             if (!root.ouvert) root.rafraichir(true)
         }
@@ -134,7 +151,8 @@ Item {
         implicitWidth: Math.ceil(chargeur.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)
         color: "transparent"
-        visible: root.ouvert
+        // Un popup externe est dessiné par son îlot : cette fenêtre reste fermée.
+        visible: root.ouvert && !root.popupExterne
 
         Rectangle {
             anchors.fill: parent
@@ -162,7 +180,8 @@ Item {
     }
 
     HyprlandFocusGrab {
-        active: root.ouvert
+        // Rien à saisir ici : le popup externe a déjà son propre attrapeur.
+        active: root.ouvert && !root.popupExterne
         windows: [fenetre]
         onCleared: {
             if (Theme.activePopup === "applet:" + root.appletId) Theme.activePopup = ""
