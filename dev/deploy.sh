@@ -303,6 +303,40 @@ backup_env() {
     esac
 }
 
+# Ghostty n'est pas géré par le dépôt : Ryoku pose sa configuration et sa palette
+# (matugen). Mais le flou derrière la fenêtre dépend d'un réglage que Ghostty ne
+# demande pas de lui-même, et `user.conf` est le seul fichier inclus en dernier —
+# donc celui qui survit aux régénérations de palette. On l'assure à chaque
+# déploiement pour que le réglage existe aussi sur l'autre machine, sans écraser
+# les lignes déjà personnalisées.
+deploy_ghostty_overrides() {
+    command -v ghostty >/dev/null 2>&1 || return 0
+    local source="$DEV_DIR/ghostty/user.conf"
+    [ -f "$source" ] || return 0
+    local dir="$HOME/.config/ghostty"
+    local cible="$dir/user.conf"
+    mkdir -p "$dir"
+
+    if [ ! -f "$cible" ]; then
+        cp "$source" "$cible"
+        echo "  ↪ ghostty : user.conf créé (flou derrière la fenêtre)"
+        return 0
+    fi
+    grep -qE '^[[:space:]]*background-blur[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cible" && return 0
+    if grep -qE '^[[:space:]]*background-blur' "$cible"; then
+        sed -i -E 's/^[[:space:]]*background-blur.*/background-blur = true/' "$cible"
+        echo "  ↪ ghostty : background-blur remis à true"
+    else
+        cat >> "$cible" <<'EOF'
+
+# Flou derrière la fenêtre : sans cette ligne Ghostty ne demande pas l'effet au
+# compositeur (ext-background-effect-v1) et seule l'opacité s'applique.
+background-blur = true
+EOF
+        echo "  ↪ ghostty : background-blur ajouté à user.conf"
+    fi
+}
+
 deploy_new_env() {
     echo "🚀 Deploying $TARGET_TITLE..."
 
@@ -409,6 +443,8 @@ deploy_new_env() {
     fi
 
     "$CORE_DIR/generate_rofi_theme.sh"
+
+    deploy_ghostty_overrides
 
     # Le marqueur n'est posé qu'après un déploiement réussi : son absence ici
     # signifie « installation neuve ». On le note avant de le créer.
