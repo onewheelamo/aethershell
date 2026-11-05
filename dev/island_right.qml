@@ -221,6 +221,17 @@ Item {
     NotificationServer {
         id: notifServer
         keepOnReload: true
+        // Capacités annoncées aux clients. Mesuré le 05/11 : sans
+        // `actionsSupported`, notify-send répond « Actions are not supported by
+        // this notifications server » et le client n'envoie **aucune** action —
+        // la règle « action native » du clic sur le titre était donc morte-née,
+        // alors que le serveur, lui, sait les recevoir (vérifié en D-Bus pur).
+        // Les boutons d'action ne sont pas encore dessinés (lot L4) : seule
+        // l'action `default` est exploitée, par le clic sur le titre.
+        actionsSupported: true
+        // Les notifications restent dans le centre après une action : on
+        // l'annonce plutôt que de laisser le client le deviner.
+        persistenceSupported: true
         onNotification: notification => {
             notification.tracked = true
             const entry = {

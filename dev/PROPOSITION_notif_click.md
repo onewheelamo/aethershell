@@ -90,11 +90,16 @@ Mesuré dans le shell vivant (notifications réelles via D-Bus) :
 
 Deux constats de mesure :
 
-- **`notify-send --action` ne transmet pas les actions** dans cette version
-  (0.8.9) : `actions=0` dans le journal, alors que la même notification envoyée
-  par `gdbus` avec `['default','Ouvrir']` arrive avec `actions=2`. Les vraies
-  applications (Firefox, Thunar, arch-update) passent par leur boîte à outils,
-  donc la règle 3 reste utile — mais elle ne se teste pas avec `notify-send`.
+- **Le serveur n'annonçait pas la capacité `actions`.** `NotificationServer` a
+  `actionsSupported` à `false` par défaut ; notify-send répondait donc « Actions
+  are not supported by this notifications server » et n'envoyait **aucune**
+  action (`actions=0`) — la règle 3 était morte-née côté clients, alors que le
+  serveur savait les recevoir (vérifié en D-Bus pur, `gdbus`, `actions=2`).
+  Corrigé : `actionsSupported: true` et `persistenceSupported: true` sur le
+  serveur. `GetCapabilities` répond maintenant `['persistence','body','actions']`
+  et la même notification notify-send arrive avec `actions=1` →
+  `regle=action cible=Ouvrir`. Les boutons d'action ne sont pas encore dessinés
+  (lot L4) : seule l'action `default` sert, via le clic sur le titre.
 - La clé du hint arrive bien telle quelle : `x-amo-open` (la cascade teste un nom
   qui finit par `x-amo-open`, insensible à la casse, pour tolérer un préfixe).
 
