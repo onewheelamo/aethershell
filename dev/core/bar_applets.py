@@ -25,13 +25,24 @@ ICI = Path(__file__).resolve().parent
 CATALOGUE = ICI / "applets_catalogue.json"
 ETAT = ICI / "bar_applets.json"
 
-# Emplacements. Les trois premiers sont les sections de la barre du haut ; les
-# suivants appartiennent aux barres optionnelles (bas, côtés).
-ILES = ("haut-gauche", "haut-centre", "haut-droite", "bas", "cote-gauche", "cote-droite")
-# Les anciens noms désignaient les sections de la barre du haut : on les traduit
-# à la lecture, sinon un registre existant perdrait ses applets au premier
-# démarrage (et l'utilisateur croirait les avoir éteints).
-ANCIENS = {"gauche": "haut-gauche", "centre": "haut-centre", "droite": "haut-droite"}
+# Emplacements : chaque barre a trois places le long de son axe. En haut, ce sont
+# les trois îlots historiques ; en bas, gauche / milieu / droite ; sur les côtés,
+# haut / milieu / bas. Un emplacement s'écrit « barre:place », ce qui évite de
+# nommer douze identifiants à la main.
+BARRES = ("haut", "bas", "cote-gauche", "cote-droite")
+ZONES = ("debut", "milieu", "fin")
+ILES = tuple(f"{barre}:{zone}" for barre in BARRES for zone in ZONES)
+
+# Les anciens noms (un seul mot) désignaient la place du milieu de leur barre, ou
+# un îlot de la barre du haut : on les traduit à la lecture, sinon un registre
+# existant perdrait ses applets au premier démarrage.
+ANCIENS = {
+    "gauche": "haut:debut", "centre": "haut:milieu", "droite": "haut:fin",
+    "haut-gauche": "haut:debut", "haut-centre": "haut:milieu", "haut-droite": "haut:fin",
+    "bas": "bas:milieu",
+    "cote-gauche": "cote-gauche:milieu",
+    "cote-droite": "cote-droite:milieu",
+}
 ECHELLE_MIN, ECHELLE_MAX = 60, 160
 
 
@@ -75,9 +86,9 @@ def _entree(applet, choix=None):
     choix = choix or {}
     entree = dict(applet)
     entree["actif"] = bool(choix)
-    ile = str(choix.get("ile") or applet.get("ile") or "haut-droite")
+    ile = str(choix.get("ile") or applet.get("ile") or "haut:fin")
     ile = ANCIENS.get(ile, ile)
-    entree["ile"] = ile if ile in ILES else "haut-droite"
+    entree["ile"] = ile if ile in ILES else "haut:fin"
     try:
         entree["ordre"] = int(choix.get("ordre", applet.get("ordre", 100)))
     except (TypeError, ValueError):
@@ -148,7 +159,9 @@ BARRE_STYLE = {"bas": "bar_bottom", "cote-gauche": "bar_left", "cote-droite": "b
 
 
 def _allumer_barre(ile):
-    cle = BARRE_STYLE.get(ile)
+    # L'emplacement s'écrit « barre:place » : c'est la barre qui décide si elle
+    # doit être allumée.
+    cle = BARRE_STYLE.get(str(ile).split(":")[0])
     if not cle:
         return
     chemin = ICI / "style_vars.json"
@@ -161,8 +174,9 @@ def _allumer_barre(ile):
 
 def placer(applet_id, ile):
     _exiger(applet_id)
+    ile = ANCIENS.get(str(ile), str(ile))
     if ile not in ILES:
-        raise SystemExit(f"îlot inconnu : {ile} (attendu : {', '.join(ILES)})")
+        raise SystemExit(f"emplacement inconnu : {ile} (attendu : {', '.join(ILES)})")
     _allumer_barre(ile)
     etat = etat_utilisateur()
     if applet_id not in etat:

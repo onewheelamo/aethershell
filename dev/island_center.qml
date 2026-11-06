@@ -413,7 +413,7 @@ Item {
             // gère sa marge) : d'où l'écart posé ici.
             Item { width: 10; height: 1 }
             AppletRow {
-                ile: "haut-centre"
+                ile: "haut:milieu"
                 anchors.verticalCenter: parent.verticalCenter
             }
             Item { width: 4; height: 1 }

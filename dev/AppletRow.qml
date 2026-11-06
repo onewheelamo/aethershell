@@ -11,7 +11,7 @@ import Quickshell.Io
 // panneau l'affiche sans redémarrer le shell.
 Item {
     id: root
-    property string ile: "droite"
+    property string ile: "haut:fin"
     property var applets: []
 
     implicitWidth: ligne.implicitWidth
@@ -41,6 +41,12 @@ Item {
     }
 
     function resoudre() {
+        // Emplacement vide : la rangée ne sert pas pour cette orientation, elle ne
+        // doit ni interroger le registre ni se dessiner.
+        if (root.ile === "") {
+            root.applets = []
+            return
+        }
         requete.running = false
         requete.running = true
     }

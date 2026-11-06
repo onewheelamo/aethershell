@@ -509,7 +509,7 @@ Item {
             // ────────────────────────────────────────────────────────────────
             // Applets posés sur l'îlot droit (registre bar_applets.json).
             AppletRow {
-                ile: "haut-droite"
+                ile: "haut:fin"
                 anchors.verticalCenter: parent.verticalCenter
             }
 

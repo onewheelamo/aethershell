@@ -285,14 +285,30 @@ Rectangle {
     // dictionnaire `id → placement`, cocher deux fois ou placer ailleurs ne peut
     // pas créer de doublon : la dernière décision remplace la précédente.
     property var appletRows: []
-    readonly property var appletIles: [
-        { code: "haut-gauche", label: "G" },
-        { code: "haut-centre", label: "C" },
-        { code: "haut-droite", label: "D" },
+    // Un applet a une barre et une place dans cette barre. Deux groupes de
+    // pastilles plutôt que douze : douze ne tiendraient pas sur une ligne, et
+    // cette séparation est celle du modèle (« haut:fin », « bas:debut »…).
+    readonly property var appletBarres: [
+        { code: "haut", label: "H" },
         { code: "bas", label: "↓" },
         { code: "cote-gauche", label: "←" },
         { code: "cote-droite", label: "→" }
     ]
+    readonly property var appletZones: [
+        { code: "debut", labelA: "G", labelB: "⇤" },
+        { code: "milieu", labelA: "C", labelB: "●" },
+        { code: "fin", labelA: "D", labelB: "⇥" }
+    ]
+
+    function barreDe(donnee) {
+        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
+        return p[0] || "haut"
+    }
+
+    function zoneDe(donnee) {
+        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
+        return p[1] || "milieu"
+    }
 
     Process {
         id: appletsEtatProc
@@ -2565,35 +2581,83 @@ Rectangle {
                                         }
                                     }
 
-                                    Repeater {
-                                        model: root.appletIles
+                                    // Groupe 1 : la barre. On garde la place
+                                    // courante dans cette barre.
+                                    Row {
+                                        spacing: 2
 
-                                        Rectangle {
-                                            id: ileChip
-                                            required property var modelData
-                                            readonly property bool choisi: appletRow.donnee.ile === modelData.code
-                                            width: 18
-                                            height: 16
-                                            radius: 4
-                                            color: choisi ? Theme.accent : "transparent"
-                                            border.width: 1
-                                            border.color: choisi
-                                                ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                            opacity: appletRow.donnee.actif ? 1 : 0.35
+                                        Repeater {
+                                            model: root.appletBarres
 
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: ileChip.modelData.label
-                                                color: ileChip.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
-                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                                font.bold: ileChip.choisi
+                                            Rectangle {
+                                                required property var modelData
+                                                readonly property bool choisi:
+                                                    root.barreDe(appletRow.donnee) === modelData.code
+                                                width: 17
+                                                height: 16
+                                                radius: 4
+                                                color: choisi ? Theme.accent : "transparent"
+                                                border.width: 1
+                                                border.color: choisi
+                                                    ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                                opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: modelData.label
+                                                    color: parent.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                                                    font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                    font.bold: parent.choisi
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: root.placerApplet(appletRow.donnee.id,
+                                                        modelData.code + ":" + root.zoneDe(appletRow.donnee))
+                                                }
                                             }
+                                        }
+                                    }
 
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.placerApplet(appletRow.donnee.id,
-                                                                             ileChip.modelData.code)
+                                    // Groupe 2 : la place dans la barre (début,
+                                    // milieu, fin). Sur la barre du haut, ce sont
+                                    // les trois îlots historiques G / C / D.
+                                    Row {
+                                        spacing: 2
+
+                                        Repeater {
+                                            model: root.appletZones
+
+                                            Rectangle {
+                                                required property var modelData
+                                                readonly property bool choisi:
+                                                    root.zoneDe(appletRow.donnee) === modelData.code
+                                                readonly property bool enHaut:
+                                                    root.barreDe(appletRow.donnee) === "haut"
+                                                width: 17
+                                                height: 16
+                                                radius: 4
+                                                color: choisi ? Theme.accent : "transparent"
+                                                border.width: 1
+                                                border.color: choisi
+                                                    ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                                opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: parent.enHaut ? modelData.labelA : modelData.labelB
+                                                    color: parent.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                                                    font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                    font.bold: parent.choisi
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: root.placerApplet(appletRow.donnee.id,
+                                                        root.barreDe(appletRow.donnee) + ":" + modelData.code)
+                                                }
                                             }
                                         }
                                     }

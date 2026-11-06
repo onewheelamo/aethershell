@@ -3,17 +3,17 @@ import "."
 import Quickshell
 import Quickshell.Wayland
 
-// BARRE SUPPLÉMENTAIRE — bas, gauche ou droite.
+// BARRE SUPPLÉMENTAIRE — bas, gauche ou droite, chacune en trois places.
 //
-// Un seul composant pour trois emplacements : seule l'orientation change. La
-// barre n'existe que si elle a été allumée ; vide, elle affiche un rappel pour
-// qu'on sache comment la remplir.
+// Un seul composant pour trois emplacements : seule l'orientation change. Chaque
+// barre a trois zones le long de son axe — début, milieu, fin — donc un applet
+// peut aller à gauche, au centre ou à droite d'une barre du bas, en haut, au
+// milieu ou en bas d'une barre latérale.
 //
 // La surface occupe **tout le bord** (largeur complète en bas, hauteur complète
 // sur les côtés). Ce n'est pas un choix esthétique : Hyprland n'applique une zone
 // exclusive que si la surface couvre le bord entier. Une capsule étroite flottante
-// se contentait de recouvrir les fenêtres. La capsule dessinée, elle, garde ses
-// coins arrondis et ses marges.
+// se contentait de recouvrir les fenêtres.
 PanelWindow {
     id: root
     property string cote: "bas"          // "bas" | "cote-gauche" | "cote-droite"
@@ -26,10 +26,13 @@ PanelWindow {
 
     readonly property int ecart: Math.round(Theme.gutter)
     readonly property int rembourrage: Math.round(Theme.space3)
+
     // Une barre allumée s'affiche, même vide : sans ça, l'interrupteur du panneau
     // n'a aucun effet visible et on croit le réglage cassé. Vide, elle montre
     // comment la remplir.
-    readonly property int nbApplets: verticale ? colonne.applets.length : ligne.applets.length
+    readonly property int nbApplets: verticale
+        ? colDebut.applets.length + colMilieu.applets.length + colFin.applets.length
+        : debut.applets.length + milieu.applets.length + fin.applets.length
 
     visible: actif
 
@@ -82,17 +85,56 @@ PanelWindow {
         wrapMode: Text.WordWrap
     }
 
+    // ── trois zones ──────────────────────────────────────────────────────────
+    // Rangées pour la barre du bas : calées à gauche, au centre, à droite.
     AppletRow {
-        id: ligne
-        ile: "bas"
-        visible: !root.verticale && root.nbApplets > 0
+        id: debut
+        ile: root.verticale ? "" : root.cote + ":debut"
+        visible: !root.verticale
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        anchors.leftMargin: root.rembourrage
+    }
+
+    AppletRow {
+        id: milieu
+        ile: root.verticale ? "" : root.cote + ":milieu"
+        visible: !root.verticale
+        anchors.centerIn: parent
+    }
+
+    AppletRow {
+        id: fin
+        ile: root.verticale ? "" : root.cote + ":fin"
+        visible: !root.verticale
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.right: parent.right
+        anchors.rightMargin: root.rembourrage
+    }
+
+    // Colonnes pour les barres de côté : calées en haut, au milieu, en bas.
+    AppletColumn {
+        id: colDebut
+        ile: root.verticale ? root.cote + ":debut" : ""
+        visible: root.verticale
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: root.rembourrage
+    }
+
+    AppletColumn {
+        id: colMilieu
+        ile: root.verticale ? root.cote + ":milieu" : ""
+        visible: root.verticale
         anchors.centerIn: parent
     }
 
     AppletColumn {
-        id: colonne
-        ile: root.cote
-        visible: root.verticale && root.nbApplets > 0
-        anchors.centerIn: parent
+        id: colFin
+        ile: root.verticale ? root.cote + ":fin" : ""
+        visible: root.verticale
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.rembourrage
     }
 }

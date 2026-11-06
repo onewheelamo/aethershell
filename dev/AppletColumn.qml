@@ -8,7 +8,7 @@ import Quickshell.Io
 // chacun garde son icône et sa valeur sur une ligne.
 Item {
     id: root
-    property string ile: "cote-gauche"
+    property string ile: "cote-gauche:milieu"
     property var applets: []
 
     implicitWidth: colonne.implicitWidth
@@ -38,6 +38,10 @@ Item {
     }
 
     function resoudre() {
+        if (root.ile === "") {
+            root.applets = []
+            return
+        }
         requete.running = false
         requete.running = true
     }
