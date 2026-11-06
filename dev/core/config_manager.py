@@ -1073,6 +1073,7 @@ def set_app_var(alias, command):
 
 
 SECRETS_FILE = os.path.join(BASE_DIR, "secrets.json")
+HOMELAB_FILE = os.path.join(BASE_DIR, "homelab.json")
 
 
 def lire_secrets():
@@ -1118,6 +1119,63 @@ def set_secret(section, nom, valeur):
         os.chmod(SECRETS_FILE, 0o600)
     except OSError:
         pass
+    return True
+
+
+def lire_homelab():
+    """Ce que le panneau doit montrer du homelab : URL, jeton (sans le secret).
+
+    Le secret du jeton n'est jamais rendu — seulement ses quatre derniers
+    caractères, comme pour les clés d'API.
+    """
+    try:
+        with open(HOMELAB_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        d = {}
+    if not isinstance(d, dict):
+        d = {}
+    pve_brut = d.get("proxmox")
+    pve = dict(pve_brut) if isinstance(pve_brut, dict) else {}
+    sec = lire_secrets().get("proxmox") or {}
+    secret = str(sec.get("token_secret") or "")
+    return {
+        "proxmox_url": str(pve.get("url") or ""),
+        "proxmox_token_id": str(pve.get("token_id") or sec.get("token_id") or ""),
+        "proxmox_verifier_tls": bool(pve.get("verifier_tls", False)),
+        "jeton_present": bool(secret),
+        "jeton_tail": secret[-4:] if secret else "",
+        "hotes": d.get("hotes") or [],
+    }
+
+
+def homelab_set(cle, valeur):
+    """Range une valeur non secrète dans homelab.json (écriture atomique)."""
+    try:
+        with open(HOMELAB_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        d = {}
+    if not isinstance(d, dict):
+        d = {}
+    pve_brut = d.get("proxmox")
+    pve = dict(pve_brut) if isinstance(pve_brut, dict) else {}
+    pve.setdefault("verifier_tls", False)
+
+    if cle == "proxmox_url":
+        pve["url"] = str(valeur).strip()
+    elif cle == "proxmox_token_id":
+        pve["token_id"] = str(valeur).strip()
+    elif cle == "proxmox_verifier_tls":
+        pve["verifier_tls"] = str(valeur).strip().lower() in ("1", "true", "oui")
+    else:
+        return False
+
+    d["proxmox"] = pve
+    tmp = HOMELAB_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=4)
+    os.replace(tmp, HOMELAB_FILE)
     return True
 
 
@@ -1478,6 +1536,7 @@ def get_full_config_state():
         "binds": get_binds_list(),
         "apps": load_json(APP_VARS_FILE),
         "autostart": get_autostart(),
+        "homelab": lire_homelab(),
     }
 
 
@@ -1487,6 +1546,9 @@ if __name__ == "__main__":
         print(json.dumps(get_full_config_state()))
     elif action == "kb_layout" and len(sys.argv) > 2:
         set_kb_layout(sys.argv[2], mark_first_run_done=True)
+        print(json.dumps(get_full_config_state()))
+    elif action == "homelab_set" and len(sys.argv) > 3:
+        homelab_set(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))
     elif action == "api_key_set_file" and len(sys.argv) > 2:
         print(json.dumps(set_secret_from_file(sys.argv[2]), ensure_ascii=False))

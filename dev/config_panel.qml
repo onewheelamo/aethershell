@@ -230,6 +230,13 @@ Rectangle {
     // Clés d'API : le panneau ne connaît que leur présence et leurs 4 derniers
     // caractères — la valeur elle-même ne remonte jamais du fichier.
     property var apiKeys: ({})
+    // Proxmox : l'applet et le widget homelab s'en servent. Le secret du jeton
+    // n'est jamais rendu par config_manager, seulement ses quatre derniers
+    // caractères — le panneau ne peut donc pas l'afficher, même par erreur.
+    property string homelabUrl: ""
+    property string homelabTokenId: ""
+    property string homelabTokenTail: ""
+    property bool homelabTokenPresent: false
     // Fournisseurs LLM (core/llm_providers.json) : une ligne par entrée, dans
     // l'ordre du fichier. Ajouter un service ne touche pas à ce panneau.
     property var llmProviders: []
@@ -643,6 +650,12 @@ Rectangle {
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (data.api_keys && typeof data.api_keys === "object") root.apiKeys = data.api_keys
+        if (data.homelab && typeof data.homelab === "object") {
+            root.homelabUrl = String(data.homelab.proxmox_url || "")
+            root.homelabTokenId = String(data.homelab.proxmox_token_id || "")
+            root.homelabTokenTail = String(data.homelab.jeton_tail || "")
+            root.homelabTokenPresent = data.homelab.jeton_present === true
+        }
         if (Array.isArray(data.llm_providers)) root.llmProviders = data.llm_providers
         if (typeof data.hypr_rounding_power === "number")
             root.hyprRoundingPower = data.hypr_rounding_power
@@ -745,6 +758,45 @@ Rectangle {
         onSaveFailed: err => {
             if (root.pendingProvider) root.etatCle(root.pendingProvider.id, "écriture impossible (" + err + ")")
         }
+    }
+
+    // Jeton Proxmox : même chemin que les clés d'API — un fichier temporaire dans
+    // le répertoire runtime, puis config_manager le range dans secrets.json.
+    FileView {
+        id: homelabSecretFile
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-homelab-secret.json"
+        atomicWrites: true
+        printErrors: true
+        onSaved: homelabSecretProc.running = true
+    }
+
+    Process {
+        id: homelabSecretProc
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"),
+                  "api_key_set_file", homelabSecretFile.path]
+        stdout: StdioCollector {
+            onStreamFinished: root.refreshConfigState()
+        }
+    }
+
+    Process {
+        id: homelabProc
+        stdout: StdioCollector {
+            onStreamFinished: root.refreshConfigState()
+        }
+    }
+
+    function homelabSet(cle, valeur) {
+        homelabProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                               "homelab_set", cle, valeur]
+        homelabProc.running = true
+    }
+
+    function homelabSetSecret(valeur) {
+        if (String(valeur).trim() === "") return
+        homelabSecretFile.setText(JSON.stringify({
+            section: "proxmox", nom: "token_secret", valeur: String(valeur).trim()
+        }))
     }
 
     // `provider` est une entrée de core/llm_providers.json : sa référence de clé
@@ -3914,6 +3966,232 @@ Rectangle {
                                        ? Theme.success : Theme.error
                                 font.pixelSize: Theme.textXs
                                 wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Homelab : l'applet et le widget interrogent l'API Proxmox. L'URL et
+            // l'identifiant du jeton ne sont pas secrets et vivent dans
+            // homelab.json ; le secret du jeton suit le chemin des clés d'API.
+            CollapsibleSection {
+                id: secHomelab
+                objectName: "secHomelab"
+                title: "Homelab (Proxmox)"
+                icon: "cloud-check"
+                expanded: root.sectionOpen("widgets_homelab", false)
+                onToggled: expanded => root.setPanelSection("widgets_homelab", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "L'applet et le widget lisent l'état du nœud et des machines virtuelles. "
+                            + "Dans Proxmox : Datacenter → Permissions → API Tokens, rôle PVEAuditor, "
+                            + "puis décocher « Privilege Separation » ou donner les droits en lecture seule."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    // ── URL ────────────────────────────────────────────────
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Rectangle {
+                            width: parent.width - enregUrl.width - 8
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champPveUrl
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                clip: true
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: parent.text === ""
+                                    text: "https://pve.lan:8006"
+                                    color: Qt.alpha(Theme.fg, 0.35)
+                                    font.pixelSize: Theme.textSm
+                                }
+                                Component.onCompleted: text = root.homelabUrl
+                                Connections {
+                                    target: root
+                                    function onHomelabUrlChanged() {
+                                        if (!champPveUrl.activeFocus) champPveUrl.text = root.homelabUrl
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: enregUrl
+                            width: 92
+                            height: 30
+                            radius: 6
+                            color: survolUrl.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Enregistrer"
+                                color: Theme.accent
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: survolUrl
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.homelabSet("proxmox_url", champPveUrl.text.trim())
+                            }
+                        }
+                    }
+
+                    // ── identifiant du jeton (hermes@pam!applet) ───────────
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Rectangle {
+                            width: parent.width - enregId.width - 8
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champPveId
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                clip: true
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: parent.text === ""
+                                    text: "utilisateur@pam!nom-du-jeton"
+                                    color: Qt.alpha(Theme.fg, 0.35)
+                                    font.pixelSize: Theme.textSm
+                                }
+                                Component.onCompleted: text = root.homelabTokenId
+                                Connections {
+                                    target: root
+                                    function onHomelabTokenIdChanged() {
+                                        if (!champPveId.activeFocus) champPveId.text = root.homelabTokenId
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: enregId
+                            width: 92
+                            height: 30
+                            radius: 6
+                            color: survolId.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Enregistrer"
+                                color: Theme.accent
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: survolId
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.homelabSet("proxmox_token_id", champPveId.text.trim())
+                            }
+                        }
+                    }
+
+                    // ── secret du jeton ────────────────────────────────────
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Rectangle {
+                            width: parent.width - enregSecret.width - 8
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champPveSecret
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                clip: true
+                                echoMode: TextInput.Password
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: parent.text === ""
+                                    text: root.homelabTokenPresent
+                                          ? "enregistré (…" + root.homelabTokenTail + ") — collez-en un nouveau pour le remplacer"
+                                          : "secret du jeton (uuid)"
+                                    color: Qt.alpha(Theme.fg, 0.35)
+                                    font.pixelSize: Theme.textSm
+                                    elide: Text.ElideRight
+                                    width: parent.width
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: enregSecret
+                            width: 92
+                            height: 30
+                            radius: 6
+                            color: survolSecret.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Enregistrer"
+                                color: Theme.accent
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: survolSecret
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.homelabSetSecret(champPveSecret.text)
+                                    champPveSecret.text = ""
+                                }
                             }
                         }
                     }

@@ -24,6 +24,7 @@ Item {
     property var conteneurs: ({})
     property var unites: ({})
     property var hotes: []
+    property var proxmox: ({})
     property bool charge: false
 
     function rafraichir() {
@@ -51,10 +52,12 @@ Item {
                     root.conteneurs = det.conteneurs || ({})
                     root.unites = det.unites || ({})
                     root.hotes = det.hotes || []
+                    root.proxmox = det.proxmox || ({})
                 } catch (e) {
                     root.conteneurs = ({})
                     root.unites = ({})
                     root.hotes = []
+                    root.proxmox = ({})
                 }
                 root.charge = true
             }
@@ -108,6 +111,88 @@ Item {
                     height: parent.height
                     radius: parent.radius
                     color: Theme.accent
+                }
+            }
+        }
+
+        // ── Proxmox ──────────────────────────────────────────────────────────
+        Column {
+            width: parent.width
+            spacing: 3
+            visible: root.proxmox && root.proxmox.configure === true
+
+            Text {
+                width: parent.width
+                visible: root.proxmox.erreur !== null && root.proxmox.erreur !== undefined
+                text: "proxmox : " + String(root.proxmox.erreur || "")
+                color: Theme.error
+                font.pixelSize: Math.round(10 * root.echelle)
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: root.proxmox.noeuds || []
+
+                Column {
+                    required property var modelData
+                    width: colonne.width
+                    spacing: 2
+
+                    Row {
+                        width: parent.width
+
+                        Text {
+                            width: parent.width - Math.round(64 * root.echelle)
+                            text: String(modelData.nom || "") + " · CPU " + modelData.cpu + " %"
+                            color: Theme.fg
+                            font.pixelSize: Math.round(11 * root.echelle)
+                        }
+
+                        Text {
+                            width: Math.round(64 * root.echelle)
+                            horizontalAlignment: Text.AlignRight
+                            text: (modelData.ram_go !== null
+                                   ? modelData.ram_go + "/" + modelData.ram_max_go + " Go" : "—")
+                            color: Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: Math.round(10 * root.echelle)
+                            font.features: { "tnum": 1 }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: Math.round(3 * root.echelle)
+                        radius: height / 2
+                        color: Qt.alpha(Theme.fg, 0.10)
+
+                        Rectangle {
+                            width: parent.width * Math.min(1, (Number(modelData.ram) || 0) / 100)
+                            height: parent.height
+                            radius: parent.radius
+                            color: (Number(modelData.ram) || 0) > 85 ? Theme.error : Theme.accent
+                        }
+                    }
+                }
+            }
+
+            Row {
+                width: parent.width
+                visible: root.proxmox.total !== undefined
+
+                Text {
+                    width: parent.width - Math.round(64 * root.echelle)
+                    text: "machines"
+                    color: Qt.alpha(Theme.fg, 0.6)
+                    font.pixelSize: Math.round(10 * root.echelle)
+                }
+
+                Text {
+                    width: Math.round(64 * root.echelle)
+                    horizontalAlignment: Text.AlignRight
+                    text: String(root.proxmox.en_cours || 0) + " / " + String(root.proxmox.total || 0)
+                    color: Theme.fg
+                    font.pixelSize: Math.round(11 * root.echelle)
+                    font.features: { "tnum": 1 }
                 }
             }
         }
