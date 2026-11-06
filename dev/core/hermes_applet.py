@@ -105,6 +105,18 @@ def analyser():
         libelle = "état périmé"
         niveau = "attention"
 
+    # Approbations en attente : publiées par le démon, lues comme le reste.
+    try:
+        attente = json.loads((chemin_etat().parent / "hermes-approbations.json")
+                             .read_text(encoding="utf-8")).get("approbations") or []
+    except (OSError, json.JSONDecodeError):
+        attente = []
+    if not isinstance(attente, list):
+        attente = []
+
+    if attente:
+        symbole, libelle, niveau = "!", "accord à donner", "attention"
+
     executions = d.get("executions") or []
     if not isinstance(executions, list):
         executions = []
@@ -125,6 +137,7 @@ def analyser():
         "executions": executions[:5],
         "cron": cron[:4],
         "jetons": jetons,
+        "approbations": attente[:3],
         "age_s": d.get("age_s"),
         "perime": bool(d.get("perime")),
         "present": True,
@@ -143,7 +156,10 @@ def presenter(a):
             "alerte": False,
         }
 
-    if a["etat"] == "attente":
+    if a.get("approbations"):
+        valeur, libelle = "!", "accord à donner"
+        a["alerte"] = True
+    elif a["etat"] == "attente":
         valeur, libelle = "!", "accord"
     elif a["etat"] == "erreur":
         valeur, libelle = "!", "erreur"

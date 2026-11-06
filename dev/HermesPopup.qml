@@ -23,6 +23,15 @@ Item {
     property var etat: ({})
     property bool charge: false
 
+    // Répondre à une demande : le démon tient la socket, le CLI envoie le
+    // verdict, puis on relit l'état pour que la ligne disparaisse tout de suite.
+    function repondre(id, verdict) {
+        action.verdict = verdict
+        action.identifiant = id
+        action.running = false
+        action.running = true
+    }
+
     function charger() {
         proc.running = false
         proc.running = true
@@ -45,6 +54,15 @@ Item {
                 root.charge = true
             }
         }
+    }
+
+    Process {
+        id: action
+        property string identifiant: ""
+        property string verdict: "oui"
+        command: ["python3", Quickshell.shellPath("core/hermes_approbations.py"),
+                  "repondre", action.identifiant, action.verdict]
+        onExited: root.charger()
     }
 
     implicitWidth: Math.round(324 * echelle)
@@ -123,6 +141,79 @@ Item {
                 color: Qt.alpha(Theme.fg, 0.75)
                 font.pixelSize: Math.round(root.corps * 0.9 * echelle)
                 font.features: { "tnum": 1 }
+            }
+        }
+
+        // ── approbations en attente ─────────────────────────────────────────
+        // Le démon publie les demandes ; ce bloc les rend cliquables. Deux
+        // Repeater imbriqués : la demande (titre, détail) puis ses deux verdicts.
+        Column {
+            width: parent.width
+            spacing: Math.round(8 * echelle)
+            visible: (root.etat.approbations || []).length > 0
+
+            Repeater {
+                model: root.etat.approbations || []
+
+                Column {
+                    id: blocDemande
+                    required property var modelData
+                    // L'identifiant vient de la demande, pas du bouton : sans cette
+                    // copie, le clic viserait le modelData du Repeater intérieur.
+                    readonly property string demandeId: String(modelData.id || "")
+                    width: parent.width
+                    spacing: Math.round(4 * echelle)
+
+                    Text {
+                        width: parent.width
+                        text: String(modelData.titre || "")
+                        color: Theme.warn
+                        font.pixelSize: Math.round(root.corps * echelle)
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: Boolean(modelData.detail)
+                        text: String(modelData.detail || "")
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Math.round(root.corps * 0.85 * echelle)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Row {
+                        spacing: Math.round(6 * echelle)
+
+                        Repeater {
+                            model: [{ "texte": "accorder", "verdict": "oui", "teinte": Theme.accent },
+                                    { "texte": "refuser", "verdict": "non", "teinte": Qt.alpha(Theme.fg, 0.5) }]
+
+                            Rectangle {
+                                required property var modelData
+                                width: Math.round(76 * echelle)
+                                height: Math.round(22 * echelle)
+                                radius: Math.round(6 * echelle)
+                                color: Qt.alpha(modelData.teinte, 0.16)
+                                border.width: 1
+                                border.color: Qt.alpha(modelData.teinte, 0.45)
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: String(modelData.texte)
+                                    color: modelData.teinte
+                                    font.pixelSize: Math.round(root.corps * 0.85 * echelle)
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.repondre(blocDemande.demandeId,
+                                                             String(modelData.verdict))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
