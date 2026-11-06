@@ -1,5 +1,7 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
+import Quickshell.Hyprland
 import "."
 
 // APPLET NOTIFICATIONS — la cloche et son compteur.
@@ -19,8 +21,93 @@ Item {
 
     // Le panneau est déclaré plus bas dans ce fichier : il s'ouvre donc collé à
     // la cloche, quel que soit l'endroit où elle est placée dans la barre.
-    readonly property var liste: Theme.notifList
-    readonly property var archive: Theme.notifArchive
+    // Les listes viennent du singleton Theme par des affectations explicites :
+    // une liaison sur un `property var` d'un singleton ne se réévalue pas de
+    // façon fiable quand l'îlot remplace le tableau (même piège que les options
+    // d'applet), et le panneau restait vide.
+    property var notifications: []
+
+    // Le pont d'actions est posé par l'ilot droit à son achèvement : tant qu'il
+    // ne l'est pas, appeler Theme.notifOps.actions lèverait un TypeError et
+    // casserait tout le panneau. Ces enveloppes rendent le pont facultatif.
+    function actionsDe(e) { return (Theme.notifOps && Theme.notifOps.actions) ? Theme.notifOps.actions(e) : [] }
+    function aCible(e) { return (Theme.notifOps && Theme.notifOps.hasTarget) ? Theme.notifOps.hasTarget(e) : false }
+    function oublier(e) { if (Theme.notifOps && Theme.notifOps.forget) Theme.notifOps.forget(e) }
+    function ouvrir(e, fermer) { if (Theme.notifOps && Theme.notifOps.open) Theme.notifOps.open(e, fermer) }
+    function invoquer(e, ident) { if (Theme.notifOps && Theme.notifOps.invoke) Theme.notifOps.invoke(e, ident) }
+    function toutEffacer() { if (Theme.notifOps && Theme.notifOps.clear) Theme.notifOps.clear() }
+    function rendreMuet(nom, muet) { if (Theme.notifOps && Theme.notifOps.setQuiet) Theme.notifOps.setQuiet(nom, muet) }
+
+    function majListe() {
+        const vive = Theme.notifList || []
+        root.notifications = vive.length > 0 ? vive : root.archive
+    }
+
+    // Historique lu ici, directement sur le fichier : le passage par une
+    // propriété du singleton ne se rafraîchissait pas (tableau remplacé), et le
+    // panneau restait vide alors que l'historique contenait bien les entrées.
+    property var archive: []
+
+    FileView {
+        path: {
+            const xdg = Quickshell.env("XDG_CACHE_HOME")
+            const base = xdg ? String(xdg)
+                             : (Quickshell.env("HOME") ? String(Quickshell.env("HOME")) + "/.cache" : "")
+            return base + "/quickshell/notifications-history.jsonl"
+        }
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: root.lireHistorique(text())
+        onTextChanged: root.lireHistorique(text())
+    }
+
+    function lireHistorique(txt) {
+        const lignes = String(txt || "").split("\n")
+        const out = []
+        for (let i = lignes.length - 1; i >= 0 && out.length < 6; i--) {
+            const l = lignes[i].trim()
+            if (l === "") continue
+            try {
+                const e = JSON.parse(l)
+                if (!e || !e.id) continue
+                out.push({
+                    id: e.id,
+                    appName: e.app || "",
+                    summary: e.summary || "",
+                    body: e.body || "",
+                    time: String(e.ts || "").slice(11, 16),
+                    archive: true
+                })
+            } catch (err) { /* ligne illisible : ignorée */ }
+        }
+        root.archive = out
+        root.majListe()
+    }
+
+    Connections {
+        target: Theme
+        function onNotifListChanged() { root.majListe() }
+    }
+
+    // Fermeture au clic à l'extérieur : même mécanique que le panneau réseau —
+    // attrapeur armé après l'affichage, sinon Hyprland le relâche aussitôt.
+    property bool pretGrab: false
+    onOuvertChanged: {
+        if (root.ouvert) delaiGrab.restart()
+        else root.pretGrab = false
+    }
+
+    Timer {
+        id: delaiGrab
+        interval: 150
+        onTriggered: root.pretGrab = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.ouvert && root.pretGrab
+        windows: [notificationsPopup]
+        onCleared: if (root.ouvert) Theme.activePopup = ""
+    }
     readonly property int compte: Theme.notifCount
 
     implicitWidth: rangee.implicitWidth + Math.round(10 * echelle)
@@ -79,10 +166,20 @@ Item {
         anchor.rect.x: (root.width - implicitWidth) / 2
         anchor.rect.y: Theme.barHeight + 6
         anchor.adjustment: PopupAdjustment.All
+        // Le panneau prend le clavier quand il est ouvert : sans cela Échap
+        // n'atteignait personne.
+        grabFocus: visible
         implicitWidth: 320
         implicitHeight: 340
         color: "transparent"
         visible: Theme.activePopup === "notifications"
+
+        // Échap ferme, quel que soit l'élément qui a le focus dans le panneau.
+        Shortcut {
+            sequence: "Escape"
+            enabled: notificationsPopup.visible
+            onActivated: Theme.activePopup = ""
+        }
 
         Rectangle {
             anchors.fill: parent
@@ -130,6 +227,51 @@ Item {
                             font.pixelSize: Theme.textXs
                             font.bold: true
                         }
+                    }
+
+                    // Ne pas déranger : bascule directe, à gauche de l'historique.
+                    // Même glyphe que l'applet (cloche barrée) pour que les deux
+                    // se lisent comme un seul état.
+                    Item {
+                        id: dndBtn
+                        anchors.right: historyBtn.left
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 20
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: "bell-off"
+                            size: 12
+                            color: Theme.doNotDisturb
+                                   ? Theme.accent
+                                   : (dndMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5))
+                            opacityLevel: Theme.doNotDisturb ? 1 : 0.9
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                        }
+
+                        MouseArea {
+                            id: dndMa
+                            anchors.fill: parent
+                            anchors.margins: -4
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Theme.doNotDisturb = !Theme.doNotDisturb
+                                dndBridge.running = true
+                            }
+                        }
+                    }
+
+                    // Écriture de l'état : le panneau a déjà basculé à l'écran,
+                    // il ne reste qu'à mémoriser le choix.
+                    Process {
+                        id: dndBridge
+                        command: ["python3", Quickshell.shellPath("core/config_manager.py"),
+                                  "style", "do_not_disturb",
+                                  Theme.doNotDisturb ? "true" : "false"]
                     }
 
                     // Historique : petite icône à gauche de « Tout effacer », qui
@@ -197,7 +339,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Theme.notifOps.clear()
+                            onClicked: root.toutEffacer()
                         }
                     }
                 }
@@ -249,9 +391,7 @@ Item {
                         Repeater {
                             // Liste vive tant qu'il y en a une, sinon les dernières
                             // entrées de l'historique (fenêtre jamais vide).
-                            model: Theme.notifList.length > 0
-                                   ? Theme.notifList
-                                   : Theme.notifArchive
+                            model: root.notifications
 
                             Rectangle {
                                 id: notifCard
@@ -335,7 +475,7 @@ Item {
                                                 anchors.margins: -4
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: Theme.notifOps.forget(modelData)
+                                                onClicked: root.oublier(modelData)
                                             }
                                         }
                                     }
@@ -361,10 +501,10 @@ Item {
                                         MouseArea {
                                             id: titleMa
                                             anchors.fill: parent
-                                            enabled: Theme.notifOps.hasTarget(modelData)
+                                            enabled: root.aCible(modelData)
                                             hoverEnabled: true
                                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                            onClicked: Theme.notifOps.open(modelData, true)
+                                            onClicked: root.ouvrir(modelData, true)
                                         }
                                     }
 
@@ -385,11 +525,11 @@ Item {
                                     // n'y figure pas, c'est le clic sur le titre.
                                     Flow {
                                         width: parent.width
-                                        visible: Theme.notifOps.actions(notifCard.modelData).length > 0
+                                        visible: root.actionsDe(notifCard.modelData).length > 0
                                         spacing: Theme.space1
 
                                         Repeater {
-                                            model: Theme.notifOps.actions(notifCard.modelData)
+                                            model: root.actionsDe(notifCard.modelData)
 
                                             Rectangle {
                                                 required property var modelData
@@ -415,7 +555,7 @@ Item {
                                                     anchors.fill: parent
                                                     hoverEnabled: true
                                                     cursorShape: Qt.PointingHandCursor
-                                                    onClicked: Theme.notifOps.invoke(notifCard.modelData, modelData.identifier)
+                                                    onClicked: root.invoquer(notifCard.modelData, modelData.identifier)
                                                 }
                                             }
                                         }
@@ -509,7 +649,7 @@ Item {
                                             anchors.margins: -4
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: Theme.notifOps.setQuiet(modelData, false)
+                                            onClicked: root.rendreMuet(modelData, false)
                                         }
                                     }
                                 }

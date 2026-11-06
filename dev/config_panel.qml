@@ -65,6 +65,8 @@ Rectangle {
           tab: 6, section: "greeter_theme", target: "secGreeter" },
         { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
           section: "widgets_api", target: "secApiKeys" },
+        { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 0,
+          section: "bureau_notifications", target: "secNotifs" },
         { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 7,
           section: "quickshell_calendrier", target: "secCalendrier" },
         { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 7,
@@ -244,6 +246,9 @@ Rectangle {
     // Mode nuit (onglet Système & Écrans) : température, plage, état.
     property int nuitTemp: 4000
     property bool nuitAllumee: false
+    // Ne pas déranger : même drapeau que la cloche de la barre et le centre de
+    // notifications (style_vars.json → do_not_disturb).
+    property bool dndActif: false
     property string nuitDe: ""
     property string nuitA: ""
     // Fournisseurs LLM (core/llm_providers.json) : une ligne par entrée, dans
@@ -659,6 +664,7 @@ Rectangle {
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (data.api_keys && typeof data.api_keys === "object") root.apiKeys = data.api_keys
+        if (typeof data.do_not_disturb === "boolean") root.dndActif = data.do_not_disturb
         if (data.night && typeof data.night === "object") {
             if (typeof data.night.temperature === "number") root.nuitTemp = data.night.temperature
             root.nuitAllumee = data.night.mode === true
@@ -810,6 +816,20 @@ Rectangle {
                 root.refreshConfigState()
             }
         }
+    }
+
+    Process {
+        id: dndProc
+        stdout: StdioCollector {
+            onStreamFinished: root.refreshConfigState()
+        }
+    }
+
+    function reglerDnd(actif) {
+        root.dndActif = actif
+        dndProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                           "style", "do_not_disturb", actif ? "true" : "false"]
+        dndProc.running = true
     }
 
     function reglerNuit(args) {
@@ -2116,6 +2136,77 @@ Rectangle {
             }   // fin Grid fenêtres
 
         }   // end CollapsibleSection secAspect
+
+            // Notifications : un seul réglage global ici, la bascule « ne pas
+            // déranger ». Elle coupe les toasts ; l'historique continue de se
+            // remplir, et la cloche de la barre se barre.
+            CollapsibleSection {
+                id: secNotifs
+                objectName: "secNotifs"
+                title: "Notifications"
+                icon: "bell"
+                expanded: root.sectionOpen("bureau_notifications", false)
+                onToggled: expanded => root.setPanelSection("bureau_notifications", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "« Ne pas déranger » n'affiche plus aucun toast : les notifications "
+                            + "arrivent quand même dans le centre et dans l'historique."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 30
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Ne pas déranger"
+                            color: root.dndActif ? Theme.accent : Theme.fg
+                            font.pixelSize: Theme.textSm
+                        }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 44
+                            height: 22
+                            radius: 11
+                            color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                            Rectangle {
+                                width: 18
+                                height: 18
+                                radius: 9
+                                y: 2
+                                x: root.dndActif ? parent.width - width - 2 : 2
+                                color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                Behavior on x { NumberAnimation { duration: 130 } }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.reglerDnd(!root.dndActif)
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: root.dndActif ? "Actif : aucun toast ne s'affiche." : "Inactif : les toasts s'affichent normalement."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
 
     }   // end Column tabEsthetiqueCol
         // ═════════════════════════════════════════════════════════════════════
