@@ -2681,8 +2681,7 @@ Rectangle {
                                 // Les propriétés `required` doivent vivre sur la
                                 // racine du délégué, pas sur son enfant.
                                 required property var modelData
-                                Component.onCompleted: if (appletRow.donnee.id === "disques")
-                                    console.log("SONDE disques options:", JSON.stringify(appletRow.donnee.options || null))
+
                                 readonly property var donnee: modelData
                                 width: parent.width
                                 spacing: 3
@@ -3036,11 +3035,16 @@ Rectangle {
                                                 required property var modelData
                                                 readonly property string montage: String(modelData.montage || "")
                                                 readonly property bool coche: {
-                                                    // Lecture de la signature :
-                                                    // c'est elle qui porte la
-                                                    // dépendance, pas l'objet JS.
+                                                    // Deux précautions : lire la
+                                                    // signature (dépendance réactive)
+                                                    // et relire l'entrée courante par
+                                                    // id — le `modelData` du délégué
+                                                    // reste figé sur l'ancienne copie
+                                                    // quand la liste est réaffectée.
                                                     const _ = root.appletSignature
-                                                    return root.montageCoche(appletRow.donnee, montage)
+                                                    const vive = root.entreeApplet(appletRow.donnee.id)
+                                                                 || appletRow.donnee
+                                                    return root.montageCoche(vive, montage)
                                                 }
 
                                                 width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
@@ -3116,7 +3120,10 @@ Rectangle {
                                         Rectangle {
                                             required property var modelData
                                             readonly property bool coche: {
-                                                const o = appletRow.donnee.options || ({})
+                                                const _ = root.appletSignature
+                                                const vive = root.entreeApplet(appletRow.donnee.id)
+                                                             || appletRow.donnee
+                                                const o = vive.options || ({})
                                                 const v = o[modelData.cle]
                                                 if (v === undefined || v === null || v === "") return true
                                                 return !(v === false || v === "false"
