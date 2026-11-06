@@ -40,6 +40,16 @@ Item {
     Component.onCompleted: charger()
     onOuvertChanged: if (ouvert) charger()
 
+    // Une demande d'approbation peut arriver alors que le popup est déjà ouvert :
+    // sans cette relecture, elle n'apparaîtrait qu'après l'avoir fermé et rouvert.
+    // Cinq secondes, et seulement pendant l'ouverture — le reste du temps, rien.
+    Timer {
+        interval: 5000
+        running: root.ouvert
+        repeat: true
+        onTriggered: root.charger()
+    }
+
     Process {
         id: proc
         command: ["python3", Quickshell.shellPath("core/hermes_applet.py")]
