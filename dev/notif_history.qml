@@ -137,13 +137,19 @@ Item {
     function reopen(entry) {
         const target = entry && entry.target ? entry.target : null
         if (!target || target.kind === "action") return false
-        if (!target.cmd || target.cmd.length === 0) return false
+        const aCmd = target.cmd && target.cmd.length > 0
+        const aFocus = target.focus && target.focus.length > 0
+        if (!aCmd && !aFocus) return false
         // Passer par notif_open.sh plutôt que `execDetached` : une cible morte
         // (binaire désinstallé, alias renommé) doit se voir, sinon le clic ne
-        // produit rien et rien ne dit pourquoi.
-        const label = String(entry.summary || entry.app || "cette notification")
-        Quickshell.execDetached(
-            ["bash", Quickshell.shellPath("core/notif_open.sh"), label, "--"].concat(target.cmd))
+        // produit rien et rien ne dit pourquoi. Le script met au focus la fenêtre
+        // déjà ouverte avant de lancer quoi que ce soit.
+        let args = ["bash", Quickshell.shellPath("core/notif_open.sh"),
+                    String(entry.summary || entry.app || "cette notification")]
+        const focus = target.focus || []
+        for (let i = 0; i < focus.length; i++)
+            args = args.concat(["--focus", String(focus[i])])
+        Quickshell.execDetached(args.concat(["--"]).concat(target.cmd || []))
         return true
     }
 

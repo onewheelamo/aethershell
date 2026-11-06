@@ -322,7 +322,21 @@ Item {
     function notifHasTarget(entry) {
         if (!entry || !entry.target) return false
         if (entry.target.kind === "action") return true
-        return Boolean(entry.target.cmd && entry.target.cmd.length > 0)
+        // Une cible peut n'avoir qu'un focus (application déjà ouverte) : le
+        // titre doit rester cliquable même sans commande à lancer.
+        return Boolean((entry.target.cmd && entry.target.cmd.length > 0)
+                       || (entry.target.focus && entry.target.focus.length > 0))
+    }
+
+    // argv de notif_open.sh : le libellé, les motifs de focus, puis la commande.
+    function argsNotifOpen(entry) {
+        const target = entry.target
+        let args = ["bash", Quickshell.shellPath("core/notif_open.sh"),
+                    String(entry.summary || entry.appName || "cette notification")]
+        const focus = target.focus || []
+        for (let i = 0; i < focus.length; i++)
+            args = args.concat(["--focus", String(focus[i])])
+        return args.concat(["--"]).concat(target.cmd || [])
     }
 
     // Retrait d'une notification déjà fermée (application, expiration, action).
@@ -453,9 +467,7 @@ Item {
             }
         } else {
             // Même raison que dans le tiroir : l'échec doit être visible.
-            const label = String(entry.summary || entry.appName || "cette notification")
-            Quickshell.execDetached(
-                ["bash", Quickshell.shellPath("core/notif_open.sh"), label, "--"].concat(target.cmd))
+            Quickshell.execDetached(islandRight.argsNotifOpen(entry))
         }
         islandRight.forgetNotif(entry)
         if (islandRight.latestToast && String(islandRight.latestToast.id) === String(entry.id))

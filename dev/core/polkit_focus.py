@@ -78,9 +78,20 @@ def _fenetre_courante():
 
 
 def _concentrer(adresse):
-    """Force le focus, puis vérifie : `focuswindow` peut être refusé si la fenêtre
-    n'est pas encore mappée. Deux essais suffisent en pratique."""
+    """Force le focus, puis vérifie que la fenêtre active a bien changé.
+
+    Hyprland 0.57 (config Lua) réévalue l'argument de `hyprctl dispatch` comme du
+    Lua : `dispatch focuswindow address:0x…` échoue au parsing (« ')' expected
+    near 'address' ») et ne faisait donc jamais rien. Le dispatcher passe par
+    `repl` ; la forme historique reste en repli pour une version antérieure.
+    Trois essais : la fenêtre peut n'être pas encore mappée.
+    """
     for _ in range(3):
+        _hyprctl("repl", 'hl.dispatch(hl.dsp.focus({ window = "address:%s" }))' % adresse)
+        time.sleep(0.12)
+        courante = _fenetre_courante()
+        if str(courante.get("address", "")).lower() == adresse.lower():
+            return True
         _hyprctl("dispatch", "focuswindow", "address:" + adresse)
         time.sleep(0.12)
         courante = _fenetre_courante()

@@ -219,25 +219,80 @@ def resolve(req):
     # 5. application émettrice, par son entrée de bureau
     entry = desktop_entry_for(index, desktop, app_name)
     if entry:
-        return {"rule": "app", "kind": "app", "cmd": shlex.split(entry.get("exec") or ""),
+        # `focus` : de quoi retrouver la fenêtre déjà ouverte. Un « il faut
+        # autoriser » vient d'une application qui tourne — la lancer une seconde
+        # fois ouvrirait un doublon au lieu de montrer celle qui attend.
+        return {"rule": "app", "kind": "app", "focus": focus_motifs(entry, desktop, app_name),
+                "cmd": shlex.split(entry.get("exec") or ""),
                 "display": entry.get("exec") or "", "label": entry.get("name") or app_name}
+
+    # Aucune règle : on garde au moins l'application émettrice pour un focus.
+    if app_name or desktop:
+        return {"rule": "focus", "kind": "focus", "cmd": [],
+                "focus": focus_motifs(None, desktop, app_name),
+                "display": desktop or app_name, "label": app_name or desktop}
 
     return {}
 
 
+def _sans_ext(valeur):
+    v = str(valeur or "").strip().lower()
+    return v[:-len(".desktop")] if v.endswith(".desktop") else v
+
+
 def desktop_entry_for(index, desktop, app_name):
+    """Entrée de bureau de l'application émettrice, avec de la tolérance.
+
+    Une notification annonce rarement l'identifiant exact : « code » pour
+    `code-oss.desktop`, « Antigravity » pour une extension de VS Code. On essaie
+    donc l'identifiant tel quel, puis sans `.desktop`, puis par préfixe — et
+    seulement ensuite par le nom.
+    """
     if not isinstance(index, list):
         return None
-    wanted = (desktop or "").lower()
+    wanted = _sans_ext(desktop)
     if wanted:
         for entry in index:
-            if str(entry.get("desktop", "")).lower() == wanted:
+            if _sans_ext(entry.get("desktop")) == wanted:
+                return entry
+    if wanted:
+        for entry in index:
+            candidat = _sans_ext(entry.get("desktop"))
+            if candidat and (candidat.startswith(wanted) or wanted.startswith(candidat)):
                 return entry
     if app_name:
         for entry in index:
-            if str(entry.get("name", "")).lower() == app_name.lower():
+            if _sans_ext(entry.get("name")) == _sans_ext(app_name):
+                return entry
+    if app_name:
+        for entry in index:
+            nom = _sans_ext(entry.get("name"))
+            if nom and (app_name.lower() in nom or nom in app_name.lower()):
                 return entry
     return None
+
+
+def focus_motifs(entry, desktop, app_name):
+    """Motifs pour retrouver la fenêtre : du plus sûr au plus large.
+
+    Le nom du binaire d'abord (c'est la classe Wayland dans la majorité des cas),
+    puis l'identifiant de bureau, puis le nom affiché.
+    """
+    motifs = []
+    if isinstance(entry, dict):
+        motifs.append(os.path.basename(str(entry.get("exec") or "").split()[0]) if entry.get("exec") else "")
+        motifs.append(_sans_ext(entry.get("desktop")))
+        motifs.append(_sans_ext(entry.get("name")))
+    motifs.append(_sans_ext(desktop))
+    motifs.append(_sans_ext(app_name))
+    vus, out = set(), []
+    for m in motifs:
+        m = (m or "").strip()
+        if len(m) < 3 or m in vus:
+            continue
+        vus.add(m)
+        out.append(m)
+    return out[:4]
 
 
 def log_line(req, res):
