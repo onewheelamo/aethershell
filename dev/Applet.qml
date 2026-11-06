@@ -44,6 +44,38 @@ Item {
     // Mode jauge : plusieurs mesures, une mini-barre chacune (applet système).
     readonly property var barres: (ok && ligne.barres && ligne.barres.length)
                                   ? ligne.barres : []
+    // Carte de survol : le contrat peut publier `survol` — la liste de ce que la
+    // barre ne montre pas. Elle s'affiche après un court délai, sans clic et sans
+    // prendre le focus ; le popup complet reste au clic. Deux affordances
+    // distinctes : effleurer pour voir, cliquer pour agir.
+    readonly property var survol: (ok && donnees.survol && donnees.survol.length)
+                                  ? donnees.survol : []
+    property bool carteSurvol: false
+
+    HoverHandler {
+        id: survolHover
+        onHoveredChanged: {
+            if (hovered) {
+                delaiMontrer.restart()
+            } else {
+                delaiMontrer.stop()
+                delaiCacher.restart()
+            }
+        }
+    }
+
+    Timer {
+        id: delaiMontrer
+        interval: 350
+        onTriggered: root.carteSurvol = true
+    }
+
+    Timer {
+        id: delaiCacher
+        interval: 220
+        onTriggered: root.carteSurvol = false
+    }
+
     readonly property string infobulle: {
         if (!ok) return String((donnees && donnees.error) || "")
         const libelle = String(ligne.libelle || "")
@@ -233,6 +265,77 @@ Item {
             Theme.activePopup = root.ouvert ? "" : cle
             // Une ouverture est aussi une occasion de rafraîchir le détail.
             if (!root.ouvert) root.rafraichir(true)
+        }
+    }
+
+    // ── carte de survol ──────────────────────────────────────────────────────
+    // Sans attrapeur de clic et sans focus : elle ne doit rien intercepter, sinon
+    // effleurer l'applet suffirait à bloquer la barre.
+    PopupWindow {
+        id: carte
+        anchor.item: root
+        anchor.rect.x: 0
+        anchor.rect.y: Theme.barHeight + 6
+        anchor.adjustment: PopupAdjustment.All
+        implicitWidth: Math.ceil(colonneCarte.implicitWidth + Theme.space4 * 2)
+        implicitHeight: Math.ceil(colonneCarte.implicitHeight + Theme.space3 * 2)
+        color: "transparent"
+        visible: root.carteSurvol && !root.ouvert && root.survol.length > 0
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.surfaceBg
+            radius: Theme.globalRadius
+            border.color: Qt.alpha(Theme.accent, 0.55)
+            border.width: 1
+
+            Column {
+                id: colonneCarte
+                anchors.centerIn: parent
+                spacing: Math.round(5 * root.echelle)
+
+                Text {
+                    text: String(root.applet.nom || "")
+                    color: Qt.alpha(Theme.fg, 0.55)
+                    font.pixelSize: Math.round(Theme.textXs * 0.85 * root.echelle)
+                }
+
+                // Deux colonnes plutôt qu'une grille : chaque colonne prend la
+                // largeur de son texte le plus long, les lignes restent alignées,
+                // et « Ollama Cloud » n'est plus tronqué.
+                Row {
+                    spacing: Math.round(10 * root.echelle)
+
+                    Column {
+                        spacing: Math.round(3 * root.echelle)
+
+                        Repeater {
+                            model: root.survol
+                            delegate: Text {
+                                required property var modelData
+                                text: String(modelData.nom || "")
+                                color: Qt.alpha(Theme.fg, 0.75)
+                                font.pixelSize: Math.round(Theme.textXs * root.echelle)
+                            }
+                        }
+                    }
+
+                    Column {
+                        spacing: Math.round(3 * root.echelle)
+
+                        Repeater {
+                            model: root.survol
+                            delegate: Text {
+                                required property var modelData
+                                text: String(modelData.valeur || "")
+                                color: modelData.alerte ? Theme.warn : Theme.fg
+                                font.pixelSize: Math.round(Theme.textXs * root.echelle)
+                                font.features: { "tnum": 1 }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

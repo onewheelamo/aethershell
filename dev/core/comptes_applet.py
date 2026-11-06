@@ -97,22 +97,79 @@ def _choisir(services):
     return "—", "", False
 
 
-def analyser(force=False):
+def _valeur_service(nom, s):
+    """La valeur qui représente un service : son quota le plus bas, sinon son solde.
+
+    Un service à quotas (Antigravity) est résumé par le quota qui contraint le
+    plus ; un service à solde (DeepSeek, Ollama) par ce solde. Le libellé nomme
+    la ligne choisie, sinon on ne saurait pas de quoi parle le chiffre.
+    """
+    if not s or not s.get("ok"):
+        return None
+    lignes = s.get("lignes") or []
+    if lignes:
+        pire = min(lignes, key=lambda l: _pourcentage(l.get("valeur")))
+        texte = str(pire.get("valeur") or "").strip()
+        if texte:
+            return texte, str(pire.get("nom") or nom), bool(pire.get("alerte"))
+    mesures = s.get("mesures") or []
+    if mesures:
+        texte = str(mesures[0].get("valeur") or "").strip()
+        if texte:
+            return texte, str(s.get("fournisseur") or nom), bool(s.get("alerte"))
+    return None
+
+
+def _survol(services, prefere, affiche=None):
+    """Les autres services, pour la carte de survol : nom et valeur, rien de plus.
+
+    On écarte aussi celui que la barre montre déjà : sans préférence choisie, la
+    règle d'alerte peut désigner n'importe quel service, et la carte le répétait.
+    """
+    lignes = []
+    for nom in SERVICES:
+        if nom == prefere:
+            continue
+        trouve = _valeur_service(nom, services.get(nom))
+        if not trouve:
+            continue
+        if affiche and trouve[1] == affiche[1] and trouve[0] == affiche[0]:
+            continue
+        lignes.append({"nom": trouve[1], "valeur": trouve[0], "alerte": trouve[2]})
+    return lignes
+
+
+def analyser(options=None, force=False):
+    prefere = str((options or {}).get("prefere") or "").strip()
     if not force:
         try:
             lu = json.loads(CACHE.read_text(encoding="utf-8"))
-            if 0 <= time.time() - float(lu.get("ts", 0)) < CACHE_TTL:
+            # Le cache porte le choix qui l'a produit : changer de service
+            # prioritaire doit se voir tout de suite, pas au bout d'une minute.
+            if (0 <= time.time() - float(lu.get("ts", 0)) < CACHE_TTL
+                    and str(lu.get("prefere") or "") == prefere):
                 return lu
         except (OSError, ValueError):
             pass
     services = _collecter()
-    valeur, libelle, alerte = _choisir(services)
+    choisi = _valeur_service(prefere, services.get(prefere)) if prefere in SERVICES else None
+    if choisi:
+        # Service préféré choisi par l'utilisateur : la barre l'affiche, même si
+        # un autre service est plus bas. La carte de survol montre les autres, et
+        # le popup garde le détail complet — l'alerte reste visible via la couleur.
+        valeur, libelle, alerte = choisi
+    else:
+        valeur, libelle, alerte = _choisir(services)
+    survol = _survol(services, prefere if choisi else "", (valeur, libelle))
     manquants = [nom for nom, s in services.items() if not (s and s.get("ok"))]
     donnees = {
         "ok": True,
         "ts": time.time(),
         "alerte": alerte,
         "compact": compact(valeur, libelle, alerte),
+        # Carte de survol : les services que la barre ne montre pas.
+        "survol": survol,
+        "prefere": prefere if choisi else "",
         # Le popup n'utilise pas ce détail (il relance les services), mais il
         # permet de diagnostiquer depuis la ligne de commande sans deviner.
         "services": {nom: bool(s and s.get("ok")) for nom, s in services.items()},
@@ -128,7 +185,14 @@ def analyser(force=False):
 
 def main(argv):
     force = "--force" in argv
-    donnees = analyser(force=force)
+    options = {}
+    for arg in argv[1:]:
+        if arg.startswith("--options="):
+            try:
+                options = json.loads(arg.split("=", 1)[1])
+            except ValueError:
+                options = {}
+    donnees = analyser(options=options, force=force)
     presenter(donnees, "comptes", "wallet", donnees["compact"],
               alerte=donnees["alerte"])
     return sortir(donnees)

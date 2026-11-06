@@ -2235,17 +2235,23 @@ Rectangle {
                         Repeater {
                             model: root.appletRows
 
-                            delegate: Rectangle {
+                            delegate: Column {
                                 id: appletRow
+                                // Les propriétés `required` doivent vivre sur la
+                                // racine du délégué, pas sur son enfant.
                                 required property var modelData
                                 readonly property var donnee: modelData
                                 width: parent.width
+                                spacing: 3
+
+                                Rectangle {
+                                width: parent.width
                                 height: 30
                                 radius: Theme.globalRadius
-                                color: donnee.actif
+                                color: appletRow.donnee.actif
                                     ? Qt.alpha(Theme.accent, 0.10) : Theme.surfaceVariant
                                 border.width: 1
-                                border.color: donnee.actif
+                                border.color: appletRow.donnee.actif
                                     ? Qt.alpha(Theme.accent, 0.5) : "transparent"
 
                                 Row {
@@ -2434,6 +2440,64 @@ Rectangle {
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.appletCommande(["placer",
                                                     appletRow.donnee.id, ileChip.modelData.code])
+                                            }
+                                        }
+                                    }
+                                }
+                                }
+
+                                // Choix déclaré au catalogue : ici, le service que
+                                // l'applet des comptes affiche dans la barre.
+                                Row {
+                                    visible: appletRow.donnee.choix !== undefined
+                                    width: parent.width
+                                    height: visible ? 18 : 0
+                                    spacing: 4
+
+                                    Item { width: 26; height: 1 }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: String(appletRow.donnee.choix && appletRow.donnee.choix.libelle
+                                                     ? appletRow.donnee.choix.libelle : "")
+                                        color: Qt.alpha(Theme.fg, 0.5)
+                                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                    }
+
+                                    Repeater {
+                                        model: (appletRow.donnee.choix && appletRow.donnee.choix.valeurs) || []
+
+                                        Rectangle {
+                                            required property var modelData
+                                            readonly property bool choisi: {
+                                                const o = appletRow.donnee.options || ({})
+                                                const cle = appletRow.donnee.choix
+                                                    ? appletRow.donnee.choix.cle : ""
+                                                return String(o[cle] || "") === String(modelData.code)
+                                            }
+                                            width: 62
+                                            height: 16
+                                            radius: 4
+                                            color: choisi ? Theme.accent : "transparent"
+                                            border.width: 1
+                                            border.color: choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                            opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: String(modelData.nom || modelData.code)
+                                                color: choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                font.bold: choisi
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["option", appletRow.donnee.id,
+                                                                         appletRow.donnee.choix.cle,
+                                                                         String(modelData.code)])
                                             }
                                         }
                                     }

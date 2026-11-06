@@ -134,6 +134,15 @@
             "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",
             "icone": "wallet",
             "service": "core/comptes_applet.py",
+            "choix": {
+              "cle": "prefere",
+              "libelle": "Service affiché dans la barre",
+              "valeurs": [
+                { "code": "deepseek", "nom": "DeepSeek" },
+                { "code": "ollama", "nom": "Ollama" },
+                { "code": "antigravity", "nom": "Antigravity" }
+              ]
+            },
             "popup": "widgets/comptes.qml",
             "ile": "droite",
             "ordre": 10,
