@@ -204,7 +204,7 @@
         {
             "id": "homelab",
             "nom": "Homelab",
-            "description": "Conteneurs, services en échec et hôtes joignables ; clic pour le détail",
+            "description": "Les invités Proxmox (CT et VM), les services systemd en échec et les hôtes qui répondent ; clic pour le détail et le redémarrage",
             "icone": "cloud-check",
             "service": "core/homelab_applet.py",
             "popup": "HomelabPopup.qml",
@@ -224,6 +224,20 @@
             "ordre": 25,
             "cadence": 10,
             "text_scale": 100
+        },
+        {
+            "id": "hermes",
+            "nom": "Hermes",
+            "description": "L'état de l'agent : tâche en cours, file d'attente, dernières exécutions, tâches planifiées",
+            "icone": "rocket",
+            "service": "core/hermes_applet.py",
+            "popup": "HermesPopup.qml",
+            "ile": "haut:fin",
+            "ordre": 15,
+            "cadence": 60,
+            "text_scale": 100,
+            "widget": "hermes",
+            "genre": "service"
         }
     ]
 }

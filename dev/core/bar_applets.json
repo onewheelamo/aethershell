@@ -6,6 +6,12 @@
             "ordre": 10,
             "text_scale": 100,
             "options": {}
+        },
+        "hermes": {
+            "ile": "haut:fin",
+            "ordre": 15,
+            "text_scale": 100,
+            "options": {}
         }
     }
 }
