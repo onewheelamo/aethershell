@@ -15,11 +15,15 @@ import Quickshell.Services.Mpris
 Item {
     id: panneau
 
-    // Item de référence (l'îlot) : la fenêtre se place sous lui.
-    // `required` : l'ancre doit exister *avant* la création de la fenêtre,
-    // sinon Quickshell ne mappe jamais la surface du popup.
-    required property Item ancre
+    // Item de référence : l'applet qui porte ce panneau. `Applet.qml` le pose
+    // juste après la création, d'où l'absence de `required` ; la fenêtre ne
+    // s'affiche qu'une fois l'ancre connue et l'ouverture demandée.
+    property Item ancre: null
     property bool ouvert: false
+    // Emplacement de l'applet (« barre:place ») : c'est la barre qui décide de
+    // quel côté le panneau s'ouvre.
+    readonly property string ileAncre: (panneau.ancre && panneau.ancre.ile)
+                                       ? String(panneau.ancre.ile) : ""
 
     // L'attrapeur de focus de l'îlot a besoin de la *fenêtre*, pas de
     // cet Item : les deux ne sont pas au même niveau d'imbrication.
@@ -157,14 +161,16 @@ Item {
         }
 
         anchor.item: panneau.ancre
-        anchor.rect.x: (panneau.ancre.width - implicitWidth) / 2
-        anchor.rect.y: panneau.ancre.popupY(panneau.ancre)
+        // Même règle que les popups d'applet : la barre qui porte l'applet donne
+        // le côté. Sous la barre du haut, à côté d'une barre latérale, au-dessus
+        // de la barre du bas.
+        anchor.rect.x: Theme.ancrePopupX(panneau.ileAncre, panneau.ancre, implicitWidth, "centre")
+        anchor.rect.y: Theme.ancrePopupY(panneau.ileAncre, panneau.ancre, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(panneau.ancre.clampPopupX(panneau.ancre, (panneau.ancre.width - implicitWidth) / 2, implicitWidth), panneau.ancre.popupY(panneau.ancre), anchor.rect.width, anchor.rect.height)
         implicitWidth: 360
         implicitHeight: mediaCol.implicitHeight + 28
         color: "transparent"
-        visible: panneau.ouvert && player !== null
+        visible: panneau.ouvert && player !== null && panneau.ancre !== null
 
         Rectangle {
             anchors.fill: parent

@@ -15,11 +15,15 @@ import Quickshell.Io
 Item {
     id: panneau
 
-    // Item de référence (l'îlot) : la fenêtre se place sous lui.
-    // `required` : l'ancre doit exister *avant* la création de la fenêtre,
-    // sinon Quickshell ne mappe jamais la surface du popup.
-    required property Item ancre
+    // Item de référence : l'applet qui porte ce panneau. `Applet.qml` le pose
+    // juste après la création, d'où l'absence de `required` ; la fenêtre ne
+    // s'affiche qu'une fois l'ancre connue et l'ouverture demandée.
+    property Item ancre: null
     property bool ouvert: false
+    // Emplacement de l'applet (« barre:place ») : c'est la barre qui décide de
+    // quel côté le panneau s'ouvre.
+    readonly property string ileAncre: (panneau.ancre && panneau.ancre.ile)
+                                       ? String(panneau.ancre.ile) : ""
 
     // L'attrapeur de focus de l'îlot a besoin de la *fenêtre*, pas de
     // cet Item : les deux ne sont pas au même niveau d'imbrication.
@@ -363,13 +367,15 @@ Item {
         }
 
         anchor.item: panneau.ancre
-        anchor.rect.x: -Math.round((implicitWidth - panneau.ancre.width) / 2)
-        anchor.rect.y: versLeBas ? (panneau.ancre.height + 6) : (-implicitHeight - 6)
+        // La barre qui porte l'applet donne le côté : dessous pour la barre du
+        // haut, à côté pour une barre latérale, au-dessus pour celle du bas.
+        anchor.rect.x: Theme.ancrePopupX(panneau.ileAncre, panneau.ancre, implicitWidth, "centre")
+        anchor.rect.y: Theme.ancrePopupY(panneau.ileAncre, panneau.ancre, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: 310
         implicitHeight: calMainCol.implicitHeight + 28
         color: "transparent"
-        visible: panneau.ouvert
+        visible: panneau.ouvert && panneau.ancre !== null
         grabFocus: visible && panneau.addingEvent
 
         Rectangle {

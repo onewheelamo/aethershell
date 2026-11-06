@@ -24,22 +24,12 @@ Item {
     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
     // ────────────────────────────────────────────────────────────────────────
-    // SECTION 1: POPUP GEOMETRY & SCREEN CLAMPING HELPERS
+    // SECTION 1: ÉTAT DES PANNEAUX
     // ────────────────────────────────────────────────────────────────────────
-    // Gardés ici parce que les panneaux reçoivent cet îlot comme `ancre` : ils
-    // ne connaissent ni la fenêtre de la barre, ni les marges de l'écran.
-    function popupY(item) {
-        return islandCenter.height + 6 - islandCenter.mapFromItem(item, 0, 0).y
-    }
-
-    function clampPopupX(item, relX, popupW) {
-        const win = islandCenter.QsWindow.window
-        if (!win) return relX
-        const ix = win.contentItem.mapFromItem(item, 0, 0).x
-        const absX = Math.max(8, Math.min(win.width - popupW - 8, ix + relX))
-        return absX - ix
-    }
-
+    // Les panneaux (calendrier, média) ne vivent plus ici : ils appartiennent à
+    // leur applet, qui les charge et les ancre sur lui-même — c'est ce qui les
+    // fait suivre l'applet sur n'importe quelle barre. L'îlot ne garde que la
+    // teinte de bordure qui signale le calendrier ouvert.
     readonly property bool calendarOpen: Theme.activePopup === "calendar"
     readonly property bool mediaOpen: Theme.activePopup === "media"
 
@@ -138,18 +128,4 @@ Item {
     // MediaPanneau). L'îlot ne connaît plus ni leur fenêtre ni leur cycle de vie.
 
 
-    // ────────────────────────────────────────────────────────────────────────
-    // SECTION 8: PANNEAUX
-    // ────────────────────────────────────────────────────────────────────────
-    MediaPanneau {
-        id: mediaPopup
-        ancre: islandCenter
-        ouvert: islandCenter.mediaOpen
-    }
-
-    CalendrierPanneau {
-        id: calendarPopup
-        ancre: islandCenter
-        ouvert: islandCenter.calendarOpen
-    }
 }

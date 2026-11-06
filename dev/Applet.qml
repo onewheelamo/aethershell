@@ -90,6 +90,10 @@ Item {
     //    seul déclencheur, et la clé est la même que celle des îlots.
     readonly property string popupCle: String(applet.popup_cle || "")
     readonly property bool popupExterne: popupCle !== ""
+    // L'applet connaît son emplacement (« barre:place ») : c'est ce qui donne
+    // l'orientation du popup et, pour les panneaux autonomes, de quel côté ils
+    // doivent s'ouvrir.
+    readonly property string ile: String(applet.ile || "")
 
     // ── deux genres d'applet ─────────────────────────────────────────────────
     // « service » : un script Python rend un contrat JSON, l'applet dessine.
@@ -424,7 +428,13 @@ Item {
                 // C'est le même piège que le Loader d'applet, corrigé ici aussi ;
                 // mesuré : `file://` donnait Theme_QMLTYPE_4, le relatif donne
                 // l'instance de la racine.
-                source: String(root.applet.popup || "")
+                // Un panneau autonome (calendrier, média) a son propre Loader :
+                // ce composant-ci ne charge que les popups de contenu, qui sont
+                // enveloppés dans la fenêtre ci-dessus. Charger les deux ici
+                // revenait à instancier le panneau deux fois, et à lui écrire
+                // `options`, qu'il ne déclare pas.
+                source: (root.popupExterne || String(root.applet.popup || "") === "")
+                        ? "" : String(root.applet.popup)
                 onLoaded: {
                     if (!item) return
                     item.options = {
@@ -435,6 +445,27 @@ Item {
                     item.widgetId = ""
                 }
             }
+        }
+    }
+
+    // ── panneau autonome (calendrier, média) ─────────────────────────────────
+    // Ces deux composants apportent leur propre `PopupWindow`, leur attrapeur de
+    // clic extérieur et leur touche Échap : l'applet ne leur donne que son ancre
+    // (lui-même) et son état d'ouverture. C'est ce qui les fait suivre l'applet
+    // sur n'importe quelle barre — avant, l'îlot central les possédait, et
+    // poser l'applet sur un côté ouvrait son panneau sous la barre du haut.
+    //
+    // `ancre` et `ouvert` sont posés après la création : les panneaux ne les
+    // déclarent donc pas `required`, et n'affichent leur fenêtre qu'une fois
+    // l'ancre connue.
+    Loader {
+        id: chargeurPanneau
+        source: (root.popupExterne && String(root.applet.popup || "") !== "")
+                ? String(root.applet.popup) : ""
+        onLoaded: {
+            if (!item) return
+            item.ancre = Qt.binding(() => root)
+            item.ouvert = Qt.binding(() => root.ouvert)
         }
     }
 
