@@ -18,6 +18,13 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
+    // Barre de côté : une seule icône, agrandie, et pas de texte — une valeur
+    // coupée au milieu se lit mal. Le nom de l'applet est au survol, le détail
+    // dans le popup. `Applet.qml` pose la propriété si elle existe.
+    property bool verticale: false
+    readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
+                                                  * (verticale ? 1.45 : 1))
+
     property int pourcent: 0
     property bool muet: false
     property bool pret: false
@@ -90,13 +97,14 @@ Item {
         Icon {
             anchors.verticalCenter: parent.verticalCenter
             glyph: root.icone()
-            size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
+            size: root.tailleIcone
             color: root.muet ? Theme.warn : Theme.fg
             opacityLevel: root.pret ? 0.92 : 0.4
         }
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
+            visible: !root.verticale
             text: root.pret ? root.pourcent + " %" : ""
             color: root.muet ? Theme.warn : Theme.fg
             font.pixelSize: Math.round(Theme.textXs * root.echelle)

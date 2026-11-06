@@ -17,6 +17,13 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
+    // Barre de côté : une seule icône, agrandie, et pas de texte — une valeur
+    // coupée au milieu se lit mal. Le nom de l'applet est au survol, le détail
+    // dans le popup. `Applet.qml` pose la propriété si elle existe.
+    property bool verticale: false
+    readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
+                                                  * (verticale ? 1.45 : 1))
+
     readonly property bool ouvert: Theme.activePopup === "notifications"
 
     // Le panneau est déclaré plus bas dans ce fichier : il s'ouvre donc collé à
@@ -133,13 +140,13 @@ Item {
                 // l'était dès qu'il n'y avait aucune notification, ce qui
                 // laissait croire à un mode silencieux permanent.
                 glyph: Theme.doNotDisturb ? "bell-off" : "bell"
-                size: Math.max(11, Math.round(Theme.iconSm * echelle))
+                size: root.tailleIcone
                 color: root.ouvert ? Theme.bg : (root.compte > 0 ? Theme.warn : Theme.fg)
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.compte > 0
+                visible: root.compte > 0 && !root.verticale
                 text: String(root.compte)
                 color: root.ouvert ? Theme.bg : Theme.warn
                 font.pixelSize: Math.round(Theme.textXs * echelle)

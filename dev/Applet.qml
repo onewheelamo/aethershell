@@ -283,7 +283,10 @@ Item {
 
         Defilement {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: texte !== ""
+            // En colonne, la valeur ne s'affiche que si elle tient entièrement
+            // dans la bande : une valeur coupée se lit mal, et le détail est
+            // dans le popup. Sur une barre horizontale, elle défile au besoin.
+            visible: texte !== "" && (!root.verticale || largeurTexte <= largeurMax)
             texte: root.valeur
             couleur: root.alerte ? Theme.warn : Theme.fg
             taillePolice: Math.round(Theme.textXs * 0.85 * root.echelle)

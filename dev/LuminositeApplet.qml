@@ -16,6 +16,13 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
+    // Barre de côté : une seule icône, agrandie, et pas de texte — une valeur
+    // coupée au milieu se lit mal. Le nom de l'applet est au survol, le détail
+    // dans le popup. `Applet.qml` pose la propriété si elle existe.
+    property bool verticale: false
+    readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
+                                                  * (verticale ? 1.45 : 1))
+
     // Mode nuit : filtre chaud. Sur la tour, c'est le seul contenu de l'applet
     // avec la luminosité ; sur le portable, il accompagne la batterie.
     property bool nuitAllumee: false
@@ -132,15 +139,17 @@ Item {
         Icon {
             anchors.verticalCenter: parent.verticalCenter
             glyph: root.nuitPlage ? "weather-night" : "weather-night"
-            size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
+            size: root.tailleIcone
             color: root.nuitAllumee ? Theme.accent : Theme.fg
             opacityLevel: root.nuitAllumee ? 1 : (root.nuitPlage ? 0.75 : 0.5)
         }
 
-        // Batterie : priorité sur la luminosité quand la machine en a une.
+        // Batterie et luminosité n'ont pas leur place dans une bande de côté :
+        // il n'y resterait que des valeurs coupées. La lune seule y suffit,
+        // le reste est dans le panneau alimentation.
         Icon {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.batterie
+            visible: root.batterie && !root.verticale
             glyph: root.batCharge ? "battery-charging" : "battery-70"
             size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
             color: root.batPourcent <= 15 ? Theme.warn : Theme.fg
@@ -149,7 +158,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.batterie
+            visible: root.batterie && !root.verticale
             text: root.pret && root.batterie ? root.batPourcent + " %" : ""
             color: root.batPourcent <= 15 ? Theme.warn : Theme.fg
             font.pixelSize: Math.round(Theme.textXs * root.echelle)
@@ -160,7 +169,7 @@ Item {
         // portable — on la garde dans les deux cas, discrète.
         Icon {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.briPresente
+            visible: root.briPresente && !root.verticale
             glyph: "brightness"
             size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
             color: Theme.fg
@@ -169,7 +178,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.briPresente
+            visible: root.briPresente && !root.verticale
             text: root.pret && root.briPresente ? root.briPourcent + " %" : ""
             color: Qt.alpha(Theme.fg, 0.85)
             font.pixelSize: Math.round(Theme.textXs * root.echelle)

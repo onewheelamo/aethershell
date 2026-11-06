@@ -18,6 +18,13 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
+    // Barre de côté : une seule icône, agrandie, et pas de texte — une valeur
+    // coupée au milieu se lit mal. Le nom de l'applet est au survol, le détail
+    // dans le popup. `Applet.qml` pose la propriété si elle existe.
+    property bool verticale: false
+    readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
+                                                  * (verticale ? 1.45 : 1))
+
     property bool wifiConnected: false
     property string wifiSsid: ""
     property int wifiSignal: 0
@@ -174,12 +181,15 @@ Item {
                 glyph: root.netType === "ethernet"
                     ? "ethernet"
                     : root.signalIconFor(root.wifiSignal, root.wifiConnected)
-                size: Math.max(11, Math.round(Theme.iconSm * echelle))
+                size: root.tailleIcone
                 color: root.ouvert ? Theme.bg : (root.wifiConnected ? Theme.accent : Theme.error)
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
+                // Une bande de côté ne tient pas un SSID : icône seule, et le
+                // nom du réseau au survol comme dans le popup.
+                visible: !root.verticale
                 text: root.wifiConnected
                     ? (root.wifiSsid !== "" ? root.wifiSsid : "WiFi")
                     : "Déconnecté"
