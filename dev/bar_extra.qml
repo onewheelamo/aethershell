@@ -48,7 +48,7 @@ PanelWindow {
     margins.left: ecart
     margins.right: ecart
 
-    implicitWidth: verticale ? Theme.barHeight : 0
+    implicitWidth: verticale ? Theme.barSideWidth : 0
     implicitHeight: Theme.barHeight
 
     color: "transparent"

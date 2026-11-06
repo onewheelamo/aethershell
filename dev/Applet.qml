@@ -125,7 +125,8 @@ Item {
                                    ? (Theme.activePopup === popupCle)
                                    : (Theme.activePopup === "applet:" + appletId)
 
-    implicitWidth: estQml ? chargeurQml.implicitWidth
+    implicitWidth: estQml ? (verticale ? Math.min(chargeurQml.implicitWidth, Theme.barSideWidth)
+                                      : chargeurQml.implicitWidth)
                           : (verticale ? contenuVertical.implicitWidth : contenu.implicitWidth)
     implicitHeight: estQml ? chargeurQml.implicitHeight
                            : (verticale ? contenuVertical.implicitHeight : contenu.implicitHeight)
@@ -264,7 +265,7 @@ Item {
     }
 
     // Rendu vertical (barre de côté) : l'icône au-dessus de la valeur, rien de
-    // plus — `barHeight` de large ne laisse pas la place à une rangée. Les
+    // plus — `barSideWidth` de large ne laisse pas la place à une rangée. Les
     // jauges ne s'y empilent pas non plus (quatre pistes de 26 px ne tiennent
     // pas dans cette largeur) : l'applet montre alors sa valeur comme les autres.
     Column {
@@ -286,7 +287,7 @@ Item {
             texte: root.valeur
             couleur: root.alerte ? Theme.warn : Theme.fg
             taillePolice: Math.round(Theme.textXs * 0.85 * root.echelle)
-            largeurMax: Math.max(20, Math.round(Theme.barHeight - 6))
+            largeurMax: Math.max(20, Math.round(Theme.barSideWidth - 6))
         }
     }
 
@@ -299,6 +300,14 @@ Item {
         // qu'ils écrivaient (compteur, ouverture du tiroir d'historique) restait
         // invisible pour le reste de la coquille.
         source: (root.estQml && root.composant !== "") ? String(root.composant) : ""
+        // Sur une barre de côté, la bande fait `barSideWidth` de large : le
+        // composant garde sa rangée naturelle (il commence par son icône) et le
+        // reste est découpé. Il reste monté, donc son clic et son popup
+        // continuent de fonctionner — c'est le nom, au survol, qui dit de quel
+        // applet il s'agit. `clip` n'agit qu'en colonne : sur une barre
+        // horizontale, la rangée garde sa largeur naturelle.
+        width: root.verticale ? Math.min(implicitWidth, Theme.barSideWidth) : implicitWidth
+        clip: root.verticale
         onLoaded: {
             if (!item) return
             item.echelle = Qt.binding(() => root.echelle)
@@ -326,6 +335,16 @@ Item {
     // ── carte de survol ──────────────────────────────────────────────────────
     // Sans attrapeur de clic et sans focus : elle ne doit rien intercepter, sinon
     // effleurer l'applet suffirait à bloquer la barre.
+    //
+    // Sur une barre de côté, un applet QML n'affiche que son icône (le reste est
+    // découpé) : son nom se lit au survol. Un `HoverHandler` et non une
+    // `MouseArea` — il ne prend jamais le clic, qui doit rester à l'applet.
+    readonly property bool nomAuSurvol: estQml && verticale && survolNom.hovered
+    HoverHandler {
+        id: survolNom
+        enabled: root.estQml && root.verticale
+    }
+
     PopupWindow {
         id: carte
         anchor.item: root
@@ -335,7 +354,10 @@ Item {
         implicitWidth: Math.ceil(colonneCarte.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(colonneCarte.implicitHeight + Theme.space3 * 2)
         color: "transparent"
-        visible: root.carteSurvol && !root.ouvert && root.survol.length > 0
+        // Le nom seul ne dépend pas du réglage de carte de survol : sur une barre
+        // de côté, c'est le seul moyen d'identifier un applet réduit à son icône.
+        visible: !root.ouvert && (root.nomAuSurvol
+                                  || (root.carteSurvol && root.survol.length > 0))
 
         Rectangle {
             anchors.fill: parent

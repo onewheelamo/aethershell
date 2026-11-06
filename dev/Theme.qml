@@ -83,6 +83,12 @@ QtObject {
     readonly property int space4: 16
     readonly property int padH: 12     // padding horizontal interne d'une île
     readonly property int gutter: 8    // marge entre les îles et les bords
+    // Largeur d'une barre latérale. Égale à la hauteur de barre par défaut, donc
+    // une bande aussi fine que la barre est haute. C'est **le** réglage à
+    // augmenter pour caser un peu plus de texte dans une colonne : `bar_extra`,
+    // le rendu vertical des applets et la largeur des valeurs le lisent tous ici.
+    // Rendre la valeur persistante (style_vars + panneau) reste à faire.
+    readonly property int barSideWidth: barHeight
     readonly property int pillRadius: Math.min(globalRadius, Math.round(barHeight / 2))
 
     // 5a "capsule continue" : les trois pilules fusionnent en une seule surface.
