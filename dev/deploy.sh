@@ -1,7 +1,9 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════════════════════════════
 # Unified Quickshell & Hyprland Environment Manager & Deployer
-# Supports: Station (Arch Linux Desktop) & Portable (Fedora Laptop)
+# Deux familles de distribution : Arch Linux et Fedora. La cible se déduit de
+# /etc/os-release, jamais du nom de la machine — un dépôt partagé ne doit rien
+# dire du parc de son auteur.
 # ══════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -17,8 +19,8 @@ DEPS_FILE="$DEV_DIR/dependencies.txt"
 mkdir -p "$BACKUP_DIR"
 
 # Dépendances applicables à une cible, d'après les portées du fichier :
-#   #: commun            → les deux machines
-#   #: station|portable  → une seule
+#   #: commun          → les deux familles
+#   #: arch|fedora     → une seule
 # Un binaire par ligne ; le reste est commentaire. Sert au contrôle avant
 # déploiement et à `--deps`, qui affiche la liste résolue sans rien installer.
 deps_pour_cible() {
@@ -40,58 +42,63 @@ deps_pour_cible() {
     done < "$DEPS_FILE"
 }
 
-# 1. Target Detection (CLI argument > /etc/hostname > /etc/os-release)
-TARGET=""
+# 1. Détection de la distribution (argument > /etc/os-release)
+#    `arch` couvre Arch et ses dérivés, `fedora` Fedora et ses rebuilds.
+DISTRO=""
+IDENT=""
+if [ -f /etc/os-release ]; then
+    IDENT="$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')"
+fi
+case "$IDENT" in
+    arch|archarm|endeavouros|manjaro|garuda|cachyos) DISTRO="arch" ;;
+    fedora|nobara|bazzite) DISTRO="fedora" ;;
+esac
+
 for arg in "$@"; do
     case "$arg" in
-        --station|station) TARGET="station" ;;
-        --portable|portable) TARGET="portable" ;;
-        --target=*) TARGET="${arg#*=}" ;;
+        --arch|arch) DISTRO="arch" ;;
+        --fedora|fedora) DISTRO="fedora" ;;
+        --target=*)
+            case "${arg#*=}" in
+                arch|fedora) DISTRO="${arg#*=}" ;;
+                *) echo "❌ Cible inconnue : ${arg#*=} (attendu : arch | fedora)" >&2; exit 2 ;;
+            esac
+            ;;
         --target)
             shift
-            TARGET="${1:-}"
+            case "${1:-}" in
+                arch|fedora) DISTRO="${1:-}" ;;
+                *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora)" >&2; exit 2 ;;
+            esac
             ;;
         --deps) PRINT_DEPS=1 ;;
     esac
 done
 
-if [ -z "$TARGET" ]; then
-    HOST_NAME="$(cat /etc/hostname 2>/dev/null || uname -n 2>/dev/null || true)"
-    OS_ID=""
-    if [ -f /etc/os-release ]; then
-        OS_ID=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
-    fi
-
-    if [[ "$HOST_NAME" =~ [Bb]espin ]] || [ "$OS_ID" = "fedora" ]; then
-        TARGET="portable"
-    elif [[ "$HOST_NAME" =~ [Cc]oruscant ]] || [ "$OS_ID" = "arch" ]; then
-        TARGET="station"
-    else
-        TARGET="station"
-    fi
+if [ -z "$DISTRO" ]; then
+    echo "❌ Distribution non reconnue (ID='${IDENT:-absent}')." >&2
+    echo "   Forcer la cible : $0 --arch   ou   $0 --fedora" >&2
+    exit 2
 fi
 
-# 2. Host-specific configuration
-case "$TARGET" in
-    portable)
-        TARGET_TITLE="Portable (Fedora Laptop)"
-        TARGET_TAG="portable"
+# 2. Réglages liés à la famille de distribution
+case "$DISTRO" in
+    fedora)
+        DISTRO_TITLE="Fedora"
         PKG_MGR="dnf"
-        HN_ALIAS="$BACKUP_DIR/backup_hn.tar.gz"
-        HQ_ALIAS="$BACKUP_DIR/backup_hq.tar.gz"
         ;;
-    station|*)
-        TARGET_TITLE="Station (Arch Linux Desktop Tower)"
-        TARGET_TAG="station"
+    arch)
+        DISTRO_TITLE="Arch Linux"
         PKG_MGR="pacman"
-        HN_ALIAS="$BACKUP_DIR/backup_station_hn.tar.gz"
-        HQ_ALIAS="$BACKUP_DIR/backup_station_hq.tar.gz"
         ;;
 esac
+# Sauvegardes : un nom par famille de distribution, sans rien qui nomme la machine.
+HN_ALIAS="$BACKUP_DIR/backup_${DISTRO}_hn.tar.gz"
+HQ_ALIAS="$BACKUP_DIR/backup_${DISTRO}_hq.tar.gz"
 
 # `--deps` : la liste que ce fichier donne pour la cible, sans rien toucher.
 if [ "${PRINT_DEPS:-0}" = "1" ]; then
-    deps_pour_cible "$TARGET_TAG" || { echo "❌ $DEPS_FILE introuvable." >&2; exit 1; }
+    deps_pour_cible "$DISTRO" || { echo "❌ $DEPS_FILE introuvable." >&2; exit 1; }
     exit 0
 fi
 
@@ -219,14 +226,14 @@ pkg_for_bin() {
 }
 
 check_dependencies() {
-    echo "Checking dependencies for $TARGET_TITLE..."
+    echo "Checking dependencies for $DISTRO_TITLE..."
     if [ ! -f "$DEPS_FILE" ]; then
         echo "❌ Error: $DEPS_FILE not found."
         return 1
     fi
 
     local deps=()
-    mapfile -t deps < <(deps_pour_cible "$TARGET_TAG")
+    mapfile -t deps < <(deps_pour_cible "$DISTRO")
     local missing=()
     local missing_pkgs=()
     for dep in "${deps[@]}"; do
@@ -281,7 +288,7 @@ backup_env() {
 
     case $choice in
         1)
-            local archive="$BACKUP_DIR/backup_${TARGET_TAG}_hn_$stamp.tar.gz"
+            local archive="$BACKUP_DIR/backup_${DISTRO}_hn_$stamp.tar.gz"
             tar -czf "$archive" -C "$HOME/.config" hypr noctalia 2>/dev/null
             cp -f "$archive" "$HN_ALIAS"
             echo "✅ HN backed up to $archive"
@@ -289,7 +296,7 @@ backup_env() {
             BACKUP_OK=1
             ;;
         2)
-            local archive="$BACKUP_DIR/backup_${TARGET_TAG}_hq_$stamp.tar.gz"
+            local archive="$BACKUP_DIR/backup_${DISTRO}_hq_$stamp.tar.gz"
             tar -czf "$archive" -C "$HOME/.config" hypr quickshell 2>/dev/null
             cp -f "$archive" "$HQ_ALIAS"
             echo "✅ HQ backed up to $archive"
@@ -338,7 +345,7 @@ EOF
 }
 
 deploy_new_env() {
-    echo "🚀 Deploying $TARGET_TITLE..."
+    echo "🚀 Deploying $DISTRO_TITLE..."
 
     mkdir -p "$CURRENT_HYPR"
     if [ ! -f "$MARKER" ]; then
@@ -473,7 +480,7 @@ deploy_new_env() {
     [ -f "$MARKER" ] || premiere_fois=1
     touch "$MARKER"
 
-    echo "✅ $TARGET_TITLE deployment complete! Please restart Hyprland or reload config."
+    echo "✅ $DISTRO_TITLE deployment complete! Please restart Hyprland or reload config."
 
     # Installation neuve : dire où sont les raccourcis. La barre est lancée par
     # l'autostart de Hyprland, pas par ce script — on laisse donc passer quelques
@@ -494,9 +501,9 @@ deploy_new_env() {
 
 while true; do
     echo "------------------------------------------"
-    echo " $TARGET_TITLE - ENVIRONMENT MANAGER"
+    echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
     echo "------------------------------------------"
-    echo "1 > Deploy & Switch to Quickshell ($TARGET_TAG)"
+    echo "1 > Deploy & Switch to Quickshell ($DISTRO)"
     echo "2 > Backup current environment"
     echo "3 > Restore HN (Hyprland + Noctalia)"
     echo "4 > Restore HQ (Hyprland + Quickshell)"

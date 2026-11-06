@@ -5,8 +5,8 @@
 # dependencies_station.txt, dependencies_portable.txt) :
 #
 #   #: commun     → les deux machines
-#   #: station  → cette cible seulement
-#   #: portable     → cette cible seulement
+#   #: arch  → cette cible seulement
+#   #: fedora     → cette cible seulement
 #
 # Une ligne hors de toute portée est ignorée : un ajout en tête de fichier ne
 # peut donc pas se retrouver silencieusement dans la liste.
@@ -24,7 +24,7 @@ hyprshot
 slurp
 wf-recorder
 
-#: portable
+#: fedora
 # Portable seulement : luminosité, volume, profil d'énergie, capteur d'écran.
 brightnessctl
 wpctl
