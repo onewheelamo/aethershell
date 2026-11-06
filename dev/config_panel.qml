@@ -2977,77 +2977,90 @@ Rectangle {
                                     }
                                 }
 
-                                // Liste dynamique déclarée au catalogue : les
-                                // systèmes de fichiers réellement montés, cochables
-                                // un par un (la racine incluse).
-                                Column {
+                                // Petit tiroir : la sélection des systèmes de
+                                // fichiers, sur deux colonnes. Replié par défaut,
+                                // il ne mange pas la place des autres applets.
+                                CollapsibleSection {
+                                    id: secDisques
                                     visible: appletRow.donnee.liste !== undefined
-                                    width: parent.width
-                                    spacing: 3
+                                    title: String((appletRow.donnee.liste || ({})).libelle
+                                                  || "Disques affichés")
+                                    icon: "disque"
+                                    expanded: root.sectionOpen("quickshell_disques", false)
+                                    onToggled: expanded => root.setPanelSection("quickshell_disques", expanded)
 
-                                    Item { width: 1; height: 4 }
+                                    Grid {
+                                        id: grilleDisques
+                                        width: parent.width
+                                        columns: 2
+                                        columnSpacing: 10
+                                        rowSpacing: 3
+                                        topPadding: 4
 
-                                    Text {
-                                        text: String((appletRow.donnee.liste || ({})).libelle || "")
-                                        color: Qt.alpha(Theme.fg, 0.5)
-                                        font.pixelSize: Math.max(9, Theme.textXs - 1)
-                                        leftPadding: 26
-                                    }
+                                        Repeater {
+                                            model: root.disquesListe
 
-                                    Repeater {
-                                        model: root.disquesListe
+                                            // Item et non Row : un MouseArea en
+                                            // `anchors.fill` ne peut pas être
+                                            // enfant direct d'un positionneur, et
+                                            // c'est ce qui rendait les cases inertes.
+                                            Item {
+                                                required property var modelData
+                                                readonly property string montage: String(modelData.montage || "")
+                                                readonly property bool coche:
+                                                    root.montageCoche(appletRow.donnee, montage)
 
-                                        Row {
-                                            required property var modelData
-                                            readonly property string montage: String(modelData.montage || "")
-                                            readonly property bool coche:
-                                                root.montageCoche(appletRow.donnee, montage)
-                                            width: parent.width
-                                            height: 16
-                                            spacing: 6
-                                            leftPadding: 26
+                                                width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
+                                                height: 18
 
-                                            Rectangle {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                width: 12
-                                                height: 12
-                                                radius: 3
-                                                color: parent.coche ? Theme.accent : "transparent"
-                                                border.width: 1
-                                                border.color: parent.coche ? Theme.accent
-                                                                           : Qt.alpha(Theme.fg, 0.4)
+                                                Rectangle {
+                                                    id: boite
+                                                    anchors.left: parent.left
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: 12
+                                                    height: 12
+                                                    radius: 3
+                                                    color: parent.coche ? Theme.accent : "transparent"
+                                                    border.width: 1
+                                                    border.color: parent.coche ? Theme.accent
+                                                                               : Qt.alpha(Theme.fg, 0.4)
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        visible: parent.parent.coche
+                                                        text: "✓"
+                                                        color: Theme.bg
+                                                        font.pixelSize: 9
+                                                        font.bold: true
+                                                    }
+                                                }
 
                                                 Text {
-                                                    anchors.centerIn: parent
-                                                    visible: parent.coche
-                                                    text: "✓"
-                                                    color: Theme.bg
-                                                    font.pixelSize: 9
-                                                    font.bold: true
+                                                    anchors.left: boite.right
+                                                    anchors.leftMargin: 6
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: parent.width - 20 - pourcentage.implicitWidth
+                                                    text: parent.montage
+                                                    color: Theme.fg
+                                                    font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                                    elide: Text.ElideRight
                                                 }
-                                            }
 
-                                            Text {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                width: parent.width - 132
-                                                text: parent.montage
-                                                color: Theme.fg
-                                                font.pixelSize: Math.max(9, Theme.textXs - 1)
-                                                elide: Text.ElideRight
-                                            }
+                                                Text {
+                                                    id: pourcentage
+                                                    anchors.right: parent.right
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: String(modelData.pourcent) + " %"
+                                                    color: Qt.alpha(Theme.fg, 0.45)
+                                                    font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                }
 
-                                            Text {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                text: String(modelData.pourcent) + " %  ·  "
-                                                      + String(modelData.taille_go) + " Go"
-                                                color: Qt.alpha(Theme.fg, 0.45)
-                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.basculerMontage(appletRow.donnee, parent.montage)
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: root.basculerMontage(appletRow.donnee,
+                                                                                    parent.montage)
+                                                }
                                             }
                                         }
                                     }
