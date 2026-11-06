@@ -30,14 +30,22 @@ Item {
     // que le widget de bureau — même source, même présentation.
     readonly property var lignes: {
         const d = detail || ({})
-        const out = barres.slice()
-        if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
+        const actives = (mesures && mesures.length) ? mesures : toutes
+        // Les puces de mesure filtrent cette liste, comme elles filtrent la barre :
+        // sans ce test, elles ne changeaient que l'applet et paraissaient inertes.
+        const out = []
+        for (let i = 0; i < barres.length; ++i) {
+            if (actives.indexOf(String(barres[i].cle)) >= 0) out.push(barres[i])
+        }
+        // La VRAM appartient au GPU, la température GPU à la mesure « temp » :
+        // éteindre la mesure correspondante éteint aussi sa ligne dérivée.
+        if (d.gpu && Number(d.gpu.vram_totale_go) > 0 && actives.indexOf("gpu") >= 0) {
             out.push({
                 cle: "vram", nom: "VRAM", icone: "ram", niveau: "ok",
                 texte: arrondi(d.gpu.vram_go) + "/" + arrondi(d.gpu.vram_totale_go) + " Go"
             })
         }
-        if (d.gpu && Number(d.gpu.temperature) > 0) {
+        if (d.gpu && Number(d.gpu.temperature) > 0 && actives.indexOf("temp") >= 0) {
             const t = Number(d.gpu.temperature)
             out.push({
                 cle: "gputemp", nom: "GPU", icone: "temp",
