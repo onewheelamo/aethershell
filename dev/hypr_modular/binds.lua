@@ -7,6 +7,7 @@ local mainMod = "SUPER"
 hl.bind(mainMod .. " + Q", hl.dsp.window.close(), { description = "fermer la fenêtre" })  -- essentiel
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "terminal" })  -- essentiel
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }), { description = "fenêtre flottante" })
+hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }), { description = "fenêtre flottante" })  -- essentiel
 hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }), { description = "plein écran" })
 hl.bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }), { description = "maximiser" })
 
