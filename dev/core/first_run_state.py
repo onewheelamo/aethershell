@@ -162,6 +162,23 @@ def candidats(categories_voulues):
     return trouves
 
 
+def barre_courante():
+    """Le bord de la barre principale d'après style_vars.json."""
+    try:
+        style = cm.load_json(cm.STYLE_FILE)
+    except Exception:
+        return "haut"
+    if not isinstance(style, dict):
+        return "haut"
+    if style.get("bar_left") is True:
+        return "cote-gauche"
+    if style.get("bar_right") is True:
+        return "cote-droite"
+    if style.get("bar_bottom") is True:
+        return "bas"
+    return "haut"
+
+
 def main():
     apps = cm.load_json(cm.APP_VARS_FILE)
 
@@ -195,6 +212,10 @@ def main():
         "dossiers": dossiers,
         "programmes": programmes,
         "widgets": widgets,
+        # Barre principale actuelle : au premier lancement aucune barre annexe
+        # n'est allumée, donc « haut » ; en relançant l'assistant, la page
+        # retrouve le choix déjà fait.
+        "barre": barre_courante(),
     }, ensure_ascii=False))
     return 0
 

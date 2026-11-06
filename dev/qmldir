@@ -23,3 +23,4 @@ NotifsApplet 1.0 NotifsApplet.qml
 ArchApplet 1.0 ArchApplet.qml
 AppletColumn 1.0 AppletColumn.qml
 BarExtra 1.0 bar_extra.qml
+LuminositeApplet 1.0 LuminositeApplet.qml

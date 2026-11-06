@@ -413,6 +413,7 @@ deploy_new_env() {
     cp "$DEV_DIR/ArchApplet.qml" "$QS_DIR/ArchApplet.qml"
     cp "$DEV_DIR/AppletColumn.qml" "$QS_DIR/AppletColumn.qml"
     cp "$DEV_DIR/bar_extra.qml" "$QS_DIR/bar_extra.qml"
+    cp "$DEV_DIR/LuminositeApplet.qml" "$QS_DIR/LuminositeApplet.qml"
     cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).

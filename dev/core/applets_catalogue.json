@@ -76,7 +76,17 @@
             "text_scale": 100
         },
         {
-            "id": "alimentation",
+          "id": "luminosite",
+          "nom": "Luminosité & batterie",
+          "description": "Niveau de batterie et luminosité ; clic pour les réglages d'alimentation",
+          "genre": "qml",
+          "composant": "LuminositeApplet.qml",
+          "ile": "haut:fin",
+          "ordre": 55,
+          "text_scale": 100
+        },
+        {
+          "id": "alimentation",
             "nom": "Alimentation",
             "description": "Verrouiller, fermer la session, veiller, redémarrer, éteindre",
             "genre": "qml",

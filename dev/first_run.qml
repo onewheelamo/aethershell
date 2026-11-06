@@ -26,7 +26,7 @@ Item {
     id: root
 
     property int etape: 0
-    readonly property int etapeFinale: 4
+    readonly property int etapeFinale: 5
 
     property string clavier: "fr"
     property var dossiers: []          // [{ nom, xdg, chemin, existe }]
@@ -57,7 +57,18 @@ Item {
         "Dossiers personnels",
         "Programmes par défaut",
         "Widgets du bureau",
+        "Barre principale",
         "Bienvenue"
+    ]
+
+    // Le bord de la barre principale. Les barres supplémentaires du registre
+    // disparaissent au profit de ce choix unique : une seule barre, où l'on veut.
+    property string barre: "haut"
+    readonly property var barresPossibles: [
+        { code: "haut", titre: "En haut", detail: "Le classique, trois îlots" },
+        { code: "bas", titre: "En bas", detail: "Comme un dock" },
+        { code: "cote-gauche", titre: "À gauche", detail: "Bureaux en haut, état en bas" },
+        { code: "cote-droite", titre: "À droite", detail: "Bureaux en haut, état en bas" }
     ]
 
     // ── mutations : la liste est un tableau JS, une mutation en place ne
@@ -125,6 +136,7 @@ Item {
             return
         }
         clavier = String(data.kb_layout || "fr")
+        if (String(data.barre || "") !== "") barre = String(data.barre)
         dossiers = data.dossiers || []
         programmes = data.programmes || []
         const liste = []
@@ -206,7 +218,8 @@ Item {
             dossiers: chemins,
             programmes: alias,
             widgets_ajouter: ajouter,
-            widgets_retirer: retirer
+            widgets_retirer: retirer,
+            barre: barre
         })
         chargeAAppliquer = charge
         ecrireEtAppliquer()
@@ -638,6 +651,112 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.basculerWidget(caseWidget.modelData.type)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── page 5 : barre principale ─────────────────────────
+                // Le choix du bord décide aussi de la place des applets : on ne
+                // demande pas deux fois la même chose à quelqu'un qui découvre
+                // l'environnement.
+                Column {
+                    width: parent.width
+                    spacing: 12
+                    visible: root.etape === 4
+
+                    Text {
+                        width: parent.width
+                        text: "Où veux-tu la barre ? Les bureaux iront au début, "
+                            + "l'horloge au centre, et l'état de la machine à la fin "
+                            + "(systray, réseau, volume, luminosité et batterie, alimentation). "
+                            + "Tout reste déplaçable ensuite dans Quickshell → Applets."
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Grid {
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 10
+
+                        Repeater {
+                            model: root.barresPossibles
+
+                            Rectangle {
+                                id: carteBarre
+                                required property var modelData
+                                readonly property bool choisi: root.barre === modelData.code
+                                width: (parent.width - 12) / 2
+                                height: 66
+                                radius: Theme.globalRadius
+                                color: choisi
+                                    ? Qt.alpha(Theme.accent, 0.25)
+                                    : (sourisBarre.containsMouse ? Theme.surfaceVariant
+                                                                 : Qt.alpha(Theme.surfaceVariant, 0.55))
+                                border.color: choisi ? Theme.accent : Theme.surfaceVariant
+                                border.width: choisi ? 2 : 1
+
+                                // Aperçu : un écran vide et une bande à l'endroit
+                                // du bord choisi. Plus parlant qu'un mot.
+                                Rectangle {
+                                    id: apercu
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 44
+                                    height: 30
+                                    radius: 4
+                                    color: Qt.alpha(Theme.fg, 0.08)
+                                    border.color: Qt.alpha(Theme.fg, 0.25)
+                                    border.width: 1
+
+                                    Rectangle {
+                                        readonly property string c: carteBarre.modelData.code
+                                        width: c === "cote-gauche" || c === "cote-droite" ? 4 : apercu.width - 6
+                                        height: c === "cote-gauche" || c === "cote-droite" ? apercu.height - 6 : 4
+                                        radius: 2
+                                        color: carteBarre.choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                                        x: c === "cote-gauche" ? 3
+                                           : (c === "cote-droite" ? apercu.width - 7 : 3)
+                                        y: c === "haut" ? 3
+                                           : (c === "bas" ? apercu.height - 7 : 3)
+                                    }
+                                }
+
+                                Column {
+                                    anchors.left: apercu.right
+                                    anchors.leftMargin: 10
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+
+                                    Text {
+                                        text: carteBarre.modelData.titre
+                                        color: carteBarre.choisi ? Theme.accent : Theme.fg
+                                        font.pixelSize: Theme.textMd
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        width: parent.width
+                                        text: carteBarre.modelData.detail
+                                        color: Qt.alpha(Theme.fg, 0.75)
+                                        font.pixelSize: Theme.textXs
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: sourisBarre
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.barre = carteBarre.modelData.code
                                 }
                             }
                         }

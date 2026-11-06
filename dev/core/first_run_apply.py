@@ -27,6 +27,16 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 import config_manager as cm  # noqa: E402
+import bar_applets as ba  # noqa: E402
+
+# Où vont les applets une fois la barre principale choisie. Décision prise pour
+# l'utilisateur, comme demandé : bureaux à gauche, horloge au centre, et l'état de
+# la machine à droite dans l'ordre où on le lit.
+PLACEMENT_BARRE = (
+    ("debut", ["workspaces"]),
+    ("milieu", ["horloge"]),
+    ("fin", ["systray", "reseau", "volume", "luminosite", "alimentation"]),
+)
 
 
 def appliquer_dossier(cle, chemin):
@@ -44,6 +54,25 @@ def appliquer_dossier(cle, chemin):
     if out.returncode != 0:
         return False, (out.stderr or out.stdout).strip()[:120] or "échec xdg-user-dirs-update"
     return True, chemin
+
+
+def appliquer_barre(barre, rapport):
+    """Allume la barre choisie (et elle seule) puis y pose les applets.
+
+    « haut » n'a pas de barre à allumer : c'est celle qui existe toujours. Les
+    trois autres passent par style_vars.json, exactement comme le panneau.
+    """
+    for cle, actif in (("bar_bottom", barre == "bas"),
+                       ("bar_left", barre == "cote-gauche"),
+                       ("bar_right", barre == "cote-droite")):
+        cm.update_style_var(cle, "true" if actif else "false")
+    for zone, applets in PLACEMENT_BARRE:
+        for n, applet in enumerate(applets):
+            ile = f"{barre}:{zone}"
+            ba.activer(applet, ile)
+            ba.ordonner(applet, str((n + 1) * 10))
+            rapport["applets"].append({"applet": applet, "ile": ile,
+                                       "ordre": (n + 1) * 10})
 
 
 def lire_choix():
@@ -67,7 +96,8 @@ def main():
         print(json.dumps({"erreurs": [f"choix illisibles : {exc}"]}, ensure_ascii=False))
         return 1
 
-    rapport = {"clavier": None, "dossiers": [], "programmes": [], "widgets": [], "erreurs": []}
+    rapport = {"clavier": None, "dossiers": [], "programmes": [], "widgets": [],
+               "applets": [], "barre": None, "erreurs": []}
 
     with contextlib.redirect_stdout(sys.stderr):
         layout = str(choix.get("kb_layout") or "").strip()
@@ -99,6 +129,14 @@ def main():
             rapport["programmes"].append({"alias": alias, "commande": commande, "ok": bool(ok)})
             if not ok:
                 rapport["erreurs"].append(f"programme {alias} : refusé")
+
+        barre = str(choix.get("barre") or "").strip()
+        if barre in ("haut", "bas", "cote-gauche", "cote-droite"):
+            try:
+                appliquer_barre(barre, rapport)
+                rapport["barre"] = barre
+            except Exception as exc:
+                rapport["erreurs"].append(f"barre : {exc}")
 
         poses = {}
         for w in cm.load_widgets():
