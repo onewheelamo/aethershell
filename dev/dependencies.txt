@@ -22,6 +22,7 @@ awww
 hyprshot
 slurp
 wf-recorder
+hyprsunset
 
 #: fedora
 # Portable seulement : luminosité, volume, profil d'énergie, capteur d'écran.

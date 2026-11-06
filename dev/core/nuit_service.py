@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -67,6 +68,9 @@ def etat():
         "a": str(d.get("night_to") or ""),
         "plage": bool(str(d.get("night_from") or "").strip()),
         "daemon": _daemon_vivant(),
+        # Distinguer « éteint » de « impossible à allumer » : sans ce champ, une
+        # dépendance absente se lit comme un simple mode nuit inactif.
+        "hyprsunset": bool(shutil.which("hyprsunset")),
     }
 
 
