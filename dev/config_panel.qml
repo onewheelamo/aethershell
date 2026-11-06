@@ -241,6 +241,11 @@ Rectangle {
     property string homelabTokenId: ""
     property string homelabTokenTail: ""
     property bool homelabTokenPresent: false
+    // Mode nuit (onglet Système & Écrans) : température, plage, état.
+    property int nuitTemp: 4000
+    property bool nuitAllumee: false
+    property string nuitDe: ""
+    property string nuitA: ""
     // Fournisseurs LLM (core/llm_providers.json) : une ligne par entrée, dans
     // l'ordre du fichier. Ajouter un service ne touche pas à ce panneau.
     property var llmProviders: []
@@ -654,6 +659,12 @@ Rectangle {
         }
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (data.api_keys && typeof data.api_keys === "object") root.apiKeys = data.api_keys
+        if (data.night && typeof data.night === "object") {
+            if (typeof data.night.temperature === "number") root.nuitTemp = data.night.temperature
+            root.nuitAllumee = data.night.mode === true
+            root.nuitDe = String(data.night.from || "")
+            root.nuitA = String(data.night.to || "")
+        }
         if (data.homelab && typeof data.homelab === "object") {
             root.homelabUrl = String(data.homelab.proxmox_url || "")
             root.homelabTokenId = String(data.homelab.proxmox_token_id || "")
@@ -781,6 +792,29 @@ Rectangle {
         stdout: StdioCollector {
             onStreamFinished: root.refreshConfigState()
         }
+    }
+
+    // Mode nuit : le service s'occupe d'hyprsunset et de style_vars.json, le
+    // panneau ne fait que lui passer l'ordre.
+    Process {
+        id: nuitProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (typeof d.temperature === "number") root.nuitTemp = d.temperature
+                    root.nuitAllumee = d.allume === true
+                    root.nuitDe = String(d.de || "")
+                    root.nuitA = String(d.a || "")
+                } catch (e) {}
+                root.refreshConfigState()
+            }
+        }
+    }
+
+    function reglerNuit(args) {
+        nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py")].concat(args)
+        nuitProc.running = true
     }
 
     Process {
@@ -4710,6 +4744,201 @@ Rectangle {
                     }
                 }
             }
+            // Mode nuit : le filtre chaud de l'écran. Une plage horaire vide
+            // signifie « à la main » — c'est l'icône de l'applet luminosité qui
+            // décide ; dès qu'une plage existe, le service s'en charge seul.
+            CollapsibleSection {
+                id: secNuit
+                objectName: "secNuit"
+                title: "Mode nuit"
+                icon: "weather-night"
+                expanded: root.sectionOpen("systeme_nuit", false)
+                onToggled: expanded => root.setPanelSection("systeme_nuit", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "Température appliquée par hyprsunset. Plus la valeur est basse, "
+                            + "plus l'écran tire vers l'orange."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Repeater {
+                            model: [2700, 3400, 4000, 5000]
+
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool actif: root.nuitTemp === modelData
+                                width: 74
+                                height: 28
+                                radius: Theme.globalRadius
+                                color: actif ? Qt.alpha(Theme.accent, 0.28) : Theme.surfaceVariant
+                                border.color: actif ? Theme.accent : Theme.accentMuted
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData + " K"
+                                    color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: actif
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.reglerNuit(["temperature", String(modelData)])
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: "Plage horaire automatique — laisser vide pour commander à la main."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        Rectangle {
+                            width: 76
+                            height: 28
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champNuitDe
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textXs
+                                clip: true
+                                Component.onCompleted: text = root.nuitDe
+                                Connections {
+                                    target: root
+                                    function onNuitDeChanged() {
+                                        if (!champNuitDe.activeFocus) champNuitDe.text = root.nuitDe
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "→"
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 76
+                            height: 28
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champNuitA
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textXs
+                                clip: true
+                                Component.onCompleted: text = root.nuitA
+                                Connections {
+                                    target: root
+                                    function onNuitAChanged() {
+                                        if (!champNuitA.activeFocus) champNuitA.text = root.nuitA
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 92
+                            height: 28
+                            radius: Theme.globalRadius
+                            color: survolNuit.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Enregistrer"
+                                color: Theme.accent
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: survolNuit
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.reglerNuit(["plage", champNuitDe.text.trim(), champNuitA.text.trim()])
+                            }
+                        }
+
+                        Rectangle {
+                            width: 74
+                            height: 28
+                            radius: Theme.globalRadius
+                            color: survolSansPlage.containsMouse ? Qt.alpha(Theme.error, 0.14) : "transparent"
+                            border.color: Qt.alpha(Theme.fg, 0.18)
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Aucune"
+                                color: Qt.alpha(Theme.fg, 0.6)
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                id: survolSansPlage
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    champNuitDe.text = ""
+                                    champNuitA.text = ""
+                                    root.reglerNuit(["plage", "", ""])
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: (root.nuitAllumee ? "Mode nuit allumé" : "Mode nuit éteint")
+                            + (root.nuitDe !== "" ? " · plage " + root.nuitDe + " → " + root.nuitA : " · manuel")
+                        color: root.nuitAllumee ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
+
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

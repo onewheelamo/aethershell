@@ -143,7 +143,9 @@ Item {
             islandRight.requestNotifTarget(notification)
             // Application écartée des toasts : la notification va directement au
             // centre, sans apparition spontanée.
-            if (Theme.quietNotifApps.indexOf(entry.appName) < 0) {
+            // « Ne pas déranger » coupe le toast, pas l'historique : la
+            // notification est déjà dans la liste ci-dessus.
+            if (!Theme.doNotDisturb && Theme.quietNotifApps.indexOf(entry.appName) < 0) {
                 islandRight.latestToast = entry
                 toastTimer.restart()
             }

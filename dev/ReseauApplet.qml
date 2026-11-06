@@ -81,7 +81,9 @@ Item {
         wifiConnectProc.running = true
     }
 
-    Component.onCompleted: root.rafraichir()
+    // Amorçage : l'état Bluetooth est lu une fois au démarrage, pour que le
+    // panneau s'ouvre déjà rempli (sinon il est vide le temps d'un aller-retour).
+    Component.onCompleted: { root.rafraichir(); root.lireBluetooth() }
 
     Timer {
         interval: 10000
@@ -205,7 +207,8 @@ Item {
         anchor.rect.y: Theme.barHeight + 6
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: 320
-        implicitHeight: 390
+        // 390 → 545 : le bloc Bluetooth tient sous la liste WiFi sans la rogner.
+        implicitHeight: 545
         color: "transparent"
         visible: root.ouvert
         grabFocus: visible && root.expandedSsid !== ""
@@ -301,7 +304,7 @@ Item {
                 Flickable {
                     id: wifiFlick
                     width: parent.width
-                    height: root.connectingStatus !== "" ? 285 : 315
+                    height: root.connectingStatus !== "" ? 240 : 270
                     contentWidth: width
                     contentHeight: networkListCol.implicitHeight
                     clip: true
@@ -508,15 +511,189 @@ Item {
                         }
                     }
                 }
+
+                // ── Bluetooth ────────────────────────────────────────────────
+                // Respiration puis filet : deux familles distinctes (réseaux,
+                // périphériques) ne doivent pas se lire comme une seule liste.
+                Item {
+                    width: parent.width
+                    height: 16
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width - 16
+                        height: 1
+                        color: Qt.alpha(Theme.fg, 0.12)
+                    }
+                }
+
+                Item {
+                    width: parent.width
+                    height: 22
+                    visible: root.btPresent
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "bluetooth"
+                            size: Theme.iconSm
+                            color: root.btAllume ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Bluetooth"
+                            color: root.btAllume ? Theme.fg : Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+                    }
+
+                    // Interrupteur de l'adaptateur : même vocabulaire visuel que
+                    // les autres bascules du panneau (pilule pleine quand actif).
+                    Rectangle {
+                        id: btSwitch
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 38
+                        height: 20
+                        radius: 10
+                        color: root.btAllume ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                        Rectangle {
+                            width: 16
+                            height: 16
+                            radius: 8
+                            y: 2
+                            x: root.btAllume ? parent.width - width - 2 : 2
+                            color: root.btAllume ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                            Behavior on x { NumberAnimation { duration: 130 } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.btCommande(["basculer"])
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible: root.btPresent && root.btAllume && root.btAppareils.length === 0
+                    text: "Aucun appareil appairé."
+                    color: Qt.alpha(Theme.fg, 0.45)
+                    font.pixelSize: Theme.textXs
+                    font.italic: true
+                }
+
+                Column {
+                    width: parent.width
+                    spacing: 4
+                    visible: root.btPresent && root.btAllume
+                    height: Math.min(implicitHeight, 96)
+                    clip: true
+
+                    Repeater {
+                        model: root.btAppareils
+
+                        Item {
+                            required property var modelData
+                            width: parent.width
+                            height: 26
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 6
+                                color: btSurvol.containsMouse ? Qt.alpha(Theme.accent, 0.14) : "transparent"
+                            }
+
+                            Text {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 6
+                                anchors.right: etatBt.left
+                                anchors.rightMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: String(modelData.nom || modelData.mac || "")
+                                color: modelData.connecte ? Theme.fg : Qt.alpha(Theme.fg, 0.7)
+                                font.pixelSize: Theme.textXs
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                id: etatBt
+                                anchors.right: parent.right
+                                anchors.rightMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: modelData.connecte ? "connecté" : "connecter"
+                                color: modelData.connecte ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                id: btSurvol
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.btCommande([modelData.connecte ? "deconnecter" : "connecter",
+                                                            String(modelData.mac || "")])
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     // ────────────────────────────────────────────────────────────────────────
 
+    // Bluetooth : même panneau que le WiFi, bloc séparé. Tout vient de
+    // core/bluetooth_service.py — le shell n'invente aucun état.
+    property bool btPresent: false
+    property bool btAllume: false
+    property var btAppareils: []
+
+    function majBluetooth(txt) {
+        try {
+            const d = JSON.parse(txt.trim())
+            root.btPresent = d.present === true
+            root.btAllume = d.allume === true
+            root.btAppareils = d.appaires || []
+        } catch (e) { /* réponse partielle : on garde l'état précédent */ }
+    }
+
+    function lireBluetooth() {
+        if (btProc.running) return
+        btProc.running = true
+    }
+
+    function btCommande(args) {
+        btAction.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py")].concat(args)
+        btAction.running = true
+    }
+
+    Process {
+        id: btProc
+        command: ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
+        stdout: StdioCollector {
+            onStreamFinished: root.majBluetooth(text)
+        }
+    }
+
+    Process {
+        id: btAction
+        stdout: StdioCollector {
+            onStreamFinished: root.majBluetooth(text)
+        }
+    }
+
     property bool pretGrab: false
     onOuvertChanged: {
-        if (root.ouvert) { root.scanWifi(false); delaiGrab.restart() }
+        if (root.ouvert) { root.scanWifi(false); root.lireBluetooth(); delaiGrab.restart() }
         else root.pretGrab = false
     }
     Timer {

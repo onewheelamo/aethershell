@@ -116,6 +116,19 @@ Item {
         historyCmd.running = true
     }
 
+    // Bascule immédiate à l'écran, écriture derrière : attendre la réponse du
+    // script rendrait le clic mou, alors que l'effet est purement local.
+    function basculerDnd() {
+        Theme.doNotDisturb = !Theme.doNotDisturb
+        dndProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                           "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"]
+        dndProc.running = true
+    }
+
+    Process {
+        id: dndProc
+    }
+
     function clearHistory() {
         historyCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"), "clear"]
         historyCmd.running = true
@@ -306,7 +319,57 @@ Item {
                         }
                     }
 
+                    // « Ne pas déranger » : à gauche de « Tout effacer », et
+                    // visible même sans notification — c'est justement quand il
+                    // n'y a rien à effacer qu'on veut couper les toasts.
                     Item {
+                        id: dndItem
+                        anchors.right: parent.right
+                        anchors.rightMargin: clearItem.visible ? clearItem.width + 10 : 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: dndPill.width
+                        height: 20
+
+                        Rectangle {
+                            id: dndPill
+                            width: dndRow.implicitWidth + 14
+                            height: 20
+                            radius: 10
+                            color: Theme.doNotDisturb ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.07)
+                            border.width: 1
+                            border.color: Theme.doNotDisturb ? Theme.accent : "transparent"
+
+                            Row {
+                                id: dndRow
+                                anchors.centerIn: parent
+                                spacing: 4
+
+                                Icon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    glyph: Theme.doNotDisturb ? "bell-off" : "bell"
+                                    size: 11
+                                    color: Theme.doNotDisturb ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                                }
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Ne pas déranger"
+                                    color: Theme.doNotDisturb ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                                    font.pixelSize: Theme.textXs
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.basculerDnd()
+                        }
+                    }
+
+                    Item {
+                        id: clearItem
                         visible: root.entryCount > 0
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter

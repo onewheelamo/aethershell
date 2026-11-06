@@ -16,6 +16,17 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
+    // Mode nuit : filtre chaud. Sur la tour, c'est le seul contenu de l'applet
+    // avec la luminosité ; sur le portable, il accompagne la batterie.
+    property bool nuitAllumee: false
+    property int nuitTemperature: 4000
+    property bool nuitPlage: false
+    property string nuitDe: ""
+    property string nuitA: ""
+    // Largeur réservée à l'icône : le clic y bascule le mode nuit au lieu
+    // d'ouvrir le panneau alimentation (un seul MouseArea sur l'applet).
+    readonly property real nuitLargeur: Math.max(14, Math.round(16 * echelle))
+
     property bool batPresente: false
     property int batPourcent: 0
     property bool batCharge: false
@@ -33,7 +44,53 @@ Item {
         lecture.running = true
     }
 
-    Component.onCompleted: root.lire()
+    Component.onCompleted: { root.lire(); root.lireNuit() }
+
+    // État du mode nuit, puis application de la plage horaire s'il y en a une :
+    // `appliquer` ne fait rien tant que la plage est vide.
+    Timer {
+        id: relanceNuit
+        interval: 60000
+        repeat: true
+        running: true
+        onTriggered: root.lireNuit()
+    }
+
+    function lireNuit() {
+        if (nuitProc.running) return
+        nuitProc.running = true
+    }
+
+    function majNuit(txt) {
+        try {
+            const d = JSON.parse(txt.trim())
+            root.nuitAllumee = d.allume === true
+            if (typeof d.temperature === "number") root.nuitTemperature = d.temperature
+            root.nuitPlage = d.plage === true
+            root.nuitDe = String(d.de || "")
+            root.nuitA = String(d.a || "")
+        } catch (e) { /* réponse partielle : on garde l'état précédent */ }
+    }
+
+    function basculerNuit() {
+        nuitAction.command = ["python3", Quickshell.shellPath("core/nuit_service.py"), "basculer"]
+        nuitAction.running = true
+    }
+
+    Process {
+        id: nuitProc
+        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
+        stdout: StdioCollector {
+            onStreamFinished: root.majNuit(text)
+        }
+    }
+
+    Process {
+        id: nuitAction
+        stdout: StdioCollector {
+            onStreamFinished: root.majNuit(text)
+        }
+    }
 
     Timer {
         interval: 15000
@@ -66,6 +123,16 @@ Item {
     Row {
         id: rangee
         spacing: Math.max(4, Math.round(Theme.space2 * root.echelle))
+
+        // Mode nuit : toujours en tête, c'est le geste du soir. Son clic est
+        // traité par le MouseArea unique de l'applet, qui teste la zone.
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            glyph: root.nuitPlage ? "weather-night" : "weather-night"
+            size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
+            color: root.nuitAllumee ? Theme.accent : Theme.fg
+            opacityLevel: root.nuitAllumee ? 1 : (root.nuitPlage ? 0.75 : 0.5)
+        }
 
         // Batterie : priorité sur la luminosité quand la machine en a une.
         Icon {
@@ -110,6 +177,11 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: Theme.togglePopup("applet:alimentation")
+        onClicked: mouse => {
+            // Première zone = l'icône de mode nuit ; ailleurs, le panneau
+            // alimentation, qui garde les curseurs de luminosité et de charge.
+            if (mouse.x <= root.nuitLargeur) root.basculerNuit()
+            else Theme.togglePopup("applet:alimentation")
+        }
     }
 }

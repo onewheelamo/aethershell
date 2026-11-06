@@ -538,6 +538,14 @@ def update_style_var(key, value):
         return set_wallpaper_dir(value)
     if key == "screenshots_dir":
         return set_screenshots_dir(value)
+    if key == "do_not_disturb":
+        # Drapeau du centre de notifications : les toasts se taisent, l'historique
+        # continue de se remplir. Écrit par le panneau, relu par Theme.qml.
+        data = load_json(STYLE_FILE)
+        data[key] = str(value).strip().lower() in ("1", "true", "oui", "yes", "on")
+        save_json(STYLE_FILE, data)
+        return True
+
     data = load_json(STYLE_FILE)
     shell_blur_changed = False
     if key == "global_radius":
@@ -1537,6 +1545,14 @@ def get_full_config_state():
         "apps": load_json(APP_VARS_FILE),
         "autostart": get_autostart(),
         "homelab": lire_homelab(),
+        # Mode nuit : état et plage, pour l'onglet « Système & Écrans ».
+        "night": {
+            "mode": bool(style_data.get("night_mode", False)),
+            "temperature": int(style_data.get("night_temp", 4000) or 4000),
+            "from": str(style_data.get("night_from") or ""),
+            "to": str(style_data.get("night_to") or ""),
+        },
+        "do_not_disturb": bool(style_data.get("do_not_disturb", False)),
     }
 
 

@@ -115,6 +115,7 @@ Item {
         "refresh": "\u{F0450}",
         "cloud": "\u{F015F}",
         "cloud-check": "\u{F0160}",
+        "disque": "\u{F02CA}",          // md-harddisk (l'applet disques le demandait sans l'avoir)
         "palette": "\u{F03D8}",
         "image": "\u{F02E9}",
         // barre de capture (SUPER + SHIFT + S) : deux paires, photo puis vidéo
