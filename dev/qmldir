@@ -22,5 +22,7 @@ ReseauApplet 1.0 ReseauApplet.qml
 NotifsApplet 1.0 NotifsApplet.qml
 ArchApplet 1.0 ArchApplet.qml
 AppletColumn 1.0 AppletColumn.qml
+MediaPanneau 1.0 MediaPanneau.qml
+CalendrierPanneau 1.0 CalendrierPanneau.qml
 BarExtra 1.0 bar_extra.qml
 LuminositeApplet 1.0 LuminositeApplet.qml
