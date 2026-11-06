@@ -1,1 +1,0 @@
-dev/sync.sh

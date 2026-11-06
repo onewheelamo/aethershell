@@ -36,3 +36,7 @@ dev/core/*_cache.json
 # Notes locales (journal + reste à faire) — ne partent pas sur GitHub
 RESTE_A_FAIRE.md
 JOURNAL*.md
+
+# Scripts de synchronisation entre machines — locaux, hors dépôt
+sync.sh
+dev/sync.sh
