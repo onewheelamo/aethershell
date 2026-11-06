@@ -135,6 +135,10 @@ def activer(applet_id, ile=None):
     etat = etat_utilisateur()
     courant = etat.get(applet_id) or {}
     ile = ile or courant.get("ile") or applet.get("ile") or "droite"
+    # Le catalogue et les états anciens portent encore « droite », « centre »… :
+    # sans cette traduction, réactiver un applet échouait sur « îlot inconnu »
+    # et le panneau semblait ne plus répondre après une désactivation.
+    ile = ANCIENS.get(ile, ile)
     if ile not in ILES:
         raise SystemExit(f"îlot inconnu : {ile} (attendu : {', '.join(ILES)})")
     etat[applet_id] = {
