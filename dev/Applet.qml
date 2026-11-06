@@ -238,13 +238,17 @@ Item {
             opacityLevel: root.ok ? 0.92 : 0.45
         }
 
-        Text {
+        // La valeur passe par un texte borné : une valeur plus longue que la
+        // place disponible (un titre de morceau, par exemple) défile au lieu de
+        // pousser l'îlot — et donc toute la barre avec lui. Quand elle tient, le
+        // rendu est celui d'un `Text` simple, sans animation.
+        Defilement {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.valeur
-            visible: root.barres.length === 0 && text !== ""
-            color: root.alerte ? Theme.warn : Theme.fg
-            font.pixelSize: Math.round(Theme.textXs * root.echelle)
-            font.features: { "tnum": 1 }
+            visible: root.barres.length === 0 && texte !== ""
+            texte: root.valeur
+            couleur: root.alerte ? Theme.warn : Theme.fg
+            taillePolice: Math.round(Theme.textXs * root.echelle)
+            largeurMax: Math.round(200 * root.echelle)
         }
     }
 

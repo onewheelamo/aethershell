@@ -16,7 +16,6 @@ import sys
 
 from applet_contrat import compact, presenter, sortir
 
-LONGUEUR_TITRE = 30
 DELAI = 4
 
 # Lecteurs qui ne sont pas des lecteurs de musique : un onglet Firefox qui joue
@@ -66,12 +65,6 @@ def _lire(ignorer_navigateurs=True):
     return lignes
 
 
-def _court(texte, limite=LONGUEUR_TITRE):
-    if len(texte) <= limite:
-        return texte
-    return texte[: limite - 1].rstrip() + "…"
-
-
 def analyser(options=None):
     lignes = _lire(_vrai((options or {}).get("ignorer_navigateurs"), True))
     if not lignes:
@@ -83,7 +76,10 @@ def analyser(options=None):
     en_pause = statut.lower() != "playing"
     return {
         "ok": True,
-        "compact": compact(_court(titre), artiste, alerte=False),
+        # Le titre part entier : c'est le texte de barre (`Defilement.qml`) qui
+        # borne la largeur et le fait défiler. Tronquer ici coupait l'information
+        # avant même que l'affichage puisse la donner.
+        "compact": compact(titre, artiste, alerte=False),
         "en_pause": en_pause,
         "lecteur": lecteur,
         "statut": statut,
