@@ -19,13 +19,18 @@ import Quickshell.Io
 //       - Watches core/app_vars.json via FileView
 //       - Synchronized command queue (cmdQueue) to prevent race conditions
 //   • Section 2: Header Frame & Close Control (panelHeader)
-//   • Section 3: Navigation Tabs Bar (panelTabs: Esthétique, Système & Écrans, Contrôles, Applications)
+//   • Section 3: Navigation Tabs Bar (Bureau, Quickshell, Widgets, Système & Écrans,
+//     Contrôles, Applications, Connexion)
 //   • Section 4: Tab Content Area (tabContentArea + mainFlickable with auto-scroll reset on tab switch)
-//       - Tab 0: Esthétique & Personnalisation
+//       - Tab 0: Bureau — seulement le fond d'écran, les thèmes et les fenêtres Hyprland
 //           * CollapsibleSection secTheme: Themes, Matugen presets, palette hex editor, wallpaper directory
-//           * CollapsibleSection secAspect: Technical appearance (Gaps, Borders, Rounding, Quickshell radius,
-//             Opacity, Bar height, Blur passes/size, Resize step, and quick toggles using Stepper components)
-//       - Tab 1: Système & Écrans
+//           * CollapsibleSection secAspect: Gaps, Borders, Rounding, Opacity, Blur passes/size,
+//             Resize step (réglages des fenêtres, pas du shell)
+//       - Tab 1: Gestion Quickshell — la barre et ses applets, en deux tiroirs
+//           * CollapsibleSection secBarre: îlots, hauteur de barre, opacité et flou du shell,
+//             bordure, flou des popups, bouton central
+//           * CollapsibleSection secApplets: quels applets, dans quel îlot, dans quel ordre, à quelle échelle
+//       - Tab 2: Widgets du bureau
 //           * Host detection (desktop vs laptop), multi-monitor grid, resolution/refresh modes, scaling,
 //             and time synchronization (Timezone & NTP toggle)
 //       - Tab 2: Contrôles, Clavier & Raccourcis
@@ -57,13 +62,17 @@ Rectangle {
     // l'onglet et la section, puis fait défiler jusqu'à la ligne ciblée.
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
-          tab: 5, section: "greeter_theme", target: "secGreeter" },
-        { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 1,
+          tab: 6, section: "greeter_theme", target: "secGreeter" },
+        { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
           section: "widgets_api", target: "secApiKeys" },
+        { label: "Applets de la barre", words: "applets barre ilot ordre position echelle cloche volume reseau",
+          tab: 1, section: "quickshell_applets", target: "secApplets" },
+        { label: "Barre et surfaces du shell", words: "barre hauteur opacite flou arrondi ilot popups bordure",
+          tab: 1, section: "quickshell_barre", target: "secBarre" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
-          tab: 1, section: "widgets", target: "secWidgets" },
+          tab: 2, section: "widgets", target: "secWidgets" },
         { label: "Position du lanceur", words: "lanceur position capsule haut bas centre gauche droite",
-          tab: 1, section: "widgets", target: "secWidgets" },
+          tab: 2, section: "widgets", target: "secWidgets" },
         { label: "Thème et fond d'écran", words: "theme fond ecran wallpaper couleur",
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Jeux de couleurs Matugen", words: "matugen palette preset couleurs saturation",
@@ -83,35 +92,35 @@ Rectangle {
         { label: "Forme des coins", words: "arrondi rounding power chanfrein squircle forme coin courbe",
           tab: 0, section: "esthetique_aspect", target: "roundingPowerRow" },
         { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
-          tab: 0, section: "esthetique_quickshell", target: "roundingIslandRow" },
+          tab: 1, section: "quickshell_barre", target: "roundingIslandRow" },
         { label: "Hauteur de la barre", words: "hauteur barre taille bar",
-          tab: 0, section: "esthetique_quickshell", target: "barHeightRow" },
+          tab: 1, section: "quickshell_barre", target: "barHeightRow" },
         { label: "Pas de redimensionnement", words: "pas redimensionnement resize step",
           tab: 0, section: "esthetique_aspect", target: "resizeRow" },
         { label: "Opacité des fenêtres", words: "opacite fenetres transparence hyprland",
           tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
         { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
-          tab: 0, section: "esthetique_quickshell", target: "shellOpacityRow" },
+          tab: 1, section: "quickshell_barre", target: "shellOpacityRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
-          tab: 0, section: "esthetique_quickshell", target: "shellBlurRow" },
+          tab: 1, section: "quickshell_barre", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
-          tab: 2, section: "", target: "monitorsRow" },
+          tab: 3, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
-          tab: 2, section: "", target: "timezoneRow" },
+          tab: 3, section: "", target: "timezoneRow" },
         { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",
-          tab: 3, section: "", target: "kbdRow" },
+          tab: 4, section: "", target: "kbdRow" },
         { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
-          tab: 3, section: "", target: "bindsCol" },
+          tab: 4, section: "", target: "bindsCol" },
         { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
-          tab: 4, section: "apps_programs", target: "secApps" },
+          tab: 5, section: "apps_programs", target: "secApps" },
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
-          tab: 4, section: "apps_programs", target: "launchHistoryRow" },
+          tab: 5, section: "apps_programs", target: "launchHistoryRow" },
         { label: "Cible du clic sur une notification", words: "notification notifications clic titre cible lien fichier video image dossier commande", 
-          tab: 4, section: "apps_notif_targets", target: "secNotifTargets" },
+          tab: 5, section: "apps_notif_targets", target: "secNotifTargets" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
-          tab: 4, section: "apps_autostart", target: "secAutostart" }
+          tab: 5, section: "apps_autostart", target: "secAutostart" }
     ]
 
     // Redirige vers l'onglet et la section du réglage, puis défile jusqu'à lui.
@@ -203,7 +212,8 @@ Rectangle {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1: BACKEND IPC & STATE PROPERTIES
     // ────────────────────────────────────────────────────────────────────────
-    property int currentTab: 0 // 0: Esthétique, 1: Widgets, 2: Système & Écrans, 3: Contrôles, 4: Applications, 5: Connexion
+    property int currentTab: 0 // 0: Bureau, 1: Quickshell, 2: Widgets, 3: Système & Écrans,
+                               // 4: Contrôles, 5: Applications, 6: Connexion
 
     // State synced with config_manager.py & FileViews
     property string hostName: "Station"
@@ -914,7 +924,8 @@ Rectangle {
 
         Repeater {
             model: [
-                { icon: "palette", label: "Esthétique" },
+                { icon: "palette", label: "Bureau" },
+                { icon: "cog", label: "Quickshell" },
                 { icon: "widgets", label: "Widgets" },
                 { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
                 { icon: "keyboard", label: "Contrôles" },
@@ -978,11 +989,12 @@ Rectangle {
             contentWidth: width
             contentHeight: {
                 if (root.currentTab === 0) return tabEsthetiqueCol.implicitHeight
-                if (root.currentTab === 1) return tabWidgetsCol.implicitHeight
-                if (root.currentTab === 2) return tabSystemeCol.implicitHeight
-                if (root.currentTab === 3) return tabControlesCol.implicitHeight
-                if (root.currentTab === 4) return tabAppsCol.implicitHeight
-                if (root.currentTab === 5) return greeterTabLoader.item
+                if (root.currentTab === 1) return tabQuickshellCol.implicitHeight
+                if (root.currentTab === 2) return tabWidgetsCol.implicitHeight
+                if (root.currentTab === 3) return tabSystemeCol.implicitHeight
+                if (root.currentTab === 4) return tabControlesCol.implicitHeight
+                if (root.currentTab === 5) return tabAppsCol.implicitHeight
+                if (root.currentTab === 6) return greeterTabLoader.item
                     ? greeterTabLoader.item.implicitHeight : 0
                 return 0
             }
@@ -995,7 +1007,8 @@ Rectangle {
             }
 
             // ═══════════════════════════════════════════════════════════════════════════
-            // TAB 0: ESTHÉTIQUE (Fond d'écran, Matugen, Thèmes, Gaps, Arrondis, Opacité)
+            // TAB 0: BUREAU — fonds d'écran, thèmes, fenêtres Hyprland.
+            // La barre et les applets sont dans l'onglet « Quickshell ».
             // ═══════════════════════════════════════════════════════════════════════════
             Column {
                 id: tabEsthetiqueCol
@@ -1850,13 +1863,24 @@ Rectangle {
 
         }   // end CollapsibleSection secAspect
 
+    }   // end Column tabEsthetiqueCol
+        // ═════════════════════════════════════════════════════════════════════
+        // TAB 1: GESTION QUICKSHELL — la barre et ses applets, en deux tiroirs
+        // ═════════════════════════════════════════════════════════════════════
+        Column {
+            id: tabQuickshellCol
+            visible: root.currentTab === 1
+            width: mainFlickable.width
+            spacing: 11
+
         // 4. Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
         CollapsibleSection {
-            id: secShell
-            title: "Quickshell"
-            icon: "widgets"
-            expanded: root.sectionOpen("esthetique_quickshell", true)
-            onToggled: expanded => root.setPanelSection("esthetique_quickshell", expanded)
+            id: secBarre
+            objectName: "secBarre"
+            title: "Barre & surfaces"
+            icon: "monitor"
+            expanded: root.sectionOpen("quickshell_barre", true)
+            onToggled: expanded => root.setPanelSection("quickshell_barre", expanded)
 
             Grid {
                 width: parent.width
@@ -2179,14 +2203,255 @@ Rectangle {
                 }
             }   // end Grid
         }   // end CollapsibleSection secShell
-    }   // end Column tabEsthetiqueCol
+
+            // Tiroir 2 : les applets. Un applet n'a qu'un emplacement ; l'ordre
+            // se règle aux flèches, l'échelle par applet.
+            CollapsibleSection {
+                id: secApplets
+                objectName: "secApplets"
+                title: "Applets de la barre"
+                icon: "widgets"
+                expanded: root.sectionOpen("quickshell_applets", true)
+                onToggled: expanded => root.setPanelSection("quickshell_applets", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+
+                    Text {
+                        width: parent.width
+                        text: "Éteints par défaut. Un applet n'a qu'un emplacement : "
+                              + "le choisir ailleurs le déplace, il ne se duplique pas."
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+
+                        Repeater {
+                            model: root.appletRows
+
+                            delegate: Rectangle {
+                                id: appletRow
+                                required property var modelData
+                                readonly property var donnee: modelData
+                                width: parent.width
+                                height: 30
+                                radius: Theme.globalRadius
+                                color: donnee.actif
+                                    ? Qt.alpha(Theme.accent, 0.10) : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: donnee.actif
+                                    ? Qt.alpha(Theme.accent, 0.5) : "transparent"
+
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 6
+
+                                    Rectangle {
+                                        width: 12
+                                        height: 12
+                                        radius: 3
+                                        color: appletRow.donnee.actif ? Theme.accent : "transparent"
+                                        border.width: 1
+                                        border.color: appletRow.donnee.actif
+                                            ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: appletRow.donnee.actif
+                                            text: "✓"
+                                            color: Theme.bg
+                                            font.pixelSize: 9
+                                            font.bold: true
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.appletBasculer(appletRow.donnee.id,
+                                                                           appletRow.donnee.actif)
+                                        }
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: appletRow.donnee.nom
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                    }
+                                }
+
+                                Row {
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 6
+
+                                    // Ordre d'affichage : échange avec le voisin
+                                    // du même îlot. Deux flèches plutôt qu'un
+                                    // numéro à saisir — l'ordre n'a de sens que
+                                    // relativement aux autres.
+                                    Row {
+                                        spacing: 3
+                                        opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "‹"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["monter", appletRow.donnee.id])
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "›"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["descendre", appletRow.donnee.id])
+                                            }
+                                        }
+                                    }
+
+                                    // Échelle de texte de cet applet : la même
+                                    // règle que les widgets, appliquée par applet.
+                                    // Boutons dans des Rectangles : un MouseArea
+                                    // avec `anchors.fill` ne peut pas être enfant
+                                    // direct d'un Row (le positionneur refuse les
+                                    // ancres horizontales), d'où l'enveloppe.
+                                    Row {
+                                        spacing: 3
+                                        opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "−"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletEchelle(appletRow.donnee.id,
+                                                                              appletRow.donnee.text_scale - 5)
+                                            }
+                                        }
+
+                                        Text {
+                                            text: appletRow.donnee.text_scale + " %"
+                                            color: Qt.alpha(Theme.fg, 0.75)
+                                            font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                            font.features: { "tnum": 1 }
+                                        }
+
+                                        Rectangle {
+                                            width: 14
+                                            height: 16
+                                            radius: 4
+                                            color: "transparent"
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "+"
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletEchelle(appletRow.donnee.id,
+                                                                              appletRow.donnee.text_scale + 5)
+                                            }
+                                        }
+                                    }
+
+                                    Repeater {
+                                        model: root.appletIles
+
+                                        Rectangle {
+                                            id: ileChip
+                                            required property var modelData
+                                            readonly property bool choisi: appletRow.donnee.ile === modelData.code
+                                            width: 18
+                                            height: 16
+                                            radius: 4
+                                            color: choisi ? Theme.accent : "transparent"
+                                            border.width: 1
+                                            border.color: choisi
+                                                ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                            opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: ileChip.modelData.label
+                                                color: ileChip.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                font.bold: ileChip.choisi
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.appletCommande(["placer",
+                                                    appletRow.donnee.id, ileChip.modelData.code])
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 
         // ═══════════════════════════════════════════════════════════════════════════
         // TAB 1: WIDGETS DU BUREAU (sur les workspaces, réglages par widget)
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabWidgetsCol
-            visible: root.currentTab === 1
+            visible: root.currentTab === 2
             width: mainFlickable.width
             spacing: 11
 
@@ -2697,238 +2962,6 @@ Rectangle {
                         }
                     }
 
-                    // ── Applets de la barre ───────────────────────────────
-                    Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
-
-                    Text {
-                        text: "Applets de la barre"
-                        color: Qt.alpha(Theme.fg, 0.7)
-                        font.pixelSize: Theme.textXs
-                        font.weight: Font.Medium
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: "Éteints par défaut. Un applet n'a qu'un emplacement : "
-                              + "le choisir ailleurs le déplace, il ne se duplique pas."
-                        color: Qt.alpha(Theme.fg, 0.45)
-                        font.pixelSize: Math.max(9, Theme.textXs - 1)
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Column {
-                        width: parent.width
-                        spacing: 4
-
-                        Repeater {
-                            model: root.appletRows
-
-                            delegate: Rectangle {
-                                id: appletRow
-                                required property var modelData
-                                readonly property var donnee: modelData
-                                width: parent.width
-                                height: 30
-                                radius: Theme.globalRadius
-                                color: donnee.actif
-                                    ? Qt.alpha(Theme.accent, 0.10) : Theme.surfaceVariant
-                                border.width: 1
-                                border.color: donnee.actif
-                                    ? Qt.alpha(Theme.accent, 0.5) : "transparent"
-
-                                Row {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 6
-
-                                    Rectangle {
-                                        width: 12
-                                        height: 12
-                                        radius: 3
-                                        color: appletRow.donnee.actif ? Theme.accent : "transparent"
-                                        border.width: 1
-                                        border.color: appletRow.donnee.actif
-                                            ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            visible: appletRow.donnee.actif
-                                            text: "✓"
-                                            color: Theme.bg
-                                            font.pixelSize: 9
-                                            font.bold: true
-                                        }
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.appletBasculer(appletRow.donnee.id,
-                                                                           appletRow.donnee.actif)
-                                        }
-                                    }
-
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: appletRow.donnee.nom
-                                        color: Theme.fg
-                                        font.pixelSize: Theme.textXs
-                                    }
-                                }
-
-                                Row {
-                                    anchors.right: parent.right
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 6
-
-                                    // Ordre d'affichage : échange avec le voisin
-                                    // du même îlot. Deux flèches plutôt qu'un
-                                    // numéro à saisir — l'ordre n'a de sens que
-                                    // relativement aux autres.
-                                    Row {
-                                        spacing: 3
-                                        opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                        Rectangle {
-                                            width: 14
-                                            height: 16
-                                            radius: 4
-                                            color: "transparent"
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "‹"
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: if (appletRow.donnee.actif)
-                                                    root.appletCommande(["monter", appletRow.donnee.id])
-                                            }
-                                        }
-
-                                        Rectangle {
-                                            width: 14
-                                            height: 16
-                                            radius: 4
-                                            color: "transparent"
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "›"
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: if (appletRow.donnee.actif)
-                                                    root.appletCommande(["descendre", appletRow.donnee.id])
-                                            }
-                                        }
-                                    }
-
-                                    // Échelle de texte de cet applet : la même
-                                    // règle que les widgets, appliquée par applet.
-                                    // Boutons dans des Rectangles : un MouseArea
-                                    // avec `anchors.fill` ne peut pas être enfant
-                                    // direct d'un Row (le positionneur refuse les
-                                    // ancres horizontales), d'où l'enveloppe.
-                                    Row {
-                                        spacing: 3
-                                        opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                        Rectangle {
-                                            width: 14
-                                            height: 16
-                                            radius: 4
-                                            color: "transparent"
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "−"
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.appletEchelle(appletRow.donnee.id,
-                                                                              appletRow.donnee.text_scale - 5)
-                                            }
-                                        }
-
-                                        Text {
-                                            text: appletRow.donnee.text_scale + " %"
-                                            color: Qt.alpha(Theme.fg, 0.75)
-                                            font.pixelSize: Math.max(9, Theme.textXs - 1)
-                                            font.features: { "tnum": 1 }
-                                        }
-
-                                        Rectangle {
-                                            width: 14
-                                            height: 16
-                                            radius: 4
-                                            color: "transparent"
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "+"
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.appletEchelle(appletRow.donnee.id,
-                                                                              appletRow.donnee.text_scale + 5)
-                                            }
-                                        }
-                                    }
-
-                                    Repeater {
-                                        model: root.appletIles
-
-                                        Rectangle {
-                                            id: ileChip
-                                            required property var modelData
-                                            readonly property bool choisi: appletRow.donnee.ile === modelData.code
-                                            width: 18
-                                            height: 16
-                                            radius: 4
-                                            color: choisi ? Theme.accent : "transparent"
-                                            border.width: 1
-                                            border.color: choisi
-                                                ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                            opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: ileChip.modelData.label
-                                                color: ileChip.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
-                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                                font.bold: ileChip.choisi
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.appletCommande(["placer",
-                                                    appletRow.donnee.id, ileChip.modelData.code])
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     // Le lanceur : intégré, position parmi six emplacements
                     Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
@@ -3130,7 +3163,7 @@ Rectangle {
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabSystemeCol
-            visible: root.currentTab === 2
+            visible: root.currentTab === 3
             width: mainFlickable.width
             spacing: 12
 
@@ -3622,7 +3655,7 @@ Rectangle {
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabControlesCol
-            visible: root.currentTab === 3
+            visible: root.currentTab === 4
             width: mainFlickable.width
             spacing: 10
 
@@ -3914,7 +3947,7 @@ Rectangle {
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabAppsCol
-            visible: root.currentTab === 4
+            visible: root.currentTab === 5
             width: mainFlickable.width
             spacing: 12
 
@@ -4868,7 +4901,7 @@ Rectangle {
             Loader {
                 id: greeterTabLoader
                 width: mainFlickable.width
-                visible: root.currentTab === 5
+                visible: root.currentTab === 6
                 active: visible
                 source: "GreeterTab.qml"
                 onLoaded: item.width = mainFlickable.width
