@@ -97,7 +97,7 @@ def main():
         return 1
 
     rapport = {"clavier": None, "dossiers": [], "programmes": [], "widgets": [],
-               "applets": [], "barre": None, "erreurs": []}
+               "applets": [], "barre": None, "bouton_reglages": False, "erreurs": []}
 
     with contextlib.redirect_stdout(sys.stderr):
         layout = str(choix.get("kb_layout") or "").strip()
@@ -129,6 +129,14 @@ def main():
             rapport["programmes"].append({"alias": alias, "commande": commande, "ok": bool(ok)})
             if not ok:
                 rapport["erreurs"].append(f"programme {alias} : refusé")
+
+        # Le bouton du panneau de réglages : sans lui, la barre n'offre aucun
+        # chemin visible vers les réglages, et il faut connaître SUPER+H.
+        try:
+            cm.update_style_var("show_config_button", "true")
+            rapport["bouton_reglages"] = True
+        except Exception as exc:
+            rapport["erreurs"].append(f"bouton réglages : {exc}")
 
         barre = str(choix.get("barre") or "").strip()
         if barre in ("haut", "bas", "cote-gauche", "cote-droite"):

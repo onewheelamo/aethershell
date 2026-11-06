@@ -777,32 +777,78 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Rectangle {
+                    // Deux gestes à retenir, côte à côte : les raccourcis et le
+                    // panneau de réglages. Le second ouvre aussi les applets de la
+                    // barre, c'est par là qu'on personnalise tout le reste.
+                    Row {
                         width: parent.width
-                        height: 62
-                        radius: Theme.globalRadius
-                        color: Qt.alpha(Theme.accent, 0.16)
-                        border.color: Theme.accent
-                        border.width: 1
+                        spacing: 10
 
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 4
+                        Rectangle {
+                            width: (parent.width - 10) / 2
+                            height: 78
+                            radius: Theme.globalRadius
+                            color: Qt.alpha(Theme.accent, 0.16)
+                            border.color: Theme.accent
+                            border.width: 1
 
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: "SUPER + K"
-                                color: Theme.accent
-                                font.pixelSize: Theme.textXl
-                                font.bold: true
+                            Column {
+                                anchors.centerIn: parent
+                                width: parent.width - 16
+                                spacing: 4
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "SUPER + K"
+                                    color: Theme.accent
+                                    font.pixelSize: Theme.textXl
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "tous les raccourcis du clavier"
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.textSm
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                }
                             }
+                        }
 
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: "tous les raccourcis du clavier, avec tes touches"
-                                color: Theme.fg
-                                font.pixelSize: Theme.textSm
-                                font.bold: true
+                        Rectangle {
+                            width: (parent.width - 10) / 2
+                            height: 78
+                            radius: Theme.globalRadius
+                            color: Qt.alpha(Theme.accent, 0.16)
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Column {
+                                anchors.centerIn: parent
+                                width: parent.width - 16
+                                spacing: 4
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "SUPER + H"
+                                    color: Theme.accent
+                                    font.pixelSize: Theme.textXl
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "panneau de réglages : barre, applets, thème"
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.textSm
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                }
                             }
                         }
                     }
