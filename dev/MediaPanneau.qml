@@ -94,15 +94,22 @@ Item {
     }
 
 
-    // Cliquer à côté referme le panneau. Même remède que le calendrier : armé
-    // après le map, et porté par le panneau lui-même.
+    // Cliquer à côté referme le panneau. Armé après le map, et porté par le
+    // panneau lui-même — même mécanique que le calendrier.
+    //
+    // `onRunningChanged` ne doit pas désarmer : ce Timer ne se répète pas, donc
+    // il repasse `running` à false dès sa première échéance. Le laisser remettre
+    // `attrapeurPret` à false désarmait l'attrapeur dans la même foulée, et le
+    // panneau ne se refermait jamais au clic extérieur. Le désarmement se fait
+    // sur la fermeture, dans `onOuvertChanged`.
     property bool attrapeurPret: false
     Timer {
         interval: 180
         running: panneau.ouvert
         onTriggered: panneau.attrapeurPret = true
-        onRunningChanged: if (!running) panneau.attrapeurPret = false
     }
+    onOuvertChanged: if (!panneau.ouvert) panneau.attrapeurPret = false
+
     readonly property var fenetresGrab: {
         const l = [fenetre]
         const w = (panneau.ancre && panneau.ancre.QsWindow) ? panneau.ancre.QsWindow.window : null
@@ -113,6 +120,14 @@ Item {
         active: panneau.ouvert && panneau.attrapeurPret
         windows: panneau.fenetresGrab
         onCleared: Theme.activePopup = ""
+    }
+
+    // Échap ferme le panneau, comme celui du calendrier : l'îlot qui héberge
+    // l'ancre reçoit le clavier, la fenêtre du popup ne le prend jamais.
+    Shortcut {
+        sequence: "Escape"
+        enabled: panneau.ouvert
+        onActivated: Theme.activePopup = ""
     }
 
     // ────────────────────────────────────────────────────────────────────────
