@@ -103,6 +103,27 @@ Item {
         command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
     }
 
+    // Mode nuit : la plage horaire s'applique **d'ici**, pas depuis l'applet
+    // luminosité. Un minuteur posé dans un applet s'arrête avec lui, et la
+    // modularisation permet de retirer cet applet : l'automatisme disparaissait
+    // alors sans le moindre signe. `main.qml` est toujours monté, sur la tour
+    // comme sur le portable, donc c'est le seul endroit qui garantit la règle.
+    // `appliquer` est idempotent et ne fait rien tant que la plage est vide.
+    Process {
+        id: nuitApplyProc
+        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
+    }
+    Timer {
+        interval: 60000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: {
+            if (nuitApplyProc.running) return
+            nuitApplyProc.running = true
+        }
+    }
+
 
     // Écrit la nouvelle position dans core/widgets.json (le shell la relira par
     // FileView : c'est le fichier qui fait foi, pas l'état local du glissement).

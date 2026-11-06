@@ -46,8 +46,10 @@ Item {
 
     Component.onCompleted: { root.lire(); root.lireNuit() }
 
-    // État du mode nuit, puis application de la plage horaire s'il y en a une :
-    // `appliquer` ne fait rien tant que la plage est vide.
+    // État du mode nuit. La **plage horaire** ne s'applique plus d'ici : le
+    // minuteur vit dans `main.qml`, qui est toujours monté, alors qu'un applet
+    // peut être retiré des barres — l'automatisme disparaissait alors en
+    // silence. Ici on ne fait que lire l'état pour l'afficher.
     Timer {
         id: relanceNuit
         interval: 60000
@@ -79,7 +81,8 @@ Item {
 
     Process {
         id: nuitProc
-        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
+        // Lecture seule : l'application de la plage vit dans `main.qml`.
+        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "etat"]
         stdout: StdioCollector {
             onStreamFinished: root.majNuit(text)
         }

@@ -372,8 +372,16 @@ Item {
             Loader {
                 id: chargeur
                 anchors.centerIn: parent
-                source: String(root.applet.popup || "") === ""
-                        ? "" : "file://" + Quickshell.shellPath(root.applet.popup)
+                // Source **relative** : une URL absolue (`"file://" +
+                // Quickshell.shellPath(...)`) fait recompiler le composant dans
+                // un second moteur QML, et un singleton appartenant à son moteur,
+                // le popup reçoit sa **propre** instance de `Theme`. Tout ce qu'il
+                // y écrit (fermeture après un clic, par exemple) reste alors
+                // invisible pour le reste de la coquille, sans aucune erreur.
+                // C'est le même piège que le Loader d'applet, corrigé ici aussi ;
+                // mesuré : `file://` donnait Theme_QMLTYPE_4, le relatif donne
+                // l'instance de la racine.
+                source: String(root.applet.popup || "")
                 onLoaded: {
                     if (!item) return
                     item.options = {
