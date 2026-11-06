@@ -100,7 +100,7 @@ fi
 [ -n "$FAMILY" ] || die "distribution non reconnue (Fedora et Arch sont gérées)"
 
 # deploy.sh nomme ses cibles par machine, pas par distribution.
-if [ "$FAMILY" = "fedora" ]; then DEPLOY_TARGET="portable"; else DEPLOY_TARGET="station"; fi
+if [ "$FAMILY" = "fedora" ]; then DEPLOY_TARGET="fedora"; else DEPLOY_TARGET="arch"; fi
 
 dep_pkg() {
     case "$FAMILY:$1" in

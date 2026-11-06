@@ -37,7 +37,7 @@ hl.window_rule({ name = "polkit-prompt", match = { class = "(?i).*polkit.*" }, f
 -- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` met
 -- active/inactive/fullscreen_opacity à 1 pour la fenêtre, `opacity = "1.0 override"`
 -- force l'alpha de façon absolue. Les deux, pour ne pas dépendre d'un seul mécanisme.
--- Deux pièges qui se cumulent, mesurés sur portable :
+-- Deux pièges qui se cumulent, mesurés sur le portable :
 --   1. la classe est comparée en **match complet** (pas une recherche) : « firefox »
 --      ne matche pas « org.mozilla.firefox », il faut `.*firefox.*` ;
 --   2. Firefox natif Wayland se déclare `org.mozilla.firefox` alors qu'en XWayland

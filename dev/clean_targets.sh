@@ -32,8 +32,6 @@ HY="$HOME/.config/hypr"
 # Tier 1 : Sûrs (aucune référence, aucun rôle runtime)
 SAFE=(
     "$QS/ThemeColors.qml"
-    "$HY/portable.lua"
-    "$HY/station.lua"
     "$HY/hardwareconfig.lua"
     "$HY/keybindings.lua"
     "$HY/keybindings.lua.bak"
@@ -55,8 +53,6 @@ shopt -u nullglob
 # Tier 2 : À confirmer (outils manuels / legacy)
 MAYBE=(
     "$HY/rotate.sh"
-    "$HY/sync_to_portable.sh"
-    "$HY/sync_to_station.sh"
 )
 
 # Tier 3 : Artefacts de build et caches

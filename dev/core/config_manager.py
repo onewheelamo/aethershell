@@ -160,13 +160,13 @@ def get_hostname():
     except Exception:
         pass
     out = run_cmd(["uname", "-n"])
-    return out.lower() if out else "station"
+    return out.lower() if out else "machine"
 
 
 def is_laptop_system():
-    if len(glob.glob("/sys/class/power_supply/BAT*")) > 0:
-        return True
-    return get_hostname() == "portable"
+    """Un portable a une batterie ; une tour n'en a pas. Le nom de la machine
+    n'entre plus dans cette décision (il n'a rien à faire dans un dépôt partagé)."""
+    return bool(glob.glob("/sys/class/power_supply/BAT*"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -791,7 +791,7 @@ def set_primary_monitor(output_name):
     host = get_hostname()
     hw_path = os.path.join(HYPR_DIR, f"hardware-{host}.lua")
     if not os.path.exists(hw_path):
-        hw_path = os.path.join(HYPR_DIR, "hardware-station.lua")
+        hw_path = os.path.join(HYPR_DIR, "hardware-" + _distro_fichier() + ".lua")
 
     ws_names = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五"}
     new_rules = [f"-- Workspaces assignés à l'écran principal ({output_name})"]
@@ -916,7 +916,7 @@ def set_monitor_mode(output_name, mode_str, scale="1"):
     host = get_hostname()
     hw_path = os.path.join(HYPR_DIR, f"hardware-{host}.lua")
     if not os.path.exists(hw_path):
-        hw_path = os.path.join(HYPR_DIR, "hardware-station.lua")
+        hw_path = os.path.join(HYPR_DIR, "hardware-" + _distro_fichier() + ".lua")
 
     if os.path.exists(hw_path):
         try:

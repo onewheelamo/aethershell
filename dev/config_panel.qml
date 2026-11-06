@@ -222,7 +222,7 @@ Rectangle {
                                // 4: Contrôles, 5: Applications, 6: Connexion
 
     // State synced with config_manager.py & FileViews
-    property string hostName: "Station"
+    property string hostName: "Machine"
     property bool isLaptop: false
     property string screenshotsDir: "$HOME/Images/Screenshots/"
     property string kbLayout: Theme.kbLayout || "fr"
@@ -4346,7 +4346,7 @@ Rectangle {
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // TAB 2: SYSTÈME & ÉCRANS (Adaptatif : Tour Station vs Laptop Portable)
+        // TAB 2: SYSTÈME & ÉCRANS (adaptatif : machine fixe ou portable)
         // ═══════════════════════════════════════════════════════════════════════════
         Column {
             id: tabSystemeCol
@@ -4363,7 +4363,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
             }
 
-            // Dynamic list of connected monitors (e.g. HDMI-A-1 on Station, DP-1 / eDP-1 on Portable)
+            // Liste des moniteurs détectés (HDMI-A-1 sur une tour, eDP-1 sur un portable)
             Row {
                 id: monitorsRow   // ancre de recherche
                 objectName: "monitorsRow"
@@ -4662,14 +4662,14 @@ Rectangle {
                 }
             }
 
-            // Laptop-only section: Multi-screen TV presets & Tablet rotation (Portable)
+            // Section réservée au portable : profils multi-écrans et rotation tablette
             Column {
                 visible: root.isLaptop
                 width: parent.width
                 spacing: 10
 
                 Text {
-                    text: "Profils Multi-Écrans & Mode Tablette (Laptop Portable uniquement)"
+                    text: "Profils Multi-Écrans & Mode Tablette (portable uniquement)"
                     color: Theme.accent
                     font.pixelSize: Theme.textMd
                     font.bold: true

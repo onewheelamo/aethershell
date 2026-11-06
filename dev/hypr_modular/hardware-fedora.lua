@@ -1,4 +1,4 @@
--- Matériel : Lenovo Yoga 720-15IKB (portable)
+-- Matériel : portable convertible (Lenovo Yoga 720-15IKB), Fedora
 
 -- Moniteurs (Laptop eDP-1 + TV externe DP-1 configurée en 60Hz)
 hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "0x0", scale = 1, bitdepth = 10 })
@@ -23,7 +23,7 @@ hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("hyprctl eval 'hl.monitor({ out
 -- Bascule manuelle du Dock
 hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd("~/.config/hypr/toggle_dock.sh"))
 
--- Mode tablette : daemon d'orientation (iio-sensor-proxy / monitor-sensor), Portable uniquement.
+-- Mode tablette : daemon d'orientation (iio-sensor-proxy / monitor-sensor), portable uniquement.
 -- Lancé uniquement au démarrage de Hyprland (pas à chaque reload) et jamais en double.
 hl.on("hyprland.start", function ()
     hl.exec_cmd("sh -c 'pgrep -f \"[t]ablet_mode_daemon.py\" >/dev/null || exec python3 \"$HOME/.config/quickshell/core/tablet_mode_daemon.py\" daemon' &")

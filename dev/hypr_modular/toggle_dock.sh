@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script de bascule manuelle pour l'écran eDP-1 (Lenovo Yoga portable)
+# Script de bascule manuelle pour l'écran eDP-1 (portable convertible)
 
 STATE=$(hyprctl monitors | grep -i "eDP-1")
 

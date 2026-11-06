@@ -1,4 +1,4 @@
--- Matériel : Tour PC (Station — Arch Linux + NVIDIA RTX 4070)
+-- Matériel : machine fixe, Arch Linux + NVIDIA RTX 4070
 
 -- Variables d'environnement Wayland / NVIDIA
 hl.env("LIBVA_DRIVER_NAME", "nvidia")

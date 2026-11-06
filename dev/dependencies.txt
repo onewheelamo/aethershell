@@ -1,12 +1,11 @@
 # Dépendances du shell, du compositeur et de ce que le panneau pilote.
 #
 # Un binaire par ligne, contrôlé par `command -v`. Les commentaires sont libres.
-# Les portées remplacent les trois anciens fichiers (dependencies.txt,
-# dependencies_station.txt, dependencies_portable.txt) :
+# Les portées remplacent les trois anciens fichiers de dépendances :
 #
-#   #: commun     → les deux machines
-#   #: arch  → cette cible seulement
-#   #: fedora     → cette cible seulement
+#   #: commun   → les deux familles de distribution
+#   #: arch     → Arch Linux seulement
+#   #: fedora   → Fedora seulement
 #
 # Une ligne hors de toute portée est ignorée : un ajout en tête de fichier ne
 # peut donc pas se retrouver silencieusement dans la liste.

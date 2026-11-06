@@ -30,7 +30,7 @@ def get_hostname():
     except Exception:
         pass
     out = run_cmd(["uname", "-n"])
-    return out.lower() if out else "station"
+    return out.lower() if out else "machine"
 
 
 def has_battery_device():

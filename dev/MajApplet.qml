@@ -8,7 +8,7 @@ import Quickshell.Io
 // Le gestionnaire est détecté au démarrage : `pacman` (Arch, avec `checkupdates`
 // et `yay -Qua` pour AUR) ou `dnf` (Fedora). Rien n'est codé pour une seule
 // distribution : la commande de comptage et celle de mise à jour suivent le
-// gestionnaire trouvé, ce qui permet d'installer le même shell sur portable.
+// gestionnaire trouvé : le même applet sert sur Arch et sur Fedora.
 //
 // Clic gauche : ouvrir la mise à jour dans le terminal par défaut ; clic droit :
 // revérifier tout de suite.

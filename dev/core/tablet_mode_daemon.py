@@ -20,7 +20,7 @@ def mode_for_transform(transform):
 
 def set_mode(mode, transform=None):
     """
-    Set laptop or tablet mode on convertible devices (e.g. Lenovo Yoga portable).
+    Set laptop or tablet mode on convertible devices (e.g. Lenovo Yoga).
     `transform` (0-3) wins over `mode`; without it, laptop=0 and tablet=2.
     """
     if transform is None:

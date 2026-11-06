@@ -122,7 +122,7 @@ trap 'rm -rf "$STAGE"' EXIT
     echo "install -Dm644 '$DEV/out/Backgrounds/wallpaper.png' '$THEME/Backgrounds/wallpaper.png'"
     # Reprise d'un renommage : la nomenclature précédente portait le nom de
     # l'hôte du laptop, on retire les artefacts qu'elle a laissés.
-    echo "rm -f /usr/local/bin/portable-greeter /etc/polkit-1/rules.d/50-portable-greeter.rules '$THEME/Themes/portable.conf' '$THEME/Backgrounds/portable.png'"
+    echo "rm -f /usr/local/bin/wallpaper-greeter /etc/polkit-1/rules.d/50-wallpaper-greeter.rules '$THEME/Themes/palette.conf' '$THEME/Backgrounds/wallpaper.png'"
     if [ "$MODE" = "full" ]; then
         # Sauvegarde puis neutralisation des Current= locaux : sans ça trois
         # fichiers se contredisent et l'ordre lexical décide du thème affiché.
@@ -143,7 +143,7 @@ trap 'rm -rf "$STAGE"' EXIT
         fi
         # Nomenclature précédente : supprimée après sauvegarde, sinon SDDM lit
         # deux Current= et l'ordre lexical décide.
-        echo "rm -f '$CONFD/10-portable.conf'"
+        echo "rm -f '$CONFD/10-sddm-theme.conf'"
         echo "cat > '$CONFD/10-sddm-theme.conf' <<'CONF'"
         echo '[Theme]'
         echo 'Current=sddm-astronaut-theme'

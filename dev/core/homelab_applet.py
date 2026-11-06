@@ -5,7 +5,7 @@ Quatre sources :
   • conteneurs docker (en cours / total) — `docker ps` et `docker ps -a` ;
   • unités systemd en échec (système et session) — `systemctl --failed` ;
   • hôtes à surveiller, listés dans core/homelab.json :
-        {"hotes": [{"nom": "nas", "url": "192.0.2.12"}, ...]}
+        {"hotes": [{"nom": "nas", "url": "nas.local"}, ...]}
   • une instance Proxmox, si elle est déclarée dans ce même fichier :
         {"proxmox": {"url": "https://pve.lan:8006", "verifier_tls": false}}
     Le jeton d'API vit dans secrets.json (section « proxmox »), jamais ici : le
