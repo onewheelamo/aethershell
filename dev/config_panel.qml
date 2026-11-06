@@ -268,6 +268,15 @@ Rectangle {
         // Fusion des trois précédents : un seul widget, blocs empilés.
         { type: "comptes",  label: "Quotas IA" }
     ]
+    // Libellé lisible d'une nature de widget : la carte de réglages affichait le
+    // nom technique (« combo ») alors que la grille du dessus dit « Aperçu du jour ».
+    function libelleWidget(nature) {
+        const n = String(nature || "")
+        for (let i = 0; i < widgetTypes.length; ++i)
+            if (String(widgetTypes[i].type) === n) return widgetTypes[i].label
+        return n
+    }
+
     readonly property var widgetTypeRows: {
         const poses = ({})
         for (let i = 0; i < widgetsList.length; i++) {
@@ -3079,15 +3088,17 @@ Rectangle {
                                         glyph: widgetCard.wtype === "date" ? "calendar"
                                                : (widgetCard.wtype === "meteo" ? "cloud"
                                                : (widgetCard.wtype === "musique" ? "music"
-                                               : (widgetCard.wtype === "combo" ? "widgets" : "clock")))
+                                               : (widgetCard.wtype === "combo" ? "widgets"
+                                               : (widgetCard.wtype === "systeme" ? "monitor"
+                                               : "clock"))))
                                         size: Theme.iconSm
                                         color: Theme.accent
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - 14 - 18 - Theme.space2 * 2
-                                        text: widgetCard.wtype.charAt(0).toUpperCase()
-                                              + widgetCard.wtype.slice(1) + "  ·  " + widgetCard.wid
+                                        text: root.libelleWidget(widgetCard.wtype)
+                                              + "  ·  " + widgetCard.wid
                                         color: Theme.fg
                                         font.pixelSize: Theme.textSm
                                         font.bold: true

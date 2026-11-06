@@ -25,6 +25,35 @@ Item {
     property var barres: []
     property var detail: ({})
 
+    // Le service publie la VRAM et la température du GPU dans `detail`, pas sous
+    // forme de mesures : on leur ajoute deux lignes ici, avec les mêmes valeurs
+    // que le widget de bureau — même source, même présentation.
+    readonly property var lignes: {
+        const d = detail || ({})
+        const out = barres.slice()
+        if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
+            out.push({
+                cle: "vram", nom: "VRAM", icone: "ram", niveau: "ok",
+                texte: arrondi(d.gpu.vram_go) + "/" + arrondi(d.gpu.vram_totale_go) + " Go"
+            })
+        }
+        if (d.gpu && Number(d.gpu.temperature) > 0) {
+            const t = Number(d.gpu.temperature)
+            out.push({
+                cle: "gputemp", nom: "GPU", icone: "temp",
+                niveau: t >= 85 ? "critique" : (t >= 70 ? "attention" : "ok"),
+                texte: Math.round(t) + " °C"
+            })
+        }
+        return out
+    }
+
+    function arrondi(v) {
+        const n = Number(v)
+        if (!isFinite(n)) return "—"
+        return (n >= 10 ? Math.round(n) : Math.round(n * 10) / 10) + ""
+    }
+
     implicitWidth: Math.round(272 * echelle)
     implicitHeight: colonne.implicitHeight
 
@@ -146,7 +175,7 @@ Item {
 
         // ── valeurs détaillées ───────────────────────────────────────────────
         Repeater {
-            model: root.barres
+            model: root.lignes
 
             delegate: Row {
                 spacing: Math.round(8 * root.echelle)
@@ -178,15 +207,13 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    // Ce qui ne tient pas dans une barre : les Go, la VRAM, la
-                    // température du GPU.
+                    // Ce que la barre ne dit pas : les Go utilisés / totaux.
                     text: {
                         const d = root.detail || ({})
                         if (modelData.cle === "ram" && d.ram)
                             return d.ram.utilisee_go + " / " + d.ram.totale_go + " Go"
-                        if (modelData.cle === "gpu" && d.gpu)
-                            return d.gpu.temperature + " °C · " + d.gpu.vram_go + " / "
-                                   + d.gpu.vram_totale_go + " Go"
+                        // VRAM et température du GPU ont leurs propres lignes :
+                        // seule la RAM garde son complément ici.
                         return ""
                     }
                     color: Qt.alpha(Theme.fg, 0.5)
