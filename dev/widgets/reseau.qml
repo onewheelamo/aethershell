@@ -91,7 +91,7 @@ Item {
             Text {
                 text: root.connecte ? root.ssid : "hors ligne"
                 color: Theme.fg
-                font.pixelSize: Math.round(13 * root.echelle)
+                font.pixelSize: Math.round(16 * root.echelle)
                 font.bold: true
                 style: Text.Raised
                 styleColor: Qt.alpha(Theme.bg, 0.55)
@@ -104,8 +104,8 @@ Item {
             // n'accepte pas d'enfants ancrés en bas.
             Item {
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.round(16 * root.echelle)
-                height: Math.round(14 * root.echelle)
+                width: Math.round(21 * root.echelle)
+                height: Math.round(17 * root.echelle)
 
                 Repeater {
                     model: 4
@@ -113,8 +113,8 @@ Item {
                     Rectangle {
                         required property int index
                         readonly property int seuil: (index + 1) * 25
-                        x: index * Math.round(4 * root.echelle)
-                        width: Math.round(3 * root.echelle)
+                        x: index * Math.round(5 * root.echelle)
+                        width: Math.round(4 * root.echelle)
                         height: Math.round((4 + index * 3) * root.echelle)
                         anchors.bottom: parent.bottom
                         radius: 1
@@ -128,7 +128,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.connecte ? root.signalPct + " %" : ""
                 color: Qt.alpha(Theme.fg, 0.7)
-                font.pixelSize: Math.round(10 * root.echelle)
+                font.pixelSize: Math.round(12 * root.echelle)
                 font.features: { "tnum": 1 }
             }
         }
@@ -140,7 +140,7 @@ Item {
                   + (root.reseau.dbm !== undefined ? " · " + root.reseau.dbm + " dBm" : "")
                   + (root.reseau.rx_mbps ? " · " + Math.round(root.reseau.rx_mbps) + " Mb/s" : "")
             color: Qt.alpha(Theme.fg, 0.5)
-            font.pixelSize: Math.round(9.5 * root.echelle)
+            font.pixelSize: Math.round(11.5 * root.echelle)
         }
 
         // ── adressage ───────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ Item {
                   + (root.reseau.passerelle ? "  →  " + root.reseau.passerelle : "")
                   + (root.reseau.latence_ms !== undefined ? "  ·  " + root.reseau.latence_ms + " ms" : "")
             color: Theme.fg
-            font.pixelSize: Math.round(10.5 * root.echelle)
+            font.pixelSize: Math.round(13 * root.echelle)
             font.features: { "tnum": 1 }
         }
 
@@ -162,14 +162,14 @@ Item {
             Text {
                 text: "↓ " + root.debit(root.reseau.rx_ko_s)
                 color: Theme.fg
-                font.pixelSize: Math.round(11 * root.echelle)
+                font.pixelSize: Math.round(13.5 * root.echelle)
                 font.features: { "tnum": 1 }
             }
 
             Text {
                 text: "↑ " + root.debit(root.reseau.tx_ko_s)
                 color: Qt.alpha(Theme.fg, 0.75)
-                font.pixelSize: Math.round(11 * root.echelle)
+                font.pixelSize: Math.round(13.5 * root.echelle)
                 font.features: { "tnum": 1 }
             }
         }
@@ -179,7 +179,7 @@ Item {
             visible: root.reseau.vpn !== undefined && String(root.reseau.vpn || "") !== ""
             text: "⛨ " + String(root.reseau.vpn || "")
             color: Theme.accent
-            font.pixelSize: Math.round(9.5 * root.echelle)
+            font.pixelSize: Math.round(11.5 * root.echelle)
             font.bold: true
         }
 
