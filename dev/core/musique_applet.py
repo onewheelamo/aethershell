@@ -10,6 +10,7 @@ tiret permanent dans la barre.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 
@@ -18,8 +19,27 @@ from applet_contrat import compact, presenter, sortir
 LONGUEUR_TITRE = 30
 DELAI = 4
 
+# Lecteurs qui ne sont pas des lecteurs de musique : un onglet Firefox qui joue
+# une vidéo n'est pas « le morceau en cours ». L'option permet de les suivre
+# quand même (radio dans le navigateur, par exemple).
+NAVIGATEURS = ("firefox", "zen", "chromium", "chrome", "brave", "vivaldi",
+               "opera", "edge", "librewolf", "waterfox")
 
-def _lire():
+
+def _vrai(valeur, defaut=True):
+    if isinstance(valeur, bool):
+        return valeur
+    if valeur is None:
+        return defaut
+    return str(valeur).strip().lower() not in ("false", "0", "non", "")
+
+
+def _est_navigateur(lecteur):
+    bas = str(lecteur or "").lower()
+    return any(n in bas for n in NAVIGATEURS)
+
+
+def _lire(ignorer_navigateurs=True):
     """[(statut, titre, artiste, lecteur)] — une ligne par lecteur MPRIS."""
     try:
         res = subprocess.run(
@@ -40,6 +60,8 @@ def _lire():
         lecteur = morceaux[3].strip() if len(morceaux) > 3 else ""
         if titre == "":
             continue
+        if ignorer_navigateurs and _est_navigateur(lecteur):
+            continue
         lignes.append((statut, titre, artiste, lecteur))
     return lignes
 
@@ -50,8 +72,8 @@ def _court(texte, limite=LONGUEUR_TITRE):
     return texte[: limite - 1].rstrip() + "…"
 
 
-def analyser():
-    lignes = _lire()
+def analyser(options=None):
+    lignes = _lire(_vrai((options or {}).get("ignorer_navigateurs"), True))
     if not lignes:
         return {"ok": True, "compact": compact(""), "lecteur": ""}
     # Un lecteur qui joue l'emporte sur un lecteur en pause : c'est ce qu'on
@@ -69,7 +91,14 @@ def analyser():
 
 
 def main(argv):
-    donnees = analyser()
+    options = {}
+    for arg in argv[1:]:
+        if arg.startswith("--options="):
+            try:
+                options = json.loads(arg.split("=", 1)[1])
+            except ValueError:
+                options = {}
+    donnees = analyser(options=options)
     presenter(donnees, "musique", "music", donnees["compact"])
     return sortir(donnees)
 

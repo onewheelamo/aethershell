@@ -325,6 +325,53 @@ Rectangle {
         }
     }
 
+    // ── Calendrier Nextcloud ─────────────────────────────────────────────────
+    // Le panneau n'a jamais le mot de passe : il demande l'état au script, qui
+    // répond « présent » et les quatre derniers caractères. L'applet calendrier
+    // et le widget date lisent le même fichier, donc une saisie ici sert aux deux.
+    property var ncEtat: ({})
+    property string ncStatut: ""
+
+    Process {
+        id: ncEtatProc
+        command: ["python3", Quickshell.shellPath("core/calendrier_config.py"), "etat"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.ncEtat = JSON.parse(text.trim()) } catch (e) { root.ncEtat = ({}) }
+            }
+        }
+    }
+
+    Process {
+        id: ncEcritProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const r = JSON.parse(text.trim())
+                    root.ncEtat = r
+                    root.ncStatut = r.ok ? "Enregistré" : ("Échec : " + (r.erreur || "inconnu"))
+                } catch (e) {
+                    root.ncStatut = "Échec de l'enregistrement"
+                }
+            }
+        }
+    }
+
+    function enregistrerNc(champ, valeur) {
+        const v = String(valeur || "").trim()
+        // Un mot de passe laissé vide veut dire « ne change rien » : on ne peut
+        // pas le relire, l'afficher, ni le confirmer autrement que par sa fin.
+        if (champ === "app_password" && v === "") return
+        if (v === "") {
+            root.ncStatut = "Ce champ ne peut pas rester vide"
+            return
+        }
+        root.ncStatut = "Enregistrement…"
+        ncEcritProc.command = ["python3", Quickshell.shellPath("core/calendrier_config.py"),
+                               "definir", champ, v]
+        ncEcritProc.running = true
+    }
+
     Process {
         id: appletsCmdProc
         stdout: StdioCollector {
@@ -2237,6 +2284,145 @@ Rectangle {
             }   // end Grid
         }   // end CollapsibleSection secShell
 
+            // Tiroir : identifiants du calendrier Nextcloud. Sert à l'applet
+            // « calendrier » comme au widget « date » — même fichier, même
+            // saisie. Le secret n'est jamais réaffiché : place-holder avec ses
+            // quatre derniers caractères, et un champ vide ne l'efface pas.
+            CollapsibleSection {
+                id: secCalendrier
+                objectName: "secCalendrier"
+                title: "Calendrier Nextcloud"
+                icon: "calendar"
+                expanded: root.sectionOpen("quickshell_calendrier", false)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_calendrier", expanded)
+                    if (expanded) ncEtatProc.running = true
+                }
+                Component.onCompleted: ncEtatProc.running = true
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Le calendrier lit le calendrier Nextcloud par CalDAV. "
+                              + "Le mot de passe demandé est un mot de passe "
+                              + "d'application, pas celui du compte."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Repeater {
+                        model: [
+                            { cle: "url", libelle: "Adresse du serveur",
+                              exemple: "https://cloud.exemple.org" },
+                            { cle: "user", libelle: "Identifiant",
+                              exemple: "prenom.nom" },
+                            { cle: "app_password", libelle: "Mot de passe d'application",
+                              exemple: "xxxxx-xxxxx-xxxxx-xxxxx" }
+                        ]
+
+                        Column {
+                            id: champCol
+                            required property var modelData
+                            width: parent.width
+                            spacing: 5
+
+                            // Les deux premiers champs arrivent pré-remplis ; le mot
+                            // de passe jamais, on ne fait qu'annoncer sa fin.
+                            readonly property string initiale: modelData.cle === "url"
+                                ? String(root.ncEtat.url || "")
+                                : (modelData.cle === "user" ? String(root.ncEtat.user || "") : "")
+                            readonly property bool secret: modelData.cle === "app_password"
+                            readonly property string rappel: secret
+                                ? (root.ncEtat.mot_de_passe_present
+                                   ? "Enregistré (…" + String(root.ncEtat.mot_de_passe_fin || "") + ")"
+                                   : "aucun mot de passe") + " — laisser vide pour ne pas changer"
+                                : String(modelData.exemple)
+
+                            Text {
+                                text: modelData.libelle
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            Row {
+                                width: parent.width
+                                spacing: 10
+
+                                Rectangle {
+                                    width: parent.width - 130
+                                    height: 32
+                                    color: Theme.bg
+                                    radius: Theme.globalRadius
+                                    border.color: ncChamp.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                    border.width: 1
+
+                                    TextInput {
+                                        id: ncChamp
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        color: Theme.info
+                                        font.pixelSize: Theme.textSm
+                                        selectByMouse: true
+                                        echoMode: champCol.secret ? TextInput.Password : TextInput.Normal
+                                        text: champCol.initiale
+                                        onAccepted: root.enregistrerNc(champCol.modelData.cle, text)
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 10
+                                        width: parent.width - 20
+                                        visible: ncChamp.text.length === 0
+                                        text: champCol.rappel
+                                        color: Qt.alpha(Theme.fg, 0.45)
+                                        font.pixelSize: Theme.textXs
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 120
+                                    height: 32
+                                    radius: Theme.globalRadius
+                                    color: ncEnreg.containsMouse ? Theme.accentMuted : Theme.accent
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Enregistrer"
+                                        color: Theme.bg
+                                        font.pixelSize: Theme.textSm
+                                        font.bold: true
+                                    }
+
+                                    MouseArea {
+                                        id: ncEnreg
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.enregistrerNc(champCol.modelData.cle, ncChamp.text)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.ncStatut !== ""
+                        text: root.ncStatut
+                        color: root.ncStatut.startsWith("Enregistré") ? Theme.success : Theme.error
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
+
             // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
             // applet reste invisible : on le dit, sinon le réglage semble cassé.
             CollapsibleSection {
@@ -2720,6 +2906,59 @@ Rectangle {
                                         }
                                     }
                                 }
+
+                                // Cases déclarées au catalogue : un réglage
+                                // vrai/faux par applet, écrit comme une option
+                                // (absent = activé, valeur par défaut du catalogue).
+                                Row {
+                                    visible: (appletRow.donnee.cases || []).length > 0
+                                    width: parent.width
+                                    height: visible ? 18 : 0
+                                    spacing: 4
+
+                                    Item { width: 26; height: 1 }
+
+                                    Repeater {
+                                        model: appletRow.donnee.cases || []
+
+                                        Rectangle {
+                                            required property var modelData
+                                            readonly property bool coche: {
+                                                const o = appletRow.donnee.options || ({})
+                                                const v = o[modelData.cle]
+                                                if (v === undefined || v === null || v === "") return true
+                                                return !(v === false || v === "false"
+                                                         || v === 0 || v === "0")
+                                            }
+                                            width: caseTexte.implicitWidth + 16
+                                            height: 16
+                                            radius: 4
+                                            color: coche ? Theme.accent : "transparent"
+                                            border.width: 1
+                                            border.color: coche ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
+                                            opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                            Text {
+                                                id: caseTexte
+                                                anchors.centerIn: parent
+                                                text: (coche ? "\u2713 " : "\u2715 ")
+                                                      + String(modelData.libelle || modelData.cle)
+                                                color: coche ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                                font.bold: coche
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: if (appletRow.donnee.actif)
+                                                    root.appletCommande(["option", appletRow.donnee.id,
+                                                                         modelData.cle,
+                                                                         coche ? "false" : "true"])
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -2790,6 +3029,14 @@ Rectangle {
                             // Échelle du texte (options.text_scale) : 100 = taille du
                             // thème, 85 par défaut pour les widgets de compte LLM, qui
                             // empilent deux lignes de texte dense.
+                            // Ne pas prendre un onglet de navigateur pour de la
+                            // musique. Absent = on ignore (défaut du widget).
+                            readonly property bool wIgnorerNavigateurs: {
+                                const v = widgetCard.wOptions.ignorer_navigateurs
+                                if (v === undefined || v === null || v === "") return true
+                                return !(v === false || v === "false" || v === 0 || v === "0")
+                            }
+
                             readonly property int wTextScale: {
                                 const v = Number(widgetCard.wOptions.text_scale)
                                 if (v >= 60 && v <= 160) return Math.round(v)
@@ -3042,6 +3289,37 @@ Rectangle {
                                             onClicked: root.runConfigCmd([
                                                 "widget_set", widgetCard.wid, "seconds",
                                                 widgetCard.wSeconds ? "false" : "true"
+                                            ])
+                                        }
+                                    }
+
+                                    // Les navigateurs ne concernent que le widget
+                                    // musique : ailleurs, la question n'a pas de sens.
+                                    Rectangle {
+                                        visible: widgetCard.wtype === "musique"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 118
+                                        height: 24
+                                        radius: Theme.globalRadius
+                                        color: widgetCard.wIgnorerNavigateurs
+                                            ? Theme.accent : Theme.surfaceVariant
+                                        border.width: 1
+                                        border.color: Theme.accent
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: (widgetCard.wIgnorerNavigateurs ? "✓ " : "✕ ")
+                                                  + "Navigateurs"
+                                            color: widgetCard.wIgnorerNavigateurs ? Theme.bg : Theme.fg
+                                            font.pixelSize: Theme.text2xs
+                                            font.bold: true
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.runConfigCmd([
+                                                "widget_set", widgetCard.wid, "ignorer_navigateurs",
+                                                widgetCard.wIgnorerNavigateurs ? "false" : "true"
                                             ])
                                         }
                                     }

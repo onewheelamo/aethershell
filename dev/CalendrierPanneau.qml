@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -290,6 +291,37 @@ Item {
     }
 
 
+    // L'îlot possède déjà son propre attrapeur pour ses panneaux. Ouvert depuis
+    // un widget, ce panneau n'a personne pour le refermer : il prend le sien.
+    // Le panneau se défend seul : il ne dépend plus de l'attrapeur de l'îlot, qui
+    // ignore son cycle de vie (et qui, armé puis relâché au mauvais moment, le
+    // laissait ouvert au clic extérieur). Armé 180 ms après l'ouverture, sinon
+    // Hyprland relâche le grab avant que la surface ne soit mappée.
+    property bool attrapeurPropre: true
+    property bool attrapeurPret: false
+    Timer {
+        interval: 180
+        running: panneau.ouvert && panneau.attrapeurPropre
+        onTriggered: panneau.attrapeurPret = true
+        onRunningChanged: if (!running) panneau.attrapeurPret = false
+    }
+
+    // La fenêtre qui héberge l'ancre doit figurer dans la liste : c'est elle qui
+    // a le clavier à l'ouverture. Sans elle, Hyprland juge le grab invalide quand
+    // le panneau part d'un widget (surface de bureau) et ne referme rien.
+    readonly property var fenetresGrab: {
+        const l = [fenetre]
+        const w = (panneau.ancre && panneau.ancre.QsWindow) ? panneau.ancre.QsWindow.window : null
+        if (w && l.indexOf(w) < 0) l.push(w)
+        return l
+    }
+
+    HyprlandFocusGrab {
+        active: panneau.ouvert && panneau.attrapeurPropre && panneau.attrapeurPret
+        windows: panneau.fenetresGrab
+        onCleared: Theme.activePopup = ""
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 8: INTERACTIVE CALENDAR & NEXTCLOUD POPUP WINDOW
     // ────────────────────────────────────────────────────────────────────────
@@ -299,11 +331,20 @@ Item {
         // `ancre`, pas à ce panneau.
         readonly property var parentWin: panneau.ancre ? panneau.ancre.QsWindow.window : null
 
+        // Placement autonome : centré sous l'ancre, au-dessus si l'ancre est
+        // dans la moitié basse de l'écran. Le panneau s'ouvre ainsi aussi bien
+        // depuis l'îlot que depuis un widget posé n'importe où.
+        readonly property bool versLeBas: {
+            if (!panneau.ancre) return true
+            const win = panneau.ancre.QsWindow ? panneau.ancre.QsWindow.window : null
+            const yGlobal = win ? win.contentItem.mapFromItem(panneau.ancre, 0, 0).y : 0
+            return yGlobal < (win ? win.height / 2 : 540)
+        }
+
         anchor.item: panneau.ancre
-        anchor.rect.x: (panneau.ancre.width - implicitWidth) / 2
-        anchor.rect.y: panneau.ancre.popupY(panneau.ancre)
+        anchor.rect.x: -Math.round((implicitWidth - panneau.ancre.width) / 2)
+        anchor.rect.y: versLeBas ? (panneau.ancre.height + 6) : (-implicitHeight - 6)
         anchor.adjustment: PopupAdjustment.All
-        anchor.onAnchoring: anchor.rect = Qt.rect(panneau.ancre.clampPopupX(panneau.ancre, (panneau.ancre.width - implicitWidth) / 2, implicitWidth), panneau.ancre.popupY(panneau.ancre), anchor.rect.width, anchor.rect.height)
         implicitWidth: 310
         implicitHeight: calMainCol.implicitHeight + 28
         color: "transparent"

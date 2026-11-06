@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Mpris
 
@@ -92,6 +93,27 @@ Item {
         }
     }
 
+
+    // Cliquer à côté referme le panneau. Même remède que le calendrier : armé
+    // après le map, et porté par le panneau lui-même.
+    property bool attrapeurPret: false
+    Timer {
+        interval: 180
+        running: panneau.ouvert
+        onTriggered: panneau.attrapeurPret = true
+        onRunningChanged: if (!running) panneau.attrapeurPret = false
+    }
+    readonly property var fenetresGrab: {
+        const l = [fenetre]
+        const w = (panneau.ancre && panneau.ancre.QsWindow) ? panneau.ancre.QsWindow.window : null
+        if (w && l.indexOf(w) < 0) l.push(w)
+        return l
+    }
+    HyprlandFocusGrab {
+        active: panneau.ouvert && panneau.attrapeurPret
+        windows: panneau.fenetresGrab
+        onCleared: Theme.activePopup = ""
+    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 7B: MEDIA POPUP (MPRIS CONTROLS)

@@ -134,26 +134,8 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 7: HYPRLAND OUTSIDE CLICK / FOCUS GRAB
     // ────────────────────────────────────────────────────────────────────────
-    // Armer l'attrapeur trop tôt le fait relâcher par Hyprland avant que la
-    // surface du panneau ne soit mappée : le popup se referme dans la seconde.
-    // Même remède que dans Applet.qml — on laisse le compositeur finir le map.
-    property bool grabPret: false
-    Timer {
-        interval: 180
-        running: islandCenter.calendarOpen || islandCenter.mediaOpen
-        onTriggered: islandCenter.grabPret = true
-        onRunningChanged: if (!running) islandCenter.grabPret = false
-    }
-
-    HyprlandFocusGrab {
-        active: (islandCenter.calendarOpen || islandCenter.mediaOpen) && islandCenter.grabPret
-        windows: [calendarPopup.surface, mediaPopup.surface, islandCenter.QsWindow.window]
-        onCleared: {
-            if (Theme.activePopup === "calendar" || Theme.activePopup === "media") {
-                Theme.activePopup = ""
-            }
-        }
-    }
+    // Plus d'attrapeur ici : chaque panneau porte le sien (CalendrierPanneau et
+    // MediaPanneau). L'îlot ne connaît plus ni leur fenêtre ni leur cycle de vie.
 
 
     // ────────────────────────────────────────────────────────────────────────

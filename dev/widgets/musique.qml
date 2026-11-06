@@ -41,7 +41,16 @@ Item {
     property bool launching: false
     property int posTick: 0
 
-    readonly property var browserHints: ["firefox", "zen", "chromium", "chrome", "brave"]
+    readonly property var browserHints: ["firefox", "zen", "chromium", "chrome",
+                                         "brave", "vivaldi", "opera", "librewolf"]
+
+    // Réglage du widget : un onglet qui joue une vidéo n'est pas de la musique.
+    // Par défaut on ignore les navigateurs ; l'option permet de les suivre.
+    readonly property bool ignorerNavigateurs: {
+        const v = options ? options.ignorer_navigateurs : undefined
+        if (v === undefined || v === null || v === "") return true
+        return !(v === false || v === "false" || v === 0 || v === "0")
+    }
 
     // Comme l'îlot central : on ignore les navigateurs, et on préfère le lecteur
     // qui joue réellement. Une piste en pause reste sélectionnée.
@@ -56,7 +65,7 @@ Item {
             for (let k = 0; k < browserHints.length; k++) {
                 if (ident.indexOf(browserHints[k]) >= 0) { isBrowser = true; break }
             }
-            if (isBrowser) continue
+            if (isBrowser && ignorerNavigateurs) continue
             if (p.isPlaying) return p
             if (!paused) paused = p
         }

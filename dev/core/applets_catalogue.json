@@ -20,7 +20,14 @@
             "ile": "centre",
             "ordre": 10,
             "cadence": 1,
-            "text_scale": 100
+            "text_scale": 100,
+            "cases": [
+                {
+                    "cle": "ignorer_navigateurs",
+                    "libelle": "Ignorer les navigateurs",
+                    "defaut": true
+                }
+            ]
         },
         {
             "id": "calendrier",
@@ -76,17 +83,17 @@
             "text_scale": 100
         },
         {
-          "id": "luminosite",
-          "nom": "Luminosité & batterie",
-          "description": "Niveau de batterie et luminosité ; clic pour les réglages d'alimentation",
-          "genre": "qml",
-          "composant": "LuminositeApplet.qml",
-          "ile": "haut:fin",
-          "ordre": 55,
-          "text_scale": 100
+            "id": "luminosite",
+            "nom": "Luminosité & batterie",
+            "description": "Niveau de batterie et luminosité ; clic pour les réglages d'alimentation",
+            "genre": "qml",
+            "composant": "LuminositeApplet.qml",
+            "ile": "haut:fin",
+            "ordre": 55,
+            "text_scale": 100
         },
         {
-          "id": "alimentation",
+            "id": "alimentation",
             "nom": "Alimentation",
             "description": "Verrouiller, fermer la session, veiller, redémarrer, éteindre",
             "genre": "qml",
@@ -136,7 +143,14 @@
             "ordre": 20,
             "cadence": 1,
             "text_scale": 100,
-            "options": { "mesures": ["cpu", "ram", "gpu", "temp"] }
+            "options": {
+                "mesures": [
+                    "cpu",
+                    "ram",
+                    "gpu",
+                    "temp"
+                ]
+            }
         },
         {
             "id": "comptes",
@@ -145,13 +159,22 @@
             "icone": "wallet",
             "service": "core/comptes_applet.py",
             "choix": {
-              "cle": "prefere",
-              "libelle": "Service affiché dans la barre",
-              "valeurs": [
-                { "code": "deepseek", "nom": "DeepSeek" },
-                { "code": "ollama", "nom": "Ollama" },
-                { "code": "antigravity", "nom": "Antigravity" }
-              ]
+                "cle": "prefere",
+                "libelle": "Service affiché dans la barre",
+                "valeurs": [
+                    {
+                        "code": "deepseek",
+                        "nom": "DeepSeek"
+                    },
+                    {
+                        "code": "ollama",
+                        "nom": "Ollama"
+                    },
+                    {
+                        "code": "antigravity",
+                        "nom": "Antigravity"
+                    }
+                ]
             },
             "popup": "widgets/comptes.qml",
             "ile": "droite",
