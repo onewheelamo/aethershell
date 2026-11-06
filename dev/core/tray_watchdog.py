@@ -93,15 +93,24 @@ def main():
             interval = max(2, int(argv[idx + 1]))
 
     parent = os.getppid()
+    # Le gardien est lancé par le shell au démarrage, souvent **avant** que le
+    # StatusNotifierWatcher ne soit publié sur le bus. Sortir au premier constat
+    # d'absence le rendait inutile pour toute la session — c'est ce qui laissait
+    # ProtonVPN sans icône. On laisse donc au shell le temps d'apparaître.
+    absences = 0
     while True:
         if os.getppid() == 1 and parent != 1:
             return 0  # orphelin : la session qui nous a lancés est partie
         if not watcher_alive():
-            return 0  # shell arrêté
-        heal(verbose=True)
+            absences += 1
+            if absences >= 6:      # ~30 s de patience, puis le shell a disparu
+                return 0
+        else:
+            absences = 0
+            heal(verbose=True)
         if once:
             return 0
-        time.sleep(interval)
+        time.sleep(interval if absences == 0 else 3)
 
 
 if __name__ == "__main__":
