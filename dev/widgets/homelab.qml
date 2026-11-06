@@ -7,9 +7,9 @@ import Quickshell.Io
 
 // HOMELAB — ce qui tourne et ce qui devrait répondre.
 //
-// Même service que l'applet. Les hôtes surveillés sont déclarés dans
-// core/homelab.json ; sans ce fichier la carte montre les conteneurs et les
-// unités en échec, sans rien inventer.
+// Même service que l'applet. Les hôtes surveillés et l'instance Proxmox sont
+// déclarés dans core/homelab.json ; sans ce fichier la carte montre les unités en
+// échec, sans rien inventer.
 Item {
     id: root
     property var options: ({})
@@ -21,11 +21,66 @@ Item {
         return 1.0
     }
 
-    property var conteneurs: ({})
     property var unites: ({})
     property var hotes: []
     property var proxmox: ({})
     property bool charge: false
+
+    // Même garde-fou que dans le popup : deux clics, trois secondes. Les deux
+    // surfaces ont leur propre armement — armer dans l'une ne doit pas exécuter
+    // dans l'autre.
+    property string confirmation: ""
+    property string messageAction: ""
+
+    function cleInvite(g) {
+        return String(g.type) + ":" + String(g.id) + ":" + String(g.noeud)
+    }
+
+    function demanderRedemarrage(g) {
+        if (!g) return
+        const cle = root.cleInvite(g)
+        if (root.confirmation === cle) {
+            root.confirmation = ""
+            root.messageAction = "redémarrage de " + String(g.nom || g.id) + "…"
+            actionProc.command = ["python3", Quickshell.shellPath("core/homelab_applet.py"),
+                                  "--action", "reboot", "--type", String(g.type),
+                                  "--node", String(g.noeud), "--vmid", String(g.id)]
+            actionProc.running = true
+            return
+        }
+        root.confirmation = cle
+        gardeFou.restart()
+    }
+
+    Timer {
+        id: gardeFou
+        interval: 3000
+        repeat: false
+        onTriggered: root.confirmation = ""
+    }
+
+    Process {
+        id: actionProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const v = JSON.parse(text.trim())
+                    root.messageAction = v.ok ? String(v.message || "demandé")
+                                              : "échec — " + String(v.message || "")
+                } catch (e) {
+                    root.messageAction = "réponse illisible"
+                }
+                rechargerApres.restart()
+            }
+        }
+    }
+
+    Timer {
+        id: rechargerApres
+        interval: 1500
+        repeat: false
+        onTriggered: root.rafraichir()
+    }
 
     function rafraichir() {
         proc.running = false
@@ -49,12 +104,10 @@ Item {
                 try {
                     const d = JSON.parse(text.trim())
                     const det = d.detail || ({})
-                    root.conteneurs = det.conteneurs || ({})
                     root.unites = det.unites || ({})
                     root.hotes = det.hotes || []
                     root.proxmox = det.proxmox || ({})
                 } catch (e) {
-                    root.conteneurs = ({})
                     root.unites = ({})
                     root.hotes = []
                     root.proxmox = ({})
@@ -71,49 +124,6 @@ Item {
         id: colonne
         width: parent.width
         spacing: Math.round(7 * echelle)
-
-        // ── conteneurs ───────────────────────────────────────────────────────
-        Column {
-            width: parent.width
-            spacing: 2
-            visible: root.conteneurs.total !== undefined
-
-            Row {
-                width: parent.width
-
-                Text {
-                    width: parent.width - Math.round(64 * root.echelle)
-                    text: "conteneurs"
-                    color: Qt.alpha(Theme.fg, 0.6)
-                    font.pixelSize: Math.round(10 * root.echelle)
-                }
-
-                Text {
-                    width: Math.round(64 * root.echelle)
-                    horizontalAlignment: Text.AlignRight
-                    text: String(root.conteneurs.en_cours || 0) + " / "
-                          + String(root.conteneurs.total || 0)
-                    color: Theme.fg
-                    font.pixelSize: Math.round(11 * root.echelle)
-                    font.features: { "tnum": 1 }
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                height: Math.round(3 * root.echelle)
-                radius: height / 2
-                color: Qt.alpha(Theme.fg, 0.10)
-
-                Rectangle {
-                    readonly property int total: Math.max(1, Number(root.conteneurs.total) || 1)
-                    width: parent.width * Math.min(1, (Number(root.conteneurs.en_cours) || 0) / total)
-                    height: parent.height
-                    radius: parent.radius
-                    color: Theme.accent
-                }
-            }
-        }
 
         // ── Proxmox ──────────────────────────────────────────────────────────
         Column {
@@ -194,6 +204,92 @@ Item {
                     font.pixelSize: Math.round(11 * root.echelle)
                     font.features: { "tnum": 1 }
                 }
+            }
+
+            // ── invités : CT et VM ──────────────────────────────────────────
+            Repeater {
+                model: root.proxmox.vms || []
+
+                Row {
+                    required property var modelData
+                    width: colonne.width
+                    height: Math.round(15 * root.echelle)
+                    spacing: Math.round(4 * root.echelle)
+
+                    Rectangle {
+                        width: Math.round(4 * root.echelle)
+                        height: width
+                        radius: width / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: modelData.etat === "running" ? Theme.accent
+                                                            : Qt.alpha(Theme.fg, 0.3)
+                    }
+
+                    Text {
+                        // Même somme que dans le popup : 4 + 10 + 12 + 78, plus
+                        // 10 px de respiration (la ligne débordait de 14 px).
+                        width: parent.width - Math.round(114 * root.echelle)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (modelData.type === "lxc" ? "CT " : "VM ")
+                              + String(modelData.id) + "  " + String(modelData.nom || "")
+                        color: modelData.etat === "running" ? Theme.fg : Qt.alpha(Theme.fg, 0.55)
+                        font.pixelSize: Math.round(10 * root.echelle)
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: Math.round(78 * root.echelle)
+                        anchors.verticalCenter: parent.verticalCenter
+                        horizontalAlignment: Text.AlignRight
+                        text: root.confirmation === root.cleInvite(modelData)
+                              ? "confirmer ?"
+                              : (modelData.etat === "running"
+                                 ? String(modelData.cpu) + "% · " + String(modelData.ram) + "%"
+                                 : String(modelData.etat || ""))
+                        color: root.confirmation === root.cleInvite(modelData)
+                               ? Theme.error : Qt.alpha(Theme.fg, 0.55)
+                        font.pixelSize: Math.round(9.5 * root.echelle)
+                        font.bold: root.confirmation === root.cleInvite(modelData)
+                        font.features: { "tnum": 1 }
+                    }
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "restart"
+                        size: Math.round(10 * root.echelle)
+                        color: survolInvite.containsMouse
+                               ? (root.confirmation === root.cleInvite(modelData) ? Theme.error : Theme.accent)
+                               : Qt.alpha(Theme.fg, 0.42)
+                        opacityLevel: 1
+
+                        MouseArea {
+                            id: survolInvite
+                            anchors.fill: parent
+                            anchors.margins: Math.round(-4 * root.echelle)
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.demanderRedemarrage(modelData)
+                        }
+                    }
+                }
+            }
+
+            Text {
+                width: parent.width
+                visible: root.proxmox.droits === "aucun"
+                text: "jeton sans droits — pveum acl modify"
+                color: Theme.warn
+                font.pixelSize: Math.round(9.5 * root.echelle)
+                elide: Text.ElideRight
+            }
+
+            Text {
+                width: parent.width
+                visible: root.messageAction !== ""
+                text: root.messageAction
+                color: Qt.alpha(Theme.fg, 0.5)
+                font.pixelSize: Math.round(9.5 * root.echelle)
+                elide: Text.ElideRight
             }
         }
 

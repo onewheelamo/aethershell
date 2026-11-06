@@ -2,7 +2,6 @@
 """Applet « Homelab » : ce qui tourne, ce qui est tombé, et qui répond.
 
 Quatre sources :
-  • conteneurs docker (en cours / total) — `docker ps` et `docker ps -a` ;
   • unités systemd en échec (système et session) — `systemctl --failed` ;
   • hôtes à surveiller, listés dans core/homelab.json :
         {"hotes": [{"nom": "nas", "url": "nas.local"}, ...]}
@@ -71,16 +70,6 @@ def _run(cmd, timeout=DELAI):
         return ""
 
 
-def conteneurs():
-    if not _run(["sh", "-c", "command -v docker"]).strip():
-        return {}
-    actifs = [l for l in _run(["docker", "ps", "-q"]).splitlines() if l.strip()]
-    tous = [l for l in _run(["docker", "ps", "-aq"]).splitlines() if l.strip()]
-    if not tous:
-        return {"en_cours": 0, "total": 0}
-    return {"en_cours": len(actifs), "total": len(tous)}
-
-
 def unites_en_echec():
     n = 0
     noms = []
@@ -137,13 +126,13 @@ def hotes():
     } for (nom, cible), latence in zip(cibles, latences)]
 
 
-def _api(base, chemin, jeton, verifier_tls, timeout=DELAI_API):
-    """GET sur l'API Proxmox ; renvoie (données, erreur lisible)."""
+def _api(base, chemin, jeton, verifier_tls, timeout=DELAI_API, methode="GET"):
+    """Appel à l'API Proxmox ; renvoie (données, erreur lisible)."""
     url = base.rstrip("/") + "/api2/json" + chemin
     req = urllib.request.Request(url, headers={
         "Authorization": "PVEAPIToken=" + jeton,
         "Accept": "application/json",
-    })
+    }, method=methode, data=b"" if methode == "POST" else None)
     contexte = None
     if not verifier_tls:
         # Proxmox sert un certificat auto-signé par défaut : exiger la
@@ -153,8 +142,13 @@ def _api(base, chemin, jeton, verifier_tls, timeout=DELAI_API):
         with urllib.request.urlopen(req, timeout=timeout, context=contexte) as rep:
             return json.loads(rep.read().decode("utf-8")).get("data"), None
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
+        if e.code == 401:
             return None, "jeton refusé"
+        if e.code == 403:
+            # Authentifié mais sans le droit : c'est une ACL à poser sur le
+            # serveur, pas un identifiant faux — la distinction évite de chercher
+            # longtemps du côté du shell.
+            return None, "droits insuffisants"
         return None, "HTTP " + str(e.code)
     except (urllib.error.URLError, OSError, ValueError) as e:
         return None, "injoignable" if isinstance(e, (urllib.error.URLError, OSError)) else "réponse illisible"
@@ -215,22 +209,76 @@ def proxmox():
         # incidents : seules les machines « running » et « stopped » comptent.
         if v.get("template"):
             continue
+        # Les mêmes champs servent au widget et au popup : ce que
+        # `/cluster/resources?type=vm` rend déjà (cpu, mémoire, disque, uptime)
+        # évite une requête par invité.
+        maxmem = float(v.get("maxmem") or 0)
+        mem = float(v.get("mem") or 0)
+        maxdisk = float(v.get("maxdisk") or 0)
+        disque = float(v.get("disk") or 0)
         out["vms"].append({
             "id": v.get("vmid"),
             "nom": str(v.get("name") or ""),
-            "type": str(v.get("type") or ""),
+            "type": str(v.get("type") or ""),       # lxc = CT, qemu = VM
             "etat": etat,
             "noeud": str(v.get("node") or ""),
+            "cpu": round(100 * float(v.get("cpu") or 0)),
+            "ram": round(100 * mem / maxmem) if maxmem > 0 else None,
+            "ram_go": round(mem / 1073741824, 1),
+            "ram_max_go": round(maxmem / 1073741824, 1),
+            "disque_go": round(disque / 1073741824, 1),
+            "disque_max_go": round(maxdisk / 1073741824, 1),
+            "uptime_j": round(float(v.get("uptime") or 0) / 86400, 1),
         })
 
     en_cours = [v for v in out["vms"] if v["etat"] == "running"]
     out["en_cours"] = len(en_cours)
     out["total"] = len(out["vms"])
+    out["ct"] = len([v for v in out["vms"] if v["type"] == "lxc"])
+    out["vm"] = len([v for v in out["vms"] if v["type"] == "qemu"])
+
+    # Aucun invité alors que les nœuds répondent : le jeton s'authentifie mais ne
+    # voit rien. Proxmox filtre `/cluster/resources` par permission, donc une ACL
+    # absente donne une liste vide — pas une erreur. On le dit, sinon l'applet
+    # affiche « 0 » et laisse croire à un homelab vide.
+    if not out["vms"]:
+        droits, _ = _api(url, "/access/permissions", jeton, verifier)
+        out["droits"] = "aucun" if isinstance(droits, dict) and not droits else "limites"
+        if out["droits"] == "aucun":
+            out["aide"] = ("pveum acl modify / --tokens '" + ident
+                           + "' --roles PVEAuditor")
     return out
 
 
+VERBES = ("start", "stop", "shutdown", "reboot")
+
+
+def agir(verbe, genre, noeud, vmid):
+    """Action sur un invité : CT (`lxc`) ou VM (`qemu`).
+
+    `reboot` demande au système invité de redémarrer proprement, `shutdown` de
+    s'arrêter proprement, `stop` coupe net. Un jeton qui n'a que VM.Audit reçoit un
+    403 : c'est VM.PowerMgmt qui autorise l'action, et le message le dit.
+    """
+    conf = _config().get("proxmox") or {}
+    url = str(conf.get("url") or "").strip()
+    sec = _secrets()
+    ident = str(conf.get("token_id") or sec.get("token_id") or "").strip()
+    secret = str(sec.get("token_secret") or "").strip()
+    if not url or not ident or not secret:
+        return {"ok": False, "message": "Proxmox non configuré"}
+    if genre not in ("lxc", "qemu") or verbe not in VERBES or not noeud or not vmid:
+        return {"ok": False, "message": "cible invalide"}
+
+    chemin = f"/nodes/{noeud}/{genre}/{int(vmid)}/status/{verbe}"
+    _, erreur = _api(url, chemin, ident + "=" + secret,
+                     bool(conf.get("verifier_tls", False)), methode="POST")
+    if erreur:
+        return {"ok": False, "message": erreur, "chemin": chemin}
+    return {"ok": True, "message": verbe + " demandé", "chemin": chemin}
+
+
 def analyser():
-    cont = conteneurs()
     unites = unites_en_echec()
     h = hotes()
     pve = proxmox()
@@ -248,32 +296,33 @@ def analyser():
     elif pve_erreur:
         valeur = "!"
         libelle = "Proxmox " + str(pve_erreur)
+    elif pve.get("configure") and pve.get("droits") == "aucun":
+        # Le jeton s'authentifie mais ne voit rien : ce n'est pas « parc vide »,
+        # et une valeur vide laisserait croire que l'applet est cassé.
+        valeur = "!"
+        libelle = "Proxmox sans droits"
     elif pve.get("configure") and pve.get("total", 0) > 0:
         valeur = str(pve.get("en_cours", 0)) + "/" + str(pve.get("total", 0))
-        libelle = "VM"
-    elif cont:
-        valeur = str(cont.get("en_cours", 0))
-        libelle = "conteneur(s)"
+        # « invités » : le parc mêle des CT et des VM, et l'ancien libellé « VM »
+        # annonçait 18 machines alors que quinze sont des conteneurs.
+        libelle = "invités"
     else:
         valeur = ""
         libelle = ""
 
     barres = []
-    if cont:
-        total = max(1, int(cont.get("total", 0)))
-        pct = round(100 * int(cont.get("en_cours", 0)) / total)
-        barres.append({
-            "cle": "conteneurs", "nom": "Conteneurs", "icone": "rocket",
-            "valeur": pct, "remplissage": pct,
-            "texte": str(cont.get("en_cours", 0)) + "/" + str(cont.get("total", 0)),
-            "niveau": "ok", "alerte": False,
-        })
     if pve and pve.get("configure"):
         if pve_erreur:
             barres.append({
                 "cle": "proxmox", "nom": "Proxmox", "icone": "cloud-check",
                 "valeur": 0, "remplissage": 0, "texte": str(pve_erreur),
                 "niveau": "critique", "alerte": True,
+            })
+        elif pve.get("droits") == "aucun":
+            barres.append({
+                "cle": "proxmox", "nom": "Proxmox", "icone": "cloud-check",
+                "valeur": 0, "remplissage": 0, "texte": "sans droits",
+                "niveau": "attention", "alerte": True,
             })
         elif pve.get("total", 0) > 0:
             pct = round(100 * int(pve.get("en_cours", 0)) / max(1, int(pve.get("total", 1))))
@@ -300,7 +349,7 @@ def analyser():
     return {
         "ok": True,
         "compact": compact(valeur, libelle, alerte, barres=barres or None),
-        "detail": {"conteneurs": cont, "unites": unites, "hotes": h, "proxmox": pve},
+        "detail": {"unites": unites, "hotes": h, "proxmox": pve},
         "applet": "homelab",
         "icone": "cloud-check",
         "alerte": alerte,
@@ -308,6 +357,21 @@ def analyser():
 
 
 def main(argv):
+    # Mode action, pour le widget : `--action reboot --type lxc --node hoth --vmid 100`.
+    # Il ne produit pas de contrat d'applet, juste un verdict JSON — l'applet
+    # garde une seule forme de sortie.
+    if "--action" in argv:
+        def valeur(nom, defaut=""):
+            if nom in argv:
+                i = argv.index(nom)
+                if i + 1 < len(argv):
+                    return argv[i + 1]
+            return defaut
+        verdict = agir(valeur("--action"), valeur("--type", "lxc"),
+                       valeur("--node"), valeur("--vmid"))
+        print(json.dumps(verdict, ensure_ascii=False))
+        return 0 if verdict.get("ok") else 1
+
     donnees = analyser()
     presenter(donnees, "homelab", "cloud-check", donnees["compact"])
     return sortir(donnees)
