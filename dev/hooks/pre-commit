@@ -5,6 +5,10 @@
 # après un force-add ne redemande rien. Ce crochet est le dernier rempart, et il
 # vaut pour toute machine où il est installé (`git config core.hooksPath dev/hooks`).
 #
+# Piège vérifié : si `core.hooksPath` pointe vers un dossier absent (dépôt qui
+# n'a pas encore tiré ce fichier), git ne dit rien et laisse passer le commit.
+# Installer ne suffit donc pas : vérifier que ce fichier existe après le clone.
+#
 # Ce qui est refusé :
 #   sync.sh, dev/sync.sh      outils de synchronisation locaux : les publier
 #                             reviendrait à laisser quelqu'un pousser à ta place
