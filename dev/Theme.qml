@@ -199,6 +199,12 @@ QtObject {
     // l'historique, mais aucun toast ne s'affiche. Réglé depuis le centre de
     // notifications, mémorisé dans style_vars.json (do_not_disturb).
     property bool doNotDisturb: false
+    // Pont vers le centre de notifications : l'îlot droit possède le serveur, la
+    // liste et les actions ; l'applet possède le panneau (pour s'ancrer à la
+    // cloche). Ces trois propriétés sont la seule surface d'échange.
+    property var notifList: []
+    property var notifArchive: []
+    property var notifOps: ({})
 
     function togglePopup(name) {
         activePopup = (activePopup === name) ? "" : name

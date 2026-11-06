@@ -54,9 +54,19 @@ Item {
 
     // Notifications State
     property var notificationsList: []
+    // Repli sur l'historique : la liste vive ne contient que ce qui est arrivé
+    // depuis le démarrage de la coquille. Après un redémarrage le popup était
+    // donc vide alors que l'historique, lui, vit sur disque — on affiche ses
+    // dernières entrées au lieu d'une fenêtre vide.
+    property var notifArchive: []
     // L'applet de la cloche ne peut pas lire cette liste (identifiants locaux au
     // fichier) : le compte est publié dans le singleton Theme.
-    onNotificationsListChanged: Theme.notifCount = notificationsList.length
+    onNotificationsListChanged: {
+        Theme.notifCount = notificationsList.length
+        // Le panneau vit dans l'applet : il lit la liste par ce pont.
+        Theme.notifList = notificationsList
+    }
+
     property var latestToast: null
 
     // Le compteur de paquets en attente vit dans l'applet « maj ».
@@ -150,6 +160,48 @@ Item {
                 toastTimer.restart()
             }
         }
+    }
+
+    // Historique sur disque : mêmes entrées que le tiroir « Historique », dont
+    // on ne garde que les six dernières pour le popup.
+    FileView {
+        // `Quickshell.env` rend undefined pour une variable absente : tester la
+        // valeur elle-même, sinon le chemin devenait « undefined/quickshell/… ».
+        path: {
+            const xdg = Quickshell.env("XDG_CACHE_HOME")
+            const base = xdg ? String(xdg)
+                             : (Quickshell.env("HOME") ? String(Quickshell.env("HOME")) + "/.cache" : "")
+            return base + "/quickshell/notifications-history.jsonl"
+        }
+        watchChanges: true
+        onFileChanged: reload()
+        // `onTextChanged` ne couvre pas le premier chargement : sans `onLoaded`,
+        // le repli restait vide au démarrage.
+        onLoaded: islandRight.lireArchive(text())
+        onTextChanged: islandRight.lireArchive(text())
+    }
+
+    function lireArchive(txt) {
+        const lignes = String(txt || "").split("\n")
+        const out = []
+        for (let i = lignes.length - 1; i >= 0 && out.length < 6; i--) {
+            const l = lignes[i].trim()
+            if (l === "") continue
+            try {
+                const e = JSON.parse(l)
+                if (!e || !e.id) continue
+                out.push({
+                    id: e.id,
+                    appName: e.app || "",
+                    summary: e.summary || "",
+                    body: e.body || "",
+                    time: String(e.ts || "").slice(11, 16),
+                    archive: true
+                })
+            } catch (err) { /* ligne illisible : ignorée */ }
+        }
+        islandRight.notifArchive = out
+        Theme.notifArchive = out
     }
 
     Timer {
@@ -455,6 +507,19 @@ Item {
 
 
     Component.onCompleted: {
+        // Actions du centre de notifications, exposées à l'applet par
+        // Theme.notifOps : le panneau vit désormais dans l'applet (pour s'ancrer
+        // à la cloche) et ne peut pas appeler les fonctions de ce fichier.
+        Theme.notifOps = ({
+            clear: function () { islandRight.clearNotifications() },
+            forget: function (e) { islandRight.forgetNotif(e) },
+            open: function (e, fermer) { islandRight.openNotifTarget(e, fermer) },
+            invoke: function (e, ident) { islandRight.invokeNotifAction(e, ident) },
+            actions: function (e) { return islandRight.notifActions(e) },
+            hasTarget: function (e) { return islandRight.notifHasTarget(e) },
+            setQuiet: function (nom, muet) { islandRight.setToastQuiet(nom, muet) }
+        })
+
         // Crochets de diagnostic, exposés par IPC depuis Theme :
         //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
         //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
@@ -576,451 +641,6 @@ Item {
     // SUB-SECTION 7.4: NOTIFICATION CENTER POPUP
     // ────────────────────────────────────────────────────────────────────────
     // Chronological notification history with dismiss & clear-all controls
-    PopupWindow {
-        id: notificationsPopup
-        // La cloche est devenue l'applet « notifications » : le panneau s'ancre
-        // au bord droit de l'îlot, comme l'ancien menu d'alimentation.
-        anchor.item: islandRight
-        anchor.rect.x: islandRight.width - implicitWidth
-        anchor.rect.y: Theme.barHeight + 6
-        anchor.adjustment: PopupAdjustment.All
-        implicitWidth: 320
-        implicitHeight: 340
-        color: "transparent"
-        visible: Theme.activePopup === "notifications"
-
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
-
-                // ────────────────────────────────────────────────────────────
-                // En-tête : compteur discret, action neutre au repos
-                // ────────────────────────────────────────────────────────────
-                Item {
-                    width: parent.width
-                    height: 22
-
-                    Row {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: Theme.space2
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: "bell"
-                            size: Theme.iconSm
-                            color: Theme.accent
-                            opacityLevel: 1
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Notifications"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textLg
-                            font.bold: true
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: islandRight.notificationsList.length > 0
-                            text: islandRight.notificationsList.length
-                            color: Theme.accent
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-                    }
-
-                    // Historique : petite icône à gauche de « Tout effacer », qui
-                    // ouvre le tiroir indépendant (tout ce qui est arrivé, y
-                    // compris ce qui a été effacé ici ou fermé par l'application).
-                    Item {
-                        id: historyBtn
-                        anchors.right: clearBtn.left
-                        anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 18
-                        height: 20
-
-                        Icon {
-                            anchors.centerIn: parent
-                            glyph: "history"
-                            size: 12
-                            color: historyMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
-                            opacityLevel: 1
-
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-
-                        MouseArea {
-                            id: historyMa
-                            anchors.fill: parent
-                            anchors.margins: -4
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Theme.activePopup = ""
-                                Theme.notifHistoryVisible = true
-                            }
-                        }
-                    }
-
-                    // « Tout effacer » : discret au repos, rouge seulement au survol.
-                    // Le rouge reste un signal, pas une décoration.
-                    Item {
-                        id: clearBtn
-                        visible: islandRight.notificationsList.length > 0
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: clearText.implicitWidth + 12
-                        height: 20
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Theme.globalRadius
-                            color: clearMa.containsMouse ? Qt.alpha(Theme.error, 0.12) : "transparent"
-                        }
-
-                        Text {
-                            id: clearText
-                            anchors.centerIn: parent
-                            text: "Tout effacer"
-                            color: clearMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.55)
-                            font.pixelSize: Theme.textXs
-
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-
-                        MouseArea {
-                            id: clearMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: islandRight.clearNotifications()
-                        }
-                    }
-                }
-
-                // ────────────────────────────────────────────────────────────
-                // Cartes empilées, la plus récente en tête
-                // ────────────────────────────────────────────────────────────
-                Flickable {
-                    id: notifFlick
-                    width: parent.width
-                    // Le pied « sans apparition spontanée » rogne la liste d'autant.
-                    height: 268 - (quietFooter.visible ? quietFooter.height + 6 : 0)
-                    contentWidth: width
-                    contentHeight: notifListCol.implicitHeight
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-
-                    Column {
-                        id: notifListCol
-                        width: parent.width
-                        spacing: 8
-
-                        // État vide
-                        Item {
-                            visible: islandRight.notificationsList.length === 0
-                            width: parent.width
-                            height: notifFlick.height
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: Theme.space2
-
-                                Icon {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    glyph: "bell-off"
-                                    size: Theme.iconLg
-                                    color: Qt.alpha(Theme.fg, 0.35)
-                                    opacityLevel: 1
-                                }
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "Aucune notification"
-                                    color: Qt.alpha(Theme.fg, 0.55)
-                                    font.pixelSize: Theme.textSm
-                                }
-                            }
-                        }
-
-                        Repeater {
-                            model: islandRight.notificationsList
-
-                            Rectangle {
-                                id: notifCard
-                                required property var modelData
-                                required property int index
-                                width: notifListCol.width
-                                height: notifCardCol.implicitHeight + 20
-                                radius: Theme.globalRadius
-                                color: cardMa.containsMouse
-                                    ? Qt.lighter(Theme.surfaceVariant, 1.15)
-                                    : Theme.surfaceVariant
-                                clip: true
-
-                                Behavior on color { ColorAnimation { duration: 120 } }
-
-                                // Liseré d'application : 2 px, franc sur la carte la
-                                // plus récente, effacé sur les anciennes.
-                                Rectangle {
-                                    width: 2
-                                    height: parent.height
-                                    color: Qt.alpha(Theme.accent, index === 0 ? 0.95 : 0.35)
-                                }
-
-                                MouseArea {
-                                    id: cardMa
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.NoButton
-                                }
-
-                                Column {
-                                    id: notifCardCol
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.leftMargin: 12
-                                    anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 3
-
-                                    Item {
-                                        width: parent.width
-                                        height: 18
-
-                                        Row {
-                                            anchors.left: parent.left
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: Theme.space1
-
-                                            Text {
-                                                text: modelData.appName
-                                                width: Math.min(implicitWidth, notifCardCol.width - 78)
-                                                color: Theme.accent
-                                                font.pixelSize: Theme.textXs
-                                                font.bold: true
-                                                elide: Text.ElideRight
-                                            }
-                                            Text {
-                                                text: "·"
-                                                color: Qt.alpha(Theme.fg, 0.4)
-                                                font.pixelSize: Theme.textXs
-                                            }
-                                            Text {
-                                                text: modelData.time
-                                                color: Qt.alpha(Theme.fg, 0.5)
-                                                font.pixelSize: Theme.textXs
-                                                font.features: { "tnum": 1 }
-                                            }
-                                        }
-
-                                        Icon {
-                                            anchors.right: parent.right
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            glyph: "close"
-                                            size: 10
-                                            color: closeMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.5)
-                                            opacityLevel: 1
-
-                                            MouseArea {
-                                                id: closeMa
-                                                anchors.fill: parent
-                                                anchors.margins: -4
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: islandRight.forgetNotif(modelData)
-                                            }
-                                        }
-                                    }
-
-                                    // Titre = cible : curseur main et teinte accent au
-                                    // survol **seulement** si une cible a été résolue.
-                                    Item {
-                                        width: parent.width
-                                        height: notifTitle.implicitHeight
-
-                                        Text {
-                                            id: notifTitle
-                                            width: parent.width
-                                            text: modelData.summary
-                                            color: titleMa.containsMouse && titleMa.enabled
-                                                ? Theme.accent : Theme.fg
-                                            font.pixelSize: Theme.textSm
-                                            font.bold: true
-                                            wrapMode: Text.WordWrap
-                                            Behavior on color { ColorAnimation { duration: 120 } }
-                                        }
-
-                                        MouseArea {
-                                            id: titleMa
-                                            anchors.fill: parent
-                                            enabled: islandRight.notifHasTarget(modelData)
-                                            hoverEnabled: true
-                                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                            onClicked: islandRight.openNotifTarget(modelData, true)
-                                        }
-                                    }
-
-                                    Text {
-                                        visible: modelData.body !== ""
-                                        width: parent.width
-                                        text: modelData.body
-                                        color: Qt.alpha(Theme.fg, 0.8)
-                                        font.pixelSize: Theme.textXs
-                                        wrapMode: Text.WordWrap
-                                        maximumLineCount: 3
-                                        elide: Text.ElideRight
-                                    }
-
-                                    // Actions proposées par l'application
-                                    // (« Ouvrir », « Mettre en pause »…) : petites
-                                    // pastilles sous le corps. L'action « default »
-                                    // n'y figure pas, c'est le clic sur le titre.
-                                    Flow {
-                                        width: parent.width
-                                        visible: islandRight.notifActions(notifCard.modelData).length > 0
-                                        spacing: Theme.space1
-
-                                        Repeater {
-                                            model: islandRight.notifActions(notifCard.modelData)
-
-                                            Rectangle {
-                                                required property var modelData
-                                                width: actionLabel.implicitWidth + Theme.space3 * 2
-                                                height: 20
-                                                radius: Theme.globalRadius
-                                                color: actionMa.containsMouse
-                                                    ? Qt.alpha(Theme.accent, 0.16)
-                                                    : Qt.alpha(Theme.fg, 0.06)
-
-                                                Text {
-                                                    id: actionLabel
-                                                    anchors.centerIn: parent
-                                                    text: modelData.text
-                                                    color: actionMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
-                                                    font.pixelSize: Theme.textXs
-                                                    elide: Text.ElideRight
-                                                    Behavior on color { ColorAnimation { duration: 120 } }
-                                                }
-
-                                                MouseArea {
-                                                    id: actionMa
-                                                    anchors.fill: parent
-                                                    hoverEnabled: true
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: islandRight.invokeNotifAction(notifCard.modelData, modelData.identifier)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ────────────────────────────────────────────────────
-                // Applications écartées des toasts : le choix se fait
-                // depuis un toast (cloche barrée) et se défait ici.
-                // ────────────────────────────────────────────────────
-                Item {
-                    id: quietFooter
-                    width: parent.width
-                    height: visible ? quietCol.implicitHeight + 12 : 0
-                    visible: Theme.quietNotifApps.length > 0
-
-                    Rectangle {
-                        anchors.top: parent.top
-                        width: parent.width
-                        height: 1
-                        color: Qt.alpha(Theme.fg, 0.08)
-                    }
-
-                    Column {
-                        id: quietCol
-                        anchors.top: parent.top
-                        anchors.topMargin: 10
-                        width: parent.width
-                        spacing: 6
-
-                        Row {
-                            spacing: Theme.space1
-
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                glyph: "bell-off"
-                                size: 10
-                                color: Qt.alpha(Theme.fg, 0.45)
-                                opacityLevel: 1
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "Notifications silencieuses"
-                                color: Qt.alpha(Theme.fg, 0.45)
-                                font.pixelSize: Theme.text2xs
-                            }
-                        }
-
-                        Flow {
-                            width: parent.width
-                            spacing: 6
-
-                            Repeater {
-                                model: Theme.quietNotifApps
-
-                                Rectangle {
-                                    required property var modelData
-                                    width: quietChipText.implicitWidth + 26
-                                    height: 20
-                                    radius: Theme.globalRadius
-                                    color: Theme.surfaceVariant
-
-                                    Text {
-                                        id: quietChipText
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 8
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: Math.min(implicitWidth, 130)
-                                        text: modelData
-                                        color: Qt.alpha(Theme.fg, 0.8)
-                                        font.pixelSize: Theme.text2xs
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Icon {
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 7
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        glyph: "close"
-                                        size: 9
-                                        color: chipClose.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.45)
-                                        opacityLevel: 1
-
-                                        MouseArea {
-                                            id: chipClose
-                                            anchors.fill: parent
-                                            anchors.margins: -4
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: islandRight.setToastQuiet(modelData, false)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     // ────────────────────────────────────────────────────────────────────────
     // SUB-SECTION 7.5: EPHEMERAL NOTIFICATION TOAST POPUP

@@ -207,8 +207,8 @@ Item {
         anchor.rect.y: Theme.barHeight + 6
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: 320
-        // 390 → 545 : le bloc Bluetooth tient sous la liste WiFi sans la rogner.
-        implicitHeight: 545
+        // WiFi 200 + filet + Bluetooth : la hauteur suit le contenu utile.
+        implicitHeight: 455
         color: "transparent"
         visible: root.ouvert
         grabFocus: visible && root.expandedSsid !== ""
@@ -304,7 +304,9 @@ Item {
                 Flickable {
                     id: wifiFlick
                     width: parent.width
-                    height: root.connectingStatus !== "" ? 240 : 270
+                    // Deux réseaux + la ligne de mot de passe : au-delà, on fait
+                    // défiler. Le bloc Bluetooth reste ainsi juste sous le filet.
+                    height: root.connectingStatus !== "" ? 175 : 200
                     contentWidth: width
                     contentHeight: networkListCol.implicitHeight
                     clip: true
