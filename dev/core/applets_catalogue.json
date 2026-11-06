@@ -32,7 +32,7 @@
         {
             "id": "calendrier",
             "nom": "Calendrier",
-            "description": "Date et prochain rendez-vous ; clic pour le mois et les événements Nextcloud",
+            "description": "La date ; clic pour le mois et les événements Nextcloud",
             "icone": "calendar",
             "service": "core/calendrier_applet.py",
             "_popup_externe": "le panneau du calendrier vit encore dans l'îlot central",

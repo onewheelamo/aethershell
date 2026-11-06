@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 import time
@@ -65,7 +66,7 @@ def etat():
         "de": str(d.get("night_from") or ""),
         "a": str(d.get("night_to") or ""),
         "plage": bool(str(d.get("night_from") or "").strip()),
-        "daemon": os.path.exists(_socket()),
+        "daemon": _daemon_vivant(),
     }
 
 
@@ -107,31 +108,65 @@ def _hyprctl(*args):
         return None
 
 
+def _daemon_vivant():
+    """Un socket qui existe ne veut pas dire un démon qui écoute.
+
+    hyprsunset laisse son socket derrière lui quand il meurt (crash, mise à jour
+    du paquet, session précédente) : `os.path.exists` répondait alors « le démon
+    est là », `hyprctl hyprsunset` échouait, et le mode nuit ne faisait plus rien
+    — sans le moindre message. On ouvre la connexion pour de vrai.
+    """
+    chemin = _socket()
+    if not chemin or not os.path.exists(chemin):
+        return False
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            s.connect(chemin)
+        return True
+    except OSError:
+        return False
+
+
 def _demarrer_daemon():
     """hyprsunset doit écouter pour recevoir les ordres ; on le lance en identité."""
-    if os.path.exists(_socket()):
+    if _daemon_vivant():
         return True
+    # Socket laissé par une session morte : hyprsunset refuserait de s'y lier.
+    try:
+        os.unlink(_socket())
+    except OSError:
+        pass
     try:
         subprocess.Popen(["hyprsunset", "-i"], env=_env(),
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          start_new_session=True)
     except OSError:
         return False
-    for _ in range(20):
-        if os.path.exists(_socket()):
+    for _ in range(30):
+        if _daemon_vivant():
             return True
         time.sleep(0.1)
     return False
 
 
 def appliquer_filtre(temp):
-    if not _demarrer_daemon():
-        return False
-    if temp is None:
-        res = _hyprctl("identity")
-    else:
-        res = _hyprctl("temperature", str(int(temp)))
-    return res is not None and res.returncode == 0
+    ordre = ["identity"] if temp is None else ["temperature", str(int(temp))]
+    for essai in range(2):
+        if not _demarrer_daemon():
+            return False
+        res = _hyprctl(*ordre)
+        if res is not None and res.returncode == 0:
+            return True
+        if essai == 0:
+            # Le démon a pu mourir entre la connexion et l'ordre : on le relance
+            # une fois, une seule — une boucle masquerait une vraie panne.
+            try:
+                os.unlink(_socket())
+            except OSError:
+                pass
+            time.sleep(0.2)
+    return False
 
 
 # ── plage horaire ───────────────────────────────────────────────────────────

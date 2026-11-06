@@ -185,6 +185,13 @@ Item {
             selectedDateStr = ""
             addingEvent = false
             addEventStatus = ""
+            // Désarmement de l'attrapeur : il se pose 180 ms après l'ouverture
+            // (voir plus bas), et doit retomber à la fermeture. Le remettre ici
+            // évite un second handler `onOuvertChanged` sur le même objet —
+            // deux affectations de la même propriété rendent le composant
+            // entièrement indisponible (« Property value set multiple times »),
+            // et l'îlot central avec lui.
+            attrapeurPret = false
         }
     }
 
@@ -297,13 +304,17 @@ Item {
     // ignore son cycle de vie (et qui, armé puis relâché au mauvais moment, le
     // laissait ouvert au clic extérieur). Armé 180 ms après l'ouverture, sinon
     // Hyprland relâche le grab avant que la surface ne soit mappée.
-    property bool attrapeurPropre: true
+    //
+    // Le désarmement se fait sur la fermeture, **pas** sur `onRunningChanged` :
+    // ce Timer ne se répète pas, donc il repasse `running` à false dès sa
+    // première échéance, et le gestionnaire remettait `attrapeurPret` à false
+    // dans la même foulée. L'attrapeur n'était jamais actif plus d'une fraction
+    // de seconde, et le clic extérieur ne refermait donc rien.
     property bool attrapeurPret: false
     Timer {
         interval: 180
-        running: panneau.ouvert && panneau.attrapeurPropre
+        running: panneau.ouvert
         onTriggered: panneau.attrapeurPret = true
-        onRunningChanged: if (!running) panneau.attrapeurPret = false
     }
 
     // La fenêtre qui héberge l'ancre doit figurer dans la liste : c'est elle qui
@@ -317,9 +328,19 @@ Item {
     }
 
     HyprlandFocusGrab {
-        active: panneau.ouvert && panneau.attrapeurPropre && panneau.attrapeurPret
+        active: panneau.ouvert && panneau.attrapeurPret
         windows: panneau.fenetresGrab
         onCleared: Theme.activePopup = ""
+    }
+
+    // Échap ferme le panneau. Il vit dans l'îlot, qui reçoit le clavier quand
+    // `calendar` est ouvert (`main.qml` passe la surface en OnDemand) ; la
+    // fenêtre du popup, elle, ne prend le focus que pour la saisie d'un
+    // événement — et c'est alors le champ qui traite Échap, pas ce raccourci.
+    Shortcut {
+        sequence: "Escape"
+        enabled: panneau.ouvert && !panneau.addingEvent
+        onActivated: Theme.activePopup = ""
     }
 
     // ────────────────────────────────────────────────────────────────────────
