@@ -64,12 +64,14 @@ Item {
 
         if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
             const part = 100 * (Number(d.gpu.vram_go) || 0) / Number(d.gpu.vram_totale_go)
+            // Le ratio plutôt que le pourcentage : sur une VRAM, « 1,5/12 Go »
+            // dit plus que « 12 % », et la jauge donne déjà la proportion.
             out.push({
                 cle: "vram", nom: "VRAM", icone: "ram",
-                texte: Math.round(part) + " %",
+                texte: formatGo(d.gpu.vram_go) + "/" + formatGo(d.gpu.vram_totale_go) + " Go",
                 remplissage: part,
                 niveau: part >= 92 ? "critique" : (part >= 80 ? "attention" : "ok"),
-                precision: formatGo(d.gpu.vram_go) + " / " + formatGo(d.gpu.vram_totale_go) + " Go"
+                precision: ""
             })
         }
 
