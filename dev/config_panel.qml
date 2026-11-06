@@ -390,8 +390,16 @@ Rectangle {
             onStreamFinished: {
                 try {
                     const liste = JSON.parse(text.trim())
-                    if (Array.isArray(liste)) root.appletRows = liste
-                    else root.appletsRafraichir()
+                    if (Array.isArray(liste)) {
+                        // Deux temps : vider puis remplir. Une réaffectation
+                        // directe laissait les délégués en place quand la liste
+                        // gardait la même longueur, et les cases à cocher des
+                        // disques continuaient d'afficher l'ancien état.
+                        root.appletRows = []
+                        root.appletRows = liste
+                    } else {
+                        root.appletsRafraichir()
+                    }
                 } catch (e) {
                     root.appletsRafraichir()
                 }
