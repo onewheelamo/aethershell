@@ -35,28 +35,57 @@ Item {
     }
     readonly property var detail: (donnees && donnees.detail) ? donnees.detail : ({})
 
-    // Une ligne de précision sous la jauge. Les deux températures et la VRAM sont
-    // demandées explicitement : elles vivent ici en clair, pas seulement dans une
-    // couleur de jauge.
-    function precision(cle) {
+    // Les lignes affichées : les mesures du contrat, plus deux jauges dérivées
+    // que le service ne renvoie pas sous forme de barres — VRAM utilisée et
+    // température du GPU. Une température ou une VRAM absente (pas de NVIDIA)
+    // n'ajoute simplement pas sa ligne.
+    readonly property var lignes: {
         const d = detail || ({})
-        if (cle === "cpu") {
-            const t = d.temp && d.temp.cpu ? Math.round(d.temp.cpu) + "°" : ""
-            return t
+        const out = []
+        for (let i = 0; i < barres.length; ++i) {
+            const b = barres[i]
+            const ligne = {
+                cle: String(b.cle || ""),
+                nom: String(b.nom || b.cle || ""),
+                icone: String(b.icone || b.cle || ""),
+                texte: String(b.texte || ""),
+                remplissage: Number(b.remplissage) || 0,
+                niveau: String(b.niveau || "ok"),
+                precision: ""
+            }
+            if (ligne.cle === "cpu" && d.temp && d.temp.cpu)
+                ligne.precision = Math.round(d.temp.cpu) + "°"
+            else if (ligne.cle === "ram" && d.ram && d.ram.totale_go)
+                ligne.precision = formatGo(d.ram.utilisee_go) + " / " + formatGo(d.ram.totale_go) + " Go"
+            // « temp » garde sa jauge, sans la ligne « paquet » : la température
+            // du CPU est déjà annoncée sous la ligne CPU.
+            out.push(ligne)
         }
-        if (cle === "ram" && d.ram && d.ram.totale_go)
-            return formatGo(d.ram.utilisee_go) + " / " + formatGo(d.ram.totale_go) + " Go"
-        if (cle === "gpu") {
-            let t = ""
-            if (d.gpu && d.gpu.vram_totale_go)
-                t = formatGo(d.gpu.vram_go) + " / " + formatGo(d.gpu.vram_totale_go) + " Go"
-            if (d.gpu && d.gpu.temperature)
-                t += (t !== "" ? " · " : "") + Math.round(d.gpu.temperature) + "°"
-            return t
+
+        if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
+            const part = 100 * (Number(d.gpu.vram_go) || 0) / Number(d.gpu.vram_totale_go)
+            out.push({
+                cle: "vram", nom: "VRAM", icone: "ram",
+                texte: Math.round(part) + " %",
+                remplissage: part,
+                niveau: part >= 92 ? "critique" : (part >= 80 ? "attention" : "ok"),
+                precision: formatGo(d.gpu.vram_go) + " / " + formatGo(d.gpu.vram_totale_go) + " Go"
+            })
         }
-        if (cle === "temp" && d.temp && d.temp.cpu)
-            return "paquet " + Math.round(d.temp.cpu) + "°"
-        return ""
+
+        if (d.gpu && Number(d.gpu.temperature) > 0) {
+            const chaleur = Number(d.gpu.temperature)
+            out.push({
+                cle: "gputemp", nom: "GPU", icone: "temp",
+                texte: Math.round(chaleur) + "°",
+                // Même échelle que la température CPU : 85 °C = jauge pleine.
+                remplissage: Math.min(100, 100 * chaleur / 85),
+                niveau: chaleur >= 85 ? "critique" : (chaleur >= 70 ? "attention" : "ok"),
+                precision: ""
+            })
+        }
+
+        return out
     }
 
     function formatGo(v) {
@@ -109,11 +138,11 @@ Item {
         spacing: 7
 
         Repeater {
-            model: root.barres
+            model: root.lignes
 
             Column {
                 required property var modelData
-                readonly property string precisionTexte: root.precision(modelData.cle)
+                readonly property string precisionTexte: String(modelData.precision || "")
                 // Pas de `width: colonne.width` : la colonne se dimensionne sur
                 // ses enfants, la lier à eux referme la boucle et l'écrase à 0.
                 spacing: 1
