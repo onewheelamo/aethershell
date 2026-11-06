@@ -141,6 +141,10 @@ def activer(applet_id, ile=None):
     ile = ANCIENS.get(ile, ile)
     if ile not in ILES:
         raise SystemExit(f"îlot inconnu : {ile} (attendu : {', '.join(ILES)})")
+    # Activer sur une barre éteinte laisserait l'applet invisible : la barre
+    # s'allume dans le même geste, comme dans `placer()` — le panneau appelle
+    # `placer`, mais un `activer` en ligne de commande doit se comporter pareil.
+    _allumer_barre(ile)
     etat[applet_id] = {
         "ile": ile,
         "ordre": courant.get("ordre", applet.get("ordre", 100)),

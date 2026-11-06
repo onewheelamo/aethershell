@@ -33,7 +33,11 @@ def _run(cmd, timeout=DELAI, entrees=None):
 
 
 def entrees(limite=40):
-    """[(id, texte)] — les plus récentes d'abord, telles que cliphist les rend."""
+    """[(id, texte)] — les plus récentes d'abord, telles que cliphist les rend.
+
+    `limite` à 0 (ou None) rend tout l'historique : l'appelant qui a besoin du
+    compte total ne doit pas le déduire de la page qu'il a demandée.
+    """
     res = _run(["cliphist", "list"])
     if res is None:
         return []
@@ -49,20 +53,25 @@ def entrees(limite=40):
         if texte == "":
             continue
         out.append((ident, texte))
-        if len(out) >= limite:
+        if limite and len(out) >= limite:
             break
     return out
 
 
-def liste(limite=40):
+def decrire(paires):
+    """La forme publiée au QML : id, aperçu tronqué, longueur d'origine."""
     out = []
-    for ident, texte in entrees(limite):
+    for ident, texte in paires:
         out.append({
             "id": ident,
             "apercu": (texte[:APERCU - 1] + "…") if len(texte) > APERCU else texte,
             "longueur": len(texte),
         })
     return out
+
+
+def liste(limite=40):
+    return decrire(entrees(limite))
 
 
 def copier(ident):
@@ -75,12 +84,14 @@ def copier(ident):
 
 
 def analyser():
-    l = liste(40)
-    n = len(l)
+    # Le compte affiché est celui de **tout** l'historique, pas de la page
+    # qu'on en montre : il restait figé à 40 (et à 6 côté widget) sur une base
+    # qui en contenait cinq cents.
+    toutes = entrees(0)
     return {
         "ok": True,
-        "compact": compact(str(n), "presse-papiers", alerte=False),
-        "detail": {"entrees": l},
+        "compact": compact(str(len(toutes)), "presse-papiers", alerte=False),
+        "detail": {"entrees": decrire(toutes[:40])},
         "applet": "presse-papiers",
         "icone": "selection",
         "alerte": False,
@@ -92,7 +103,9 @@ def main(argv):
 
     if action == "liste":
         limite = int(argv[2]) if len(argv) > 2 and argv[2].isdigit() else 40
-        print(json.dumps({"ok": True, "entrees": liste(limite)}, ensure_ascii=False))
+        toutes = entrees(0)
+        print(json.dumps({"ok": True, "total": len(toutes),
+                          "entrees": decrire(toutes[:limite])}, ensure_ascii=False))
         return 0
 
     if action == "copier" and len(argv) > 2:

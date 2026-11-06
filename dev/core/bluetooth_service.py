@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 DELAI = 8
 
@@ -81,14 +82,25 @@ def etat():
     }
 
 
+def _allume_maintenant():
+    """Lecture courte : `bluetoothctl show` seul, pour une attente serrée."""
+    return bool(re.search(r"^\s*Powered:\s*yes", _ctl("show"), re.MULTILINE))
+
+
 def basculer(vouloir=None):
     e = etat()
     if not e.get("present"):
         return e
     cible = (not e["allume"]) if vouloir is None else bool(vouloir)
     _ctl("power", "on" if cible else "off", timeout=12)
-    # L'adaptateur met un instant à changer d'état : relire tout de suite
-    # rendrait l'ancien.
+    # L'adaptateur met un instant à basculer côté D-Bus : relire juste après
+    # rendait l'ancien état, et le commutateur du panneau revenait tout seul.
+    # On attend que BlueZ confirme, 2 s au maximum.
+    fin = time.monotonic() + 2.0
+    while time.monotonic() < fin:
+        if _allume_maintenant() == cible:
+            break
+        time.sleep(0.1)
     return etat()
 
 

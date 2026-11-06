@@ -108,6 +108,25 @@ def ecrire_json(chemin, donnees):
         pass
 
 
+def _trouver_agy():
+    """Où le CLI `agy` est réellement installé.
+
+    Selon l'installation il vit dans `~/.local/bin` (présent dans le PATH d'un
+    shell interactif, pas forcément dans celui de la coquille) ou dans
+    `~/.gemini/bin` (hors PATH). Chercher les deux évite un renouvellement qui
+    échoue en silence et un widget bloqué en mode dégradé.
+    """
+    candidats = [
+        shutil.which("agy"),
+        Path.home() / ".local" / "bin" / "agy",
+        Path.home() / ".gemini" / "bin" / "agy",
+    ]
+    for candidat in candidats:
+        if candidat and Path(candidat).is_file():
+            return str(candidat)
+    return "agy"          # dernier recours : que le PATH tranche
+
+
 def renouveler():
     """Fait renouveler le jeton par le CLI lui-même, sans rien écrire nous-mêmes.
 
@@ -120,7 +139,7 @@ def renouveler():
     if maintenant - int(lire_json(RENEW_FILE).get("ts") or 0) < RENEW_DELAI:
         return False
     ecrire_json(RENEW_FILE, {"ts": maintenant})
-    binaire = shutil.which("agy") or str(Path.home() / ".local" / "bin" / "agy")
+    binaire = _trouver_agy()
     try:
         # Session détachée, sorties sur /dev/null : le CLI écrit son « Fetching
         # available models… » sur le terminal, pas sur stdout, et il n'a rien à
@@ -441,11 +460,18 @@ def evenements(chemin):
                             + int(d.group(3) or 0))
                 if secondes <= 0:
                     continue
-                # Un fichier peut chevaucher le jour de l'an : si la date de la
-                # ligne précède celle du fichier, c'est l'année suivante.
+                # Un fichier de log peut chevaucher le jour de l'an : une ligne
+                # de janvier dans un fichier de décembre appartient à l'année
+                # suivante, et une ligne de décembre dans un fichier de janvier
+                # à l'année précédente (cas du repli sur `st_mtime`, qui peut
+                # contenir la veille). Prendre tout écart pour un passage
+                # d'année datait les événements d'un an dans le futur, et un
+                # blocage passé comptait alors comme actif.
                 annee_ligne = annee
-                if (int(mois), int(jour)) < (mois_fichier, jour_fichier):
+                if mois_fichier == 12 and int(mois) == 1:
                     annee_ligne += 1
+                elif (int(mois), int(jour)) > (mois_fichier, jour_fichier):
+                    annee_ligne -= 1
                 try:
                     instant = time.mktime((annee_ligne, int(mois), int(jour),
                                            int(heure), int(minute), int(seconde), 0, 0, -1))

@@ -42,6 +42,18 @@ Item {
     // tableau doit tenir sur cinq lignes sans manger le bureau.
     readonly property int tailleLigne: Math.max(8, Math.round(Theme.widgetLabel * 0.86 * root.echelle))
 
+    // Hauteur d'une cellule du tableau des quotas : elle fixe le pas des quatre
+    // colonnes, y compris quand une cellule ne porte rien.
+    //
+    // Mesuré (sonde à quatre variantes, mêmes données, une échéance vide) : une
+    // cellule dont `text` est la chaîne vide est comptée **zéro** par le
+    // positionneur, qui ne se rattrape jamais — les suivantes remontent d'une
+    // ligne et les dates se retrouvent en face du mauvais modèle. Une `height`
+    // explicite n'y change rien (la mesure reste 0,0,15 pour des cellules de
+    // 15 px). Ce qui corrige est de ne **jamais** écrire une chaîne vide : une
+    // espace garde la ligne (mesure 0,15,30, comme une colonne sans vide).
+    readonly property int hauteurLigne: Math.round(root.tailleLigne * 1.35)
+
     // Dans le widget fusionné, plusieurs comptes se suivent : l'icône ne suffit
     // pas à dire de quel service parle un bloc, d'où un en-tête facultatif qui
     // reprend le nom renvoyé par le service (« Ollama Cloud »).
@@ -315,9 +327,11 @@ Item {
                     Repeater {
                         model: root.lignes
                         Text {
-                            text: String(modelData.nom || "")
+                            text: String(modelData.nom || " ")
                             color: Theme.fg
                             font.pixelSize: root.tailleLigne
+                            height: root.hauteurLigne
+                            verticalAlignment: Text.AlignVCenter
                             style: Text.Raised
                             styleColor: Qt.alpha(Theme.bg, 0.55)
                         }
@@ -328,9 +342,11 @@ Item {
                     Repeater {
                         model: root.lignes
                         Text {
-                            text: String(modelData.tranche || "")
+                            text: String(modelData.tranche || " ")
                             color: Qt.alpha(Theme.fg, 0.55)
                             font.pixelSize: root.tailleLigne
+                            height: root.hauteurLigne
+                            verticalAlignment: Text.AlignVCenter
                             style: Text.Raised
                             styleColor: Qt.alpha(Theme.bg, 0.55)
                         }
@@ -341,9 +357,11 @@ Item {
                     Repeater {
                         model: root.lignes
                         Text {
-                            text: String(modelData.valeur || "")
+                            text: String(modelData.valeur || " ")
                             color: modelData.alerte ? Theme.warn : Theme.fg
                             font.pixelSize: root.tailleLigne
+                            height: root.hauteurLigne
+                            verticalAlignment: Text.AlignVCenter
                             font.features: { "tnum": 1 }
                             style: Text.Raised
                             styleColor: Qt.alpha(Theme.bg, 0.55)
@@ -358,9 +376,11 @@ Item {
                     Repeater {
                         model: root.lignes
                         Text {
-                            text: String(modelData.echeance || "")
+                            text: String(modelData.echeance || " ")
                             color: Qt.alpha(Theme.fg, 0.5)
                             font.pixelSize: root.tailleLigne
+                            height: root.hauteurLigne
+                            verticalAlignment: Text.AlignVCenter
                             font.features: { "tnum": 1 }
                             style: Text.Raised
                             styleColor: Qt.alpha(Theme.bg, 0.55)

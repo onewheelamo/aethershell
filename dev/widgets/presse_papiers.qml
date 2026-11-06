@@ -47,7 +47,10 @@ Item {
                 try {
                     const d = JSON.parse(text.trim())
                     root.entrees = Array.isArray(d.entrees) ? d.entrees : []
-                    root.total = root.entrees.length
+                    // Le service rend le compte de tout l'historique ; à défaut,
+                    // on retombe sur la page reçue plutôt que d'afficher 0.
+                    const total = Number(d.total)
+                    root.total = isFinite(total) ? total : root.entrees.length
                 } catch (e) {
                     root.entrees = []
                     root.total = 0

@@ -27,6 +27,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from applet_contrat import compact, presenter, sortir  # noqa: E402
@@ -95,11 +96,25 @@ def unites_en_echec():
     return {"nombre": n, "noms": noms}
 
 
+def _ping(cible):
+    """Latence en ms si la cible répond, None sinon. Un ping, un aller-retour."""
+    res = _run(["ping", "-c", "1", "-W", "1", cible], timeout=3)
+    m = re.search(r"(?:time|temps)[=<]([\d.]+)\s*ms", res)
+    if not m:
+        m = re.search(r"rtt[^=]*=\s*[\d.]+/([\d.]+)/", res)
+    return round(float(m.group(1))) if m else None
+
+
 def hotes():
-    """Ceux du fichier de configuration, avec leur latence ou leur absence."""
+    """Ceux du fichier de configuration, avec leur latence ou leur absence.
+
+    Les pings partent **en parallèle** : séquentiels, cinq machines éteintes
+    bloquaient le relevé une seconde chacune, donc dix secondes d'attente dans
+    un sous-processus que la barre interroge à chaque cadence.
+    """
     conf = _config()
 
-    out = []
+    cibles = []
     for h in (conf.get("hotes") or []):
         if not isinstance(h, dict):
             continue
@@ -107,17 +122,19 @@ def hotes():
         cible = str(h.get("url") or h.get("nom") or "").strip()
         if not cible:
             continue
-        res = _run(["ping", "-c", "1", "-W", "1", cible], timeout=3)
-        m = re.search(r"(?:time|temps)[=<]([\d.]+)\s*ms", res)
-        if not m:
-            m = re.search(r"rtt[^=]*=\s*[\d.]+/([\d.]+)/", res)
-        out.append({
-            "nom": nom,
-            "url": cible,
-            "joignable": bool(m),
-            "latence_ms": round(float(m.group(1))) if m else None,
-        })
-    return out
+        cibles.append((nom, cible))
+    if not cibles:
+        return []
+
+    with ThreadPoolExecutor(max_workers=min(8, len(cibles))) as pool:
+        latences = list(pool.map(lambda paire: _ping(paire[1]), cibles))
+
+    return [{
+        "nom": nom,
+        "url": cible,
+        "joignable": latence is not None,
+        "latence_ms": latence,
+    } for (nom, cible), latence in zip(cibles, latences)]
 
 
 def _api(base, chemin, jeton, verifier_tls, timeout=DELAI_API):

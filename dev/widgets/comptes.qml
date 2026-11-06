@@ -108,6 +108,18 @@ Item {
                         root.noterLargeur(index, item.implicitWidth)
                     }
                 }
+
+                // La largeur est relevée au chargement, mais le bloc affiche
+                // « … » tant que le service n'a pas répondu : sa largeur
+                // définitive arrive plus tard. Sans ce suivi, les filets
+                // gardaient la largeur du « … » (~50 px) au lieu de traverser
+                // le widget une fois le tableau des quotas affiché.
+                Connections {
+                    target: corps.item
+                    function onImplicitWidthChanged() {
+                        if (corps.item) root.noterLargeur(index, corps.item.implicitWidth)
+                    }
+                }
             }
         }
     }
