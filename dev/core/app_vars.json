@@ -6,5 +6,6 @@
     "Files": "thunar",
     "Editor": "code",
     "Video": "mpv",
-    "Images": "gwenview"
+    "Images": "gwenview",
+    "Disk": "gparted"
 }

@@ -24,6 +24,28 @@ Item {
     property var donnees: ({})
     property bool charge: false
 
+    // Gestionnaire de disques : même table que les autres programmes par défaut.
+    property string gestionnaire: "gparted"
+
+    FileView {
+        path: Quickshell.shellPath("core/app_vars.json")
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const d = JSON.parse(text())
+                const p = String(d.Disk || "").trim()
+                if (p !== "") root.gestionnaire = p
+            } catch (e) { /* fichier en cours d'écriture */ }
+        }
+    }
+
+    Timer {
+        id: lanceurDisques
+        interval: 200
+        onTriggered: Quickshell.execDetached([root.gestionnaire])
+    }
+
     readonly property var montages: (donnees.detail && donnees.detail.montages) || []
     readonly property var disques: (donnees.detail && donnees.detail.disques) || []
     readonly property int pourcent: {
@@ -226,7 +248,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Quickshell.execDetached(["gparted"])
+                onClicked: lanceurDisques.restart()
             }
         }
     }

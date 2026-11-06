@@ -24,6 +24,29 @@ Item {
     property var montages: []
     property var disques: []
     property string statut: ""
+    // Gestionnaire de disques : lu dans core/app_vars.json (« Disk »), la même
+    // table que les autres programmes par défaut — un seul endroit à changer.
+    property string gestionnaire: "gparted"
+
+    FileView {
+        path: Quickshell.shellPath("core/app_vars.json")
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const d = JSON.parse(text())
+                const p = String(d.Disk || "").trim()
+                if (p !== "") root.gestionnaire = p
+            } catch (e) { /* fichier en cours d'écriture */ }
+        }
+    }
+
+    Timer {
+        id: lanceurDisques
+        interval: 250
+        onTriggered: Quickshell.execDetached([root.gestionnaire])
+    }
+
 
     function charger() {
         proc.running = false
@@ -198,7 +221,13 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 // gparted demande ses droits lui-même par polkit : rien à élever ici.
-                onClicked: Quickshell.execDetached(["gparted"])
+                onClicked: {
+                    // Refermer avant de lancer : tant que le panneau garde son
+                    // attrapeur de clavier, la fenêtre de gparted (et la demande
+                    // polkit qui l'accompagne) s'ouvre sans prendre le focus.
+                    Theme.activePopup = ""
+                    lanceurDisques.restart()
+                }
             }
         }
     }
