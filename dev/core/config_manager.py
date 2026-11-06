@@ -977,6 +977,11 @@ def get_binds_list():
                     "dispatcher": dsp_m.group(1) if dsp_m else "",
                     "target": target or "",
                     "description": desc_m.group(1) if desc_m else "",
+                    # Un commentaire `-- essentiel` en fin de ligne marque les
+                    # raccourcis qui restent affichés quand la cheatsheet est en
+                    # mode court. Commentaire Lua : Hyprland l'ignore, aucun
+                    # risque qu'il refuse l'option.
+                    "essentiel": bool(re.search(r"--\s*essentiel", stripped)),
                     "category": category,
                 })
     except Exception:

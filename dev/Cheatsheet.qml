@@ -19,11 +19,27 @@ Item {
     property var binds: []
     property color surfaceColor: Qt.alpha(Theme.surface, 0.88)
 
+    // Deux niveaux de lecture : « essentiel » au premier abord (les gestes du
+    // quotidien), « tout » pour qui veut découvrir le reste — redimensionner,
+    // envoyer une fenêtre sur un autre bureau, la souris. Le marquage vit dans
+    // binds.lua (`-- essentiel` en fin de ligne), pas ici.
+    property bool etendu: false
+
     // Noms de touches Lua → ce qu'on lit sur le clavier AZERTY.
     readonly property var keyLabels: ({
         "ampersand": "&", "eacute": "é", "quotedbl": "\"", "apostrophe": "'",
         "parenleft": "(", "minus": "-", "egrave": "è", "underscore": "_",
-        "ccedilla": "ç", "agrave": "à", "Return": "Entrée", "Escape": "Échap"
+        "ccedilla": "ç", "agrave": "à", "Return": "Entrée", "Escape": "Échap",
+        "mouse:272": "clic gauche", "mouse:273": "clic droit",
+        "mouse_down": "molette bas", "mouse_up": "molette haut"
+    })
+
+    // Ce qu'un débutant ne devine pas : la même flèche change de sens selon le
+    // modificateur. Une ligne d'explication vaut mieux que dix raccourcis nus.
+    readonly property var astuces: ({
+        "Fenêtres": "SUPER + flèche espace · + SHIFT redimensionne · + CTRL échange deux fenêtres",
+        "Workspaces": "SUPER + chiffre va au bureau · + SHIFT y envoie la fenêtre · + ALT l'y envoie et suit",
+        "Souris": "SUPER + molette change de bureau, SUPER + glisser déplace la fenêtre"
     })
 
     function prettyKey(b) {
@@ -37,32 +53,70 @@ Item {
     }
 
     // Regroupement par catégorie, dans l'ordre du fichier.
+    // Dix bureaux × deux modificateurs = vingt lignes identiques à une lettre
+    // près. On les replie en deux motifs : c'est la règle qu'on veut faire
+    // comprendre, pas la liste qu'on veut faire défiler.
+    readonly property var familles: [
+        { motif: /^envoyer la fenêtre sur le bureau \d+$/, cle: "SHIFT + 1…0",
+          texte: "envoyer la fenêtre sur le bureau N (et rester ici)" },
+        { motif: /^envoyer la fenêtre sur le bureau \d+ et l'y suivre$/, cle: "ALT + 1…0",
+          texte: "envoyer la fenêtre sur le bureau N et l'y suivre" }
+    ]
+
+    function _replier(rows) {
+        const out = []
+        const posees = []
+        for (let i = 0; i < rows.length; ++i) {
+            const b = rows[i]
+            let repliee = false
+            for (let f = 0; f < familles.length; ++f) {
+                if (familles[f].motif.test(b.description)) {
+                    if (posees.indexOf(f) < 0) {
+                        posees.push(f)
+                        out.push({ mod: b.mod, key: familles[f].cle, description: familles[f].texte })
+                    }
+                    repliee = true
+                    break
+                }
+            }
+            if (!repliee) out.push(b)
+        }
+        return out
+    }
+
     readonly property var groups: {
         const out = []
         let cur = null
         for (let i = 0; i < binds.length; ++i) {
             const b = binds[i]
             if (!b || !b.description) continue
+            if (!etendu && !b.essentiel) continue
             const cat = b.category || "Autres"
             if (!cur || cur.title !== cat) { cur = { title: cat, rows: [] }; out.push(cur) }
             cur.rows.push(b)
         }
+        for (let i = 0; i < out.length; ++i) out[i].rows = _replier(out[i].rows)
         return out
     }
 
     // Répartition en deux colonnes : on remplit la plus courte.
+    readonly property int nbColonnes: 2
+
     readonly property var columns: {
-        const left = [], right = []
-        let hl = 0, hr = 0
+        const cols = []
+        const poids = []
+        for (let c = 0; c < nbColonnes; ++c) { cols.push([]); poids.push(0) }
         for (let i = 0; i < groups.length; ++i) {
             const g = groups[i]
             const h = 26 + g.rows.length * 24
-            if (hl <= hr) { left.push(g); hl += h } else { right.push(g); hr += h }
+            let k = 0
+            for (let c = 1; c < nbColonnes; ++c) if (poids[c] < poids[k]) k = c
+            cols[k].push(g); poids[k] += h
         }
-        return [left, right]
+        return cols
     }
 
-    implicitWidth: 660
+    implicitWidth: etendu ? 900 : 660
     implicitHeight: Math.max(180, content.implicitHeight + 44)
 
     Rectangle {
@@ -90,7 +144,36 @@ Item {
                     font.pixelSize: Theme.textMd
                     font.bold: true
                 }
-                Item { width: parent.width - 300; height: 1 }
+                Item { width: Math.max(0, parent.width - 420); height: 1 }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: basculeTexte.implicitWidth + 22
+                    height: 22
+                    radius: height / 2
+                    color: survolBascule.containsMouse
+                        ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.accent, 0.12)
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.accent, root.etendu ? 0.55 : 0.22)
+
+                    Text {
+                        id: basculeTexte
+                        anchors.centerIn: parent
+                        text: root.etendu ? "Essentiel" : "Tout afficher"
+                        color: Theme.accent
+                        font.pixelSize: Theme.text2xs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: survolBascule
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.etendu = !root.etendu
+                    }
+                }
+
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "SUPER + K pour fermer"
@@ -109,7 +192,7 @@ Item {
                     model: root.columns
                     Column {
                         required property var modelData
-                        width: (content.width - 24) / 2
+                        width: (content.width - (root.nbColonnes - 1) * 24) / root.nbColonnes
                         spacing: Theme.space3
 
                         Repeater {
@@ -127,6 +210,18 @@ Item {
                                     font.letterSpacing: 0.6
                                 }
 
+                                // En mode étendu seulement : sinon le panneau
+                                // court se remplit de prose.
+                                Text {
+                                    visible: root.etendu && root.astuces[modelData.title] !== undefined
+                                    width: parent.width
+                                    text: root.astuces[modelData.title] || ""
+                                    color: Qt.alpha(Theme.fg, 0.42)
+                                    font.pixelSize: Theme.text2xs
+                                    wrapMode: Text.WordWrap
+                                    bottomPadding: 2
+                                }
+
                                 Repeater {
                                     model: modelData.rows
                                     Row {
@@ -136,7 +231,7 @@ Item {
                                         spacing: Theme.space2
 
                                         Text {
-                                            width: 132
+                                            width: root.etendu ? 142 : 132
                                             text: root.prettyKey(modelData)
                                             color: Qt.alpha(Theme.fg, 0.72)
                                             font.pixelSize: Theme.textXs
@@ -144,7 +239,7 @@ Item {
                                             elide: Text.ElideRight
                                         }
                                         Text {
-                                            width: parent.width - 140
+                                            width: parent.width - (root.etendu ? 150 : 140)
                                             text: modelData.description
                                             color: Theme.fg
                                             font.pixelSize: Theme.textXs
