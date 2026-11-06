@@ -259,13 +259,13 @@ Rectangle {
         { type: "horloge", label: "Horloge" },
         { type: "date",    label: "Date" },
         { type: "meteo",   label: "Météo" },
-        { type: "combo",   label: "Combo" },
+        { type: "combo",   label: "Aperçu du jour" },
         { type: "musique", label: "Musique" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },
         { type: "antigravity", label: "Antigravity" },
         // Fusion des trois précédents : un seul widget, blocs empilés.
-        { type: "comptes",  label: "Comptes (fusion)" }
+        { type: "comptes",  label: "Quotas IA" }
     ]
     readonly property var widgetTypeRows: {
         const poses = ({})

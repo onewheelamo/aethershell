@@ -49,7 +49,7 @@ WIDGET_LABELS = {
     "horloge": "Horloge",
     "date": "Date",
     "meteo": "Météo",
-    "combo": "Combo",
+    "combo": "Aperçu du jour",
     "musique": "Musique",
     "deepseek": "DeepSeek",
     "ollama": "Ollama Cloud",
