@@ -237,7 +237,8 @@
             "cadence": 60,
             "text_scale": 100,
             "widget": "hermes",
-            "genre": "service"
+            "genre": "service",
+            "garde": true
         }
     ]
 }
