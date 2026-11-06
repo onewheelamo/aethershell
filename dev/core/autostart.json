@@ -28,5 +28,10 @@
         "name": "Historique du presse-papiers",
         "cmd": "sh -c '/usr/bin/pgrep -f \"cliphist store\" >/dev/null || exec wl-paste --watch cliphist store'",
         "enabled": true
+    },
+    {
+        "name": "Focus de l'invite polkit",
+        "cmd": "sh -c '/usr/bin/pgrep -f core/polkit_focus.py >/dev/null && exit 0; exec python3 ~/.config/quickshell/core/polkit_focus.py'",
+        "enabled": true
     }
 ]

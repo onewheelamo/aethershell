@@ -43,7 +43,7 @@ Item {
 
     Timer {
         id: lanceurDisques
-        interval: 250
+        interval: 500
         onTriggered: Quickshell.execDetached([root.gestionnaire])
     }
 
