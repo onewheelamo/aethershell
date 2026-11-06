@@ -10,6 +10,7 @@ ScreenshotBar 1.0 screenshot_bar.qml
 TrayMenu 1.0 TrayMenu.qml
 NotifHistory 1.0 notif_history.qml
 FirstRun 1.0 first_run.qml
+Popup 1.0 Popup.qml
 Applet 1.0 Applet.qml
 AppletRow 1.0 AppletRow.qml
 SystemePopup 1.0 SystemePopup.qml

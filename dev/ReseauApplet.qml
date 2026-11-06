@@ -210,12 +210,12 @@ Item {
 
     // SUB-SECTION 7.1: INTERACTIVE WIFI MANAGEMENT POPUP
     // ────────────────────────────────────────────────────────────────────────
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "centre"
+        ecart: 5   // quelques pixels plus bas : son item d'ancrage est plus court
         id: wifiPanelPopup
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
         implicitWidth: 320
         // WiFi 200 + filet + Bluetooth : la hauteur suit le contenu utile.
         implicitHeight: 455

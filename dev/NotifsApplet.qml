@@ -164,15 +164,15 @@ Item {
         }
     }
 
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "centre"
+        ecart: 5   // quelques pixels plus bas : son item d'ancrage est plus court
         id: notificationsPopup
         // Le panneau vit dans l'applet : il s'ouvre donc sous la cloche, où
         // qu'elle soit placée dans la barre. `PopupAdjustment.All` le ramène
         // dans l'écran quand la cloche est près du bord.
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
         // Le panneau prend le clavier quand il est ouvert : sans cela Échap
         // n'atteignait personne.
         grabFocus: visible
@@ -180,6 +180,7 @@ Item {
         implicitHeight: 340
         color: "transparent"
         visible: Theme.activePopup === "notifications"
+
 
 
         // Échap ferme, quel que soit l'élément qui a le focus dans le panneau.

@@ -355,12 +355,19 @@ Item {
         enabled: root.estQml && root.verticale
     }
 
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "gauche"
         id: carte
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "gauche")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
+        // Sans marge, l'ajustement colle le volet au bord de l'écran : un panneau
+        // posé pile sur la bordure se lit mal, et son ombre disparaît. La marge
+        // est un type `Margins` (quatre entiers), pas un nombre : l'assigner d'un
+        // entier échoue à l'exécution — « Cannot assign value 14 to property
+        // margins » — sans que qmllint le voie.
+        // Rien en haut : la marge de 14 px décalait *tous* les popups de quatorze
+        // pixels vers le bas, et c'est ce qui les faisait paraître « trop bas » par
+        // rapport au centre de notifications. Mesuré : ancre 42 + marge 14 = 56.
         implicitWidth: Math.ceil(colonneCarte.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(colonneCarte.implicitHeight + Theme.space3 * 2)
         color: "transparent"
@@ -429,12 +436,19 @@ Item {
     // ── popup ────────────────────────────────────────────────────────────────
     // Le contenu vient du catalogue (`popup`) : l'applet « comptes » charge le
     // composant des widgets de compte, donc le détail n'est pas réécrit ici.
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "gauche"
         id: fenetre
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "gauche")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
+        // Sans marge, l'ajustement colle le volet au bord de l'écran : un panneau
+        // posé pile sur la bordure se lit mal, et son ombre disparaît. La marge
+        // est un type `Margins` (quatre entiers), pas un nombre : l'assigner d'un
+        // entier échoue à l'exécution — « Cannot assign value 14 to property
+        // margins » — sans que qmllint le voie.
+        // Rien en haut : la marge de 14 px décalait *tous* les popups de quatorze
+        // pixels vers le bas, et c'est ce qui les faisait paraître « trop bas » par
+        // rapport au centre de notifications. Mesuré : ancre 42 + marge 14 = 56.
         implicitWidth: Math.ceil(chargeur.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)
         color: "transparent"

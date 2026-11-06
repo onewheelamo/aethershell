@@ -147,12 +147,11 @@ Item {
         onTriggered: root.pretGrab = true
     }
 
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "centre"
         id: fenetre
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
         implicitWidth: Math.round(240 * root.echelle)
         implicitHeight: colonne.implicitHeight + 28
         color: "transparent"

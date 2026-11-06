@@ -117,12 +117,11 @@ Item {
     }
 
     // ── menu ────────────────────────────────────────────────────────────────
-    PopupWindow {
+    Popup {
+        ancre: root
+        ile: String(root.applet.ile || "")
+        alignement: "droite"
         id: menu
-        anchor.item: root
-        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "droite")
-        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
-        anchor.adjustment: PopupAdjustment.All
         implicitWidth: 280
         // Hauteur dérivée du contenu : une valeur fixe coupait la dernière ligne.
         implicitHeight: carte.implicitHeight

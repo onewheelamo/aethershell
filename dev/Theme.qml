@@ -88,6 +88,11 @@ QtObject {
     // augmenter pour caser un peu plus de texte dans une colonne : `bar_extra`,
     // le rendu vertical des applets et la largeur des valeurs le lisent tous ici.
     // Rendre la valeur persistante (style_vars + panneau) reste à faire.
+    // Écart entre un applet et son panneau. Mesuré : l'ancre place le popup
+    // ~14 px sous l'item, et `anchor.rect.y` est ignoré par Quickshell 0.3.2 —
+    // seule `anchor.margins.top` agit. -12 fait toucher la barre.
+    readonly property int popupGap: -12
+
     readonly property int barSideWidth: barHeight
     readonly property int pillRadius: Math.min(globalRadius, Math.round(barHeight / 2))
 
@@ -246,6 +251,12 @@ QtObject {
         if (barre === "bas") return -(popupH + 6)
         if (barre === "cote-gauche" || barre === "cote-droite")
             return -Math.round((popupH - (item ? item.height : 0)) / 2)
+        // Les popups d'applet se posent sous la barre, au niveau du centre de
+        // notifications : `barHeight + 6` laissait un vide de treize pixels entre
+        // le bas de l'îlot et le panneau, et tous les popups paraissaient « trop
+        // bas » par rapport au centre.
+        // Les popups d'applet se posent 6 px sous la barre. La marge est un seul
+        // point pour toutes les surfaces : la changer les déplace toutes ensemble.
         return barHeight + 6
     }
 
