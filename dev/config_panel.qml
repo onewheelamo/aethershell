@@ -2224,8 +2224,9 @@ Rectangle {
 
                     Text {
                         width: parent.width
-                        text: "Une barre n'apparaît que si elle porte au moins un applet : "
-                              + "choisissez l'emplacement ↓ ← → dans la liste des applets."
+                        text: "Une barre allumée apparaît aussitôt, même vide : elle affiche "
+                              + "alors un rappel. Pour la remplir, choisissez l'emplacement "
+                              + "↓ ← → dans la liste des applets."
                         color: Qt.alpha(Theme.fg, 0.5)
                         font.pixelSize: Math.max(9, Theme.textXs - 1)
                         wrapMode: Text.WordWrap

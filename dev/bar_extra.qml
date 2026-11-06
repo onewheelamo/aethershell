@@ -29,10 +29,11 @@ PanelWindow {
     readonly property int ecart: Math.round(Theme.gutter)
     readonly property int rembourrage: Math.round(Theme.space3)
 
-    // La présence d'applets décide, pas la largeur mesurée : une barre dont le
-    // contenu n'est pas encore chargé doit quand même apparaître, sinon elle ne
-    // peut jamais le devenir (le binding ne se réveille pas).
-    visible: actif && (verticale ? colonne.applets.length : ligne.applets.length) > 0
+    // Une barre allumée s'affiche, même vide : sans ça, l'interrupteur du panneau
+    // n'a aucun effet visible et on croit le réglage cassé. Vide, elle montre
+    // comment la remplir.
+    readonly property int nbApplets: verticale ? colonne.applets.length : ligne.applets.length
+    visible: actif
 
     // Le bas épouse son contenu (une rangée). Les côtés ont une hauteur fixe :
     // une taille dérivée du contenu créait une boucle de dépendance (fenêtre →
@@ -40,7 +41,9 @@ PanelWindow {
     // restait figée à sa première mesure. Un tiers de hauteur libre en haut et en
     // bas, contenu centré : c'est un dock vertical, stable.
     readonly property real largeur: Math.round(verticale ? Theme.barHeight
-                                                         : ligne.implicitWidth + 2 * rembourrage)
+                                                         : (nbApplets > 0
+                                                            ? ligne.implicitWidth + 2 * rembourrage
+                                                            : 230))
     readonly property real hauteur: Math.round(verticale
                                                ? screen.height * 0.6
                                                : Theme.barHeight)
@@ -76,17 +79,33 @@ PanelWindow {
         border.width: Theme.barBorder ? 1 : 0
     }
 
+    // Barre vide : un rappel de la marche à suivre, pas une bande muette.
+    Text {
+        visible: root.nbApplets === 0
+        anchors.centerIn: parent
+        width: Math.max(60, parent.width - 2 * root.rembourrage)
+        text: root.verticale
+              ? "Vide"
+              : "Aucun applet — choisir "
+                + (root.cote === "bas" ? "↓" : (root.aGauche ? "←" : "→"))
+                + " dans Quickshell → Applets"
+        color: Qt.alpha(Theme.fg, 0.45)
+        font.pixelSize: Math.max(9, Theme.textXs - 1)
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
+    }
+
     AppletRow {
         id: ligne
         ile: "bas"
-        visible: !root.verticale
+        visible: !root.verticale && root.nbApplets > 0
         anchors.centerIn: parent
     }
 
     AppletColumn {
         id: colonne
         ile: root.cote
-        visible: root.verticale
+        visible: root.verticale && root.nbApplets > 0
         anchors.centerIn: parent
     }
 }
