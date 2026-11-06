@@ -438,46 +438,12 @@ deploy_new_env() {
     fi
     chmod +x "$CORE_DIR/"*.sh
 
-    cp "$DEV_DIR/qmldir" "$QS_DIR/qmldir"
-    cp "$DEV_DIR/Theme.qml" "$QS_DIR/Theme.qml"
-    cp "$DEV_DIR/shell.qml" "$QS_DIR/shell.qml"
-    cp "$DEV_DIR/main.qml" "$QS_DIR/main.qml"
-    cp "$DEV_DIR/island_left.qml" "$QS_DIR/island_left.qml"
-    cp "$DEV_DIR/island_center.qml" "$QS_DIR/island_center.qml"
-    cp "$DEV_DIR/island_right.qml" "$QS_DIR/island_right.qml"
-    cp "$DEV_DIR/config_panel.qml" "$QS_DIR/config_panel.qml"
-    cp "$DEV_DIR/spotlight.qml" "$QS_DIR/spotlight.qml"
-    cp "$DEV_DIR/CollapsibleSection.qml" "$QS_DIR/CollapsibleSection.qml"
-    cp "$DEV_DIR/Stepper.qml" "$QS_DIR/Stepper.qml"
-    cp "$DEV_DIR/Slider.qml" "$QS_DIR/Slider.qml"
-    cp "$DEV_DIR/Icon.qml" "$QS_DIR/Icon.qml"
-    cp "$DEV_DIR/GreeterTab.qml" "$QS_DIR/GreeterTab.qml"
-    cp "$DEV_DIR/Cheatsheet.qml" "$QS_DIR/Cheatsheet.qml"
-    cp "$DEV_DIR/screenshot_bar.qml" "$QS_DIR/screenshot_bar.qml"
-    cp "$DEV_DIR/TrayMenu.qml" "$QS_DIR/TrayMenu.qml"
-    cp "$DEV_DIR/notif_history.qml" "$QS_DIR/notif_history.qml"
-    cp "$DEV_DIR/Applet.qml" "$QS_DIR/Applet.qml"
-    cp "$DEV_DIR/AppletRow.qml" "$QS_DIR/AppletRow.qml"
-    cp "$DEV_DIR/SystemePopup.qml" "$QS_DIR/SystemePopup.qml"
-    cp "$DEV_DIR/IconSvg.qml" "$QS_DIR/IconSvg.qml"
-    cp "$DEV_DIR/VolumeApplet.qml" "$QS_DIR/VolumeApplet.qml"
-    cp "$DEV_DIR/HorlogeApplet.qml" "$QS_DIR/HorlogeApplet.qml"
-    cp "$DEV_DIR/WorkspacesApplet.qml" "$QS_DIR/WorkspacesApplet.qml"
-    cp "$DEV_DIR/SystrayApplet.qml" "$QS_DIR/SystrayApplet.qml"
-    cp "$DEV_DIR/PowerApplet.qml" "$QS_DIR/PowerApplet.qml"
-    cp "$DEV_DIR/ReseauApplet.qml" "$QS_DIR/ReseauApplet.qml"
-    cp "$DEV_DIR/NotifsApplet.qml" "$QS_DIR/NotifsApplet.qml"
-    cp "$DEV_DIR/MajApplet.qml" "$QS_DIR/MajApplet.qml"
-    cp "$DEV_DIR/AppletColumn.qml" "$QS_DIR/AppletColumn.qml"
-    cp "$DEV_DIR/MediaPanneau.qml" "$QS_DIR/MediaPanneau.qml"
-    cp "$DEV_DIR/CalendrierPanneau.qml" "$QS_DIR/CalendrierPanneau.qml"
-    cp "$DEV_DIR/CalendrierCompact.qml" "$QS_DIR/CalendrierCompact.qml"
-    cp "$DEV_DIR/DisquesPopup.qml" "$QS_DIR/DisquesPopup.qml"
-    cp "$DEV_DIR/HomelabPopup.qml" "$QS_DIR/HomelabPopup.qml"
-    cp "$DEV_DIR/PressePapiersPopup.qml" "$QS_DIR/PressePapiersPopup.qml"
-    cp "$DEV_DIR/bar_extra.qml" "$QS_DIR/bar_extra.qml"
-    cp "$DEV_DIR/LuminositeApplet.qml" "$QS_DIR/LuminositeApplet.qml"
-    cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
+    # Tous les composants de la racine, en bloc. La liste fixe oubliait chaque
+    # nouveau fichier (Popup.qml, HermesPopup.qml) alors que le qmldir, lui,
+    # était copié : la barre tombait au redémarrage sur « Popup is not a type ».
+    # `prune_target` juste en dessous retire ce qui a disparu du dépôt.
+    cp -f "$DEV_DIR/"*.qml "$QS_DIR/"
+    cp -f "$DEV_DIR/qmldir" "$QS_DIR/qmldir"
 
     # Icônes de substitution du systray (core/tray_icons.json y renvoie).
     if [ -d "$DEV_DIR/assets/tray" ]; then
@@ -505,6 +471,21 @@ deploy_new_env() {
     (cd "$DEV_DIR" && ls -1 *.qml qmldir 2>/dev/null) > "$qs_manifest"
     prune_target "$QS_DIR" "$qs_manifest"
     rm -f "$qs_manifest"
+
+    # Chaque entrée du qmldir doit avoir son fichier en face. Sans ce contrôle,
+    # « deployment complete » pouvait masquer une barre cassée au redémarrage :
+    # un composant annoncé mais absent fait échouer le chargement du shell.
+    local manquants=0 file
+    while read -r file; do
+        [ -f "$QS_DIR/$file" ] || {
+            echo "  ❌ qmldir référence $file, absent de $QS_DIR"
+            manquants=$((manquants + 1))
+        }
+    done < <(awk '$NF ~ /\.qml$/ {print $NF}' "$QS_DIR/qmldir")
+    if [ "$manquants" -gt 0 ]; then
+        echo "  ⚠️  $manquants composant(s) manquant(s) : le shell échouera au démarrage"
+        return 1
+    fi
 
     if [ -d "$DEV_DIR/hyprquickpaper" ]; then
         mkdir -p "$QS_DIR/hyprquickpaper"
