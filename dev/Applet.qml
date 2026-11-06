@@ -251,8 +251,12 @@ Item {
     // Composant QML : il gère son propre clic et son propre popup.
     Loader {
         id: chargeurQml
-        source: (root.estQml && root.composant !== "")
-                ? "file://" + Quickshell.shellPath(root.composant) : ""
+        // Source relative : avec une URL absolue (`file://` + chemin), Quickshell
+        // recompilait le composant dans un second moteur QML — les applets
+        // obtenaient alors leur PROPRE instance du singleton Theme, et tout ce
+        // qu'ils écrivaient (compteur, ouverture du tiroir d'historique) restait
+        // invisible pour le reste de la coquille.
+        source: (root.estQml && root.composant !== "") ? String(root.composant) : ""
         onLoaded: {
             if (!item) return
             item.echelle = Qt.binding(() => root.echelle)
