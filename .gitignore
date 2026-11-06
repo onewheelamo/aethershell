@@ -32,3 +32,7 @@ inspirations/
 
 # caches des services (valeurs relues, jamais des sources)
 dev/core/*_cache.json
+
+# Notes locales (journal + reste à faire) — ne partent pas sur GitHub
+RESTE_A_FAIRE.md
+JOURNAL*.md
