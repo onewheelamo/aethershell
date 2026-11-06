@@ -51,6 +51,7 @@ WIDGET_LABELS = {
     "meteo": "Météo",
     "combo": "Aperçu du jour",
     "musique": "Musique",
+    "systeme": "Système",
     "deepseek": "DeepSeek",
     "ollama": "Ollama Cloud",
     "antigravity": "Antigravity",
