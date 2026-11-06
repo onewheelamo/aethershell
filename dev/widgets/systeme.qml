@@ -35,14 +35,23 @@ Item {
     }
     readonly property var detail: (donnees && donnees.detail) ? donnees.detail : ({})
 
-    // Une ligne de précision sous la jauge, seulement si la mesure en a une.
+    // Une ligne de précision sous la jauge. Les deux températures et la VRAM sont
+    // demandées explicitement : elles vivent ici en clair, pas seulement dans une
+    // couleur de jauge.
     function precision(cle) {
         const d = detail || ({})
+        if (cle === "cpu") {
+            const t = d.temp && d.temp.cpu ? Math.round(d.temp.cpu) + "°" : ""
+            return t
+        }
         if (cle === "ram" && d.ram && d.ram.totale_go)
             return formatGo(d.ram.utilisee_go) + " / " + formatGo(d.ram.totale_go) + " Go"
-        if (cle === "gpu" && d.gpu && d.gpu.vram_totale_go) {
-            let t = formatGo(d.gpu.vram_go) + " / " + formatGo(d.gpu.vram_totale_go) + " Go"
-            if (d.gpu.temperature) t += " · " + Math.round(d.gpu.temperature) + "°"
+        if (cle === "gpu") {
+            let t = ""
+            if (d.gpu && d.gpu.vram_totale_go)
+                t = formatGo(d.gpu.vram_go) + " / " + formatGo(d.gpu.vram_totale_go) + " Go"
+            if (d.gpu && d.gpu.temperature)
+                t += (t !== "" ? " · " : "") + Math.round(d.gpu.temperature) + "°"
             return t
         }
         if (cle === "temp" && d.temp && d.temp.cpu)
@@ -102,7 +111,7 @@ Item {
         Text {
             text: "système"
             color: Qt.alpha(Theme.fg, 0.42)
-            font.pixelSize: Math.round(9 * root.echelle)
+            font.pixelSize: Math.round(11 * root.echelle)
             font.letterSpacing: 0.4
             style: Text.Raised
             styleColor: Qt.alpha(Theme.bg, 0.55)
@@ -124,7 +133,7 @@ Item {
                     IconSvg {
                         anchors.verticalCenter: parent.verticalCenter
                         nom: String(modelData.icone || modelData.cle)
-                        size: Math.round(12 * root.echelle)
+                        size: Math.round(15 * root.echelle)
                         couleur: root.couleurNiveau(modelData.niveau)
                         opacite: 0.9
                     }
@@ -134,8 +143,8 @@ Item {
                     // texte passe de 3 % à 100 %.
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.round(64 * root.echelle)
-                        height: Math.round(4 * root.echelle)
+                        width: Math.round(92 * root.echelle)
+                        height: Math.round(5 * root.echelle)
                         radius: height / 2
                         color: Qt.alpha(Theme.fg, 0.13)
 
@@ -152,7 +161,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: String(modelData.texte || "")
                         color: Theme.fg
-                        font.pixelSize: Math.round(10.5 * root.echelle)
+                        font.pixelSize: Math.round(13 * root.echelle)
                         font.features: { "tnum": 1 }
                         style: Text.Raised
                         styleColor: Qt.alpha(Theme.bg, 0.55)
@@ -163,8 +172,8 @@ Item {
                     visible: precisionTexte !== ""
                     text: precisionTexte
                     color: Qt.alpha(Theme.fg, 0.45)
-                    font.pixelSize: Math.round(8.5 * root.echelle)
-                    leftPadding: Math.round(18 * root.echelle)
+                    font.pixelSize: Math.round(10 * root.echelle)
+                    leftPadding: Math.round(22 * root.echelle)
                 }
             }
         }

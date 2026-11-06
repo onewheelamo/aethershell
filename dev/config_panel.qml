@@ -2611,6 +2611,17 @@ Rectangle {
                                 border.color: appletRow.donnee.actif
                                     ? Qt.alpha(Theme.accent, 0.5) : "transparent"
 
+                                // Toute la ligne bascule l'applet : la seule case
+                                // de 12 px obligeait à viser, et les contrôles de
+                                // droite (flèches, pastilles, échelle) la recouvrent
+                                // puisqu'ils sont déclarés après celle-ci.
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.appletBasculer(appletRow.donnee.id,
+                                                                   appletRow.donnee.actif)
+                                }
+
                                 Row {
                                     anchors.left: parent.left
                                     anchors.leftMargin: 8
