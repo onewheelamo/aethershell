@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Refuse les fichiers qui ne doivent jamais entrer dans l'historique.
+#
+# `.gitignore` ne suffit pas : `git add -f` passe outre, et un `git commit -a`
+# après un force-add ne redemande rien. Ce crochet est le dernier rempart, et il
+# vaut pour toute machine où il est installé (`git config core.hooksPath dev/hooks`).
+#
+# Ce qui est refusé :
+#   sync.sh, dev/sync.sh      outils de synchronisation locaux : les publier
+#                             reviendrait à laisser quelqu'un pousser à ta place
+#   core/secrets.json         identifiants Proxmox et clés d'API, en clair
+#   *.upstream                copies de réconciliation de deploy.sh, locales
+set -euo pipefail
+
+INTERDITS=(
+    '^sync\.sh$'
+    '^dev/sync\.sh$'
+    '^core/secrets\.json$'
+    '\.upstream$'
+)
+
+stagies=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -n "$stagies" ] || exit 0
+
+refuses=""
+while IFS= read -r fichier; do
+    for motif in "${INTERDITS[@]}"; do
+        if printf '%s' "$fichier" | grep -qE "$motif"; then
+            refuses+="  $fichier"$'\n'
+            break
+        fi
+    done
+done <<< "$stagies"
+
+if [ -n "$refuses" ]; then
+    echo "⛔ Commit refusé : ces fichiers ne doivent pas être versionnés." >&2
+    printf '%s' "$refuses" >&2
+    echo "   Retire-les de l'index : git restore --staged <fichier>" >&2
+    exit 1
+fi
+exit 0
