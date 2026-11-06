@@ -262,6 +262,7 @@ Rectangle {
         { type: "combo",   label: "Aperçu du jour" },
         { type: "musique", label: "Musique" },
         { type: "systeme", label: "Système" },
+        { type: "reseau", label: "Réseau" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },
         { type: "antigravity", label: "Antigravity" },
