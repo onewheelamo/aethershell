@@ -406,7 +406,11 @@ Item {
         }
         // La barre occupe y 8..44 : une capsule en haut commence 8 px plus bas.
         margins.top: atTop ? Theme.barHeight + Theme.gutter * 2 : 0
-        margins.bottom: atTop ? 0 : Theme.barHeight + Theme.gutter
+        // Barre du bas affichée : la capsule remonte de 20 px pour ne pas s'y
+        // coller. Les zones réservées ne la décalent pas — elle est sur la couche
+        // `Bottom`, positionnée par ses marges.
+        margins.bottom: atTop ? 0
+            : Theme.barHeight + Theme.gutter + (Theme.barBottomVisible ? 20 : 0)
         margins.left: atCentre
             ? Math.round(((screen ? screen.width : 1920) - restWidth) / 2)
             : (atLeft ? Theme.gutter
