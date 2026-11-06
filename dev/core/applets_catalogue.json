@@ -150,7 +150,8 @@
                     "gpu",
                     "temp"
                 ]
-            }
+            },
+            "garde": true
         },
         {
             "id": "comptes",

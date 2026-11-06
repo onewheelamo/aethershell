@@ -220,8 +220,12 @@ def _choisies(options):
     liste enregistrée dans un autre ordre donnait des jauges mélangées (RAM,
     Temp, CPU…) selon l'historique des clics.
     """
-    demandees = (options or {}).get("mesures") or MESURES
-    return [m for m in MESURES if m in demandees]
+    # Liste absente = toutes ; liste **vide** = aucune. Confondre les deux
+    # empêchait de tout filtrer, et donc de vérifier qu'on peut revenir en arrière.
+    brut = (options or {}).get("mesures")
+    if brut is None:
+        return list(MESURES)
+    return [m for m in MESURES if m in brut]
 
 
 def _filtrer(donnees, options):

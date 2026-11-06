@@ -104,7 +104,11 @@ Item {
     // Valeur vide : l'applet s'efface au lieu d'afficher un tiret (cas du
     // morceau : rien ne joue).
     readonly property bool sansValeur: ok && valeur === ""
-    visible: !sansValeur
+    // Certains applets n'ont de valeur que tant qu'une mesure est choisie : sans
+    // valeur ils disparaîtraient, alors que leur popup est le seul endroit où
+    // rallumer cette mesure. Le catalogue les marque `garde` pour les garder.
+    readonly property bool garde: applet.garde === true
+    visible: !sansValeur || garde
 
     // Un seul popup ouvert à la fois, et il est identifié par son applet : deux
     // applets ne peuvent donc pas s'ouvrir l'un sur l'autre.

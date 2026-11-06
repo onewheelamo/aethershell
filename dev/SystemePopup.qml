@@ -130,7 +130,8 @@ Item {
                 }
             }
         }
-        if (liste.length === 0) return
+        // Tout filtrer est permis : l'applet reste alors visible (marque `garde`
+        // au catalogue) et ce popup reste le chemin pour rallumer une mesure.
         ecriture.command = ["python3", Quickshell.shellPath("core/bar_applets.py"),
                             "option", "systeme", "mesures", JSON.stringify(liste)]
         ecriture.running = true
@@ -179,6 +180,14 @@ Item {
                     }
                 }
             }
+        }
+
+        // Aucun filtre actif : le popup serait vide, on dit quoi faire.
+        Text {
+            visible: root.lignes.length === 0
+            text: "aucune mesure — cliquez une puce pour en rallumer une"
+            color: Qt.alpha(Theme.fg, 0.55)
+            font.pixelSize: Math.round(Theme.textXs * 0.9 * root.echelle)
         }
 
         // ── valeurs détaillées ───────────────────────────────────────────────
