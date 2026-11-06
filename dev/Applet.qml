@@ -101,6 +101,11 @@ Item {
     readonly property bool estQml: String(applet.genre || "service") === "qml"
     readonly property string composant: String(applet.composant || "")
 
+    // Orientation : c'est la barre qui porte l'applet qui la donne, et `ile`
+    // s'écrit « barre:place ». Sur un côté, la bande fait `barHeight` de large :
+    // une rangée horizontale n'y tient pas, l'applet se dessine donc en colonne
+    // (icône au-dessus de la valeur).
+    readonly property bool verticale: String(applet.ile || "").indexOf("cote-") === 0
     // Valeur vide : l'applet s'efface au lieu d'afficher un tiret (cas du
     // morceau : rien ne joue).
     readonly property bool sansValeur: ok && valeur === ""
@@ -116,8 +121,10 @@ Item {
                                    ? (Theme.activePopup === popupCle)
                                    : (Theme.activePopup === "applet:" + appletId)
 
-    implicitWidth: estQml ? chargeurQml.implicitWidth : contenu.implicitWidth
-    implicitHeight: estQml ? chargeurQml.implicitHeight : contenu.implicitHeight
+    implicitWidth: estQml ? chargeurQml.implicitWidth
+                          : (verticale ? contenuVertical.implicitWidth : contenu.implicitWidth)
+    implicitHeight: estQml ? chargeurQml.implicitHeight
+                           : (verticale ? contenuVertical.implicitHeight : contenu.implicitHeight)
 
     function rafraichir(force) {
         if (root.estQml || root.service === "" || root.occupe) return
@@ -162,7 +169,7 @@ Item {
 
     Row {
         id: contenu
-        visible: !root.estQml
+        visible: !root.estQml && !root.verticale
         // En mode jauge, les mesures ont besoin d'air pour ne pas se lire comme
         // une seule barre bariolée.
         spacing: root.barres.length > 0
@@ -252,6 +259,33 @@ Item {
         }
     }
 
+    // Rendu vertical (barre de côté) : l'icône au-dessus de la valeur, rien de
+    // plus — `barHeight` de large ne laisse pas la place à une rangée. Les
+    // jauges ne s'y empilent pas non plus (quatre pistes de 26 px ne tiennent
+    // pas dans cette largeur) : l'applet montre alors sa valeur comme les autres.
+    Column {
+        id: contenuVertical
+        visible: !root.estQml && root.verticale
+        spacing: Math.max(1, Math.round(Theme.space1 * root.echelle))
+
+        Icon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            glyph: String(root.applet.icone || "")
+            size: Math.max(10, Math.round(Theme.iconSm * 0.9 * root.echelle))
+            color: root.alerte ? Theme.warn : Theme.fg
+            opacityLevel: root.ok ? 0.92 : 0.45
+        }
+
+        Defilement {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: texte !== ""
+            texte: root.valeur
+            couleur: root.alerte ? Theme.warn : Theme.fg
+            taillePolice: Math.round(Theme.textXs * 0.85 * root.echelle)
+            largeurMax: Math.max(20, Math.round(Theme.barHeight - 6))
+        }
+    }
+
     // Composant QML : il gère son propre clic et son propre popup.
     Loader {
         id: chargeurQml
@@ -265,6 +299,11 @@ Item {
             if (!item) return
             item.echelle = Qt.binding(() => root.echelle)
             item.applet = Qt.binding(() => root.applet)
+            // Les composants QML qui savent se dessiner en colonne le lisent ici
+            // (workspaces : bureaux empilés, le n°1 en haut). Les autres ne
+            // déclarent pas la propriété : y écrire lève « Cannot assign to
+            // non-existent property », donc on ne la pose que si elle existe.
+            if (item.verticale !== undefined) item.verticale = Qt.binding(() => root.verticale)
         }
     }
 
@@ -286,8 +325,8 @@ Item {
     PopupWindow {
         id: carte
         anchor.item: root
-        anchor.rect.x: 0
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "gauche")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: Math.ceil(colonneCarte.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(colonneCarte.implicitHeight + Theme.space3 * 2)
@@ -357,8 +396,8 @@ Item {
     PopupWindow {
         id: fenetre
         anchor.item: root
-        anchor.rect.x: 0
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "gauche")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: Math.ceil(chargeur.implicitWidth + Theme.space4 * 2)
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)

@@ -15,6 +15,9 @@ Item {
     id: root
     property var applet: ({})
     property real echelle: 1.0
+    // Orientation donnée par la barre qui porte l'applet (`Applet.qml` la pose) :
+    // sur une barre de côté les bureaux s'empilent au lieu de s'aligner.
+    property bool verticale: false
 
     implicitWidth: workspaceRow.implicitWidth
     implicitHeight: workspaceRow.implicitHeight
@@ -163,9 +166,15 @@ Item {
     }
 
 
-            Row {
+            // Un `Grid` plutôt qu'un `Row` : d'une colonne sur une barre de côté
+            // (le bureau n°1 en haut, le dernier en bas), d'une seule rangée
+            // ailleurs (`columns` très grand). Un `Row` ne sait pas changer
+            // d'axe, et dupliquer le délégué pour les deux orientations
+            // coûterait soixante lignes pour une case.
+            Grid {
                 id: workspaceRow
                 anchors.verticalCenter: parent.verticalCenter
+                columns: root.verticale ? 1 : 64
                 spacing: 6
 
                 Repeater {
@@ -180,7 +189,7 @@ Item {
                         readonly property bool isUrgent: Boolean(st.urgent)
                         readonly property bool isOccupied: Boolean(st.occupied) && (st.windows === undefined || st.windows > 0)
 
-                        width: isActive ? 30 : 24
+                        width: root.verticale ? 26 : (isActive ? 30 : 24)
                         height: 24
                         radius: Theme.globalRadius
 

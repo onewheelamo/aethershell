@@ -210,6 +210,36 @@ QtObject {
         activePopup = (activePopup === name) ? "" : name
     }
 
+    // ── Ancrage d'un popup sur son applet ─────────────────────────────────────
+    // Un popup ne s'ouvre pas toujours vers le bas : c'est la barre qui porte
+    // l'applet qui décide du côté. `ile` s'écrit « barre:place » — `haut:fin`,
+    // `bas:milieu`, `cote-gauche:debut` — donc la barre est le premier segment.
+    //
+    // `alignement` ne sert que sur une barre horizontale : « gauche » met le bord
+    // gauche du popup sur celui de l'applet, « centre » ou « droite » font ce
+    // qu'on attend. Sur les côtés, le popup s'ouvre **à côté** de l'applet,
+    // centré verticalement sur lui ; l'alignement est alors ignoré.
+    //
+    // `PopupAdjustment.All` reste le filet de sécurité si le résultat sort de
+    // l'écran : Quickshell le retourne ou le fait glisser.
+    function ancrePopupX(ile, item, popupW, alignement) {
+        const barre = String(ile || "").split(":")[0]
+        if (barre === "cote-gauche") return barHeight + 6
+        if (barre === "cote-droite") return -(popupW + 6)
+        const largeur = item ? item.width : 0
+        if (alignement === "droite") return Math.round(largeur - popupW)
+        if (alignement === "centre") return Math.round((largeur - popupW) / 2)
+        return 0
+    }
+
+    function ancrePopupY(ile, item, popupH) {
+        const barre = String(ile || "").split(":")[0]
+        if (barre === "bas") return -(popupH + 6)
+        if (barre === "cote-gauche" || barre === "cote-droite")
+            return -Math.round((popupH - (item ? item.height : 0)) / 2)
+        return barHeight + 6
+    }
+
     // ── Barre : un seul état ──────────────────────────────────────────────────
     // La barre reste en permanence à l'opacité des surfaces du shell (0.65),
     // donc au-dessus du seuil `ignore_alpha` de la règle de flou (0.30) : elle

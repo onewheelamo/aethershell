@@ -163,8 +163,8 @@ Item {
         // qu'elle soit placée dans la barre. `PopupAdjustment.All` le ramène
         // dans l'écran quand la cloche est près du bord.
         anchor.item: root
-        anchor.rect.x: (root.width - implicitWidth) / 2
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         // Le panneau prend le clavier quand il est ouvert : sans cela Échap
         // n'atteignait personne.

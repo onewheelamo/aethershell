@@ -120,8 +120,8 @@ Item {
     PopupWindow {
         id: menu
         anchor.item: root
-        anchor.rect.x: root.width - implicitWidth
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "droite")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: 280
         // Hauteur dérivée du contenu : une valeur fixe coupait la dernière ligne.

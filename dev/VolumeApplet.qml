@@ -142,8 +142,8 @@ Item {
     PopupWindow {
         id: fenetre
         anchor.item: root
-        anchor.rect.x: Math.round((root.width - implicitWidth) / 2)
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: Math.round(240 * root.echelle)
         implicitHeight: colonne.implicitHeight + 28

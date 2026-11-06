@@ -203,8 +203,8 @@ Item {
     PopupWindow {
         id: wifiPanelPopup
         anchor.item: root
-        anchor.rect.x: (root.width - implicitWidth) / 2
-        anchor.rect.y: Theme.barHeight + 6
+        anchor.rect.x: Theme.ancrePopupX(root.applet.ile, root, implicitWidth, "centre")
+        anchor.rect.y: Theme.ancrePopupY(root.applet.ile, root, implicitHeight)
         anchor.adjustment: PopupAdjustment.All
         implicitWidth: 320
         // WiFi 200 + filet + Bluetooth : la hauteur suit le contenu utile.
