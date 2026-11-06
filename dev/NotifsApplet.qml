@@ -229,38 +229,110 @@ Item {
                         }
                     }
 
-                    // Ne pas déranger : bascule directe, à gauche de l'historique.
-                    // Même glyphe que l'applet (cloche barrée) pour que les deux
-                    // se lisent comme un seul état.
-                    Item {
-                        id: dndBtn
-                        anchors.right: historyBtn.left
-                        anchors.rightMargin: 10
+                    // Les trois actions de l'en-tête dans une Row : ancrées une à
+                    // une, elles se chevauchaient dès que « Tout effacer »
+                    // disparaissait (largeur nulle), et le clic sur l'historique
+                    // tombait alors dans le vide.
+                    Row {
+                        id: headerActions
+                        anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 18
-                        height: 20
+                        spacing: 10
 
-                        Icon {
-                            anchors.centerIn: parent
-                            glyph: "bell-off"
-                            size: 12
-                            color: Theme.doNotDisturb
-                                   ? Theme.accent
-                                   : (dndMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5))
-                            opacityLevel: Theme.doNotDisturb ? 1 : 0.9
+                        // Ne pas déranger : bascule directe, à gauche de l'historique.
+                        // Même glyphe que l'applet (cloche barrée) pour que les deux
+                        // se lisent comme un seul état.
+                        Item {
+                            id: dndBtn
+                            width: 18
+                            height: 20
 
-                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Icon {
+                                anchors.centerIn: parent
+                                glyph: "bell-off"
+                                size: 12
+                                color: Theme.doNotDisturb
+                                       ? Theme.accent
+                                       : (dndMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5))
+                                opacityLevel: Theme.doNotDisturb ? 1 : 0.9
+
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: dndMa
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Theme.doNotDisturb = !Theme.doNotDisturb
+                                    dndBridge.running = true
+                                }
+                            }
                         }
 
-                        MouseArea {
-                            id: dndMa
-                            anchors.fill: parent
-                            anchors.margins: -4
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Theme.doNotDisturb = !Theme.doNotDisturb
-                                dndBridge.running = true
+                        // Historique : petite icône à gauche de « Tout effacer », qui
+                        // ouvre le tiroir indépendant (tout ce qui est arrivé, y
+                        // compris ce qui a été effacé ici ou fermé par l'application).
+                        Item {
+                            id: historyBtn
+                            width: 18
+                            height: 20
+
+                            Icon {
+                                anchors.centerIn: parent
+                                glyph: "history"
+                                size: 12
+                                color: historyMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                                opacityLevel: 1
+
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: historyMa
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Theme.activePopup = ""
+                                    Theme.notifHistoryVisible = true
+                                }
+                            }
+                        }
+
+                        // « Tout effacer » : discret au repos, rouge seulement au survol.
+                        // Le rouge reste un signal, pas une décoration.
+                        Item {
+                            id: clearBtn
+                            visible: Theme.notifList.length > 0
+                            width: clearText.implicitWidth + 12
+                            height: 20
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: Theme.globalRadius
+                                color: clearMa.containsMouse ? Qt.alpha(Theme.error, 0.12) : "transparent"
+                            }
+
+                            Text {
+                                id: clearText
+                                anchors.centerIn: parent
+                                text: "Tout effacer"
+                                color: clearMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.55)
+                                font.pixelSize: Theme.textXs
+
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: clearMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toutEffacer()
                             }
                         }
                     }
@@ -272,75 +344,6 @@ Item {
                         command: ["python3", Quickshell.shellPath("core/config_manager.py"),
                                   "style", "do_not_disturb",
                                   Theme.doNotDisturb ? "true" : "false"]
-                    }
-
-                    // Historique : petite icône à gauche de « Tout effacer », qui
-                    // ouvre le tiroir indépendant (tout ce qui est arrivé, y
-                    // compris ce qui a été effacé ici ou fermé par l'application).
-                    Item {
-                        id: historyBtn
-                        anchors.right: clearBtn.left
-                        anchors.rightMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 18
-                        height: 20
-
-                        Icon {
-                            anchors.centerIn: parent
-                            glyph: "history"
-                            size: 12
-                            color: historyMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
-                            opacityLevel: 1
-
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-
-                        MouseArea {
-                            id: historyMa
-                            anchors.fill: parent
-                            anchors.margins: -4
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Theme.activePopup = ""
-                                Theme.notifHistoryVisible = true
-                            }
-                        }
-                    }
-
-                    // « Tout effacer » : discret au repos, rouge seulement au survol.
-                    // Le rouge reste un signal, pas une décoration.
-                    Item {
-                        id: clearBtn
-                        visible: Theme.notifList.length > 0
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: clearText.implicitWidth + 12
-                        height: 20
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Theme.globalRadius
-                            color: clearMa.containsMouse ? Qt.alpha(Theme.error, 0.12) : "transparent"
-                        }
-
-                        Text {
-                            id: clearText
-                            anchors.centerIn: parent
-                            text: "Tout effacer"
-                            color: clearMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.55)
-                            font.pixelSize: Theme.textXs
-
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                        }
-
-                        MouseArea {
-                            id: clearMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.toutEffacer()
-                        }
                     }
                 }
 
