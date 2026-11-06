@@ -228,12 +228,19 @@ Item {
                 source: "island_right.qml"
             }
 
-            // Séparateurs de groupes : 6 % de la couleur de texte, 1 px
+            // Séparateurs de groupes : 9 % de la couleur de texte, 1 px.
+            //
+            // Placés à la moitié du padding de l'île, **vers l'intérieur**, et non
+            // dehors : une valeur coupée (un titre de morceau qui défile) laissait
+            // sinon une bande vide entre le dernier glyphe et le trait, et la
+            // coupure se lisait comme un manque de place plutôt que comme la fin
+            // du groupe. Le trait colle maintenant à l'endroit où le texte
+            // disparaît.
             Rectangle {
                 visible: Theme.barMerged
                 width: 1
                 height: Theme.barHeight * 0.4
-                x: leftLoader.x + leftLoader.width + Theme.gutter
+                x: leftLoader.x + leftLoader.width - Math.round(Theme.padH / 2)
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg
                 opacity: 0.09
@@ -242,7 +249,7 @@ Item {
                 visible: Theme.barMerged
                 width: 1
                 height: Theme.barHeight * 0.4
-                x: rightLoader.x - Theme.gutter - 1
+                x: rightLoader.x + Math.round(Theme.padH / 2) - 1
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg
                 opacity: 0.09
