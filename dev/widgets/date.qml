@@ -11,23 +11,29 @@ import Quickshell
 // — elle cherche un QLocale en 2e argument et lève « Could not convert argument
 // 1 from dddd d MMMM to QLocale », ce qui laisse le widget vide (surface 1×1).
 //
-// La flèche ouvre le calendrier Nextcloud sous le widget. Le panneau est le même
-// fichier que celui de l'applet « calendrier » : une seule grille, un seul code
-// réseau, deux points d'entrée.
+// La flèche **étend le widget** : la grille du mois apparaît dessous, dans la
+// même surface. Pas de fenêtre à ancrer, donc rien à refermer au clic extérieur —
+// la flèche suffit. La fenêtre du widget suit notre implicitHeight.
+//
+// Racine `Item` et non `Column` : un positionneur calcule lui-même sa taille
+// implicite, la lui assigner est une erreur (« implicitHeight is read-only »).
 Item {
     id: root
+
     property var options: ({})
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
     // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
-    // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent
-    // plus petit (85) parce qu'ils affichent deux lignes de texte dense.
+    // en pourcentage). 100 = taille du thème.
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
         if (v >= 60 && v <= 160) return v / 100
         return 1.0
     }
+
+    // Étendu ou non : état local au widget, il vit tant que le shell tourne.
+    property bool ouvert: false
 
     readonly property var jours: ["dimanche", "lundi", "mardi", "mercredi",
                                   "jeudi", "vendredi", "samedi"]
@@ -42,62 +48,76 @@ Item {
         return jours[d.getDay()] + " " + d.getDate() + " " + mois[d.getMonth()]
     }
 
-    // Clé d'ouverture propre à ce widget : deux widgets date sur deux bureaux ne
-    // doivent pas s'ouvrir l'un l'autre.
-    readonly property string cleOuverture: "widget-date:" + (widgetId || "0")
-    readonly property bool calendrierOuvert: Theme.activePopup === cleOuverture
+    // Largeur imposée au calendrier : celle de la ligne de date. Elle se calcule
+    // sur le texte seul, donc pas de boucle largeur ↔ contenu comme lorsque la
+    // grille se dimensionnait sur la colonne qui la contient.
+    readonly property real largeurCalendrier: Math.max(ligne.width,
+                                                       Math.round(196 * echelle))
 
-    implicitWidth: ligne.implicitWidth
-    implicitHeight: ligne.implicitHeight
+    implicitWidth: colonne.implicitWidth
+    implicitHeight: colonne.implicitHeight
 
     SystemClock {
         id: clock
         precision: SystemClock.Minutes
     }
 
-    Row {
-        id: ligne
-        spacing: 6
+    // Pas de `width: parent.width` ici : la fenêtre du widget prend notre largeur
+    // implicite, qui vient de cette colonne — la lier au parent fermait la boucle
+    // et la grille du calendrier s'effondrait (widget réduit à la ligne de date).
+    Column {
+        id: colonne
+        spacing: 7
 
-        Text {
-            id: label
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.libelle
-            color: Theme.fg
-            opacity: 0.92
-            font.pixelSize: Math.round(Theme.widgetDate * root.echelle)
-            font.weight: Font.Normal
-            style: Text.Raised
-            styleColor: Qt.alpha(Theme.bg, 0.55)
-        }
+        // En-tête en Item et non en Row : le chevron doit pouvoir s'ancrer au
+        // coin bas-droit de la ligne, or une rangée refuse les ancres de ses
+        // enfants sur elle-même (et deux objets frères dans un Item, non).
+        Item {
+            id: ligne
+            width: label.implicitWidth + 11
+            height: label.implicitHeight
 
-        // Triple rôle : dire qu'il y a quelque chose derrière, montrer l'état
-        // (ouvert/fermé) et porter le clic.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "▾"
-            color: fleche.containsMouse || root.calendrierOuvert
-                ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
-            font.pixelSize: Math.round(Theme.widgetDate * root.echelle * 0.8)
-            rotation: root.calendrierOuvert ? 180 : 0
-            Behavior on rotation { NumberAnimation { duration: 120 } }
+            Text {
+                id: label
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.libelle
+                color: Theme.fg
+                opacity: 0.92
+                font.pixelSize: Math.round(Theme.widgetDate * root.echelle)
+                font.weight: Font.Normal
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
 
-            MouseArea {
-                id: fleche
-                anchors.fill: parent
-                anchors.margins: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Theme.activePopup = root.calendrierOuvert ? "" : root.cleOuverture
+            // Petit chevron d'ouverture, coin inférieur droit : discret tant
+            // qu'on ne le cherche pas. Il pivote quand la grille est dépliée.
+            Text {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                text: "›"
+                color: fleche.containsMouse || root.ouvert
+                    ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                font.pixelSize: Math.max(12, Math.round(15 * root.echelle))
+                rotation: root.ouvert ? 90 : 0
+                Behavior on rotation { NumberAnimation { duration: 120 } }
+
+                MouseArea {
+                    id: fleche
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvert = !root.ouvert
+                }
             }
         }
-    }
 
-    CalendrierPanneau {
-        ancre: root
-        ouvert: root.calendrierOuvert
-        // Personne d'autre ne surveille ce panneau : il ferme lui-même au clic
-        // à côté (l'îlot ne le fait que pour les siens).
-        attrapeurPropre: true
+        CalendrierCompact {
+            id: calendrier
+            visible: root.ouvert
+            width: root.largeurCalendrier
+            echelle: root.echelle
+        }
     }
 }

@@ -25,6 +25,10 @@ Item {
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
+    // Calendrier replié/étendu, comme dans le widget « date » : même grille, même
+    // composant (CalendrierCompact), la carte grandit et sa fenêtre suit.
+    property bool ouvert: false
+
     property var meteo: ({})
     property bool loaded: false
 
@@ -50,8 +54,15 @@ Item {
         return jours[d.getDay()] + " " + d.getDate() + " " + mois[d.getMonth()]
     }
 
+    // Largeur du calendrier : la plus large des lignes de la carte. Calculée sur
+    // les textes seuls, jamais sur la colonne qui contient la grille (boucle).
+    readonly property real largeurCalendrier: Math.max(ligneDate.width,
+                                                       ligneMeteo.implicitWidth,
+                                                       Math.round(196 * echelle))
+
     implicitWidth: stack.implicitWidth
     implicitHeight: stack.implicitHeight
+
 
     function refresh(force) {
         const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
@@ -123,17 +134,48 @@ Item {
             }
         }
 
-        // Date
-        Text {
-            text: root.libelleDate
-            color: Qt.alpha(Theme.fg, 0.92)
-            font.pixelSize: Math.round(Theme.widgetComboDate * root.echelle)
-            style: Text.Raised
-            styleColor: Qt.alpha(Theme.bg, 0.55)
+        // Date + chevron. Item et non Row : le chevron s'ancre au coin bas-droit
+        // de la ligne, ce qu'une rangée interdit à ses enfants.
+        Item {
+            id: ligneDate
+            width: texteDate.implicitWidth + 11
+            height: texteDate.implicitHeight
+
+            Text {
+                id: texteDate
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.libelleDate
+                color: Qt.alpha(Theme.fg, 0.92)
+                font.pixelSize: Math.round(Theme.widgetComboDate * root.echelle)
+                style: Text.Raised
+                styleColor: Qt.alpha(Theme.bg, 0.55)
+            }
+
+            Text {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                text: "›"
+                color: flecheCombo.containsMouse || root.ouvert
+                    ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                font.pixelSize: Math.max(12, Math.round(15 * root.echelle))
+                rotation: root.ouvert ? 90 : 0
+                Behavior on rotation { NumberAnimation { duration: 120 } }
+
+                MouseArea {
+                    id: flecheCombo
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvert = !root.ouvert
+                }
+            }
         }
 
         // Météo
         Row {
+            id: ligneMeteo
             spacing: Theme.space2
             topPadding: Theme.space1
 
@@ -165,6 +207,13 @@ Item {
                 style: Text.Raised
                 styleColor: Qt.alpha(Theme.bg, 0.55)
             }
+        }
+
+        CalendrierCompact {
+            id: calendrier
+            visible: root.ouvert
+            width: root.largeurCalendrier
+            echelle: root.echelle
         }
     }
 }

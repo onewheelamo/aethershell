@@ -414,6 +414,7 @@ deploy_new_env() {
     cp "$DEV_DIR/AppletColumn.qml" "$QS_DIR/AppletColumn.qml"
     cp "$DEV_DIR/MediaPanneau.qml" "$QS_DIR/MediaPanneau.qml"
     cp "$DEV_DIR/CalendrierPanneau.qml" "$QS_DIR/CalendrierPanneau.qml"
+    cp "$DEV_DIR/CalendrierCompact.qml" "$QS_DIR/CalendrierCompact.qml"
     cp "$DEV_DIR/bar_extra.qml" "$QS_DIR/bar_extra.qml"
     cp "$DEV_DIR/LuminositeApplet.qml" "$QS_DIR/LuminositeApplet.qml"
     cp "$DEV_DIR/first_run.qml" "$QS_DIR/first_run.qml"
