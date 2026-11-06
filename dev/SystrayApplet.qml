@@ -13,6 +13,9 @@ Item {
     id: root
     property var applet: ({})
     property real echelle: 1.0
+    // Barre de côté : les icônes s'empilent au lieu de s'aligner. `Applet.qml`
+    // pose la propriété.
+    property bool verticale: false
 
     implicitWidth: rangee.implicitWidth
     implicitHeight: rangee.implicitHeight
@@ -22,8 +25,12 @@ Item {
         id: trayMenu
     }
 
-    Row {
+    // Un `Grid` plutôt qu'un `Row` : une seule colonne sur une barre latérale,
+    // une seule rangée ailleurs. Les icônes doivent toutes rester visibles —
+    // une colonne qui n'en montre qu'une serait inutilisable.
+    Grid {
         id: rangee
+        columns: root.verticale ? 1 : 64
         spacing: 2
 
 
@@ -46,7 +53,6 @@ Item {
 
                         width: 24
                         height: 24
-                        anchors.verticalCenter: parent.verticalCenter
                         radius: Theme.globalRadius
                         color: trayMa.containsMouse ? Theme.surfaceVariant : "transparent"
                         visible: iconSource !== ""

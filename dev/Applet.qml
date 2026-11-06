@@ -41,6 +41,10 @@ Item {
     // deux cas on n'invente pas de valeur.
     readonly property string valeur: ok ? String(ligne.valeur || "")
                                        : (charge ? "—" : "…")
+    // Certains services donnent aussi une forme courte de leur valeur
+    // (`compact.court` : « 06/11 » pour « ven. 6 nov. ») : c'est la seule qu'une
+    // colonne étroite peut afficher sans la couper.
+    readonly property string valeurCourte: (ok && ligne.court) ? String(ligne.court) : ""
     // Mode jauge : plusieurs mesures, une mini-barre chacune (applet système).
     readonly property var barres: (ok && ligne.barres && ligne.barres.length)
                                   ? ligne.barres : []
@@ -287,10 +291,13 @@ Item {
             // dans la bande : une valeur coupée se lit mal, et le détail est
             // dans le popup. Sur une barre horizontale, elle défile au besoin.
             visible: texte !== "" && (!root.verticale || largeurTexte <= largeurMax)
-            texte: root.valeur
+            texte: root.valeurCourte !== "" ? root.valeurCourte : root.valeur
             couleur: root.alerte ? Theme.warn : Theme.fg
-            taillePolice: Math.round(Theme.textXs * 0.85 * root.echelle)
-            largeurMax: Math.max(20, Math.round(Theme.barSideWidth - 6))
+            // Même taille que la barre horizontale, et toute la largeur de la
+            // bande : une valeur courte (« 06/11 ») doit se lire, pas se
+            // deviner. Ce qui ne tient pas est masqué par le test ci-dessus.
+            taillePolice: Math.round(Theme.textXs * root.echelle)
+            largeurMax: Math.max(20, Math.round(Theme.barSideWidth - 2))
         }
     }
 

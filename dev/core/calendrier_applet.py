@@ -24,8 +24,20 @@ MOIS = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août",
 
 
 def date_courte(moment=None):
+    """« ven. 6 nov. » : la forme de la barre horizontale."""
     m = moment or datetime.datetime.now()
     return f"{JOURS[m.weekday()]} {m.day} {MOIS[m.month - 1]}"
+
+
+def date_compacte(moment=None):
+    """« 06/11 » : la forme d'une barre latérale.
+
+    Deux nombres tiennent dans la largeur d'une colonne là où « ven. 6 nov. » ne
+    passe pas. Le contrat porte les deux formes (`compact.valeur` et
+    `compact.court`) : l'applet choisit selon l'orientation de la barre.
+    """
+    m = moment or datetime.datetime.now()
+    return f"{m.day:02d}/{m.month:02d}"
 
 
 def analyser(force=False):
@@ -34,10 +46,12 @@ def analyser(force=False):
     """
     maintenant = datetime.datetime.now()
     valeur = date_courte(maintenant)
+    resume = compact(valeur, "")
+    resume["court"] = date_compacte(maintenant)
     return {
         "ok": True,
         "ts": maintenant.timestamp(),
-        "compact": compact(valeur, ""),
+        "compact": resume,
         "date": valeur,
         "genre": "",
         "source": "date",

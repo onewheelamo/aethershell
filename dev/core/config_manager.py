@@ -356,8 +356,13 @@ def update_hypr_gaps(key, val):
 # ses marqueurs, puis recharge Hyprland. Les namespaces viennent de main.qml.
 SHELL_BLUR_BEGIN = "-- BEGIN shell-blur"
 SHELL_BLUR_END = "-- END shell-blur"
-SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-osd", "shell-config", "shell-onboarding",
-                         "shell-spotlight", "shell-spotlight-rest", "shell-cheatsheet",
+# Les barres annexes (`shell-bar-bas`, `shell-bar-cote-*`) doivent y figurer :
+# le panneau reecrit ce bloc des qu'un reglage de flou change, et une entree
+# ajoutee a la main dans general.lua disparaitrait a ce moment-la.
+SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
+                         "shell-bar-cote-droite", "shell-osd", "shell-config",
+                         "shell-onboarding", "shell-spotlight",
+                         "shell-spotlight-rest", "shell-cheatsheet",
                          "shell-tray-menu", "shell-shotbar")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
