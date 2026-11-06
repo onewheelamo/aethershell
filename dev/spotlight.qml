@@ -40,6 +40,9 @@ Item {
     // Une recherche est en cours : sans ce drapeau, une liste encore vide
     // s'affichait « aucun résultat » pendant que les documents étaient lus.
     property bool recherche: false
+    // La recherche a dépassé son délai : la liste vide ne veut pas dire « rien
+    // trouvé », et l'afficher ainsi serait un mensonge.
+    property bool rechercheCoupee: false
     // Aperçu du fichier sélectionné. `apercuPour` retient le chemin chargé : sans
     // lui, le volet afficherait l'aperçu de la ligne précédente le temps du
     // processus, et l'utilisateur lirait le mauvais fichier.
@@ -173,10 +176,12 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 root.recherche = false
+                root.rechercheCoupee = false
                 try {
                     const d = JSON.parse(text)
                     root.serviceKind = String(d.kind || "")
                     root.serviceResults = d.results || []
+                    root.rechercheCoupee = d.interrompu === true
                 } catch (e) {
                     root.serviceKind = ""
                     root.serviceResults = []
@@ -369,7 +374,11 @@ Item {
             return true
         case "copy":
             if (entry.kind === "presse")
-                Quickshell.execDetached(["sh", "-c", "cliphist decode " + arg + " | wl-copy"])
+                // L'identifiant passe par `"$1"` : concaténé dans la chaîne, il
+                // fonctionnerait tant que cliphist ne rend que des nombres, et
+                // deviendrait une injection le jour où il rend autre chose.
+                Quickshell.execDetached(["sh", "-c", 'cliphist decode "$1" | wl-copy',
+                                         "_", arg])
             else
                 root.copier(arg)
             return true
@@ -756,7 +765,9 @@ Item {
                       ? "Tapez une commande après « > »"
                       : (root.recherche
                          ? "Recherche en cours…"
-                         : "Aucun résultat pour « " + root.query + " »")
+                         : (root.rechercheCoupee
+                            ? "Recherche interrompue — relancez"
+                            : "Aucun résultat pour « " + root.query + " »"))
                 color: Qt.alpha(Theme.fg, 0.45)
                 font.pixelSize: Theme.textSm
             }

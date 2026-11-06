@@ -75,11 +75,29 @@ fi
 
 # 2. sinon, lancer la cible
 [ $# -eq 0 ] && exit 0            # cible « focus » sans repli : rien à lancer
-err=$("$@" 2>&1 >/dev/null)
-status=$?
+
+# Lancer en tâche de fond et n'observer que les deux premières secondes : un échec
+# immédiat (binaire absent, permission) se voit, alors qu'une application qui vit
+# sa vie ne retient pas le script. Avant, la substitution de commande attendait sa
+# fermeture : un gestionnaire de fichiers restait donc accroché, et la
+# notification d'erreur n'arrivait qu'à la fin de la session. Le sous-shell écrit
+# son code de sortie dans un fichier ; tant que ce fichier est vide, l'application
+# tourne encore.
+journal=$(mktemp)
+statut=$(mktemp)
+# `</dev/null >/dev/null 2>&1` ferme aussi les descripteurs hérités du script :
+# sans ça, l'appelant qui lit notre sortie standard attendrait la fermeture de
+# l'application, et le script semblerait bloquant alors qu'il a rendu la main.
+( "$@" >/dev/null 2>"$journal" ; echo $? > "$statut" ) </dev/null >/dev/null 2>&1 &
+sleep 2
+status=0
+if [ -s "$statut" ]; then
+    status=$(cat "$statut")
+fi
 if [ "$status" -ne 0 ]; then
-    detail=$(printf '%s' "$err" | head -n 3 | tr '\n' ' ')
+    detail=$(head -n 3 "$journal" | tr '\n' ' ')
     [ -n "$detail" ] || detail="code $status"
     notify-send -a "quickshell" -u critical "Impossible d'ouvrir : $label" "$detail"
 fi
+rm -f "$journal" "$statut"
 exit "$status"

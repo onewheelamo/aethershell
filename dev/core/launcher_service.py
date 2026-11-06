@@ -79,6 +79,26 @@ def resultat(kind, name, detail="", icon="", tag="", exec_=None, action=None,
     return r
 
 
+# Dernier appel qui a dépassé son délai. Un `borne()` expiré rend "" — la même
+# chose qu'une recherche sans résultat, d'où ce drapeau pour ne pas confondre les
+# deux et annoncer « aucun résultat » sur une recherche interrompue.
+INTERROMPU = {"valeur": False}
+
+
+def borne_etat(cmd, timeout=2.5, **kw):
+    """Comme `borne`, mais dit aussi si le délai a été dépassé."""
+    INTERROMPU["valeur"] = False
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           errors="replace", **kw)
+        return p.stdout
+    except subprocess.TimeoutExpired:
+        INTERROMPU["valeur"] = True
+        return ""
+    except (FileNotFoundError, OSError):
+        return ""
+
+
 def borne(cmd, timeout=2.5, **kw):
     """Lance une commande, rend sa sortie ou "" — jamais d'exception, jamais de blocage."""
     try:
@@ -391,7 +411,7 @@ def contenu(texte, limite=6):
                 f"2>/dev/null | head -c 300000 ; "
                 f"{base} -g '!*.pdf' -g '!*.docx' -g '!*.odt' -g '!*.odp' "
                 f"{shlex.quote(str(HOME))} 2>/dev/null | head -c 300000 ; }}")
-    sortie = borne(["sh", "-c", commande], timeout=12.0)
+    sortie = borne_etat(["sh", "-c", commande], timeout=12.0)
 
     trouves = {}
     for ligne in sortie.splitlines():
@@ -704,7 +724,8 @@ def traiter(requete, limite=LIMITE_DEFAUT):
             # L'aide décrit un préfixe : sa pastille montre celui dont elle parle,
             # pas « ? » répété onze fois.
             r.setdefault("sym", sym)
-        return {"ok": True, "prefix": sym, "kind": kind, "results": res}
+        return {"ok": True, "prefix": sym, "kind": kind, "results": res,
+                "interrompu": INTERROMPU["valeur"]}
     return {"ok": True, "prefix": "", "kind": "", "results": []}
 
 

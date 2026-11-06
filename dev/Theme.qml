@@ -230,7 +230,10 @@ QtObject {
     // l'écran : Quickshell le retourne ou le fait glisser.
     function ancrePopupX(ile, item, popupW, alignement) {
         const barre = String(ile || "").split(":")[0]
-        if (barre === "cote-gauche") return barHeight + 6
+        // `barSideWidth`, pas `barHeight` : les deux valent la même chose
+        // aujourd'hui, mais élargir la barre latérale décalerait ce popup de la
+        // différence et il chevaucherait la bande.
+        if (barre === "cote-gauche") return barSideWidth + 6
         if (barre === "cote-droite") return -(popupW + 6)
         const largeur = item ? item.width : 0
         if (alignement === "droite") return Math.round(largeur - popupW)
