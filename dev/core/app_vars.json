@@ -1,11 +1,11 @@
 {
-    "Terminal": "ghostty",
-    "Music": "strawberry",
-    "Browser": "firefox",
-    "Browser2": "zen-browser",
-    "Files": "thunar",
-    "Editor": "code",
-    "Video": "mpv",
-    "Images": "gwenview",
-    "Disk": "gparted"
+  "Terminal": "ghostty",
+  "Music": "strawberry",
+  "Browser": "firefox",
+  "Browser2": "zen-browser",
+  "Files": "thunar",
+  "Editor": "code",
+  "Video": "mpv",
+  "Images": "gwenview",
+  "Disk": "partitionmanager"
 }

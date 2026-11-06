@@ -65,6 +65,10 @@ Rectangle {
           tab: 6, section: "greeter_theme", target: "secGreeter" },
         { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
           section: "widgets_api", target: "secApiKeys" },
+        { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 7,
+          section: "quickshell_calendrier", target: "secCalendrier" },
+        { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 7,
+          section: "widgets_homelab", target: "secHomelab" },
         { label: "Applets de la barre", words: "applets barre ilot ordre position echelle cloche volume reseau",
           tab: 1, section: "quickshell_applets", target: "secApplets" },
         { label: "Barre et surfaces du shell", words: "barre hauteur opacite flou arrondi ilot popups bordure",
@@ -1144,7 +1148,8 @@ Rectangle {
                 { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
                 { icon: "keyboard", label: "Contrôles" },
                 { icon: "rocket", label: "Applications" },
-                { icon: "lock", label: "Connexion" }
+                { icon: "lock", label: "Connexion" },
+                { icon: "cloud-check", label: "Homelab" }
             ]
 
             Rectangle {
@@ -1209,6 +1214,7 @@ Rectangle {
                 if (root.currentTab === 4) return tabControlesCol.implicitHeight
                 if (root.currentTab === 5) return tabAppsCol.implicitHeight
                 if (root.currentTab === 6) return greeterTabLoader.item
+                if (root.currentTab === 7) return tabHomelabCol.implicitHeight
                     ? greeterTabLoader.item.implicitHeight : 0
                 return 0
             }
@@ -2418,145 +2424,6 @@ Rectangle {
                 }
             }   // end Grid
         }   // end CollapsibleSection secShell
-
-            // Tiroir : identifiants du calendrier Nextcloud. Sert à l'applet
-            // « calendrier » comme au widget « date » — même fichier, même
-            // saisie. Le secret n'est jamais réaffiché : place-holder avec ses
-            // quatre derniers caractères, et un champ vide ne l'efface pas.
-            CollapsibleSection {
-                id: secCalendrier
-                objectName: "secCalendrier"
-                title: "Calendrier Nextcloud"
-                icon: "calendar"
-                expanded: root.sectionOpen("quickshell_calendrier", false)
-                onToggled: expanded => {
-                    root.setPanelSection("quickshell_calendrier", expanded)
-                    if (expanded) ncEtatProc.running = true
-                }
-                Component.onCompleted: ncEtatProc.running = true
-
-                Column {
-                    width: parent.width
-                    spacing: 10
-
-                    Text {
-                        width: parent.width
-                        text: "Le calendrier lit le calendrier Nextcloud par CalDAV. "
-                              + "Le mot de passe demandé est un mot de passe "
-                              + "d'application, pas celui du compte."
-                        color: Qt.alpha(Theme.fg, 0.5)
-                        font.pixelSize: Math.max(9, Theme.textXs - 1)
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Repeater {
-                        model: [
-                            { cle: "url", libelle: "Adresse du serveur",
-                              exemple: "https://cloud.exemple.org" },
-                            { cle: "user", libelle: "Identifiant",
-                              exemple: "prenom.nom" },
-                            { cle: "app_password", libelle: "Mot de passe d'application",
-                              exemple: "xxxxx-xxxxx-xxxxx-xxxxx" }
-                        ]
-
-                        Column {
-                            id: champCol
-                            required property var modelData
-                            width: parent.width
-                            spacing: 5
-
-                            // Les deux premiers champs arrivent pré-remplis ; le mot
-                            // de passe jamais, on ne fait qu'annoncer sa fin.
-                            readonly property string initiale: modelData.cle === "url"
-                                ? String(root.ncEtat.url || "")
-                                : (modelData.cle === "user" ? String(root.ncEtat.user || "") : "")
-                            readonly property bool secret: modelData.cle === "app_password"
-                            readonly property string rappel: secret
-                                ? (root.ncEtat.mot_de_passe_present
-                                   ? "Enregistré (…" + String(root.ncEtat.mot_de_passe_fin || "") + ")"
-                                   : "aucun mot de passe") + " — laisser vide pour ne pas changer"
-                                : String(modelData.exemple)
-
-                            Text {
-                                text: modelData.libelle
-                                color: Theme.fg
-                                font.pixelSize: Theme.textXs
-                            }
-
-                            Row {
-                                width: parent.width
-                                spacing: 10
-
-                                Rectangle {
-                                    width: parent.width - 130
-                                    height: 32
-                                    color: Theme.bg
-                                    radius: Theme.globalRadius
-                                    border.color: ncChamp.activeFocus ? Theme.accent : Theme.surfaceVariant
-                                    border.width: 1
-
-                                    TextInput {
-                                        id: ncChamp
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 10
-                                        anchors.rightMargin: 10
-                                        verticalAlignment: TextInput.AlignVCenter
-                                        color: Theme.info
-                                        font.pixelSize: Theme.textSm
-                                        selectByMouse: true
-                                        echoMode: champCol.secret ? TextInput.Password : TextInput.Normal
-                                        text: champCol.initiale
-                                        onAccepted: root.enregistrerNc(champCol.modelData.cle, text)
-                                    }
-
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 10
-                                        width: parent.width - 20
-                                        visible: ncChamp.text.length === 0
-                                        text: champCol.rappel
-                                        color: Qt.alpha(Theme.fg, 0.45)
-                                        font.pixelSize: Theme.textXs
-                                        elide: Text.ElideRight
-                                    }
-                                }
-
-                                Rectangle {
-                                    width: 120
-                                    height: 32
-                                    radius: Theme.globalRadius
-                                    color: ncEnreg.containsMouse ? Theme.accentMuted : Theme.accent
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "Enregistrer"
-                                        color: Theme.bg
-                                        font.pixelSize: Theme.textSm
-                                        font.bold: true
-                                    }
-
-                                    MouseArea {
-                                        id: ncEnreg
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.enregistrerNc(champCol.modelData.cle, ncChamp.text)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        width: parent.width
-                        visible: root.ncStatut !== ""
-                        text: root.ncStatut
-                        color: root.ncStatut.startsWith("Enregistré") ? Theme.success : Theme.error
-                        font.pixelSize: Theme.textXs
-                    }
-                }
-            }
 
             // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
             // applet reste invisible : on le dit, sinon le réglage semble cassé.
@@ -3972,6 +3839,160 @@ Rectangle {
                 }
             }
 
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // TAB HOMELAB : ce qui parle à l'extérieur — Nextcloud d'un côté, Proxmox de
+        // l'autre. Sortis de l'onglet Quickshell, où ils n'avaient rien à faire : la
+        // barre et les applets se règlent là-bas, pas les accès aux serveurs.
+        // ═══════════════════════════════════════════════════════════════════════════
+        Column {
+            id: tabHomelabCol
+            visible: root.currentTab === 7
+            width: mainFlickable.width
+            spacing: 12
+
+
+            // Tiroir : identifiants du calendrier Nextcloud. Sert à l'applet
+            // « calendrier » comme au widget « date » — même fichier, même
+            // saisie. Le secret n'est jamais réaffiché : place-holder avec ses
+            // quatre derniers caractères, et un champ vide ne l'efface pas.
+            CollapsibleSection {
+                id: secCalendrier
+                objectName: "secCalendrier"
+                title: "Calendrier Nextcloud"
+                icon: "calendar"
+                expanded: root.sectionOpen("quickshell_calendrier", false)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_calendrier", expanded)
+                    if (expanded) ncEtatProc.running = true
+                }
+                Component.onCompleted: ncEtatProc.running = true
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Le calendrier lit le calendrier Nextcloud par CalDAV. "
+                              + "Le mot de passe demandé est un mot de passe "
+                              + "d'application, pas celui du compte."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Repeater {
+                        model: [
+                            { cle: "url", libelle: "Adresse du serveur",
+                              exemple: "https://cloud.exemple.org" },
+                            { cle: "user", libelle: "Identifiant",
+                              exemple: "prenom.nom" },
+                            { cle: "app_password", libelle: "Mot de passe d'application",
+                              exemple: "xxxxx-xxxxx-xxxxx-xxxxx" }
+                        ]
+
+                        Column {
+                            id: champCol
+                            required property var modelData
+                            width: parent.width
+                            spacing: 5
+
+                            // Les deux premiers champs arrivent pré-remplis ; le mot
+                            // de passe jamais, on ne fait qu'annoncer sa fin.
+                            readonly property string initiale: modelData.cle === "url"
+                                ? String(root.ncEtat.url || "")
+                                : (modelData.cle === "user" ? String(root.ncEtat.user || "") : "")
+                            readonly property bool secret: modelData.cle === "app_password"
+                            readonly property string rappel: secret
+                                ? (root.ncEtat.mot_de_passe_present
+                                   ? "Enregistré (…" + String(root.ncEtat.mot_de_passe_fin || "") + ")"
+                                   : "aucun mot de passe") + " — laisser vide pour ne pas changer"
+                                : String(modelData.exemple)
+
+                            Text {
+                                text: modelData.libelle
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            Row {
+                                width: parent.width
+                                spacing: 10
+
+                                Rectangle {
+                                    width: parent.width - 130
+                                    height: 32
+                                    color: Theme.bg
+                                    radius: Theme.globalRadius
+                                    border.color: ncChamp.activeFocus ? Theme.accent : Theme.surfaceVariant
+                                    border.width: 1
+
+                                    TextInput {
+                                        id: ncChamp
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        color: Theme.info
+                                        font.pixelSize: Theme.textSm
+                                        selectByMouse: true
+                                        echoMode: champCol.secret ? TextInput.Password : TextInput.Normal
+                                        text: champCol.initiale
+                                        onAccepted: root.enregistrerNc(champCol.modelData.cle, text)
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 10
+                                        width: parent.width - 20
+                                        visible: ncChamp.text.length === 0
+                                        text: champCol.rappel
+                                        color: Qt.alpha(Theme.fg, 0.45)
+                                        font.pixelSize: Theme.textXs
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 120
+                                    height: 32
+                                    radius: Theme.globalRadius
+                                    color: ncEnreg.containsMouse ? Theme.accentMuted : Theme.accent
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Enregistrer"
+                                        color: Theme.bg
+                                        font.pixelSize: Theme.textSm
+                                        font.bold: true
+                                    }
+
+                                    MouseArea {
+                                        id: ncEnreg
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.enregistrerNc(champCol.modelData.cle, ncChamp.text)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.ncStatut !== ""
+                        text: root.ncStatut
+                        color: root.ncStatut.startsWith("Enregistré") ? Theme.success : Theme.error
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
+
+
             // Homelab : l'applet et le widget interrogent l'API Proxmox. L'URL et
             // l'identifiant du jeton ne sont pas secrets et vivent dans
             // homelab.json ; le secret du jeton suit le chemin des clés d'API.
@@ -4197,7 +4218,6 @@ Rectangle {
                     }
                 }
             }
-
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

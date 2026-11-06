@@ -26,7 +26,7 @@ Item {
     property string statut: ""
     // Gestionnaire de disques : lu dans core/app_vars.json (« Disk »), la même
     // table que les autres programmes par défaut — un seul endroit à changer.
-    property string gestionnaire: "gparted"
+    property string gestionnaire: "partitionmanager"
 
     FileView {
         path: Quickshell.shellPath("core/app_vars.json")

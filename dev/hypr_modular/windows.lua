@@ -28,6 +28,11 @@ hl.window_rule({
 -- lancement, y compris quand on travaillait ailleurs.
 hl.window_rule({ name = "pavucontrol", float = true, center = true })
 
+-- Demande d'authentification polkit : flottante, centrée, et qui garde le
+-- focus. Sans `stay_focused`, la fenêtre s'ouvre parfois derrière le
+-- navigateur et l'authentification reste bloquée sans qu'on la voie.
+hl.window_rule({ name = "polkit-prompt", match = { class = "(?i).*polkit.*" }, float = true, center = true, stay_focused = true })
+
 -- Exceptions d'opacité (1.0) et inhibition de mise en veille (Firefox, OnlyOffice, Vidéo)
 -- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` met
 -- active/inactive/fullscreen_opacity à 1 pour la fenêtre, `opacity = "1.0 override"`
