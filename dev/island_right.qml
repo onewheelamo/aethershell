@@ -615,21 +615,14 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // SECTION 6: HYPRLAND OUTSIDE CLICK / FOCUS GRAB
+    // SECTION 6: ATTRAPEUR DE CLIC EXTÉRIEUR
     // ────────────────────────────────────────────────────────────────────────
-    // Dismisses open right-island popups when clicking anywhere on the desktop
-    HyprlandFocusGrab {
-        active: Theme.activePopup === "notifications"
-        windows: [
-            notificationsPopup,
-            islandRight.QsWindow.window
-        ]
-        onCleared: {
-            if (Theme.activePopup !== "calendar") {
-                Theme.activePopup = ""
-            }
-        }
-    }
+    // Il n'y en a plus ici. Le centre de notifications a été déplacé dans son
+    // applet (`NotifsApplet.qml`), qui porte son propre `HyprlandFocusGrab` sur
+    // sa propre fenêtre ; celui qui restait ici listait `notificationsPopup`,
+    // un identifiant de l'ancien fichier — « ReferenceError: notificationsPopup
+    // is not defined » à chaque évaluation, et un attrapeur mort. Chaque panneau
+    // ferme le sien : cet îlot n'a plus de popup à refermer.
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 7: POPUP WINDOWS
