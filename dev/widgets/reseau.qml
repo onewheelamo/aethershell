@@ -77,11 +77,15 @@ Item {
         }
     }
 
-    implicitWidth: colonne.implicitWidth
+    // Largeur **fixe** : un ping qui passe de 6 à 1200 ms, ou un débit qui passe de
+    // « 1 ko/s » à « 12,3 Mo/s », ne doit pas redimensionner la carte sous le
+    // curseur. Les lignes se contentent de tronquer ce qui dépasse.
+    implicitWidth: Math.round(252 * echelle)
     implicitHeight: colonne.implicitHeight
 
     Column {
         id: colonne
+        width: parent.width
         spacing: 6
 
         // ── réseau et signal ────────────────────────────────────────────────
@@ -136,6 +140,8 @@ Item {
         // ── radio ───────────────────────────────────────────────────────────
         Text {
             visible: root.bande() !== ""
+            width: parent.width
+            elide: Text.ElideRight
             text: root.bande()
                   + (root.reseau.dbm !== undefined ? " · " + root.reseau.dbm + " dBm" : "")
                   + (root.reseau.rx_mbps ? " · " + Math.round(root.reseau.rx_mbps) + " Mb/s" : "")
@@ -146,12 +152,24 @@ Item {
         // ── adressage ───────────────────────────────────────────────────────
         Text {
             visible: root.reseau.ip !== undefined
+            width: parent.width
+            elide: Text.ElideRight
             text: String(root.reseau.ip || "")
                   + (root.reseau.prefixe !== undefined ? "/" + root.reseau.prefixe : "")
                   + (root.reseau.passerelle ? "  →  " + root.reseau.passerelle : "")
-                  + (root.reseau.latence_ms !== undefined ? "  ·  " + root.reseau.latence_ms + " ms" : "")
             color: Theme.fg
             font.pixelSize: Math.round(13 * root.echelle)
+            font.features: { "tnum": 1 }
+        }
+
+        // ── latence ─────────────────────────────────────────────────────────
+        // Sur sa propre ligne : un ping qui explose (1200 ms) allongeait la ligne
+        // d'adressage et donc la carte.
+        Text {
+            visible: root.reseau.latence_ms !== undefined
+            text: "ping " + root.reseau.latence_ms + " ms"
+            color: Qt.alpha(Theme.fg, 0.6)
+            font.pixelSize: Math.round(11.5 * root.echelle)
             font.features: { "tnum": 1 }
         }
 
@@ -177,6 +195,8 @@ Item {
         // ── VPN ─────────────────────────────────────────────────────────────
         Text {
             visible: root.reseau.vpn !== undefined && String(root.reseau.vpn || "") !== ""
+            width: parent.width
+            elide: Text.ElideRight
             text: "⛨ " + String(root.reseau.vpn || "")
             color: Theme.accent
             font.pixelSize: Math.round(11.5 * root.echelle)
