@@ -537,13 +537,63 @@ deploy_new_env() {
 
     deploy_ghostty_overrides
 
+    # ── rechargement de la session, sans intervention ───────────────────────
+    # Déployer sans relire la config laissait l'utilisateur devant un écran qui
+    # affichait l'ancienne version jusqu'à sa prochaine déconnexion. On recharge
+    # donc Hyprland puis quickshell ici. L'unité systemd est prioritaire ; le
+    # lancement direct ne sert que si elle n'existe pas encore (première install).
+    recharger_session() {
+        local sig
+        sig=$(ls "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr" 2>/dev/null | head -1)
+        if [ -z "$sig" ]; then
+            echo "  ↪ session Hyprland introuvable : rechargement sauté"
+            return 0
+        fi
+        export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+
+        if command -v hyprctl >/dev/null 2>&1; then
+            if hyprctl reload >/dev/null 2>&1; then
+                echo "  ↪ Hyprland rechargé"
+            else
+                echo "  ↪ hyprctl reload a échoué (session sans Hyprland actif ?)"
+            fi
+        fi
+
+        if command -v systemctl >/dev/null 2>&1 \
+           && systemctl --user cat quickshell.service >/dev/null 2>&1; then
+            if systemctl --user restart quickshell.service; then
+                echo "  ↪ quickshell relancé (unité systemd)"
+            else
+                echo "  ⚠️  redémarrage de quickshell.service impossible"
+            fi
+        elif command -v quickshell >/dev/null 2>&1; then
+            pkill -x quickshell 2>/dev/null || true
+            sleep 1
+            WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}" \
+                setsid quickshell -n >/dev/null 2>&1 &
+            echo "  ↪ quickshell relancé (sans unité)"
+        fi
+
+        # Vérification : une barre absente est le seul vrai symptôme d'échec.
+        sleep 3
+        if command -v hyprctl >/dev/null 2>&1; then
+            if [ "$(hyprctl layers 2>/dev/null | grep -c 'namespace: shell-bar')" -ge 1 ]; then
+                echo "  ✓ barre présente"
+            else
+                echo "  ⚠️  aucune couche shell-bar : vérifier le journal de quickshell"
+            fi
+        fi
+    }
+
     # Le marqueur n'est posé qu'après un déploiement réussi : son absence ici
     # signifie « installation neuve ». On le note avant de le créer.
     local premiere_fois=0
     [ -f "$MARKER" ] || premiere_fois=1
     touch "$MARKER"
 
-    echo "✅ $DISTRO_TITLE deployment complete! Please restart Hyprland or reload config."
+    recharger_session
+
+    echo "✅ $DISTRO_TITLE deployment complete."
 
     # Installation neuve : dire où sont les raccourcis. La barre est lancée par
     # l'autostart de Hyprland, pas par ce script — on laisse donc passer quelques
