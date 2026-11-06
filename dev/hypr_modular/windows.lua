@@ -23,7 +23,9 @@ hl.window_rule({
 -- Workspaces permanents 1 à 5 : assignés par hardware-<host>.lua à l'écran principal
 -- (évite de réécraser la contrainte de moniteur définie par le profil matériel)
 
-hl.window_rule({ name = "firefox", match = { class = "(?i).*firefox.*" }, workspace = "2" })
+-- Firefox n'a pas de workspace assigné : il s'ouvre sur le bureau actif, comme
+-- n'importe quelle fenêtre. Une règle `workspace = "2"` l'y envoyait à chaque
+-- lancement, y compris quand on travaillait ailleurs.
 hl.window_rule({ name = "pavucontrol", float = true, center = true })
 
 -- Exceptions d'opacité (1.0) et inhibition de mise en veille (Firefox, OnlyOffice, Vidéo)
