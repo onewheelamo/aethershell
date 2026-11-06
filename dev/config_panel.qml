@@ -297,6 +297,10 @@ Rectangle {
     // dictionnaire `id → placement`, cocher deux fois ou placer ailleurs ne peut
     // pas créer de doublon : la dernière décision remplace la précédente.
     property var appletRows: []
+    // Change à chaque réponse du registre : les cases à cocher s'y abonnent, car
+    // lire `donnee.options` (un objet JS) ne crée aucune dépendance QML et la
+    // coche ne se recalculait donc jamais.
+    property string appletSignature: ""
     // Un applet a une barre et une place dans cette barre. Deux groupes de
     // pastilles plutôt que douze : douze ne tiendraient pas sur une ligne, et
     // cette séparation est celle du modèle (« haut:fin », « bas:debut »…).
@@ -330,6 +334,7 @@ Rectangle {
                 try {
                     const liste = JSON.parse(text.trim())
                     root.appletRows = Array.isArray(liste) ? liste : []
+                    root.appletSignature = JSON.stringify(root.appletRows)
                 } catch (e) {
                     root.appletRows = []
                 }
@@ -397,6 +402,7 @@ Rectangle {
                         // disques continuaient d'afficher l'ancien état.
                         root.appletRows = []
                         root.appletRows = liste
+                        root.appletSignature = JSON.stringify(liste)
                     } else {
                         root.appletsRafraichir()
                     }
@@ -466,12 +472,24 @@ Rectangle {
         return montagesChoisis(donnee).indexOf(String(montage)) >= 0
     }
 
+    // L'entrée telle que le panneau la connaît **maintenant** : le délégué peut
+    // porter un `modelData` périmé, et c'est ce qui faisait repartir la sélection
+    // du défaut (tout sauf la racine) au lieu du choix courant.
+    function entreeApplet(id) {
+        const cle = String(id || "")
+        for (let i = 0; i < root.appletRows.length; ++i) {
+            if (String(root.appletRows[i].id) === cle) return root.appletRows[i]
+        }
+        return null
+    }
+
     function basculerMontage(donnee, montage) {
-        const liste = montagesChoisis(donnee)
+        const vive = entreeApplet(donnee && donnee.id) || donnee
+        const liste = montagesChoisis(vive)
         const i = liste.indexOf(String(montage))
         if (i >= 0) liste.splice(i, 1)
         else liste.push(String(montage))
-        appletCommande(["option", donnee.id, "montages", JSON.stringify(liste)])
+        appletCommande(["option", (vive && vive.id) || donnee.id, "montages", JSON.stringify(liste)])
     }
 
     function appletBasculer(id, actif) {
@@ -2663,6 +2681,8 @@ Rectangle {
                                 // Les propriétés `required` doivent vivre sur la
                                 // racine du délégué, pas sur son enfant.
                                 required property var modelData
+                                Component.onCompleted: if (appletRow.donnee.id === "disques")
+                                    console.log("SONDE disques options:", JSON.stringify(appletRow.donnee.options || null))
                                 readonly property var donnee: modelData
                                 width: parent.width
                                 spacing: 3
@@ -3015,8 +3035,13 @@ Rectangle {
                                             Item {
                                                 required property var modelData
                                                 readonly property string montage: String(modelData.montage || "")
-                                                readonly property bool coche:
-                                                    root.montageCoche(appletRow.donnee, montage)
+                                                readonly property bool coche: {
+                                                    // Lecture de la signature :
+                                                    // c'est elle qui porte la
+                                                    // dépendance, pas l'objet JS.
+                                                    const _ = root.appletSignature
+                                                    return root.montageCoche(appletRow.donnee, montage)
+                                                }
 
                                                 width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
                                                 height: 18
