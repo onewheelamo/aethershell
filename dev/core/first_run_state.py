@@ -54,6 +54,8 @@ WIDGET_LABELS = {
     "systeme": "Système",
     "reseau": "Réseau",
     "disques": "Disques",
+    "homelab": "Homelab",
+    "presse_papiers": "Presse-papiers",
     "deepseek": "DeepSeek",
     "ollama": "Ollama Cloud",
     "antigravity": "Antigravity",

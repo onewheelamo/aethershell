@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Quickshell (barre)",
+        "cmd": "sh -c '/usr/bin/pgrep -x quickshell >/dev/null || exec quickshell -n' &",
+        "enabled": true
+    },
+    {
+        "name": "Hypridle (inactivité)",
+        "cmd": "systemctl --user start hypridle",
+        "enabled": true
+    },
+    {
+        "name": "awww-daemon (wallpaper, si Noctalia absent)",
+        "cmd": "sh -c '/usr/bin/pgrep -x awww-daemon >/dev/null || exec awww-daemon' &",
+        "enabled": true
+    },
+    {
+        "name": "Agent Polkit",
+        "cmd": "sh -c '/usr/bin/pgrep -x hyprpolkitagent >/dev/null && exit 0; for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &",
+        "enabled": true
+    },
+    {
+        "name": "Proton VPN",
+        "cmd": "protonvpn-app",
+        "enabled": true
+    },
+    {
+        "name": "Historique du presse-papiers",
+        "cmd": "sh -c '/usr/bin/pgrep -f \"cliphist store\" >/dev/null || exec wl-paste --watch cliphist store'",
+        "enabled": true
+    }
+]

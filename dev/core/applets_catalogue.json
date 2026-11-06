@@ -55,9 +55,9 @@
         {
             "id": "maj",
             "nom": "Mises à jour",
-            "description": "Paquets en attente ; clic pour lancer arch-update",
+            "description": "Paquets en attente (pacman ou dnf) ; clic pour lancer la mise à jour",
             "genre": "qml",
-            "composant": "ArchApplet.qml",
+            "composant": "MajApplet.qml",
             "ile": "droite",
             "ordre": 70,
             "text_scale": 100
@@ -198,6 +198,30 @@
                 "cle": "montages",
                 "libelle": "Systèmes de fichiers affichés"
             }
+        },
+        {
+            "id": "homelab",
+            "nom": "Homelab",
+            "description": "Conteneurs, services en échec et hôtes joignables ; clic pour le détail",
+            "icone": "cloud-check",
+            "service": "core/homelab_applet.py",
+            "popup": "HomelabPopup.qml",
+            "ile": "haut:fin",
+            "ordre": 15,
+            "cadence": 60,
+            "text_scale": 100
+        },
+        {
+            "id": "presse-papiers",
+            "nom": "Presse-papiers",
+            "description": "Historique des copies récentes ; clic pour en reprendre une",
+            "icone": "selection",
+            "service": "core/presse_papiers_applet.py",
+            "popup": "PressePapiersPopup.qml",
+            "ile": "haut:fin",
+            "ordre": 25,
+            "cadence": 10,
+            "text_scale": 100
         }
     ]
 }

@@ -264,6 +264,8 @@ Rectangle {
         { type: "systeme", label: "Système" },
         { type: "reseau", label: "Réseau" },
         { type: "disques", label: "Disques" },
+        { type: "homelab", label: "Homelab" },
+        { type: "presse_papiers", label: "Presse-papiers" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },
         { type: "antigravity", label: "Antigravity" },
