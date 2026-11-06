@@ -174,6 +174,7 @@ Item {
         color: "transparent"
         visible: Theme.activePopup === "notifications"
 
+
         // Échap ferme, quel que soit l'élément qui a le focus dans le panneau.
         Shortcut {
             sequence: "Escape"
@@ -296,10 +297,12 @@ Item {
                                 anchors.margins: -4
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Theme.activePopup = ""
-                                    Theme.notifHistoryVisible = true
-                                }
+                                // Une seule affectation : c'est le tiroir lui-même qui
+                                // referme le panneau (son handler le fait déjà). Fermer
+                                // ici d'abord démaillait la surface du popup pendant le
+                                // clic, et le relâchement atterrissait sur le tiroir
+                                // plein écran — qui le prenait pour un clic extérieur.
+                                onClicked: Theme.notifHistoryVisible = true
                             }
                         }
 

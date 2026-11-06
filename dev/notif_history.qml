@@ -253,7 +253,10 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                if (Date.now() - root.openedAt < 250) return
+                // 250 → 450 ms : le relâchement du clic qui a ouvert le tiroir
+                // (icône de l'en-tête du panneau) arrive parfois après le map de
+                // cette surface plein écran, et passait pour un clic extérieur.
+                if (Date.now() - root.openedAt < 450) return
                 Theme.notifHistoryVisible = false
             }
         }
