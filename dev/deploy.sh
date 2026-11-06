@@ -93,8 +93,10 @@ case "$DISTRO" in
         ;;
 esac
 # Sauvegardes : un nom par famille de distribution, sans rien qui nomme la machine.
-HN_ALIAS="$BACKUP_DIR/backup_${DISTRO}_hn.tar.gz"
+# HQ seulement : l'environnement Noctalia n'est plus utilise, et une sauvegarde qui
+# ne sert jamais ne fait que brouiller le choix au moment de restaurer.
 HQ_ALIAS="$BACKUP_DIR/backup_${DISTRO}_hq.tar.gz"
+HQ_RETENTION=5
 
 # `--deps` : la liste que ce fichier donne pour la cible, sans rien toucher.
 if [ "${PRINT_DEPS:-0}" = "1" ]; then
@@ -195,7 +197,9 @@ prune_target() {
 
 rotate_backups() {
     local old_backups
-    mapfile -t old_backups < <(find "$BACKUP_DIR" -maxdepth 1 -name "backup_*_20*.tar.gz" -printf "%T@ %p\n" 2>/dev/null | sort -nr | tail -n +4 | awk '{print $2}')
+    # On garde plusieurs versions : « revenir a une version anterieure » suppose
+    # d'en avoir ou choisir.
+    mapfile -t old_backups < <(find "$BACKUP_DIR" -maxdepth 1 -name "backup_*_20*.tar.gz" -printf "%T@ %p\n" 2>/dev/null | sort -nr | tail -n +$((HQ_RETENTION + 1)) | awk '{print $2}')
     for b in "${old_backups[@]}"; do
         if [ -n "$b" ] && [ -f "$b" ]; then
             echo "  pruning old backup: $b"
@@ -277,38 +281,84 @@ check_dependencies() {
 BACKUP_OK=0
 backup_env() {
     BACKUP_OK=0
-    echo "Select environment to backup:"
-    echo "1 > HN (Hyprland + Noctalia)"
-    echo "2 > HQ (Hyprland + Quickshell)"
-    echo "s > Skip backup"
-    read -p "Choice: " choice
-
-    local stamp
+    local stamp archive contenu
     stamp=$(date +%Y%m%d_%H%M%S)
-
-    case $choice in
-        1)
-            local archive="$BACKUP_DIR/backup_${DISTRO}_hn_$stamp.tar.gz"
-            tar -czf "$archive" -C "$HOME/.config" hypr noctalia 2>/dev/null
-            cp -f "$archive" "$HN_ALIAS"
-            echo "✅ HN backed up to $archive"
-            rotate_backups
-            BACKUP_OK=1
-            ;;
-        2)
-            local archive="$BACKUP_DIR/backup_${DISTRO}_hq_$stamp.tar.gz"
-            tar -czf "$archive" -C "$HOME/.config" hypr quickshell 2>/dev/null
-            cp -f "$archive" "$HQ_ALIAS"
-            echo "✅ HQ backed up to $archive"
-            rotate_backups
-            BACKUP_OK=1
-            ;;
-        s|S)
-            echo "⏭️ Backup skipped."
-            ;;
-        *) echo "⚠️ Invalid choice: skipping backup." ;;
-    esac
+    archive="$BACKUP_DIR/backup_${DISTRO}_hq_$stamp.tar.gz"
+    if ! tar -czf "$archive" -C "$HOME/.config" hypr quickshell 2>/dev/null; then
+        rm -f "$archive"
+        echo "⚠️ Backup failed, nothing written."
+        return 1
+    fi
+    # Une sauvegarde doit contenir les DEUX arbres : un « HQ » reduit a Hyprland
+    # restaurerait une moitie de configuration, et l'alias pointerait dessus.
+    # Listing dans une variable : sous `set -o pipefail`, un `tar | grep -q`
+    # renvoie 141 des que grep sort, donc un faux negatif.
+    contenu=$(tar -tzf "$archive" 2>/dev/null || true)
+    if ! grep -q '^hypr/' <<<"$contenu" || ! grep -q '^quickshell/' <<<"$contenu"; then
+        rm -f "$archive"
+        echo "⚠️ Backup incomplete (hypr ou quickshell manquant), archive retiree."
+        return 1
+    fi
+    cp -f "$archive" "$HQ_ALIAS"
+    echo "✅ HQ saved: $(basename "$archive") ($(du -h "$archive" | cut -f1))"
+    rotate_backups
+    BACKUP_OK=1
 }
+
+# Retour a une version anterieure de HQ : on liste les sauvegardes datees, on
+# demande laquelle, et on sauvegarde l'etat courant avant d'ecraser — un retour
+# en arriere qui ne pourrait pas etre annule ne serait pas un filet de securite.
+restore_hq() {
+    local -a archives=()
+    # Tri par date de fichier, pas par nom : les sauvegardes ne portent pas toutes
+    # le meme prefixe de distribution, et « arch » passerait apres « station ».
+    mapfile -t archives < <(find "$BACKUP_DIR" -maxdepth 1 -name "backup_*_hq_20*.tar.gz" -printf "%T@ %p\n" 2>/dev/null | sort -nr | awk '{print $2}')
+    if [ "${#archives[@]}" -eq 0 ]; then
+        echo "⚠️ No dated HQ backup in $BACKUP_DIR."
+        return 1
+    fi
+    echo "HQ backups, newest first:"
+    local i nom brut lisible
+    for i in "${!archives[@]}"; do
+        nom=$(basename "${archives[$i]}")
+        brut="${nom##*_hq_}"; brut="${brut%.tar.gz}"
+        lisible=$(date -d "${brut:0:8} ${brut:9:2}:${brut:11:2}:${brut:13:2}" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$brut")
+        printf ' %2d > %s  %6s  %s\n' "$((i+1))" "$lisible" \
+            "$(du -h "${archives[$i]}" | cut -f1)" "$nom"
+    done
+    echo "  s > Cancel"
+    read -p "Restore which version ? " choice
+    case "$choice" in
+        s|S|"") echo "⏭️ Cancelled."; return 0 ;;
+    esac
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
+        echo "⚠️ Invalid choice, nothing done."
+        return 1
+    fi
+    local cible="${archives[$((choice - 1))]}"
+    # Pas d'ecrasement sans filet : si la sauvegarde de l'etat courant echoue, on
+    # ne restaure rien.
+    if ! backup_env; then
+        echo "⚠️ Restore annule : l'etat courant n'a pas pu etre sauvegarde."
+        return 1
+    fi
+    echo "↪ restoring $(basename "$cible")..."
+    tar -xzf "$cible" -C "$HOME/.config" || { echo "⚠️ Restore failed."; return 1; }
+    touch "$MARKER"
+    echo "✅ HQ restored from $(basename "$cible")."
+    # Hyprland surveille ses fichiers : pendant l'extraction il peut recharger une
+    # configuration a moitie reecrite (d'ou un « cannot open hyprland.lua » sans
+    # consequence). On recharge proprement a la fin pour laisser un etat net.
+    if command -v hyprctl >/dev/null 2>&1 && hyprctl reload >/dev/null 2>&1; then
+        echo "   Hyprland reloaded."
+    else
+        echo "   Reload Hyprland yourself: hyprctl reload"
+    fi
+    echo "   Quickshell keeps the old code until you restart it."
+    rotate_backups
+    return 0
+}
+
 
 # Ghostty n'est pas géré par le dépôt : Ryoku pose sa configuration et sa palette
 # (matugen). Mais le flou derrière la fenêtre dépend d'un réglage que Ghostty ne
@@ -504,9 +554,8 @@ while true; do
     echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
     echo "------------------------------------------"
     echo "1 > Deploy & Switch to Quickshell ($DISTRO)"
-    echo "2 > Backup current environment"
-    echo "3 > Restore HN (Hyprland + Noctalia)"
-    echo "4 > Restore HQ (Hyprland + Quickshell)"
+    echo "2 > Backup HQ (Hyprland + Quickshell)"
+    echo "3 > Restore HQ from an older version"
     echo "q > Quit"
     echo "------------------------------------------"
     read -p "Choice: " choice
@@ -520,25 +569,7 @@ while true; do
             fi
             ;;
         2) backup_env ;;
-        3)
-            if [ -f "$HN_ALIAS" ]; then
-                tar -xzf "$HN_ALIAS" -C "$HOME/.config" && rm -f "$MARKER"
-                echo "✅ HN (Hyprland + Noctalia) restored."
-            else
-                echo "⚠️ No HN backup found at $HN_ALIAS."
-            fi
-            exit 0
-            ;;
-        4)
-            if [ -f "$HQ_ALIAS" ]; then
-                rm -f "$MARKER"
-                tar -xzf "$HQ_ALIAS" -C "$HOME/.config"
-                echo "✅ HQ (Hyprland + Quickshell) restored."
-            else
-                echo "⚠️ No HQ backup found at $HQ_ALIAS."
-            fi
-            exit 0
-            ;;
+        3) restore_hq && exit 0 ;;
         q|Q) exit 0 ;;
         *) echo "Invalid choice." ;;
     esac
