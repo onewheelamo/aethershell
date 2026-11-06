@@ -286,9 +286,12 @@ Rectangle {
     // pas créer de doublon : la dernière décision remplace la précédente.
     property var appletRows: []
     readonly property var appletIles: [
-        { code: "gauche", label: "G" },
-        { code: "centre", label: "C" },
-        { code: "droite", label: "D" }
+        { code: "haut-gauche", label: "G" },
+        { code: "haut-centre", label: "C" },
+        { code: "haut-droite", label: "D" },
+        { code: "bas", label: "↓" },
+        { code: "cote-gauche", label: "←" },
+        { code: "cote-droite", label: "→" }
     ]
 
     Process {
@@ -1873,6 +1876,142 @@ Rectangle {
             width: mainFlickable.width
             spacing: 11
 
+            // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
+            // applet reste invisible : on le dit, sinon le réglage semble cassé.
+            CollapsibleSection {
+                id: secBarres
+                objectName: "secBarres"
+                title: "Barres supplémentaires"
+                icon: "monitor"
+                expanded: root.sectionOpen("quickshell_barres", false)
+                onToggled: expanded => root.setPanelSection("quickshell_barres", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "Une barre n'apparaît que si elle porte au moins un applet : "
+                              + "choisissez l'emplacement ↓ ← → dans la liste des applets."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre du bas"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barBottomVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barBottomVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barBottomVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_bottom",
+                                    String(!Theme.barBottomVisible)])
+                            }
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre de gauche"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barLeftVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barLeftVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barLeftVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_left",
+                                    String(!Theme.barLeftVisible)])
+                            }
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre de droite"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barRightVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barRightVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barRightVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_right",
+                                    String(!Theme.barRightVisible)])
+                            }
+                        }
+                    }
+                }
+            }
+
         // 4. Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
         CollapsibleSection {
             id: secBarre
@@ -2146,10 +2285,10 @@ Rectangle {
             Text {
                 width: parent.width
                 topPadding: 8
-                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups) ; "
-                    + "l'opacité et le flou des fenêtres se règlent à part, au-dessus. "
+                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
+                    + "L'opacité et le flou des fenêtres se règlent dans l'onglet Bureau, section Hyprland. "
                     + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
-                    + "Le seuil doit rester sous l'opacité des surfaces : au-dessus, Hyprland cesse de flouter."
+                    + "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
                 color: Theme.fg
                 opacity: 0.6
                 font.pixelSize: Theme.textXs
@@ -3220,6 +3359,7 @@ Rectangle {
                     }
                 }
             }
+
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

@@ -598,6 +598,9 @@ def update_style_var(key, value):
         # binds.lua lit resize_step au chargement : il faut recharger Hyprland
         subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         return True
+    elif key in ("bar_bottom", "bar_left", "bar_right"):
+        # Barres supplémentaires : un booléen, écrit tel quel dans style_vars.
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "show_config_button":
         if isinstance(value, bool):
             data[key] = value

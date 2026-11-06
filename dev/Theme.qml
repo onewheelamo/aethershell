@@ -161,6 +161,12 @@ QtObject {
     // Historique des lancements de la pilule (désactivé par défaut).
     property bool launchHistory: false
 
+    // Barres supplémentaires : bas, côté gauche, côté droit. Éteintes par défaut ;
+    // une barre allumée mais sans applet reste invisible (voir bar_extra.qml).
+    property bool barBottomVisible: false
+    property bool barLeftVisible: false
+    property bool barRightVisible: false
+
     property bool configPanelVisible: false
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
@@ -267,6 +273,9 @@ QtObject {
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
+        if (typeof data.bar_bottom === "boolean") root.barBottomVisible = data.bar_bottom
+        if (typeof data.bar_left === "boolean") root.barLeftVisible = data.bar_left
+        if (typeof data.bar_right === "boolean") root.barRightVisible = data.bar_right
         if (typeof data.launcher_position === "string" && data.launcher_position.length > 0) root.launcherPosition = data.launcher_position
         if (Array.isArray(data.widgets)) root.widgets = data.widgets
         if (typeof data.cheatsheet_opacity === "number") root.cheatsheetOpacity = Math.max(0.2, Math.min(1.0, data.cheatsheet_opacity))

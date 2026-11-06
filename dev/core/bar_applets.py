@@ -25,7 +25,13 @@ ICI = Path(__file__).resolve().parent
 CATALOGUE = ICI / "applets_catalogue.json"
 ETAT = ICI / "bar_applets.json"
 
-ILES = ("gauche", "centre", "droite")
+# Emplacements. Les trois premiers sont les sections de la barre du haut ; les
+# suivants appartiennent aux barres optionnelles (bas, côtés).
+ILES = ("haut-gauche", "haut-centre", "haut-droite", "bas", "cote-gauche", "cote-droite")
+# Les anciens noms désignaient les sections de la barre du haut : on les traduit
+# à la lecture, sinon un registre existant perdrait ses applets au premier
+# démarrage (et l'utilisateur croirait les avoir éteints).
+ANCIENS = {"gauche": "haut-gauche", "centre": "haut-centre", "droite": "haut-droite"}
 ECHELLE_MIN, ECHELLE_MAX = 60, 160
 
 
@@ -56,7 +62,12 @@ def catalogue():
 def etat_utilisateur():
     data = _lire(ETAT, {})
     actifs = data.get("actifs") if isinstance(data, dict) else None
-    return actifs if isinstance(actifs, dict) else {}
+    if not isinstance(actifs, dict):
+        return {}
+    for placement in actifs.values():
+        if isinstance(placement, dict) and placement.get("ile") in ANCIENS:
+            placement["ile"] = ANCIENS[placement["ile"]]
+    return actifs
 
 
 def _entree(applet, choix=None):
@@ -64,8 +75,9 @@ def _entree(applet, choix=None):
     choix = choix or {}
     entree = dict(applet)
     entree["actif"] = bool(choix)
-    ile = str(choix.get("ile") or applet.get("ile") or "droite")
-    entree["ile"] = ile if ile in ILES else "droite"
+    ile = str(choix.get("ile") or applet.get("ile") or "haut-droite")
+    ile = ANCIENS.get(ile, ile)
+    entree["ile"] = ile if ile in ILES else "haut-droite"
     try:
         entree["ordre"] = int(choix.get("ordre", applet.get("ordre", 100)))
     except (TypeError, ValueError):

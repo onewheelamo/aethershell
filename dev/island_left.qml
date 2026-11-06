@@ -34,7 +34,7 @@ Item {
 
             // Applets de l'îlot gauche (registre bar_applets.json).
             AppletRow {
-                ile: "gauche"
+                ile: "haut-gauche"
                 anchors.verticalCenter: parent.verticalCenter
             }
         }

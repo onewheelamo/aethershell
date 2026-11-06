@@ -841,4 +841,19 @@ Item {
             focus: true
         }
     }
+
+    // Barres supplémentaires : bas et côtés. Elles ne s'affichent que si elles
+    // sont allumées **et** portent un applet (voir bar_extra.qml).
+    BarExtra {
+        cote: "bas"
+        screen: topBarWindow.screen
+    }
+    BarExtra {
+        cote: "cote-gauche"
+        screen: topBarWindow.screen
+    }
+    BarExtra {
+        cote: "cote-droite"
+        screen: topBarWindow.screen
+    }
 }

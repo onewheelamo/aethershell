@@ -208,8 +208,10 @@ Item {
                     }
 
                     // Limite de charge (80 %) : la même commande que l'ancien panneau.
-                    Row {
+                    // `Item` et non `Row` : l'interrupteur est ancré à droite.
+                    Item {
                         width: parent.width
+                        height: 22
                         visible: root.batPresente
 
                         Text {
