@@ -1,0 +1,16 @@
+[Unit]
+Description=Quickshell (barre, panneaux, widgets)
+# Rattaché à la session graphique : arrêté avec elle, relancé avec elle.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+# Hyprland ne transmet pas HYPRLAND_INSTANCE_SIGNATURE à systemd : on la retrouve
+# dans le dossier des sockets. Sans elle, quickshell démarre et échoue sans un mot.
+ExecStart=/bin/sh -c 'sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | head -1); export HYPRLAND_INSTANCE_SIGNATURE="$sig"; export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"; exec quickshell -n'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

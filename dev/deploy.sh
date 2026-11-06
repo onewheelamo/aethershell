@@ -520,6 +520,19 @@ deploy_new_env() {
         chmod +x "$QS_DIR/hyprquickpaper/cache.sh" "$QS_DIR/hyprquickpaper/commands.sh"
     fi
 
+    # Unités systemd utilisateur : quickshell et le canal d'approbation Hermes
+    # doivent survivre à un redémarrage de session, et se relancer seuls en cas
+    # de plantage. Versionnées ici, installées par le déploiement.
+    if [ -d "$DEV_DIR/systemd" ]; then
+        local unite
+        for unite in "$DEV_DIR/systemd/"*.service; do
+            [ -f "$unite" ] || continue
+            cp -f "$unite" "$HOME/.config/systemd/user/"
+            echo "  ↪ unité installée : $(basename "$unite")"
+        done
+        systemctl --user daemon-reload 2>/dev/null || true
+    fi
+
     "$CORE_DIR/generate_rofi_theme.sh"
 
     deploy_ghostty_overrides

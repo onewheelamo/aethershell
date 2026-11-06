@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes — canal d'approbation (socket Unix)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.config/quickshell/core/hermes_approbations.py serveur
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
