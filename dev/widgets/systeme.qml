@@ -108,15 +108,6 @@ Item {
         id: colonne
         spacing: 7
 
-        Text {
-            text: "système"
-            color: Qt.alpha(Theme.fg, 0.42)
-            font.pixelSize: Math.round(11 * root.echelle)
-            font.letterSpacing: 0.4
-            style: Text.Raised
-            styleColor: Qt.alpha(Theme.bg, 0.55)
-        }
-
         Repeater {
             model: root.barres
 
@@ -133,7 +124,7 @@ Item {
                     IconSvg {
                         anchors.verticalCenter: parent.verticalCenter
                         nom: String(modelData.icone || modelData.cle)
-                        size: Math.round(15 * root.echelle)
+                        size: Math.round(18 * root.echelle)
                         couleur: root.couleurNiveau(modelData.niveau)
                         opacite: 0.9
                     }
@@ -143,8 +134,8 @@ Item {
                     // texte passe de 3 % à 100 %.
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.round(92 * root.echelle)
-                        height: Math.round(5 * root.echelle)
+                        width: Math.round(112 * root.echelle)
+                        height: Math.round(6 * root.echelle)
                         radius: height / 2
                         color: Qt.alpha(Theme.fg, 0.13)
 
@@ -161,7 +152,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: String(modelData.texte || "")
                         color: Theme.fg
-                        font.pixelSize: Math.round(13 * root.echelle)
+                        font.pixelSize: Math.round(16 * root.echelle)
                         font.features: { "tnum": 1 }
                         style: Text.Raised
                         styleColor: Qt.alpha(Theme.bg, 0.55)
@@ -172,8 +163,8 @@ Item {
                     visible: precisionTexte !== ""
                     text: precisionTexte
                     color: Qt.alpha(Theme.fg, 0.45)
-                    font.pixelSize: Math.round(10 * root.echelle)
-                    leftPadding: Math.round(22 * root.echelle)
+                    font.pixelSize: Math.round(12 * root.echelle)
+                    leftPadding: Math.round(26 * root.echelle)
                 }
             }
         }
