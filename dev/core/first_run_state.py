@@ -53,6 +53,7 @@ WIDGET_LABELS = {
     "musique": "Musique",
     "systeme": "Système",
     "reseau": "Réseau",
+    "disques": "Disques",
     "deepseek": "DeepSeek",
     "ollama": "Ollama Cloud",
     "antigravity": "Antigravity",

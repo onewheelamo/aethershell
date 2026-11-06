@@ -25,5 +25,6 @@ AppletColumn 1.0 AppletColumn.qml
 MediaPanneau 1.0 MediaPanneau.qml
 CalendrierPanneau 1.0 CalendrierPanneau.qml
 CalendrierCompact 1.0 CalendrierCompact.qml
+DisquesPopup 1.0 DisquesPopup.qml
 BarExtra 1.0 bar_extra.qml
 LuminositeApplet 1.0 LuminositeApplet.qml

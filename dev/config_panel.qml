@@ -263,6 +263,7 @@ Rectangle {
         { type: "musique", label: "Musique" },
         { type: "systeme", label: "Système" },
         { type: "reseau", label: "Réseau" },
+        { type: "disques", label: "Disques" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },
         { type: "antigravity", label: "Antigravity" },
@@ -420,6 +421,49 @@ Rectangle {
             runConfigCmd(["style", "bar_left", "true"])
         else if (ile === "cote-droite" && !Theme.barRightVisible)
             runConfigCmd(["style", "bar_right", "true"])
+    }
+
+    // ── Disques : la sélection se fait sur la liste réelle des montages ──────
+    property var disquesListe: []
+
+    Process {
+        id: disquesListeProc
+        command: ["python3", Quickshell.shellPath("core/disques_applet.py"), "liste"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.disquesListe = Array.isArray(d.montages) ? d.montages : []
+                } catch (e) {
+                    root.disquesListe = []
+                }
+            }
+        }
+    }
+
+    // Sans choix enregistré, le service affiche tout sauf la racine : la case doit
+    // refléter ce défaut, sinon la première coche décocherait tout le reste.
+    function montagesChoisis(donnee) {
+        const o = (donnee && donnee.options) || ({})
+        if (Array.isArray(o.montages)) return o.montages.slice()
+        const defaut = []
+        for (let i = 0; i < root.disquesListe.length; ++i) {
+            const m = String(root.disquesListe[i].montage || "")
+            if (m !== "" && m !== "/") defaut.push(m)
+        }
+        return defaut
+    }
+
+    function montageCoche(donnee, montage) {
+        return montagesChoisis(donnee).indexOf(String(montage)) >= 0
+    }
+
+    function basculerMontage(donnee, montage) {
+        const liste = montagesChoisis(donnee)
+        const i = liste.indexOf(String(montage))
+        if (i >= 0) liste.splice(i, 1)
+        else liste.push(String(montage))
+        appletCommande(["option", donnee.id, "montages", JSON.stringify(liste)])
     }
 
     function appletBasculer(id, actif) {
@@ -2579,7 +2623,11 @@ Rectangle {
                 title: "Applets de la barre"
                 icon: "widgets"
                 expanded: root.sectionOpen("quickshell_applets", true)
-                onToggled: expanded => root.setPanelSection("quickshell_applets", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_applets", expanded)
+                    if (expanded) disquesListeProc.running = true
+                }
+                Component.onCompleted: disquesListeProc.running = true
 
                 Column {
                     width: parent.width
@@ -2924,6 +2972,82 @@ Rectangle {
                                                     root.appletCommande(["option", appletRow.donnee.id,
                                                                          appletRow.donnee.choix.cle,
                                                                          String(modelData.code)])
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Liste dynamique déclarée au catalogue : les
+                                // systèmes de fichiers réellement montés, cochables
+                                // un par un (la racine incluse).
+                                Column {
+                                    visible: appletRow.donnee.liste !== undefined
+                                    width: parent.width
+                                    spacing: 3
+
+                                    Item { width: 1; height: 4 }
+
+                                    Text {
+                                        text: String((appletRow.donnee.liste || ({})).libelle || "")
+                                        color: Qt.alpha(Theme.fg, 0.5)
+                                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                        leftPadding: 26
+                                    }
+
+                                    Repeater {
+                                        model: root.disquesListe
+
+                                        Row {
+                                            required property var modelData
+                                            readonly property string montage: String(modelData.montage || "")
+                                            readonly property bool coche:
+                                                root.montageCoche(appletRow.donnee, montage)
+                                            width: parent.width
+                                            height: 16
+                                            spacing: 6
+                                            leftPadding: 26
+
+                                            Rectangle {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: 12
+                                                height: 12
+                                                radius: 3
+                                                color: parent.coche ? Theme.accent : "transparent"
+                                                border.width: 1
+                                                border.color: parent.coche ? Theme.accent
+                                                                           : Qt.alpha(Theme.fg, 0.4)
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    visible: parent.coche
+                                                    text: "✓"
+                                                    color: Theme.bg
+                                                    font.pixelSize: 9
+                                                    font.bold: true
+                                                }
+                                            }
+
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: parent.width - 132
+                                                text: parent.montage
+                                                color: Theme.fg
+                                                font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                                elide: Text.ElideRight
+                                            }
+
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: String(modelData.pourcent) + " %  ·  "
+                                                      + String(modelData.taille_go) + " Go"
+                                                color: Qt.alpha(Theme.fg, 0.45)
+                                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.basculerMontage(appletRow.donnee, parent.montage)
                                             }
                                         }
                                     }

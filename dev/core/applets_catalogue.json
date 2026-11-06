@@ -182,6 +182,22 @@
             "ordre": 10,
             "cadence": 5,
             "text_scale": 100
+        },
+        {
+            "id": "disques",
+            "nom": "Disques",
+            "description": "Occupation des systèmes de fichiers choisis ; clic pour le détail",
+            "icone": "disque",
+            "service": "core/disques_applet.py",
+            "popup": "DisquesPopup.qml",
+            "ile": "haut:fin",
+            "ordre": 65,
+            "cadence": 30,
+            "text_scale": 100,
+            "liste": {
+                "cle": "montages",
+                "libelle": "Systèmes de fichiers affichés"
+            }
         }
     ]
 }
