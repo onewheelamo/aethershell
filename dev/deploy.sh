@@ -487,6 +487,25 @@ deploy_new_env() {
         return 1
     fi
 
+    # Chaque script core/ cité par le QML doit exister. Un fichier oublié dans la
+    # copie, ou un nom mal orthographié, ne se voit qu'au moment où l'applet
+    # l'appelle — donc jamais, tant qu'on n'ouvre pas ce popup.
+    local absents_scripts=0 ref
+    # Seules les références qui existent dans le dépôt comptent : un nom cité
+    # dans un commentaire (core/_service.py dans llm.qml) n'est pas une copie
+    # manquée, et le signaler noierait le vrai défaut sous du bruit.
+    for ref in $(grep -rhoE 'core/[A-Za-z0-9_]+\.(py|sh)' "$QS_DIR"/*.qml "$QS_DIR"/widgets/*.qml 2>/dev/null | sort -u); do
+        [ -f "$DEV_DIR/$ref" ] || continue
+        [ -f "$QS_DIR/$ref" ] || {
+            echo "  ❌ le QML appelle $ref, présent au dépôt mais absent de $QS_DIR"
+            absents_scripts=$((absents_scripts + 1))
+        }
+    done
+    if [ "$absents_scripts" -gt 0 ]; then
+        echo "  ⚠️  $absents_scripts script(s) manquant(s) : l'applet échouera à l'usage"
+        return 1
+    fi
+
     if [ -d "$DEV_DIR/hyprquickpaper" ]; then
         mkdir -p "$QS_DIR/hyprquickpaper"
         if [ ! -f "$MARKER" ] || [ ! -f "$QS_DIR/hyprquickpaper/config.json" ] || [ "${DEPLOY_OVERWRITE:-0}" = "1" ]; then

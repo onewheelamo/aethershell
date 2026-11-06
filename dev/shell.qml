@@ -1,6 +1,7 @@
 //@ pragma UseQApplication
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 // Point d'entrée attendu par `quickshell`.
 //
@@ -12,5 +13,17 @@ import Quickshell
 ShellRoot {
     Loader {
         source: "main.qml"
+    }
+
+    // L'historique des notifications est lu par deux FileView (tiroir et îlot
+    // droit). Sur une installation neuve le fichier n'existe pas encore, et
+    // chacun émet alors « Read of ... failed: File does not exist » à chaque
+    // démarrage. Le créer vide une fois suffit : c'est un journal, pas un état.
+    Process {
+        running: true
+        command: ["bash", "-c",
+            "d=\"${XDG_CACHE_HOME:-$HOME/.cache}/quickshell\"; " +
+            "mkdir -p \"$d\"; " +
+            "[ -e \"$d/notifications-history.jsonl\" ] || : > \"$d/notifications-history.jsonl\""]
     }
 }
