@@ -6,16 +6,14 @@ import Quickshell.Wayland
 // BARRE SUPPLÉMENTAIRE — bas, gauche ou droite.
 //
 // Un seul composant pour trois emplacements : seule l'orientation change. La
-// barre n'existe que si elle a été allumée **et** si elle porte au moins un
-// applet : une barre vide ne doit pas laisser une bande morte sur un bord de
-// l'écran.
+// barre n'existe que si elle a été allumée ; vide, elle affiche un rappel pour
+// qu'on sache comment la remplir.
 //
-// La capsule épouse son contenu plutôt que de traverser l'écran : une barre de
-// 1900 px pour une seule icône se lit comme un bandeau vide. Le bas réserve sa
-// place (`ExclusionMode.Auto`) pour que les fenêtres ne se glissent pas dessous ;
-// les côtés flottent (`Ignore`) et se centrent verticalement, avec une surface à
-// la taille du contenu — sinon une bande pleine hauteur intercepterait les clics
-// sur tout le bord.
+// La surface occupe **tout le bord** (largeur complète en bas, hauteur complète
+// sur les côtés). Ce n'est pas un choix esthétique : Hyprland n'applique une zone
+// exclusive que si la surface couvre le bord entier. Une capsule étroite flottante
+// se contentait de recouvrir les fenêtres. La capsule dessinée, elle, garde ses
+// coins arrondis et ses marges.
 PanelWindow {
     id: root
     property string cote: "bas"          // "bas" | "cote-gauche" | "cote-droite"
@@ -28,45 +26,34 @@ PanelWindow {
 
     readonly property int ecart: Math.round(Theme.gutter)
     readonly property int rembourrage: Math.round(Theme.space3)
-
     // Une barre allumée s'affiche, même vide : sans ça, l'interrupteur du panneau
     // n'a aucun effet visible et on croit le réglage cassé. Vide, elle montre
     // comment la remplir.
     readonly property int nbApplets: verticale ? colonne.applets.length : ligne.applets.length
+
     visible: actif
 
-    // Le bas épouse son contenu (une rangée). Les côtés ont une hauteur fixe :
-    // une taille dérivée du contenu créait une boucle de dépendance (fenêtre →
-    // marge de centrage → contenu), que QML casse en gelant le binding — la barre
-    // restait figée à sa première mesure. Un tiers de hauteur libre en haut et en
-    // bas, contenu centré : c'est un dock vertical, stable.
-    readonly property real largeur: Math.round(verticale ? Theme.barHeight
-                                                         : (nbApplets > 0
-                                                            ? ligne.implicitWidth + 2 * rembourrage
-                                                            : 230))
-    readonly property real hauteur: Math.round(verticale
-                                               ? screen.height * 0.6
-                                               : Theme.barHeight)
-
-    // Bas : collé au bord inférieur, centré horizontalement.
-    // Côtés : tendus en hauteur, la marge verticale fait le centrage.
+    // Tout le bord, sans exception : c'est la condition pour que la zone
+    // exclusive soit appliquée et que les fenêtres se rangent à côté.
     anchors.top: verticale
     anchors.bottom: true
     anchors.left: verticale ? aGauche : true
-    anchors.right: verticale && !aGauche
+    anchors.right: verticale ? !aGauche : true
 
+    margins.top: verticale ? ecart : 0
     margins.bottom: ecart
-    margins.left: verticale ? (aGauche ? ecart : 0)
-                            : Math.max(ecart, Math.round((screen.width - largeur) / 2))
-    margins.right: verticale ? (aGauche ? 0 : ecart) : 0
-    margins.top: verticale ? Math.round((screen.height - hauteur) / 2) : 0
+    margins.left: ecart
+    margins.right: ecart
 
-    implicitWidth: largeur
-    implicitHeight: verticale ? hauteur : Theme.barHeight
+    implicitWidth: verticale ? Theme.barHeight : 0
+    implicitHeight: Theme.barHeight
 
     color: "transparent"
-    exclusionMode: verticale ? ExclusionMode.Ignore : ExclusionMode.Auto
-    exclusiveZone: verticale ? 0 : implicitHeight + ecart
+    // `Auto` ne réserve rien pour une surface ancrée à deux bords : Hyprland la
+    // voit comme un panneau flottant. `Normal` dit explicitement « je réserve ma
+    // bande ». La zone est constante, jamais dérivée d'une taille encore nulle.
+    exclusionMode: ExclusionMode.Normal
+    exclusiveZone: visible ? Theme.barHeight + ecart : 0
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "shell-bar-" + cote
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

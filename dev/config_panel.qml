@@ -335,6 +335,19 @@ Rectangle {
         appletsCmdProc.running = true
     }
 
+    // Placer un applet dans une barre éteinte le rendrait invisible : on allume
+    // la barre dans le même geste. C'était le cas vécu « je choisis → et l'applet
+    // disparaît ».
+    function placerApplet(id, ile) {
+        appletCommande(["placer", id, ile])
+        if (ile === "bas" && !Theme.barBottomVisible)
+            runConfigCmd(["style", "bar_bottom", "true"])
+        else if (ile === "cote-gauche" && !Theme.barLeftVisible)
+            runConfigCmd(["style", "bar_left", "true"])
+        else if (ile === "cote-droite" && !Theme.barRightVisible)
+            runConfigCmd(["style", "bar_right", "true"])
+    }
+
     function appletBasculer(id, actif) {
         appletCommande([actif ? "desactiver" : "activer", id])
     }
@@ -2579,8 +2592,8 @@ Rectangle {
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.appletCommande(["placer",
-                                                    appletRow.donnee.id, ileChip.modelData.code])
+                                                onClicked: root.placerApplet(appletRow.donnee.id,
+                                                                             ileChip.modelData.code)
                                             }
                                         }
                                     }

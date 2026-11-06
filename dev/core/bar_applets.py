@@ -141,10 +141,29 @@ def desactiver(applet_id):
     _ecrire(ETAT, {"version": 1, "actifs": etat})
 
 
+# Une barre éteinte rendrait l'applet invisible : placer dans « bas » ou sur un
+# côté allume la barre correspondante. Le faire ici couvre tous les chemins
+# (panneau, ligne de commande, réparation), pas seulement les clics du panneau.
+BARRE_STYLE = {"bas": "bar_bottom", "cote-gauche": "bar_left", "cote-droite": "bar_right"}
+
+
+def _allumer_barre(ile):
+    cle = BARRE_STYLE.get(ile)
+    if not cle:
+        return
+    chemin = ICI / "style_vars.json"
+    etat = _lire(chemin, {})
+    if not isinstance(etat, dict) or etat.get(cle) is True:
+        return
+    etat[cle] = True
+    _ecrire(chemin, etat)
+
+
 def placer(applet_id, ile):
     _exiger(applet_id)
     if ile not in ILES:
         raise SystemExit(f"îlot inconnu : {ile} (attendu : {', '.join(ILES)})")
+    _allumer_barre(ile)
     etat = etat_utilisateur()
     if applet_id not in etat:
         activer(applet_id, ile)
