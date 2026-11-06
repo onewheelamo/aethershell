@@ -1876,141 +1876,6 @@ Rectangle {
             width: mainFlickable.width
             spacing: 11
 
-            // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
-            // applet reste invisible : on le dit, sinon le réglage semble cassé.
-            CollapsibleSection {
-                id: secBarres
-                objectName: "secBarres"
-                title: "Barres supplémentaires"
-                icon: "monitor"
-                expanded: root.sectionOpen("quickshell_barres", false)
-                onToggled: expanded => root.setPanelSection("quickshell_barres", expanded)
-
-                Column {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: parent.width
-                        text: "Une barre n'apparaît que si elle porte au moins un applet : "
-                              + "choisissez l'emplacement ↓ ← → dans la liste des applets."
-                        color: Qt.alpha(Theme.fg, 0.5)
-                        font.pixelSize: Math.max(9, Theme.textXs - 1)
-                        wrapMode: Text.WordWrap
-                    }
-                    Item {
-                        width: parent.width
-                        height: 22
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Barre du bas"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
-
-                        Rectangle {
-                            width: 110
-                            height: 20
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: Theme.globalRadius
-                            color: Theme.barBottomVisible ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: Theme.barBottomVisible ? "✓ Affichée" : "Masquée"
-                                color: Theme.barBottomVisible ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.runConfigCmd(["style", "bar_bottom",
-                                    String(!Theme.barBottomVisible)])
-                            }
-                        }
-                    }
-                    Item {
-                        width: parent.width
-                        height: 22
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Barre de gauche"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
-
-                        Rectangle {
-                            width: 110
-                            height: 20
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: Theme.globalRadius
-                            color: Theme.barLeftVisible ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: Theme.barLeftVisible ? "✓ Affichée" : "Masquée"
-                                color: Theme.barLeftVisible ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.runConfigCmd(["style", "bar_left",
-                                    String(!Theme.barLeftVisible)])
-                            }
-                        }
-                    }
-                    Item {
-                        width: parent.width
-                        height: 22
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Barre de droite"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
-
-                        Rectangle {
-                            width: 110
-                            height: 20
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: Theme.globalRadius
-                            color: Theme.barRightVisible ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: Theme.barRightVisible ? "✓ Affichée" : "Masquée"
-                                color: Theme.barRightVisible ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.runConfigCmd(["style", "bar_right",
-                                    String(!Theme.barRightVisible)])
-                            }
-                        }
-                    }
-                }
-            }
 
         // 4. Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
         CollapsibleSection {
@@ -2342,6 +2207,142 @@ Rectangle {
                 }
             }   // end Grid
         }   // end CollapsibleSection secShell
+
+            // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
+            // applet reste invisible : on le dit, sinon le réglage semble cassé.
+            CollapsibleSection {
+                id: secBarres
+                objectName: "secBarres"
+                title: "Barres supplémentaires"
+                icon: "monitor"
+                expanded: root.sectionOpen("quickshell_barres", false)
+                onToggled: expanded => root.setPanelSection("quickshell_barres", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "Une barre n'apparaît que si elle porte au moins un applet : "
+                              + "choisissez l'emplacement ↓ ← → dans la liste des applets."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre du bas"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barBottomVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barBottomVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barBottomVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_bottom",
+                                    String(!Theme.barBottomVisible)])
+                            }
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre de gauche"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barLeftVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barLeftVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barLeftVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_left",
+                                    String(!Theme.barLeftVisible)])
+                            }
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Barre de droite"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 110
+                            height: 20
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: Theme.globalRadius
+                            color: Theme.barRightVisible ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.barRightVisible ? "✓ Affichée" : "Masquée"
+                                color: Theme.barRightVisible ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "bar_right",
+                                    String(!Theme.barRightVisible)])
+                            }
+                        }
+                    }
+                }
+            }
 
             // Tiroir 2 : les applets. Un applet n'a qu'un emplacement ; l'ordre
             // se règle aux flèches, l'échelle par applet.
