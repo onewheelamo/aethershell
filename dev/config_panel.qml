@@ -2780,7 +2780,9 @@ Rectangle {
                     Text {
                         width: parent.width
                         text: "Éteints par défaut. Un applet n'a qu'un emplacement : "
-                              + "le choisir ailleurs le déplace, il ne se duplique pas."
+                              + "le choisir ailleurs le déplace, il ne se duplique pas. "
+                              + "Le visualiseur audio fait exception : il n'a pas d'emplacement, "
+                              + "il occupe les espaces entre les îlots (un de chaque côté du centre)."
                         color: Qt.alpha(Theme.fg, 0.45)
                         font.pixelSize: Math.max(9, Theme.textXs - 1)
                         wrapMode: Text.WordWrap
@@ -3021,9 +3023,12 @@ Rectangle {
                                     }
 
                                     // Groupe 1 : la barre. On garde la place
-                                    // courante dans cette barre.
+                                    // courante dans cette barre. Masqué pour un
+                                    // applet à emplacement fixe (visualiseur) :
+                                    // sa place n'est pas un emplacement de barre.
                                     Row {
                                         spacing: 2
+                                        visible: !appletRow.donnee.fixe
 
                                         Repeater {
                                             model: root.appletBarres
@@ -3064,6 +3069,7 @@ Rectangle {
                                     // les trois îlots historiques G / C / D.
                                     Row {
                                         spacing: 2
+                                        visible: !appletRow.donnee.fixe
 
                                         Repeater {
                                             model: root.appletZones

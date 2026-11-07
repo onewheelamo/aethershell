@@ -265,16 +265,14 @@ Item {
             }
 
             // Les deux espaces transparents, en tant que régions. Rien n'y est
-            // dessiné : ils portent x/width/height pour que l'animation média
-            // s'y ancre (ids volontairement stables). Leur largeur est celle qui
-            // reste entre les zones, jamais nulle ni négative.
+            // dessiné en propre : ils portent x/width/height pour que les
+            // animations s'y ancrent (ids volontairement stables).
             Item {
                 id: slotGauche
                 x: zoneGauche.x + zoneGauche.width
                 width: Math.max(0, zoneCentre.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
-                visible: false
             }
 
             Item {
@@ -283,7 +281,20 @@ Item {
                 width: Math.max(0, zoneDroite.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
-                visible: false
+            }
+
+            // Visualiseur audio : un par espace, de part et d'autre de l'îlot
+            // central. Ce n'est pas un applet plaçable — sa position *est* la
+            // définition de l'espace transparent, donc il n'apparaît pas dans
+            // les rangées d'applets et le registre ne le place jamais.
+            Visualiseur {
+                anchors.fill: slotGauche
+                visible: Theme.barGapsTransparent && slotGauche.width > 24
+            }
+
+            Visualiseur {
+                anchors.fill: slotDroit
+                visible: Theme.barGapsTransparent && slotDroit.width > 24
             }
 
             // La barre avale les clics, zones peintes comme espaces vides : un

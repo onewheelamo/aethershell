@@ -103,9 +103,16 @@ def _entree(applet, choix=None):
 
 
 def resoudre(ile=None):
-    """Les applets allumés, pour un îlot ou pour la barre entière."""
+    """Les applets allumés, pour un îlot ou pour la barre entière.
+
+    Les applets marqués `fixe` au catalogue n'y figurent jamais : leur place
+    n'est pas un emplacement de barre (le visualiseur audio occupe les espaces
+    entre les îlots, il n'est pas posé dans une rangée). Les inclure ici
+    ferait dessiner une rangée vide à l'endroit où le registre croit les voir.
+    """
     choix = etat_utilisateur()
-    actifs = [_entree(a, choix.get(a["id"])) for a in catalogue() if choix.get(a["id"])]
+    actifs = [_entree(a, choix.get(a["id"])) for a in catalogue()
+              if choix.get(a["id"]) and not a.get("fixe")]
     if ile:
         actifs = [a for a in actifs if a["ile"] == ile]
     return sorted(actifs, key=lambda a: (ILES.index(a["ile"]), a["ordre"], a["id"]))

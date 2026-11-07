@@ -99,6 +99,20 @@ PanelWindow {
         ]
     }
 
+    // Espaces entre les zones peintes : ce sont eux qui reçoivent le
+    // visualiseur audio. Même axe que les zones, même forme { pos, taille } ;
+    // un espace trop étroit (< 10 px) ne porte rien.
+    readonly property var trousFond: {
+        const z = zonesFond
+        if (z.length !== 3) return []
+        const t = []
+        const premier = z[0].pos + z[0].taille
+        if (z[1].pos - premier > 10) t.push({ pos: premier, taille: z[1].pos - premier })
+        const second = z[1].pos + z[1].taille
+        if (z[2].pos - second > 10) t.push({ pos: second, taille: z[2].pos - second })
+        return t
+    }
+
     // Fond continu : mode normal, ou barre vide (l'invite « Vide » a besoin
     // d'une surface, sinon elle flotte sur le bureau).
     Rectangle {
@@ -123,6 +137,34 @@ PanelWindow {
             color: Theme.barBg
             border.color: Theme.accent
             border.width: Theme.barBorder ? 1 : 0
+        }
+    }
+
+    // Visualiseur audio : un par espace vide, comme sur la barre du haut.
+    //
+    // Sur une barre de côté, le dessin est pivoté : les barres de spectre
+    // deviennent horizontales et poussent depuis le bord extérieur de l'écran
+    // vers l'intérieur (donc de gauche à droite sur la barre de gauche). Les
+    // dimensions sont échangées avant rotation pour que le tracé remplisse
+    // exactement la zone, et le conteneur découpe : rien ne déborde de la barre.
+    Repeater {
+        model: root.trousFond
+
+        delegate: Item {
+            readonly property bool aPlat: !root.verticale
+            x: aPlat ? modelData.pos : 0
+            y: aPlat ? 0 : modelData.pos
+            width: aPlat ? modelData.taille : root.width
+            height: aPlat ? root.height : modelData.taille
+            clip: true
+
+            Visualiseur {
+                width: root.verticale ? parent.height : parent.width
+                height: root.verticale ? parent.width : parent.height
+                anchors.centerIn: parent
+                rotation: root.verticale ? (root.aGauche ? 90 : -90) : 0
+                transformOrigin: Item.Center
+            }
         }
     }
 

@@ -32,6 +32,32 @@
             ]
         },
         {
+            "id": "visualiseur",
+            "nom": "Visualiseur audio",
+            "description": "Onde ou barres de fréquences dans les espaces entre les îlots ; emplacement fixe, de part et d'autre de l'îlot central",
+            "categorie": "Médias & bureaux",
+            "genre": "qml",
+            "composant": "",
+            "ile": "haut:milieu",
+            "ordre": 5,
+            "text_scale": 100,
+            "fixe": true,
+            "choix": {
+                "cle": "style",
+                "libelle": "Rendu",
+                "valeurs": [
+                    {
+                        "code": "onde",
+                        "nom": "Onde"
+                    },
+                    {
+                        "code": "barres",
+                        "nom": "Barres"
+                    }
+                ]
+            }
+        },
+        {
             "id": "calendrier",
             "nom": "Calendrier",
             "description": "La date ; clic pour le mois et les événements Nextcloud",
