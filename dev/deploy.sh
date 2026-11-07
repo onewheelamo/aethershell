@@ -687,7 +687,8 @@ deploy_new_env() {
     if [ "$premiere_fois" = "1" ]; then
         echo "   SUPER + K   tous les raccourcis"
         echo "   SUPER + H   panneau de réglages"
-        echo "   SUPER + SHIFT + S   captures d'écran et vidéos"
+        echo "   SUPER + S   captures d'écran et vidéos"
+        echo "   SUPER + SHIFT + S   région copiée au presse-papiers"
         systemd-run --user --collect --quiet --on-active=8 --unit="qs-welcome-$$" \
             notify-send -a "Installation" \
                 "AetherShell est prêt" \
