@@ -417,6 +417,30 @@ Item {
         Theme.spotlightVisible = false
     }
 
+    // SHIFT+P : épingle l'entrée de presse-papiers sélectionnée, ou la détache si
+    // elle l'est déjà. L'épinglage vit dans le service (il survit à la rotation de
+    // cliphist), le launcher ne fait qu'appeler et relire.
+    function epinglerSelection() {
+        const e = root.entreeSel
+        if (e === undefined || e.kind !== "presse") return
+        const id = String(e.arg || "")
+        if (id === "") return
+        const dejaEpinglee = String(e.detail || "").indexOf("épinglé") === 0
+        epinglage.mode = dejaEpinglee ? "--desepingler" : "--epingler"
+        epinglage.identifiant = id
+        epinglage.running = false
+        epinglage.running = true
+    }
+
+    Process {
+        id: epinglage
+        property string identifiant: ""
+        property string mode: "--epingler"
+        command: ["python3", Quickshell.shellPath("core/launcher_service.py"),
+                  epinglage.mode, epinglage.identifiant]
+        onExited: root.build()
+    }
+
     function runSelected() {
         if (root.results.length === 0) return
         root.run(root.results[root.sel])
@@ -512,6 +536,17 @@ Item {
                 Keys.onDownPressed: root.move(1)
                 Keys.onUpPressed: root.move(-1)
                 Keys.onTabPressed: root.complete()
+                // SHIFT+P plutôt que CTRL+P : ce dernier est le raccourci
+                // d'impression, et le détourner dans un launcher surprend.
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_P
+                        && (event.modifiers & Qt.ShiftModifier)
+                        && root.entreeSel !== undefined
+                        && root.entreeSel.kind === "presse") {
+                        root.epinglerSelection()
+                        event.accepted = true
+                    }
+                }
             }
 
             Text {
