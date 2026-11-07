@@ -571,11 +571,18 @@ def presse(texte, limite=8):
             continue
         nature = _type_entree(ident)
         vignette = _vignette(ident) if nature == "image" else ""
+        libelle = apercu[:80] or f"({nature})"
+        # cliphist nomme une image « [[ binary data 1 KiB png 300x200 ]] » : lisible
+        # par personne. On en tire ce qui compte — le format et les dimensions.
+        if nature == "image":
+            m = re.search(r"\b(png|jpeg|jpg|webp|gif)\s+(\d+)x(\d+)", apercu, re.I)
+            if m:
+                libelle = f"capture {m.group(2)}×{m.group(3)}"
+            else:
+                libelle = "image copiée"
         detail = f"entrée {ident} · {nature}"
-        if vignette:
-            detail += " · vignette prête"
-        out.append(resultat("presse", apercu[:80] or f"({nature})", detail,
-                            vignette, "presse", action="copy", arg=ident))
+        out.append(resultat("presse", libelle, detail, vignette, "presse",
+                            action="copy", arg=ident))
         if len(out) >= limite:
             break
     return out
