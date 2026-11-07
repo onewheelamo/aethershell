@@ -70,19 +70,30 @@ def _run(cmd, timeout=DELAI):
         return ""
 
 
+# Unités qui échouent sans rien dire de la machine : les gestionnaires de
+# coredump (KDE, systemd). Ce sont des unités de traitement, lancées une fois par
+# plantage, qui restent « failed » ensuite — dix plantages d'un navigateur
+# allumaient l'applet en rouge alors que l'infra allait bien.
+IGNORE = ("drkonqi-coredump-processor@", "systemd-coredump@", "drkonqi-coredump@")
+
+
 def unites_en_echec():
     n = 0
     noms = []
+    ignorees = 0
     for portee in (["--failed"], ["--user", "--failed"]):
         sortie = _run(["systemctl"] + portee + ["--no-legend", "--plain"])
         for ligne in sortie.splitlines():
             morceaux = ligne.split()
             if not morceaux:
                 continue
+            if morceaux[0].startswith(IGNORE):
+                ignorees += 1
+                continue
             n += 1
             if len(noms) < 5:
                 noms.append(morceaux[0])
-    return {"nombre": n, "noms": noms}
+    return {"nombre": n, "noms": noms, "ignorees": ignorees}
 
 
 def _ping(cible):

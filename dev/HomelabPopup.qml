@@ -382,9 +382,14 @@ Item {
 
         Text {
             visible: root.charge && root.hotes.length === 0
-            text: "aucun hôte déclaré (core/homelab.json)"
-            color: Qt.alpha(Theme.fg, 0.4)
-            font.pixelSize: Math.round(root.corps * 0.85 * echelle)
+            // La liste `hotes` sert à pinguer des machines hors Proxmox ; elle est
+            // vide ici. La formule dit ce qu'il manque, sans passer pour une panne
+            // sous un panneau qui affiche déjà dix invités.
+            width: parent.width
+            text: "aucun hôte à surveiller (core/homelab.json)"
+            elide: Text.ElideRight
+            color: Qt.alpha(Theme.fg, 0.35)
+            font.pixelSize: Math.round(root.corps * 0.8 * echelle)
         }
     }
 }

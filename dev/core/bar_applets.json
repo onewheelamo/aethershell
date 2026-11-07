@@ -1,11 +1,79 @@
 {
     "version": 1,
     "actifs": {
-        "comptes": {
-            "ile": "droite",
+        "calendrier": {
+            "ile": "haut:milieu",
+            "ordre": 20,
+            "text_scale": 100,
+            "options": {}
+        },
+        "workspaces": {
+            "ile": "haut:debut",
             "ordre": 10,
             "text_scale": 100,
             "options": {}
+        },
+        "horloge": {
+            "ile": "haut:milieu",
+            "ordre": 10,
+            "text_scale": 100,
+            "options": {}
+        },
+        "systray": {
+            "ile": "haut:fin",
+            "ordre": 40,
+            "text_scale": 100,
+            "options": {}
+        },
+        "reseau": {
+            "ile": "haut:fin",
+            "ordre": 50,
+            "text_scale": 100,
+            "options": {}
+        },
+        "alimentation": {
+            "ile": "haut:fin",
+            "ordre": 80,
+            "text_scale": 100,
+            "options": {}
+        },
+        "maj": {
+            "ile": "haut:fin",
+            "ordre": 30,
+            "text_scale": 100,
+            "options": {}
+        },
+        "volume": {
+            "ile": "haut:fin",
+            "ordre": 70,
+            "text_scale": 100,
+            "options": {}
+        },
+        "presse-papiers": {
+            "ile": "haut:fin",
+            "ordre": 20,
+            "text_scale": 100,
+            "options": {}
+        },
+        "luminosite": {
+            "ile": "haut:fin",
+            "ordre": 60,
+            "text_scale": 100,
+            "options": {}
+        },
+        "notifications": {
+            "ile": "haut:fin",
+            "ordre": 10,
+            "text_scale": 100,
+            "options": {}
+        },
+        "musique": {
+            "ile": "haut:debut",
+            "ordre": 30,
+            "text_scale": 100,
+            "options": {
+                "ignorer_navigateurs": true
+            }
         },
         "hermes": {
             "ile": "haut:fin",
@@ -13,9 +81,25 @@
             "text_scale": 100,
             "options": {}
         },
-        "flotte": {
+        "comptes": {
+            "ile": "haut:debut",
+            "ordre": 20,
+            "text_scale": 100,
+            "options": {
+                "prefere": "deepseek"
+            }
+        },
+        "visualiseur": {
+            "ile": "haut:milieu",
+            "ordre": 5,
+            "text_scale": 100,
+            "options": {
+                "style": "onde"
+            }
+        },
+        "homelab": {
             "ile": "haut:fin",
-            "ordre": 12,
+            "ordre": 15,
             "text_scale": 100,
             "options": {}
         }
