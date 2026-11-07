@@ -101,24 +101,39 @@ class Serveur:
                 pass
 
     def toast(self, entree):
-        """Prévenir par une notification : l'applet passe en « ! », mais on ne
-        regarde pas sa barre toutes les dix secondes. Le toast est un confort —
-        s'il échoue (pas de serveur de notification), la demande reste valable."""
+        """Prévenir par une notification **actionnable**.
+
+        `--action` déclare les deux verdicts, `--wait` garde notify-send en
+        écoute et lui fait afficher la clé de l'action cliquée. L'identifiant
+        (option `-p`) est lu sur la première ligne : il sert à fermer le toast
+        si la demande est réglée depuis le popup, pour éviter la rémanence.
+        """
         if not shutil.which("notify-send"):
             return
-        try:
-            sortie = subprocess.run(["notify-send", "-p", "-a", "Hermes", "-u", "normal", "-t", "10000",
-                            "Accord demandé : " + entree["titre"],
-                            (entree.get("detail") or "") + "\nClique sur la fusée dans la barre pour répondre."],
-                           timeout=3, capture_output=True, text=True)
-            if sortie.stdout.strip().isdigit():
-                self.notifs[entree["id"]] = sortie.stdout.strip()
-        except (OSError, subprocess.SubprocessError):
-            pass
+
+        def travail():
+            try:
+                proc = subprocess.Popen(
+                    ["notify-send", "-p", "--wait", "-a", "Hermes", "-u", "normal", "-t", "120000",
+                     "--action=accorder=Accorder", "--action=refuser=Refuser",
+                     "Accord demandé : " + entree["titre"],
+                     (entree.get("detail") or "") + "\nClique sur la fusée pour le détail."],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            except (OSError, subprocess.SubprocessError):
+                return
+            identifiant_notif = (proc.stdout.readline() or "").strip()
+            if identifiant_notif.isdigit():
+                self.notifs[entree["id"]] = identifiant_notif
+            action = (proc.stdout.readline() or "").strip()
+            if action in ("accorder", "refuser"):
+                self.verdict({"id": entree["id"], "accord": action == "accorder",
+                              "motif": "répondu depuis le toast"})
+
+        threading.Thread(target=travail, daemon=True).start()
 
     def retirer_toast(self, identifiant):
-        """Une demande réglée ne doit pas laisser son toast à l'écran : sans ça,
-        la notification survit au verdict et se lit comme un doublon."""
+        """Demande réglée depuis le popup : le toast doit disparaître aussi,
+        sinon il survit au verdict et se lit comme un doublon."""
         notif = self.notifs.pop(identifiant, None)
         if not notif or not shutil.which("gdbus"):
             return
