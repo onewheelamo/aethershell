@@ -717,6 +717,14 @@ def update_style_var(key, value):
         # défaut du fichier.
         data[key] = str(value)
         inscrire_variante_general(str(value))
+    elif key == "shell_flou_interne":
+        # Verre dépoli autonome des surfaces (MultiEffect) : 0 = éteint, 1 =
+        # opaque. Appliqué par Theme.qml, aucun fichier Hyprland à réécrire.
+        data[key] = round(max(0.0, min(1.0, float(value))), 2)
+    elif key == "depth_wallpaper":
+        # Fond en profondeur (parallaxe au changement de bureau), rendu par
+        # FondProfondeur.qml sur une couche `background`.
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key in SHELL_BLUR_KEYS:
         if key == "shell_blur_alpha":
             data[key] = round(max(0.0, min(1.0, float(value))), 2)
@@ -1758,6 +1766,8 @@ def get_full_config_state():
         "shell_blur_enabled": bool(style_data.get("shell_blur_enabled", True)),
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.4)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
+        "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
+        "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
         "launch_history": bool(style_data.get("launch_history", False)),
         "resize_step": int(style_data.get("resize_step", 15)),
         "panel_sections": style_data.get("panel_sections", {}),

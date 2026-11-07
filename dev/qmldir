@@ -36,3 +36,5 @@ GestionEnergieApplet 1.0 GestionEnergieApplet.qml
 Visualiseur 1.0 Visualiseur.qml
 singleton VisualiseurAudio 1.0 VisualiseurAudio.qml
 WidgetMenu 1.0 WidgetMenu.qml
+FlouFond 1.0 FlouFond.qml
+FondProfondeur 1.0 FondProfondeur.qml

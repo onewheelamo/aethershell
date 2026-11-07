@@ -173,6 +173,15 @@ QtObject {
     readonly property color surfaceBg: Qt.alpha(surface, shellOpacity)
     readonly property color surfaceVariantBg: Qt.alpha(surfaceVariant, Math.min(1.0, shellOpacity + 0.08))
     readonly property color panelBg: Qt.alpha(bg, shellOpacity)
+    // Verre dépoli autonome (FlouFond.qml) : 0 = éteint. Au-dessus de ~0,7
+    // d'opacité il ne sert à rien — Hyprland floute déjà derrière la couche et
+    // laisser voir les fenêtres est voulu. En dessous, il rend le texte lisible
+    // sans dépendre de la passe de flou du compositeur.
+    property real shellFlouInterne: 0.0
+    // Fond de bureau en profondeur (FondProfondeur.qml) : parallaxe des calques
+    // au changement de bureau. Faux par défaut, le fond d'écran du démon reste
+    // intact tant qu'on ne l'allume pas.
+    property bool depthWallpaper: false
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 4: OSD (ON-SCREEN DISPLAY) STATE & CONTROLLER
@@ -382,6 +391,8 @@ QtObject {
         if (typeof data.global_radius === "number") root.globalRadius = data.global_radius
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
+        if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
+        if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height

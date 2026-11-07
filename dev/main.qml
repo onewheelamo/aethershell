@@ -11,6 +11,12 @@ import Quickshell.Wayland
 Item {
     id: root
 
+    // Fond de bureau en profondeur (parallaxe au changement de bureau). Déclaré
+    // ici mais inerte tant que Theme.depthWallpaper est faux.
+    FondProfondeur {
+        id: fondProfondeur
+    }
+
 
     // ────────────────────────────────────────────────────────────────────────
     // MODE PLACEMENT D'UN WIDGET (SUPER + clic sur le widget)
@@ -252,6 +258,13 @@ Item {
                 anchors.fill: parent
                 radius: Theme.pillRadius
                 color: Theme.barBg
+                // Verre dépoli autonome : ne dessine rien tant que
+                // Theme.shellFlouInterne vaut 0 (voir FlouFond.qml).
+                FlouFond {
+                    anchors.fill: parent
+                    rayon: Theme.pillRadius
+                    intensite: Theme.shellFlouInterne
+                }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
 
@@ -285,6 +298,11 @@ Item {
                 height: Theme.barHeight
                 radius: Theme.pillRadius
                 color: Theme.barBg
+                FlouFond {
+                    anchors.fill: parent
+                    rayon: Theme.pillRadius
+                    intensite: Theme.shellFlouInterne
+                }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
 
@@ -301,6 +319,11 @@ Item {
                 height: Theme.barHeight
                 radius: Theme.pillRadius
                 color: Theme.barBg
+                FlouFond {
+                    anchors.fill: parent
+                    rayon: Theme.pillRadius
+                    intensite: Theme.shellFlouInterne
+                }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
 
@@ -317,6 +340,11 @@ Item {
                 height: Theme.barHeight
                 radius: Theme.pillRadius
                 color: Theme.barBg
+                FlouFond {
+                    anchors.fill: parent
+                    rayon: Theme.pillRadius
+                    intensite: Theme.shellFlouInterne
+                }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
 
