@@ -2,11 +2,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// POPUP HERMES — l'état de l'agent, ce qu'il fait, ce qui l'attend.
+// POPUP HERMES — l'agent, ses sessions, ce qui l'attend.
 //
-// Le shell lit un fichier d'état écrit par Hermes (voir core/hermes_applet.py).
-// Aucun appel réseau, aucune socket : le popup ne fait que rendre ce que
-// l'agent publie, et dit « aucun état » quand il ne publie rien.
+// Source : `core/hermes_applet.py`, qui lit la base de Hermes en lecture seule
+// (`core/hermes_lecteur.py`). Aucun appel réseau : les sessions viennent de
+// `state.db`, les approbations du canal local de `hermes_approbations.py`.
+//
+// La liste est celle des sessions, pas celle des « exécutions » : une session
+// qui tourne, qui vient de finir ou qui tourne dans un autre profil sont la même
+// ligne, seul le point de couleur et la valeur de droite changent.
 Item {
     id: root
 
@@ -22,6 +26,27 @@ Item {
 
     property var etat: ({})
     property bool charge: false
+
+    // Nombre de sessions visibles : au-delà, la liste ne dit plus rien.
+    readonly property int maxSessions: 6
+    readonly property var sessions: (root.etat.sessions || []).slice(0, root.maxSessions)
+    readonly property int actives: (root.etat.profils || []).length
+
+    // Jetons en forme courte : un chiffre à sept positions dans une barre ne se
+    // lit pas, « 3,4 M » si.
+    function jeton(n) {
+        n = Number(n) || 0
+        if (n >= 1e6) return (n / 1e6).toFixed(1).replace(".", ",") + " M"
+        if (n >= 1e3) return Math.round(n / 1e3) + " k"
+        return String(n)
+    }
+
+    function duree(s) {
+        s = Number(s) || 0
+        if (s >= 3600) return Math.round(s / 3600) + " h"
+        if (s >= 60) return Math.round(s / 60) + " min"
+        return s + " s"
+    }
 
     // Répondre à une demande : le démon tient la socket, le CLI envoie le
     // verdict, puis on relit l'état pour que la ligne disparaisse tout de suite.
@@ -89,13 +114,28 @@ Item {
         width: parent.width
         spacing: Math.round(6 * echelle)
 
-        Text {
-            text: "Hermes"
-            color: Qt.alpha(Theme.fg, 0.6)
-            font.pixelSize: Math.round(Theme.widgetLabel * 0.8 * echelle)
+        // ── en-tête ─────────────────────────────────────────────────────────
+        Row {
+            width: parent.width
+
+            Text {
+                width: parent.width - Math.round(96 * echelle)
+                text: "Hermes"
+                color: Qt.alpha(Theme.fg, 0.6)
+                font.pixelSize: Math.round(Theme.widgetLabel * 0.8 * echelle)
+            }
+
+            Text {
+                width: Math.round(96 * echelle)
+                horizontalAlignment: Text.AlignRight
+                visible: root.actives > 0
+                text: root.actives > 1 ? root.actives + " sessions" : "1 session"
+                color: Qt.alpha(Theme.accent, 0.85)
+                font.pixelSize: Math.round(root.corps * 0.8 * echelle)
+            }
         }
 
-        // ── état et tâche en cours ───────────────────────────────────────────
+        // ── état et tâche en cours ──────────────────────────────────────────
         Row {
             width: parent.width
             spacing: Math.round(6 * echelle)
@@ -124,20 +164,20 @@ Item {
         Text {
             width: parent.width
             visible: root.etat.etat === "hors_ligne" || root.etat.etat === undefined
-            text: "Hermes ne publie rien (état absent de " + "quickshell/hermes-etat.json" + ")"
+            text: "Base illisible (" + String(root.etat.raison || "state.db") + ")"
             color: Qt.alpha(Theme.fg, 0.45)
             font.pixelSize: Math.round(root.corps * 0.85 * echelle)
             wrapMode: Text.WordWrap
         }
 
-        // ── file et jetons ──────────────────────────────────────────────────
+        // ── jetons du jour ──────────────────────────────────────────────────
         Row {
             width: parent.width
             visible: root.etat.etat !== undefined && root.etat.etat !== "hors_ligne"
 
             Text {
                 width: parent.width - Math.round(90 * echelle)
-                text: "En file"
+                text: "Jetons aujourd'hui"
                 color: Qt.alpha(Theme.fg, 0.6)
                 font.pixelSize: Math.round(root.corps * 0.9 * echelle)
             }
@@ -145,9 +185,7 @@ Item {
             Text {
                 width: Math.round(90 * echelle)
                 horizontalAlignment: Text.AlignRight
-                text: String(root.etat.file || 0)
-                      + (root.etat.jetons && root.etat.jetons.jour
-                         ? "  ·  " + String(root.etat.jetons.jour) + " j" : "")
+                text: root.jeton(root.etat.jetons ? root.etat.jetons.jour : 0)
                 color: Qt.alpha(Theme.fg, 0.75)
                 font.pixelSize: Math.round(root.corps * 0.9 * echelle)
                 font.features: { "tnum": 1 }
@@ -227,15 +265,15 @@ Item {
             }
         }
 
-        // ── dernières exécutions ────────────────────────────────────────────
+        // ── sessions ────────────────────────────────────────────────────────
         Rectangle {
             width: parent.width
-            height: (root.etat.executions || []).length > 0 ? 1 : 0
+            height: root.sessions.length > 0 ? 1 : 0
             color: Qt.alpha(Theme.fg, 0.09)
         }
 
         Repeater {
-            model: root.etat.executions || []
+            model: root.sessions
 
             Row {
                 required property var modelData
@@ -247,52 +285,40 @@ Item {
                     height: width
                     radius: width / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    color: String(modelData.resultat) === "ok" ? Theme.accent : Theme.error
+                    // Accent = tourne, gris = finie, atténué = ouverte mais muette.
+                    color: modelData.vivante ? Theme.accent
+                           : String(modelData.etat) === "inactive"
+                             ? Qt.alpha(Theme.fg, 0.22) : Qt.alpha(Theme.fg, 0.45)
                 }
 
                 Text {
-                    width: parent.width - Math.round(64 * echelle)
+                    width: Math.round(46 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
-                    text: String(modelData.nom || "")
-                    color: Theme.fg
-                    font.pixelSize: Math.round(root.corps * 0.9 * echelle)
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    width: Math.round(58 * echelle)
-                    anchors.verticalCenter: parent.verticalCenter
-                    horizontalAlignment: Text.AlignRight
-                    text: Number(modelData.duree_s || 0) + " s"
-                    color: Qt.alpha(Theme.fg, 0.55)
-                    font.pixelSize: Math.round(root.corps * 0.85 * echelle)
-                    font.features: { "tnum": 1 }
-                }
-            }
-        }
-
-        // ── tâches planifiées ───────────────────────────────────────────────
-        Repeater {
-            model: root.etat.cron || []
-
-            Row {
-                required property var modelData
-                width: colonne.width
-
-                Text {
-                    width: parent.width - Math.round(84 * echelle)
-                    text: String(modelData.nom || "")
-                    color: Qt.alpha(Theme.fg, 0.7)
-                    font.pixelSize: Math.round(root.corps * 0.85 * echelle)
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    width: Math.round(84 * echelle)
-                    horizontalAlignment: Text.AlignRight
-                    text: String(modelData.prochaine || "").replace("T", " ").slice(5, 16)
+                    text: String(modelData.profil || "")
                     color: Qt.alpha(Theme.fg, 0.45)
-                    font.pixelSize: Math.round(root.corps * 0.8 * echelle)
+                    font.pixelSize: Math.round(root.corps * 0.78 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: parent.width - Math.round(146 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: String(modelData.titre || modelData.tache || "session sans titre")
+                    color: modelData.vivante ? Theme.fg : Qt.alpha(Theme.fg, 0.72)
+                    font.pixelSize: Math.round(root.corps * 0.88 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: Math.round(52 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: Text.AlignRight
+                    // Une session qui tourne se mesure en jetons, une session finie
+                    // en durée : les deux disent ce qu'on veut savoir d'elle.
+                    text: modelData.vivante ? root.jeton(modelData.jetons)
+                                            : root.duree(modelData.duree_s)
+                    color: Qt.alpha(Theme.fg, modelData.vivante ? 0.75 : 0.45)
+                    font.pixelSize: Math.round(root.corps * 0.82 * echelle)
                     font.features: { "tnum": 1 }
                 }
             }

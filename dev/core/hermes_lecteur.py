@@ -253,6 +253,16 @@ def _iso(horodatage):
         return None
 
 
+def _duree(session):
+    """Durée lisible côté QML : la session en cours compte jusqu'à maintenant."""
+    try:
+        debut = float(session.get("started_at") or 0)
+        fin = float(session.get("ended_at") or time.time())
+        return max(0, int(fin - debut))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _secondes(session):
     for champ in ("last_activity_at", "started_at"):
         try:
@@ -348,6 +358,7 @@ def etat():
                          else ("terminee" if s.get("ended_at") else "inactive")),
                 "vivante": bool(s.get("vivante")),
                 "pid": s.get("pid"),
+                "duree_s": _duree(s),
                 "jetons": int((s.get("input_tokens") or 0) + (s.get("output_tokens") or 0)),
                 "outils": int(s.get("tool_call_count") or 0),
                 "cout": s.get("estimated_cost_usd"),

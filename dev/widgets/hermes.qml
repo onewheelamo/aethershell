@@ -5,11 +5,14 @@ import ".."
 import Quickshell
 import Quickshell.Io
 
-// HERMES — l'état de l'agent en un coup d'œil.
+// HERMES — l'agent en un coup d'œil.
 //
-// Même source que l'applet et le popup : le fichier d'état publié par Hermes
-// (voir core/hermes_applet.py). Rien n'est interrogé par le réseau, et un état
-// absent s'affiche « hors ligne » plutôt que de laisser croire au repos.
+// Même source que l'applet et le popup : `core/hermes_applet.py`, qui lit la base
+// de Hermes en lecture seule. Rien n'est interrogé par le réseau, et une base
+// illisible s'affiche « hors ligne » plutôt que de laisser croire au repos.
+//
+// Les sessions vivantes passent devant les sessions finies : sur une carte de
+// trois lignes, ce qui tourne compte plus que ce qui a tourné.
 Item {
     id: root
     property var options: ({})
@@ -24,6 +27,27 @@ Item {
     property var etat: ({})
     property bool charge: false
 
+    readonly property var lignes: {
+        const l = root.etat.sessions || []
+        const vivantes = l.filter(function (s) { return s.vivante })
+        const autres = l.filter(function (s) { return !s.vivante })
+        return vivantes.concat(autres).slice(0, 3)
+    }
+
+    function jeton(n) {
+        n = Number(n) || 0
+        if (n >= 1e6) return (n / 1e6).toFixed(1).replace(".", ",") + " M"
+        if (n >= 1e3) return Math.round(n / 1e3) + " k"
+        return String(n)
+    }
+
+    function duree(s) {
+        s = Number(s) || 0
+        if (s >= 3600) return Math.round(s / 3600) + " h"
+        if (s >= 60) return Math.round(s / 60) + " min"
+        return s + " s"
+    }
+
     function rafraichir() {
         proc.running = false
         proc.running = true
@@ -31,8 +55,8 @@ Item {
 
     Component.onCompleted: rafraichir()
 
-    // L'agent peut changer d'état à tout moment : dix secondes suffisent, et le
-    // fichier est en RAM, donc le coût est nul.
+    // La base bouge à chaque tour de l'agent : dix secondes suffisent, et une
+    // lecture en `mode=ro` ne coûte rien.
     Timer {
         interval: 10000
         running: true
@@ -96,7 +120,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 horizontalAlignment: Text.AlignRight
                 text: root.etat.jetons && root.etat.jetons.jour
-                      ? String(root.etat.jetons.jour) : ""
+                      ? root.jeton(root.etat.jetons.jour) : ""
                 color: Qt.alpha(Theme.fg, 0.5)
                 font.pixelSize: Math.round(9.5 * echelle)
                 font.features: { "tnum": 1 }
@@ -112,30 +136,9 @@ Item {
             elide: Text.ElideRight
         }
 
-        Row {
-            width: parent.width
-            visible: root.etat.etat !== undefined && root.etat.etat !== "hors_ligne"
-
-            Text {
-                width: parent.width - Math.round(48 * echelle)
-                text: "en file"
-                color: Qt.alpha(Theme.fg, 0.55)
-                font.pixelSize: Math.round(9.5 * echelle)
-            }
-
-            Text {
-                width: Math.round(48 * echelle)
-                horizontalAlignment: Text.AlignRight
-                text: String(root.etat.file || 0)
-                color: Qt.alpha(Theme.fg, 0.7)
-                font.pixelSize: Math.round(9.5 * echelle)
-                font.features: { "tnum": 1 }
-            }
-        }
-
-        // Trois dernières exécutions, la plus récente en haut.
+        // ── trois sessions : vivantes d'abord ───────────────────────────────
         Repeater {
-            model: (root.etat.executions || []).slice(0, 3)
+            model: root.lignes
 
             Row {
                 required property var modelData
@@ -147,28 +150,49 @@ Item {
                     height: width
                     radius: width / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    color: String(modelData.resultat) === "ok" ? Theme.accent : Theme.error
+                    color: modelData.vivante ? Theme.accent
+                           : String(modelData.etat) === "inactive"
+                             ? Qt.alpha(Theme.fg, 0.22) : Qt.alpha(Theme.fg, 0.45)
                 }
 
                 Text {
-                    width: parent.width - Math.round(40 * echelle)
+                    width: Math.round(34 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
-                    text: String(modelData.nom || "")
-                    color: Qt.alpha(Theme.fg, 0.8)
+                    text: String(modelData.profil || "")
+                    color: Qt.alpha(Theme.fg, 0.4)
+                    font.pixelSize: Math.round(8.5 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: parent.width - Math.round(90 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: String(modelData.titre || modelData.tache || "sans titre")
+                    color: modelData.vivante ? Qt.alpha(Theme.fg, 0.85)
+                                             : Qt.alpha(Theme.fg, 0.6)
                     font.pixelSize: Math.round(9.5 * echelle)
                     elide: Text.ElideRight
                 }
 
                 Text {
-                    width: Math.round(36 * echelle)
+                    width: Math.round(42 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignRight
-                    text: Number(modelData.duree_s || 0) + " s"
-                    color: Qt.alpha(Theme.fg, 0.45)
+                    text: modelData.vivante ? root.jeton(modelData.jetons)
+                                            : root.duree(modelData.duree_s)
+                    color: Qt.alpha(Theme.fg, modelData.vivante ? 0.6 : 0.4)
                     font.pixelSize: Math.round(9 * echelle)
                     font.features: { "tnum": 1 }
                 }
             }
+        }
+
+        Text {
+            width: parent.width
+            visible: root.lignes.length === 0
+            text: root.etat.etat === "hors_ligne" ? "base illisible" : "aucune session"
+            color: Qt.alpha(Theme.fg, 0.4)
+            font.pixelSize: Math.round(9.5 * echelle)
         }
     }
 }
