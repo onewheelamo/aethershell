@@ -338,6 +338,7 @@ Rectangle {
         { type: "reseau", label: "Réseau" },
         { type: "disques", label: "Disques" },
         { type: "homelab", label: "Homelab" },
+        { type: "hermes",  label: "Hermes" },
         { type: "presse_papiers", label: "Presse-papiers" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },

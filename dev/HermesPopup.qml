@@ -323,5 +323,61 @@ Item {
                 }
             }
         }
+
+        // ── tâches planifiées ───────────────────────────────────────────────
+        // Lues dans `<profil>/cron/jobs.json` : la prochaine exécution y est déjà
+        // calculée, on ne relit pas l'expression cron à la main.
+        Rectangle {
+            width: parent.width
+            height: (root.etat.cron || []).length > 0 ? 1 : 0
+            color: Qt.alpha(Theme.fg, 0.09)
+        }
+
+        Repeater {
+            model: root.etat.cron || []
+
+            Row {
+                required property var modelData
+                width: colonne.width
+                spacing: Math.round(5 * echelle)
+
+                Rectangle {
+                    width: Math.round(4 * echelle)
+                    height: width
+                    radius: width / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: modelData.actif ? Qt.alpha(Theme.fg, 0.5) : Qt.alpha(Theme.fg, 0.2)
+                }
+
+                Text {
+                    width: parent.width - Math.round(150 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: String(modelData.nom || "")
+                    color: Qt.alpha(Theme.fg, modelData.actif ? 0.8 : 0.45)
+                    font.pixelSize: Math.round(root.corps * 0.85 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: Math.round(62 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: Text.AlignRight
+                    text: String(modelData.planification || "")
+                    color: Qt.alpha(Theme.fg, 0.4)
+                    font.pixelSize: Math.round(root.corps * 0.75 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: Math.round(64 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: Text.AlignRight
+                    text: String(modelData.prochaine || "").slice(5, 16).replace("T", " ")
+                    color: Qt.alpha(Theme.fg, 0.45)
+                    font.pixelSize: Math.round(root.corps * 0.78 * echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
+        }
     }
 }

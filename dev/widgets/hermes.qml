@@ -156,7 +156,7 @@ Item {
                 }
 
                 Text {
-                    width: Math.round(34 * echelle)
+                    width: Math.round(44 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     text: String(modelData.profil || "")
                     color: Qt.alpha(Theme.fg, 0.4)
@@ -165,7 +165,7 @@ Item {
                 }
 
                 Text {
-                    width: parent.width - Math.round(90 * echelle)
+                    width: parent.width - Math.round(100 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     text: String(modelData.titre || modelData.tache || "sans titre")
                     color: modelData.vivante ? Qt.alpha(Theme.fg, 0.85)

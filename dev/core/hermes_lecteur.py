@@ -155,6 +155,57 @@ def derniere_demande(chemin, session_id, longueur=90):
         return ""
 
 
+def _dossiers_profils():
+    """[(profil, dossier)] : un par profil, plus la racine (ancienne base)."""
+    trouves = []
+    profils = RACINE / "profiles"
+    if profils.is_dir():
+        for dossier in sorted(profils.iterdir()):
+            if dossier.is_dir():
+                trouves.append((dossier.name, dossier))
+    trouves.append(("defaut", RACINE))
+    return trouves
+
+
+def taches_planifiees(limite=4):
+    """Les tâches planifiées, lues dans `<profil>/cron/jobs.json`.
+
+    La base `state.db` ne les connaît pas : le planificateur tient son propre
+    fichier, `{"jobs": [...], "updated_at": ...}`, où la date de la prochaine
+    exécution est déjà calculée (`next_run_at`, ISO avec fuseau). On ne
+    recalcule donc rien — une expression cron relue à la main finirait par
+    mentir.
+    """
+    liste = []
+    for profil, dossier in _dossiers_profils():
+        fichier = dossier / "cron" / "jobs.json"
+        try:
+            donnees = json.loads(fichier.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        taches = donnees.get("jobs") if isinstance(donnees, dict) else donnees
+        if not isinstance(taches, list):
+            continue
+        for t in taches:
+            if not isinstance(t, dict):
+                continue
+            planif = t.get("schedule_display")
+            if not planif and isinstance(t.get("schedule"), dict):
+                planif = t["schedule"].get("display")
+            liste.append({
+                "nom": str(t.get("name") or "sans nom"),
+                "prochaine": t.get("next_run_at"),
+                "dernier": str(t.get("last_status") or ""),
+                "quand": t.get("last_run_at"),
+                "planification": str(planif or ""),
+                "profil": profil,
+                "actif": bool(t.get("enabled", True)),
+            })
+    # Les actives d'abord, puis par prochaine échéance ; celles sans date en fin.
+    liste.sort(key=lambda t: (not t["actif"], t["prochaine"] or "9999"))
+    return liste[:limite]
+
+
 def jetons_du_jour():
     """Somme des jetons d'entrée et de sortie des sessions actives aujourd'hui."""
     debut = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
@@ -331,9 +382,7 @@ def etat():
         "depuis": depuis,
         "file": len(attente),
         "executions": executions[:5],
-        # Les planifications ne vivent pas dans `state.db` : à lire ailleurs plus
-        # tard. Mieux vaut une liste vide qu'un nom inventé.
-        "cron": [],
+        "cron": taches_planifiees(),
         "jetons": jetons_du_jour(),
         "age_s": age,
         "perime": False,
