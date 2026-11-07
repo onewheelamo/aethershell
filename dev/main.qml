@@ -118,6 +118,17 @@ Item {
         Theme.captureHook = function(mode) { root.requestCapture(mode) }
     }
 
+    // Changer de bureau referme le panneau ouvert. Le clic sur l'applet des
+    // bureaux part de la barre, qui fait partie des fenêtres tenues par
+    // l'attrapeur de focus : le grab ne se libérait donc pas, et le popup
+    // restait affiché par-dessus le nouveau bureau — vu sur le panneau média.
+    Connections {
+        target: Hyprland
+        function onFocusedWorkspaceChanged() {
+            if (Theme.activePopup !== "") Theme.activePopup = ""
+        }
+    }
+
     function beginPlacement(win, grabX, grabY) {
         placingWindow = win
         placingGrabX = grabX
