@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Dossier core/ du déploiement (génération de palette).
+DEV_CORE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../core" && pwd)"
 # Hyprquickpaper selection hook for the session:
 # 1. Resolves WALLPAPER_DIR from core/style_vars.json (configured in the Config Panel)
 # 2. Applies the chosen wallpaper (or picks one from $WALLPAPER_DIR if a relative name or none was passed)
@@ -50,6 +52,14 @@ elif command -v hyprpaper &> /dev/null; then
 elif command -v swaybg &> /dev/null; then
     pkill -x swaybg 2>/dev/null
     setsid -f swaybg -i "$WALLPAPER" -m fill >/dev/null 2>&1
+# Boucle fermée : le fond vient de changer, donc la palette doit suivre. Sans ce
+# rappel, style_vars.json (et donc Theme) gardait les couleurs de l'ancien fond
+# jusqu'au prochain déploiement — c'est ce qui obligeait à relancer le shell.
+if command -v matugen >/dev/null 2>&1 && [ -x "$DEV_CORE/generate_colors.sh" ]; then
+    "$DEV_CORE/generate_colors.sh" "$WALLPAPER" >/dev/null 2>&1 || true
+    [ -x "$DEV_CORE/generate_rofi_theme.sh" ] && "$DEV_CORE/generate_rofi_theme.sh" >/dev/null 2>&1 || true
+fi
+
 fi
 
 if [ -x "$HOME/.config/quickshell/core/generate_colors.sh" ]; then
