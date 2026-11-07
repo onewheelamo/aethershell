@@ -71,7 +71,10 @@ for arg in "$@"; do
                 *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora)" >&2; exit 2 ;;
             esac
             ;;
-        --deps) PRINT_DEPS=1 ;;
+        --hq-list [archive]         Liste le contenu d'une sauvegarde (la plus récente par défaut)
+  --hq-diff [archive]         Compare une sauvegarde à l'état vivant
+  --hq-get <archive> <chemin> Extrait un fichier sous BACKUP_DIR/extrait
+  --deps) PRINT_DEPS=1 ;;
         --hq-list) HQ_ACTION="list"; shift || true; HQ_ARG1="${1:-}" ;;
         --hq-diff) HQ_ACTION="diff"; shift || true; HQ_ARG1="${1:-}" ;;
         --hq-get)  HQ_ACTION="get";  shift || true; HQ_ARG1="${1:-}"; HQ_ARG2="${2:-}" ;;
