@@ -115,7 +115,10 @@ PanelWindow {
     Image {
         anchors.fill: parent
         source: fenetre.masque !== "" ? "file://" + fenetre.masque : ""
-        fillMode: Image.Stretch          // le masque est à la résolution du fond
+        // Même cadrage que le démon de fond (awww recadre en « crop ») : sans
+        // cela, le décor redessiné ne tombe pas sur celui du dessous et le
+        // premier plan se voit décalé.
+        fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
     }

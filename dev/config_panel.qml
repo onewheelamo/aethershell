@@ -72,8 +72,8 @@ Rectangle {
           tab: 6, section: "greeter_theme", target: "secGreeter" },
         { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
           section: "widgets_api", target: "secApiKeys" },
-        { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 0,
-          section: "bureau_notifications", target: "secNotifs" },
+        { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 1,
+          section: "quickshell_notifications", target: "secNotifs" },
         { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 7,
           section: "quickshell_calendrier", target: "secCalendrier" },
         { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 7,
@@ -217,7 +217,7 @@ Rectangle {
     // milieu ouvrait le panneau sur « Bureau » et dépliait une section cachée.
     readonly property var ongletDeSection: ({
         "quickshell_applets": 1, "quickshell_visualiseur": 1, "quickshell_barre": 1,
-        "quickshell_barres": 1, "quickshell_disques": 1,
+        "quickshell_barres": 1, "quickshell_disques": 1, "quickshell_notifications": 1,
         "widgets": 2, "apps_programs": 5
     })
 
@@ -2467,158 +2467,97 @@ Rectangle {
 
                 // Masque de premier plan (idée du plugin Noctalia wallpaper_depth) :
                 // une carte de profondeur du fond décide ce qui passe devant les
-                // widgets de bureau. Le modèle (~150 Mo) s'installe à la demande.
-                Row {
+                // widgets de bureau. Sur deux lignes : à cinq contrôles sur une
+                // seule, le dernier stepper sortait du panneau et se lisait tronqué.
+                Column {
                     width: parent.width
-                    spacing: 8
+                    spacing: 6
 
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Masque de profondeur :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
+                    Row {
+                        width: parent.width
+                        spacing: 8
 
                         Text {
-                            anchors.centerIn: parent
-                            text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
-                            color: Theme.depthMask ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Masque de profondeur :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfigCmd([
-                                "style", "depth_mask", Theme.depthMask ? "false" : "true"
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
+                                color: Theme.depthMask ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd([
+                                    "style", "depth_mask", Theme.depthMask ? "false" : "true"
+                                ])
+                            }
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        // Aligne « seuil » sous le libellé, pas sous le bouton.
+                        Item { width: 160; height: 1 }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "seuil"
+                            color: Qt.alpha(Theme.fg, 0.6)
+                            font.pixelSize: Theme.text2xs
+                        }
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 84
+                            value: Theme.depthMaskSeuil
+                            minimumValue: 0
+                            maximumValue: 100
+                            stepSize: 5
+                            onValueModified: newVal => root.runConfigCmd([
+                                "style", "depth_mask_seuil", String(newVal)
                             ])
                         }
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "seuil"
-                        color: Qt.alpha(Theme.fg, 0.6)
-                        font.pixelSize: Theme.text2xs
-                    }
-
-                    Stepper {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 84
-                        value: Theme.depthMaskSeuil
-                        minimumValue: 0
-                        maximumValue: 100
-                        stepSize: 5
-                        onValueModified: newVal => root.runConfigCmd([
-                            "style", "depth_mask_seuil", String(newVal)
-                        ])
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "adouci"
-                        color: Qt.alpha(Theme.fg, 0.6)
-                        font.pixelSize: Theme.text2xs
-                    }
-
-                    Stepper {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 84
-                        value: Theme.depthMaskAdouci
-                        minimumValue: 0
-                        maximumValue: 50
-                        stepSize: 1
-                        onValueModified: newVal => root.runConfigCmd([
-                            "style", "depth_mask_adouci", String(newVal)
-                        ])
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "adouci"
+                            color: Qt.alpha(Theme.fg, 0.6)
+                            font.pixelSize: Theme.text2xs
+                        }
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 84
+                            value: Theme.depthMaskAdouci
+                            minimumValue: 0
+                            maximumValue: 50
+                            stepSize: 1
+                            onValueModified: newVal => root.runConfigCmd([
+                                "style", "depth_mask_adouci", String(newVal)
+                            ])
+                        }
                     }
                 }
 
             }   // fin Grid fenêtres
 
         }   // end CollapsibleSection secAspect
-
-            // Notifications : un seul réglage global ici, la bascule « ne pas
-            // déranger ». Elle coupe les toasts ; l'historique continue de se
-            // remplir, et la cloche de la barre se barre.
-            CollapsibleSection {
-                id: secNotifs
-                objectName: "secNotifs"
-                title: "Notifications"
-                icon: "bell"
-                expanded: root.sectionOpen("bureau_notifications", false)
-                onToggled: expanded => root.setPanelSection("bureau_notifications", expanded)
-
-                Column {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: parent.width
-                        text: "« Ne pas déranger » n'affiche plus aucun toast : les notifications "
-                            + "arrivent quand même dans le centre et dans l'historique."
-                        color: Qt.alpha(Theme.fg, 0.6)
-                        font.pixelSize: Theme.textXs
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Item {
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Ne pas déranger"
-                            color: root.dndActif ? Theme.accent : Theme.fg
-                            font.pixelSize: Theme.textSm
-                        }
-
-                        Rectangle {
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 44
-                            height: 22
-                            radius: 11
-                            color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
-
-                            Rectangle {
-                                width: 18
-                                height: 18
-                                radius: 9
-                                y: 2
-                                x: root.dndActif ? parent.width - width - 2 : 2
-                                color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
-                                Behavior on x { NumberAnimation { duration: 130 } }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.reglerDnd(!root.dndActif)
-                            }
-                        }
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: root.dndActif ? "Actif : aucun toast ne s'affiche." : "Inactif : les toasts s'affichent normalement."
-                        color: Qt.alpha(Theme.fg, 0.5)
-                        font.pixelSize: Theme.textXs
-                    }
-                }
-            }
 
 
             // Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
@@ -3011,6 +2950,77 @@ Rectangle {
             spacing: 11
 
 
+
+            // Notifications : un seul réglage global ici, la bascule « ne pas
+            // déranger ». Elle coupe les toasts ; l'historique continue de se
+            // remplir, et la cloche de la barre se barre.
+            CollapsibleSection {
+                id: secNotifs
+                objectName: "secNotifs"
+                title: "Notifications"
+                icon: "bell"
+                expanded: root.sectionOpen("quickshell_notifications", false)
+                onToggled: expanded => root.setPanelSection("quickshell_notifications", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "« Ne pas déranger » n'affiche plus aucun toast : les notifications "
+                            + "arrivent quand même dans le centre et dans l'historique."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 30
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Ne pas déranger"
+                            color: root.dndActif ? Theme.accent : Theme.fg
+                            font.pixelSize: Theme.textSm
+                        }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 44
+                            height: 22
+                            radius: 11
+                            color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                            Rectangle {
+                                width: 18
+                                height: 18
+                                radius: 9
+                                y: 2
+                                x: root.dndActif ? parent.width - width - 2 : 2
+                                color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                Behavior on x { NumberAnimation { duration: 130 } }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.reglerDnd(!root.dndActif)
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: root.dndActif ? "Actif : aucun toast ne s'affiche." : "Inactif : les toasts s'affichent normalement."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
 
             // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
             // applet reste invisible : on le dit, sinon le réglage semble cassé.

@@ -43,7 +43,7 @@ MODEL_SIZE = 99_060_839
 INPUT_SIZE = 518
 PATCH = 14
 VERSION_DEPTH = 1
-VERSION_MASQUE = 1
+VERSION_MASQUE = 2
 PACKAGES = ("numpy", "onnxruntime", "pillow")
 
 DATA_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "depth"
@@ -281,7 +281,13 @@ def generer(fond: Path, seuil: float, adouci: float) -> None:
                 alpha = np.clip((pleine - (seuil - demi)) / max(1e-6, 2 * demi), 0.0, 1.0) \
                     if demi > 0 else (pleine >= seuil).astype(np.float32)
                 alpha = alpha * alpha * (3.0 - 2.0 * alpha)   # smoothstep
-                image = Image.fromarray(np.rint(alpha * 255.0).astype(np.uint8))
+                # Le calque doit redessiner **le décor**, pas un masque blanc :
+                # on garde les pixels du fond et on n'emprunte que l'alpha. Un
+                # masque en niveaux de gris, dessiné tel quel, afficherait une
+                # silhouette blanche par-dessus le fond au lieu de le laisser voir.
+                masque = Image.fromarray(np.rint(alpha * 255.0).astype(np.uint8))
+                image = source.copy().convert("RGBA")
+                image.putalpha(masque)
                 with tempfile.NamedTemporaryFile("wb", dir=MASQUE_DIR, delete=False) as f:
                     image.save(f, format="PNG", optimize=True)
                     temporaire = Path(f.name)
