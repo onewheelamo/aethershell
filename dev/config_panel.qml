@@ -113,6 +113,8 @@ Rectangle {
           tab: 1, section: "quickshell_barre", target: "barGapsRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
+        { label: "Variante du flou", words: "flou blur variante variant acrylic kawase haze aurora",
+          tab: 0, section: "esthetique_aspect", target: "blurVariantRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
           tab: 1, section: "quickshell_barre", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
@@ -180,6 +182,7 @@ Rectangle {
         "winOpacityRow": winOpacityRow,
         "shellOpacityRow": shellOpacityRow,
         "blurRow": blurRow,
+        "blurVariantRow": blurVariantRow,
         "shellBlurRow": shellBlurRow,
         "monitorsRow": monitorsRow,
         "timezoneRow": timezoneRow,
@@ -688,6 +691,25 @@ Rectangle {
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.17
+    // Variante du flou (decoration:blur:variant) : le panneau gagne, la valeur
+    // est rangée dans style_vars.json et Theme.qml l'applique à chaud.
+    property string blurVariant: "acrylic"
+    // Les onze variantes que Hyprland 0.57 accepte en clair ; l'ordre suit le
+    // binaire (kawase 0 … haze 10). Les libellés sont mis en forme, la clé
+    // reste le nom brut que `hl.config` attend.
+    readonly property var blurVariantChoix: [
+        { key: "kawase",       label: "Kawase" },
+        { key: "frost",        label: "Frost" },
+        { key: "ripple",       label: "Ripple" },
+        { key: "drops",        label: "Drops" },
+        { key: "water",        label: "Water" },
+        { key: "fluid_jar",    label: "Fluid jar" },
+        { key: "prism",        label: "Prism" },
+        { key: "heat_shimmer", label: "Heat shimmer" },
+        { key: "acrylic",      label: "Acrylic" },
+        { key: "aurora",       label: "Aurora" },
+        { key: "haze",         label: "Haze" }
+    ]
     // Flou des surfaces layer-shell du shell (layer rules de general.lua)
     property bool shellBlurEnabled: true
     property bool barBorder: true
@@ -788,6 +810,7 @@ Rectangle {
         if (typeof data.blur_size === "number") root.blurSize = data.blur_size
         if (typeof data.blur_passes === "number") root.blurPasses = data.blur_passes
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = data.blur_vibrancy
+        if (typeof data.blur_variant === "string" && data.blur_variant.length > 0) root.blurVariant = data.blur_variant
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
@@ -2238,6 +2261,59 @@ Rectangle {
                         onValueModified: newVal => {
                             root.blurPasses = newVal
                             root.runConfigCmd(["style", "blur_passes", String(newVal)])
+                        }
+                    }
+                }
+
+                // 10b. Variante du flou (kawase … haze)
+                Row {
+                    id: blurVariantRow   // ancre de recherche
+                    objectName: "blurVariantRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Variante du flou :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Flow {
+                        width: parent.width - 168
+                        spacing: 6
+
+                        Repeater {
+                            model: root.blurVariantChoix
+
+                            Rectangle {
+                                required property var modelData
+                                width: etatFlou.implicitWidth + 16
+                                height: 26
+                                radius: Theme.globalRadius
+                                color: root.blurVariant === modelData.key ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: Theme.accent
+
+                                Text {
+                                    id: etatFlou
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    color: root.blurVariant === modelData.key ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        root.blurVariant = modelData.key
+                                        root.runConfigCmd(["style", "blur_variant", modelData.key])
+                                    }
+                                }
+                            }
                         }
                     }
                 }

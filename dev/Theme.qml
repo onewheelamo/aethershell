@@ -148,6 +148,11 @@ QtObject {
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.1696
+    // Nom de la variante (`decoration:blur:variant`) : kawase, frost, ripple,
+    // drops, water, fluid_jar, prism, heat_shimmer, acrylic, aurora, haze.
+    // style_vars.json fait foi ; general.lua ne porte que le défaut d'une
+    // machine neuve.
+    property string blurVariant: "acrylic"
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 3: PALETTE COLORS & TRANSLUCENT SURFACES
@@ -343,7 +348,8 @@ QtObject {
             + "decoration = { rounding = " + root.hyprRounding + ", active_opacity = " + root.globalOpacity + ", inactive_opacity = " + root.globalOpacity + ", "
             + "blur = { enabled = " + (root.blurEnabled ? "true" : "false")
             + ", size = " + root.blurSize + ", passes = " + root.blurPasses
-            + ", vibrancy = " + root.blurVibrancy + " } } "
+            + ", vibrancy = " + root.blurVibrancy
+            + ", variant = \"" + root.blurVariant + "\" } } "
             + "})"
         hyprApplyProc.command = ["hyprctl", "eval", luaCmd]
         hyprApplyProc.running = true
@@ -400,6 +406,7 @@ QtObject {
         if (typeof data.blur_size === "number") root.blurSize = Math.max(1, Math.min(20, data.blur_size))
         if (typeof data.blur_passes === "number") root.blurPasses = Math.max(1, Math.min(8, data.blur_passes))
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = Math.max(0, Math.min(1, data.blur_vibrancy))
+        if (typeof data.blur_variant === "string" && data.blur_variant.length > 0) root.blurVariant = data.blur_variant
         if (typeof data.kb_layout === "string") root.kbLayout = data.kb_layout
         if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
         if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
