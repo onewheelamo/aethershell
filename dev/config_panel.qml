@@ -323,6 +323,51 @@ Rectangle {
     // dictionnaire `id → placement`, cocher deux fois ou placer ailleurs ne peut
     // pas créer de doublon : la dernière décision remplace la précédente.
     property var appletRows: []
+    // La même liste, rangée par catégorie et aplatie : un titre, puis ses
+    // applets, puis le titre suivant. Un seul Repeater dessine les deux genres,
+    // ce qui évite de dupliquer le délégué de ligne (250 lignes) ou d'en faire
+    // un fichier à part pour trois titres.
+    //
+    // La catégorie vient du catalogue (`categorie`) : un applet ajouté plus tard
+    // arrive rangé tout seul. Sans catégorie déclarée, il tombe dans « Autres »
+    // plutôt que de disparaître de la liste.
+    readonly property var appletCategories: [
+        "Session & énergie",
+        "Système & réseau",
+        "Temps & notifications",
+        "Médias & bureaux",
+        "Services & IA"
+    ]
+    readonly property var appletEntries: {
+        const seaux = ({})
+        const apparues = []
+        for (let i = 0; i < appletRows.length; ++i) {
+            const a = appletRows[i] || {}
+            const cat = String(a.categorie || "Autres")
+            if (!seaux[cat]) {
+                seaux[cat] = []
+                apparues.push(cat)
+            }
+            seaux[cat].push(a)
+        }
+        // Ordre de lecture imposé par `appletCategories` — une catégorie connue
+        // mais vide ne s'affiche pas, et une catégorie inventée plus tard se
+        // range à la fin plutôt que d'être perdue.
+        const ordre = []
+        for (let j = 0; j < appletCategories.length; ++j)
+            if (seaux[appletCategories[j]]) ordre.push(appletCategories[j])
+        for (let j = 0; j < apparues.length; ++j)
+            if (ordre.indexOf(apparues[j]) < 0) ordre.push(apparues[j])
+
+        const out = []
+        for (let j = 0; j < ordre.length; ++j) {
+            out.push({ genre: "titre", texte: ordre[j] })
+            const lignes = seaux[ordre[j]]
+            for (let k = 0; k < lignes.length; ++k)
+                out.push({ genre: "applet", applet: lignes[k] })
+        }
+        return out
+    }
     // Change à chaque réponse du registre : les cases à cocher s'y abonnent, car
     // lire `donnee.options` (un objet JS) ne crée aucune dépendance QML et la
     // coche ne se recalculait donc jamais.
@@ -2746,7 +2791,7 @@ Rectangle {
                         spacing: 4
 
                         Repeater {
-                            model: root.appletRows
+                            model: root.appletEntries
 
                             delegate: Column {
                                 id: appletRow
@@ -2754,11 +2799,50 @@ Rectangle {
                                 // racine du délégué, pas sur son enfant.
                                 required property var modelData
 
-                                readonly property var donnee: modelData
+                                readonly property bool estTitre: modelData.genre === "titre"
+                                // Une tête de catégorie n'a pas de données
+                                // d'applet : un objet neutre évite les
+                                // « Unable to assign [undefined] » que lèvent
+                                // les liaisons de la ligne, même invisible.
+                                readonly property var donnee: estTitre
+                                    ? ({ id: "", nom: "", ile: "", actif: false,
+                                         text_scale: 100, options: ({}) })
+                                    : modelData.applet
                                 width: parent.width
                                 spacing: 3
 
+                                // ── tête de catégorie ────────────────────────────
+                                // Un petit titre et un trait : le panneau devient
+                                // lisible par groupes au lieu d'une liste de
+                                // dix-neuf lignes au même niveau. Le trait est
+                                // sous le titre, pas entre deux catégories : il
+                                // sépare le titre de ses lignes.
+                                Column {
+                                    width: parent.width
+                                    visible: appletRow.estTitre
+                                    spacing: 5
+
+                                    Item { width: 1; height: 6 }
+
+                                    Text {
+                                        width: parent.width
+                                        text: appletRow.estTitre ? String(modelData.texte) : ""
+                                        color: Qt.alpha(Theme.fg, 0.6)
+                                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                        font.bold: true
+                                        font.letterSpacing: 0.7
+                                        font.capitalization: Font.AllUppercase
+                                    }
+
+                                    Rectangle {
+                                        width: parent.width
+                                        height: 1
+                                        color: Qt.alpha(Theme.fg, 0.14)
+                                    }
+                                }
+
                                 Rectangle {
+                                visible: !appletRow.estTitre
                                 width: parent.width
                                 height: 30
                                 radius: Theme.globalRadius
