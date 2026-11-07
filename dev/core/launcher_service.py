@@ -557,8 +557,12 @@ def presse(texte, limite=8):
         libelle = infos.get("texte") or f"entrée {ident}"
         if q and q not in libelle.lower():
             continue
+        # Même règle que pour les entrées vivantes : un lien épinglé s'ouvre.
+        action, cible = ("copy", ident)
+        if infos.get("type") == "lien":
+            action, cible = "open-url", libelle
         out.append(resultat("presse", libelle[:80], f"épinglé · {infos.get('type', '')}",
-                            infos.get("vignette") or "", "presse", action="copy", arg=ident))
+                            infos.get("vignette") or "", "presse", action=action, arg=cible))
 
     for ligne in borne(["cliphist", "list"], timeout=2.0).splitlines():
         if "\t" not in ligne:
@@ -581,8 +585,18 @@ def presse(texte, limite=8):
             else:
                 libelle = "image copiée"
         detail = f"entrée {ident} · {nature}"
+        # Ce que le contenu appelle : un lien s'ouvre, un chemin existant s'ouvre,
+        # tout le reste se copie. L'ancien comportement copiait même une URL, ce
+        # qui obligeait à coller puis recliquer.
+        action, cible = "copy", ident
+        if nature == "lien":
+            action, cible = "open-url", apercu.split()[0] if apercu.split() else ""
+        elif nature == "texte":
+            premier = apercu.split()[0] if apercu.split() else ""
+            if premier.startswith("/") and Path(premier).exists():
+                action, cible = "open-url", premier
         out.append(resultat("presse", libelle, detail, vignette, "presse",
-                            action="copy", arg=ident))
+                            action=action, arg=cible))
         if len(out) >= limite:
             break
     return out
@@ -818,6 +832,12 @@ DISPATCH = {
     "processus": processus,
     "signets": signets,
     "aide": lambda _t: aide(),
+    # Épinglage : appelé par le launcher sur SHIFT+P. Entrée du contrat inchangée
+    # (une action, un argument), pour ne pas ajouter un second vocabulaire.
+    "presse_epingler": lambda t: [resultat("presse", presse_epingler(t.strip(), ""),
+                                           "épinglé", "", "presse")],
+    "presse_desepingler": lambda t: [resultat("presse", presse_desepingler(t.strip()),
+                                              "désépinglé", "", "presse")],
 }
 
 
