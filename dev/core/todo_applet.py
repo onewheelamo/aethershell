@@ -45,6 +45,12 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(BASE, "todo.json")
 RUNTIME = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 FILE = os.path.join(RUNTIME, "quickshell", "todo-demandes.json")
+# Durée d'un bail de prise. `prendre` marque une demande `en_cours` et le
+# moniteur du cron ne rapporte que les `attente` : sans échéance, un worker tué
+# en cours de route laissait la case invisible pour toujours (et la barre la
+# comptait comme « en attente » sans que personne ne la reprenne). Passé ce
+# délai sans `fait`, la demande redevient demandable.
+BAIL_MINUTES = 60
 # L'applet ne montre qu'un fichier à la fois ; le widget voit tout. Le choix vit
 # dans le cache, pas dans le dépôt : c'est une préférence de machine.
 FOCUS = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
@@ -194,14 +200,42 @@ def _trouver(identifiant):
 
 
 # ── la file des demandes ──────────────────────────────────────────────────────
+def _appliquer_bail(demandes):
+    """Rend demandable une prise dont le bail est échu (voir BAIL_MINUTES).
+
+    `relance` compte les reprises : le worker suivant sait ainsi qu'il doit
+    d'abord constater ce qui a déjà été fait avant de refaire le travail.
+    Rend True si une demande a changé d'état (l'appelant réécrit la file).
+    """
+    maintenant = datetime.datetime.now()
+    reprises = False
+    for d in demandes:
+        if d.get("etat") != "en_cours":
+            continue
+        reference = d.get("pris_le") or d.get("quand")
+        try:
+            debut = datetime.datetime.fromisoformat(str(reference))
+        except (TypeError, ValueError):
+            debut = None
+        if debut is None or (maintenant - debut).total_seconds() > BAIL_MINUTES * 60:
+            d["etat"] = "attente"
+            d["relance"] = int(d.get("relance") or 0) + 1
+            d.pop("pris_le", None)
+            reprises = True
+    return reprises
+
+
 def _lire_file():
     try:
         with open(FILE, "r", encoding="utf-8") as f:
             donnees = json.load(f)
         liste = donnees.get("demandes") if isinstance(donnees, dict) else []
-        return [d for d in liste or [] if isinstance(d, dict)]
+        demandes = [d for d in liste or [] if isinstance(d, dict)]
     except (OSError, ValueError):
         return []
+    if _appliquer_bail(demandes):
+        _ecrire_file(demandes)
+    return demandes
 
 
 def _ecrire_file(demandes):
@@ -357,6 +391,7 @@ def prendre(identifiant):
     for d in demandes:
         if d.get("id") == identifiant:
             d["etat"] = "en_cours"
+            d["pris_le"] = datetime.datetime.now().isoformat(timespec="seconds")
             _ecrire_file(demandes)
             return True, "prise"
     return False, "aucune demande"
