@@ -521,6 +521,10 @@ def _uri_image(texte):
         if len(lignes) < 3 or not lignes[2].startswith("file://"):
             return None
         chemin = lignes[2][len("file://"):]
+    elif premiere.startswith("/"):
+        # Chemin nu (copié depuis un terminal, ou entrée ancienne de cliphist) :
+        # même intention qu'une URI, même traitement.
+        chemin = premiere
     else:
         return None
     chemin = chemin.strip()
