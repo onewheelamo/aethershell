@@ -53,6 +53,21 @@ Item {
         }
     }
 
+    // Relancer une barre distante : le script demande l'accord par le canal
+    // d'approbation, et n'agit qu'après. Le popup ne fait que le lancer.
+    function relancer(nom) {
+        agir.machine = String(nom)
+        agir.running = false
+        agir.running = true
+    }
+
+    Process {
+        id: agir
+        property string machine: ""
+        command: ["bash", Quickshell.shellPath("core/flotte_agir.sh"), agir.machine]
+        onExited: root.charger()
+    }
+
     function machines() {
         const m = root.flotte.machines || {}
         const out = []
@@ -122,7 +137,7 @@ Item {
                 }
 
                 Text {
-                    width: parent.width - Math.round(96 * echelle)
+                    width: parent.width - Math.round(114 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     text: {
                         if (!modelData.joignable) return String(modelData.nom) + " — injoignable"
@@ -134,8 +149,35 @@ Item {
                     elide: Text.ElideRight
                 }
 
+                // « relancer » : volontairement discret (une flèche), et sans
+                // effet si la machine est injoignable — l'accord, lui, se demande
+                // dans le script, pas ici.
+                Rectangle {
+                    width: Math.round(20 * echelle)
+                    height: width
+                    radius: Math.round(6 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: modelData.joignable
+                    color: survol.containsMouse ? Qt.alpha(Theme.accent, 0.22) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "↻"
+                        color: survol.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.round(root.corps * echelle)
+                    }
+
+                    MouseArea {
+                        id: survol
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.relancer(modelData.nom)
+                    }
+                }
+
                 Text {
-                    width: Math.round(96 * echelle)
+                    width: Math.round(88 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignRight
                     text: modelData.joignable
