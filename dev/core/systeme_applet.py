@@ -22,6 +22,8 @@ autres continuent. Mieux vaut trois barres qu'une croix rouge.
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 import sys
 import time
@@ -242,7 +244,149 @@ def _filtrer(donnees, options):
     return copie
 
 
+
+
+# ── processus (inspiration nvtop, sans nvtop) ────────────────────────────────
+#
+# nvtop est un programme interactif en ncurses : le lire demande de le lancer
+# dans un pseudo-terminal et d'en découper l'écran. /proc donne les mêmes
+# chiffres, et nvidia-smi la part GPU — deux sources déjà utilisées ici. Le
+# compromis est assumé : pas de courbes dessinées (Pillow chez eux), mais une
+# liste triable et des gestes.
+
+TICKS = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+# Sous ce seuil, un processus n'a rien fait : la liste resterait bruyante.
+CPU_MIN = 0.5
+
+
+def _jiffies():
+    """{pid: (utime+stime, nom, rss_page)} depuis /proc."""
+    etats = {}
+    for entree in os.listdir("/proc"):
+        if not entree.isdigit():
+            continue
+        pid = int(entree)
+        try:
+            with open("/proc/%d/stat" % pid, "r", encoding="utf-8") as f:
+                champs = f.read().rsplit(")", 1)
+            if len(champs) != 2:
+                continue
+            nom = champs[0].split("(", 1)[-1]
+            reste = champs[1].split()
+            # Aprés le « ) » : état (0), ... utime (11), stime (12), rss (21)
+            cpu = int(reste[11]) + int(reste[12])
+            etats[pid] = (cpu, nom.strip()[:24], int(reste[21]))
+        except (OSError, IndexError, ValueError):
+            continue
+    return etats
+
+
+def _commandes(pids):
+    """La ligne de commande, bornée : c'est ce qu'on lit pour reconnaître un processus."""
+    sortie = {}
+    for pid in pids:
+        try:
+            with open("/proc/%d/cmdline" % pid, "rb") as f:
+                brut = f.read().replace(b"\0", b" ").decode("utf-8", "ignore").strip()
+        except OSError:
+            brut = ""
+        sortie[pid] = brut[:160]
+    return sortie
+
+
+def _gpu_par_processus():
+    """{pid: mémoire GPU en Mio} si nvidia-smi répond, sinon {}."""
+    try:
+        res = subprocess.run(
+            ["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=3)
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    sortie = {}
+    for ligne in res.stdout.splitlines():
+        morceaux = [m.strip() for m in ligne.split(",")]
+        if len(morceaux) >= 2 and morceaux[0].isdigit():
+            try:
+                sortie[int(morceaux[0])] = int(morceaux[1])
+            except ValueError:
+                continue
+    return sortie
+
+
+def processus(limite=14):
+    """Les processus qui consomment, mesurés sur deux relevés rapprochés.
+
+    Un seul relevé ne donne pas de pourcentage : on échantillonne à 250 ms
+    d'intervalle, ce qui coûte un quart de seconde **au moment où le panneau
+    s'ouvre** — et rien le reste du temps, puisque rien ne tourne en fond.
+    """
+    premier = _jiffies()
+    debut = time.monotonic()
+    time.sleep(0.25)
+    second = _jiffies()
+    ecoule = max(0.05, time.monotonic() - debut)
+    if not premier or not second:
+        return []
+    gpu = _gpu_par_processus()
+    lignes = []
+    for pid, (cpu, nom, rss) in second.items():
+        avant = premier.get(pid)
+        if not avant:
+            continue
+        # Pourcentage « à la top » : jiffies consommées rapportées au temps
+        # écoulé. Un processus qui sature deux cœurs affiche 200 %.
+        part = max(0.0, (cpu - avant[0]) / (ecoule * TICKS) * 100.0)
+        lignes.append({
+            "pid": pid,
+            "nom": nom,
+            "cpu": round(part, 1),
+            "ram_mo": round(rss * (os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 4096) / 1048576, 1),
+            "gpu_mo": gpu.get(pid, 0),
+        })
+    lignes.sort(key=lambda l: (l["cpu"], l["ram_mo"]), reverse=True)
+    retenues = [l for l in lignes if l["cpu"] >= CPU_MIN or l["gpu_mo"] > 0][:limite]
+    commandes = _commandes([l["pid"] for l in retenues])
+    for ligne in retenues:
+        ligne["commande"] = commandes.get(ligne["pid"], "")
+    return retenues
+
+
+def tuer(pid, force=False):
+    """Tue un processus, avec les garde-fous qui évitent les dégâts.
+
+    Refusé : pid <= 1, son propre pid, son parent (le shell qui a lancé la
+    commande), et tout processus dont l'utilisateur n'est pas le propriétaire.
+    """
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False, "pid invalide"
+    if pid <= 1:
+        return False, "refusé : pid système"
+    if pid in (os.getpid(), os.getppid()):
+        return False, "refusé : c'est le shell qui exécute la commande"
+    try:
+        if os.stat("/proc/%d" % pid).st_uid != os.getuid():
+            return False, "refusé : processus d'un autre utilisateur"
+    except OSError:
+        return False, "processus disparu"
+    try:
+        os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)
+    except OSError as erreur:
+        return False, str(erreur)
+    return True, ("tué (SIGKILL)" if force else "arrêt demandé (SIGTERM)")
+
+
 def main(argv):
+    action = argv[1] if len(argv) > 1 else ""
+    if action == "processus":
+        print(json.dumps({"processus": processus(),
+                          "gpu": bool(_gpu_par_processus())}, ensure_ascii=False))
+        return 0
+    if action == "tuer" and len(argv) > 2:
+        ok, message = tuer(argv[2], force="--force" in argv)
+        print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))
+        return 0 if ok else 1
     force = "--force" in argv
     options = {}
     for arg in argv[1:]:

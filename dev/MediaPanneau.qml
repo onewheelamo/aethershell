@@ -20,6 +20,11 @@ Item {
     // s'affiche qu'une fois l'ancre connue et l'ouverture demandée.
     property Item ancre: null
     property bool ouvert: false
+    // Compteur d'horloge : la barre de progression lit `player.position`, qui
+    // n'est pas une propriété observable. Ce compteur la force à se réévaluer —
+    // il n'était jamais déclaré, donc le minuteur levait « Cannot assign to
+    // non-existent property » une fois par seconde et la barre restait figée.
+    property int mediaProgressTick: 0
     // Emplacement de l'applet (« barre:place ») : c'est la barre qui décide de
     // quel côté le panneau s'ouvre.
     readonly property string ileAncre: (panneau.ancre && panneau.ancre.ile)
