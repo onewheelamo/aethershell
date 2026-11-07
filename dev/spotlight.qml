@@ -422,8 +422,6 @@ Item {
     // cliphist), le launcher ne fait qu'appeler et relire.
     // SHIFT+D : efface l'entrée sélectionnée. SHIFT+W : vide tout — action sans
     // retour, donc un premier appui arme et le second confirme dans les 4 s.
-    property bool vidageArme: false
-
     function supprimerSelection() {
         const e = root.entreeSel
         if (e === undefined || e.kind !== "presse") return
@@ -437,23 +435,10 @@ Item {
 
     function viderHistorique() {
         if (root.entreeSel === undefined || root.entreeSel.kind !== "presse") return
-        if (!root.vidageArme) {
-            root.vidageArme = true
-            gardeVidage.restart()
-            return
-        }
-        root.vidageArme = false
-        gardeVidage.stop()
         action.identifiant = ""
         action.mode = "--vider"
         action.running = false
         action.running = true
-    }
-
-    Timer {
-        id: gardeVidage
-        interval: 4000
-        onTriggered: root.vidageArme = false
     }
 
     function epinglerSelection() {
@@ -590,7 +575,12 @@ Item {
                         event.accepted = true
                         return
                     }
-                    if (event.key === Qt.Key_W && (event.modifiers & Qt.ShiftModifier)
+                    // CTRL+SHIFT+D vide tout. Testé avant SHIFT+D seul : les deux
+                    // modificateurs satisfont aussi le test « Shift », et sans cet
+                    // ordre le vidage serait pris pour une suppression de ligne.
+                    if (event.key === Qt.Key_D
+                        && (event.modifiers & Qt.ShiftModifier)
+                        && (event.modifiers & Qt.ControlModifier)
                         && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
                         root.viderHistorique()
                         event.accepted = true
