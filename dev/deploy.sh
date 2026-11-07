@@ -116,7 +116,7 @@ MARKER="$CURRENT_HYPR/.quickshell_managed"
 # laisse `sync_file` écraser la cible par la version du dépôt — c'est ainsi que
 # la composition de la barre (15 applets) a été remplacée par la version minimale
 # du dépôt (2 applets), vidant la barre.
-ETAT_UTILISATEUR="bar_applets.json style_vars.json widgets.json launch_history.json homelab.json app_vars.json secrets.json autostart.json notif_targets.json llm_providers.json"
+ETAT_UTILISATEUR="bar_applets.json flotte.json style_vars.json widgets.json launch_history.json homelab.json app_vars.json secrets.json autostart.json notif_targets.json llm_providers.json"
 
 PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json homelab.json launch_history.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
