@@ -55,7 +55,14 @@
                         "nom": "Barres"
                     }
                 ]
-            }
+            },
+            "cases": [
+                {
+                    "cle": "ignorer_navigateurs",
+                    "libelle": "Ignorer les navigateurs",
+                    "defaut": true
+                }
+            ]
         },
         {
             "id": "calendrier",

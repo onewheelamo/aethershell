@@ -22,14 +22,31 @@ Item {
 
     // Couleur du tracé : l'accent, comme le reste du shell. Le panneau la
     // rendra réglable quand les autres options y passeront.
+    // Barre que ce dessin sert (« haut », « bas », « cote-gauche »…). Une seule
+    // barre à la fois porte le visualiseur : c'est un réglage, pas un hasard.
+    property string barre: ""
+
     property color teinte: Theme.accent
     property real epaisseur: 1.4
     property real remplissage: 0.16
 
-    // Rien à montrer : applet éteint, ou silence (l'espace reste, l'animation
-    // s'efface — c'est le choix d'Amo : les espaces sont permanents).
-    visible: VisualiseurAudio.actif && VisualiseurAudio.etat === "run"
-    opacity: (viz.visible && !VisualiseurAudio.silence) ? 1 : 0
+    // L'appelant autorise le dessin (mode « espaces transparents » de la barre).
+    property bool autorise: true
+
+    // Tout est piloté par l'**opacité**, jamais par `visible` : passer un item en
+    // invisible ne garantit pas que la surface de couche repeigne la zone, et une
+    // onde fantôme restait peinte sur la barre qu'on venait de quitter (vécu au
+    // passage du visualiseur d'une barre à l'autre). À l'opacité 0 le Canvas ne
+    // se redessine plus : coût nul au repos.
+    readonly property bool enService: autorise
+        && VisualiseurAudio.actif
+        && VisualiseurAudio.etat === "run"
+        && width > 24 && height > 8
+        && (barre === "" || VisualiseurAudio.barre === barre)
+
+    // Rien à montrer : applet éteint, barre non concernée, ou silence (les
+    // espaces restent, l'animation s'efface — décision d'Amo).
+    opacity: (enService && !VisualiseurAudio.silence) ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutQuad } }
 
     onWidthChanged: canevas.requestPaint()
@@ -37,8 +54,8 @@ Item {
 
     Connections {
         target: VisualiseurAudio
-        function onSeqChanged() { canevas.requestPaint() }
-        function onStyleChanged() { canevas.requestPaint() }
+        function onSeqChanged() { if (viz.opacity > 0.01) canevas.requestPaint() }
+        function onStyleChanged() { if (viz.opacity > 0.01) canevas.requestPaint() }
     }
 
     Canvas {

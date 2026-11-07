@@ -159,6 +159,7 @@ PanelWindow {
             clip: true
 
             Visualiseur {
+                barre: root.cote
                 width: root.verticale ? parent.height : parent.width
                 height: root.verticale ? parent.width : parent.height
                 anchors.centerIn: parent

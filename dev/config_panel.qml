@@ -3022,13 +3022,14 @@ Rectangle {
                                         }
                                     }
 
-                                    // Groupe 1 : la barre. On garde la place
-                                    // courante dans cette barre. Masqué pour un
-                                    // applet à emplacement fixe (visualiseur) :
-                                    // sa place n'est pas un emplacement de barre.
+                                    // Groupe 1 : la barre. Reste réglable même
+                                    // pour un applet à emplacement fixe : le
+                                    // visualiseur n'a pas de place *dans* une
+                                    // barre, mais il choisit *quelle* barre le
+                                    // porte — une seule à la fois, et la
+                                    // pastille active est en couleur d'accent.
                                     Row {
                                         spacing: 2
-                                        visible: !appletRow.donnee.fixe
 
                                         Repeater {
                                             model: root.appletBarres

@@ -289,12 +289,14 @@ Item {
             // les rangées d'applets et le registre ne le place jamais.
             Visualiseur {
                 anchors.fill: slotGauche
-                visible: Theme.barGapsTransparent && slotGauche.width > 24
+                barre: "haut"
+                autorise: Theme.barGapsTransparent
             }
 
             Visualiseur {
                 anchors.fill: slotDroit
-                visible: Theme.barGapsTransparent && slotDroit.width > 24
+                barre: "haut"
+                autorise: Theme.barGapsTransparent
             }
 
             // La barre avale les clics, zones peintes comme espaces vides : un
