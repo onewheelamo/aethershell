@@ -1,24 +1,23 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Io
 import Quickshell.Wayland
 
-// Fond de bureau « en profondeur » : plusieurs calques du même fond d'écran,
-// décalés différemment quand on change de bureau (parallaxe de quelques pixels),
-// et de plus en plus nets du lointain au proche.
+// Fond de bureau « en profondeur » : trois calques PNG **avec alpha**, empilés
+// sur le fond du démon (awww) et décalés différemment quand on change de bureau
+// — parallaxe de quelques pixels, du lointain au proche.
 //
-// Ce qui manque à l'idée d'origine, et qu'on ne peut pas coder : les images
-// découpées avec alpha. Sans elles, les calques sont des bandes de la même
-// image, masquées en dégradé — l'illusion tient au flou et au décalage, pas à
-// une vraie découpe. Le jour où les assets existent, il suffit de remplacer les
-// `source` des trois Image : chacun a son propre facteur de parallaxe.
+// Format décidé le 2026-11-07 : trois PNG découpés avec alpha, 1920×1080, posés
+// dans `<dossier de fonds>/profondeur/` sous les noms ci-dessous. Les calques
+// sont transparents : ce qui n'est pas peint laisse voir le fond du démon, donc
+// l'image de base reste fournie par awww et rien n'est dupliqué. Sans les trois
+// fichiers, la surface ne s'affiche pas du tout — un fond à moitié chargé serait
+// pire que le fond du démon.
 //
-// Autre limite de plateforme, à dire : « les îlots entre les calques » n'est pas
-// réalisable. layer-shell n'offre que background < bottom < fenêtres < top <
-// overlay ; un calque ne peut donc pas passer entre la barre et les fenêtres.
-// Le calque proche reste derrière les fenêtres, la barre au-dessus de tout.
+// Limite de plateforme, à ne pas oublier : « les îlots entre les calques » n'est
+// pas réalisable. layer-shell n'offre que background < bottom < fenêtres < top <
+// overlay ; un calque ne peut pas passer entre la barre et les fenêtres. Le fond
+// est en `background`, la barre au-dessus de tout.
 PanelWindow {
     id: fenetre
 
@@ -28,111 +27,71 @@ PanelWindow {
     anchors.right: true
     color: "transparent"
     aboveWindows: false
-    visible: Theme.depthWallpaper
+    visible: Theme.depthWallpaper && assetsPresents
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     WlrLayershell.namespace: "shell-fond-profondeur"
 
     // Le bureau courant donne le pas de parallaxe : chaque changement décale les
-    // calques d'un cran, sans animation continue (le fond ne bouge pas tout seul).
+    // calques d'un cran. Hors animation continue, le fond ne bouge pas seul.
     readonly property int bureau: Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
-    property string fond: ""
+    readonly property string dossier: String(Theme.wallpaperDir || "").replace(/\/?$/, "/") + "profondeur/"
+    readonly property bool assetsPresents: lointain.status === Image.Ready
+                                           && moyen.status === Image.Ready
+                                           && proche.status === Image.Ready
 
-    Process {
-        id: sonde
-        command: ["awww", "query"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
-                if (m) fenetre.fond = m[1]
-            }
-        }
+    // Une option allumée sans assets ne dessine rien : le dire dans le journal
+    // plutôt que de laisser croire à une panne.
+    onVisibleChanged: {
+        if (!visible && Theme.depthWallpaper && !assetsPresents)
+            console.warn("fond en profondeur : les trois PNG sont absents de " + dossier)
     }
 
-    // Deux calques seulement : le fond du démon (awww) reste la base nette, et
-    // les bandes basses ajoutent la parallaxe. Un troisième calque plein écran
-    // flouté recouvrait tout le bureau d'un voile mou — mesuré à l'écran, écarté.
-    readonly property var calques: [
-        { facteur: 7,  flou: 0.30, bande: 0.55, teinte: 0.05 },
-        { facteur: 10, flou: 0.00, bande: 0.30, teinte: 0.00 }
-    ]
+    // `facteur` = pixels de décalage par bureau ; la marge d'agrandissement est
+    // calculée pour que le décalage maximal ne découvre jamais un bord.
+    function decalage(facteur) {
+        return (fenetre.bureau - 1) * facteur
+    }
 
-    Repeater {
-        model: fenetre.calques
+    Image {
+        id: lointain
+        width: fenetre.width + 24
+        height: fenetre.height + 24
+        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(4)
+        y: Math.round((fenetre.height - height) / 2)
+        source: "file://" + fenetre.dossier + "1-lointain.png"
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        smooth: true
+        Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+    }
 
-        Item {
-            id: calque
-            required property var modelData
-            required property int index
+    Image {
+        id: moyen
+        width: fenetre.width + 36
+        height: fenetre.height + 36
+        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(7)
+        y: Math.round((fenetre.height - height) / 2)
+        source: "file://" + fenetre.dossier + "2-moyen.png"
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        smooth: true
+        Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+    }
 
-            // Décalage proportionnel au bureau : 1 -> 0, 5 -> 4 pas, etc.
-            readonly property real decalage: (fenetre.bureau - 1) * modelData.facteur
-            readonly property real hauteurBande: fenetre.height * modelData.bande
-
-            anchors.left: parent.left
-            anchors.right: parent.right
-            y: fenetre.height - hauteurBande
-            height: hauteurBande
-            clip: true
-
-            Image {
-                id: imageCalque
-                // Le calque est agrandi pour que le décalage ne découvre pas de vide.
-                width: fenetre.width + 40
-                height: fenetre.height + 40
-                x: -20 - calque.decalage
-                y: -calque.y - 20 + calque.decalage
-                source: fenetre.fond !== "" ? "file://" + fenetre.fond : ""
-                sourceSize.width: Math.max(320, Math.round(fenetre.width / 2))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-                visible: false
-                layer.enabled: true
-                // Parallaxe animée : un changement de bureau fait glisser le
-                // calque de quelques pixels, pas d'un bond.
-                Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-            }
-
-            MultiEffect {
-                anchors.fill: parent
-                source: imageCalque
-                blurEnabled: calque.modelData.flou > 0.01
-                blur: calque.modelData.flou
-                blurMax: 64
-                saturation: 1.0 - calque.modelData.teinte
-                visible: calque.modelData.flou > 0.01
-            }
-
-            // Sans flou (calque proche), l'image se dessine directement.
-            Image {
-                anchors.fill: parent
-                visible: calque.modelData.flou <= 0.01
-                source: fenetre.fond !== "" ? "file://" + fenetre.fond : ""
-                sourceSize.width: Math.max(320, Math.round(fenetre.width / 2))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-            }
-
-            // Dégradé de raccord avec le calque du dessous, pour éviter une
-            // ligne franche entre deux bandes.
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: Math.min(120, calque.height * 0.4)
-                visible: calque.modelData.bande < 1.0
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.alpha(Theme.bg, 0.0) }
-                    GradientStop { position: 1.0; color: Qt.alpha(Theme.bg, 0.55) }
-                }
-            }
-
-            // Parallaxe animée : un changement de bureau fait glisser le calque
-            // de quelques pixels, pas d'un bond.
-            Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-        }
+    Image {
+        id: proche
+        width: fenetre.width + 52
+        height: fenetre.height + 52
+        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(10)
+        y: Math.round((fenetre.height - height) / 2)
+        source: "file://" + fenetre.dossier + "3-proche.png"
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        smooth: true
+        Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
     }
 }
