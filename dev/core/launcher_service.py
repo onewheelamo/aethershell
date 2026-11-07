@@ -447,20 +447,135 @@ def contenu(texte, limite=6):
 
 
 # ── presse-papiers, émoji ────────────────────────────────────────────────────
+PRESSE_CACHE = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "quickshell" / "vignettes"
+PRESSE_EPINGLES = Path(os.environ.get("XDG_CACHE_HOME", str(HOME / ".cache"))) / "quickshell" / "presse_epingles.json"
+MAGIES = (b"\x89PNG", b"\xff\xd8", b"GIF8", b"RIFF")
+
+
+def _octets(commande, taille=96, timeout=3.0):
+    """Comme `borne`, mais rend des octets : les types se lisent dans l'en-tête."""
+    try:
+        p = subprocess.run(commande, capture_output=True, timeout=timeout)
+        return p.stdout[:taille]
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return b""
+
+
+def _type_entree(ident):
+    """Nature d'une entrée, lue dans les premiers octets du contenu décodé."""
+    tete = _octets(["cliphist", "decode", str(ident)], 16)
+    if not tete:
+        return "vide"
+    if any(tete.startswith(m) for m in MAGIES):
+        return "image"
+    if b"\x00" in tete:
+        return "binaire"
+    try:
+        texte = tete.decode("utf-8")
+    except UnicodeDecodeError:
+        return "binaire"
+    if re.match(r"^https?://", texte) or "\n" in texte:
+        return "lien" if re.match(r"^https?://", texte) else "texte"
+    return "texte"
+
+
+def _vignette(ident):
+    """Vignette PNG en RAM, calculée une fois par entrée. Rend un chemin ou ""."""
+    try:
+        PRESSE_CACHE.mkdir(parents=True, exist_ok=True)
+        chemin = PRESSE_CACHE / f"{ident}.png"
+        if chemin.exists() and chemin.stat().st_size > 0:
+            return str(chemin)
+        brut = _octets(["cliphist", "decode", str(ident)], 4_000_000, timeout=5.0)
+        if not brut:
+            return ""
+        # `magick` lit sur l'entrée standard et écrit un PNG mis à l'échelle : une
+        # capture d'écran entière pèse plusieurs mégaoctets, la vignette 96 px
+        # suffit à reconnaître ce qu'on cherche.
+        r = subprocess.run(["magick", "-", "-thumbnail", "96x96", f"png:{chemin}"],
+                           input=brut, capture_output=True, timeout=8.0)
+        return str(chemin) if r.returncode == 0 and chemin.exists() else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _epingles():
+    try:
+        d = json.loads(PRESSE_EPINGLES.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _ecrire_epingles(d):
+    try:
+        PRESSE_EPINGLES.parent.mkdir(parents=True, exist_ok=True)
+        PRESSE_EPINGLES.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def presse_epingler(ident, texte=""):
+    """Conserve une entrée au-delà de la rotation de cliphist."""
+    if not ident:
+        return "identifiant manquant"
+    brut = _octets(["cliphist", "decode", str(ident)], 4_000_000, timeout=5.0)
+    if not brut:
+        return "contenu illisible"
+    d = _epingles()
+    if any(t[:60] == brut[:60] for t in ()):      # garde-fou de forme, jamais vrai
+        return ""
+    vign = PRESSE_CACHE / f"{ident}.png"
+    d[str(ident)] = {
+        "texte": texte[:200],
+        "type": _type_entree(ident),
+        "vignette": str(vign) if vign.exists() else "",
+        "quand": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    _ecrire_epingles(d)
+    return f"épinglé : {ident}"
+
+
+def presse_desepingler(ident):
+    d = _epingles()
+    if d.pop(str(ident), None) is not None:
+        _ecrire_epingles(d)
+        return f"désépinglé : {ident}"
+    return "cette entrée n'était pas épinglée"
+
+
 def presse(texte, limite=8):
-    q = texte.strip().lstrip('"').strip()
-    sortie = borne(["cliphist", "list"], timeout=2.0)
+    """Historique cliphist, enrichi : type reconnu, vignette pour les images,
+    épinglés d'abord. L'action reste « copy » pour tout : c'est le contrat que le
+    launcher applique déjà, et le type sert à décrire l'entrée, pas à changer son
+    comportement au clic."""
+    q = texte.strip().lstrip('"').strip().lower()
+    epingles = _epingles()
     out = []
-    for ligne in sortie.splitlines():
+
+    for ident, infos in epingles.items():
+        libelle = infos.get("texte") or f"entrée {ident}"
+        if q and q not in libelle.lower():
+            continue
+        out.append(resultat("presse", libelle[:80], f"épinglé · {infos.get('type', '')}",
+                            infos.get("vignette") or "", "presse", action="copy", arg=ident))
+
+    for ligne in borne(["cliphist", "list"], timeout=2.0).splitlines():
         if "\t" not in ligne:
             continue
         ident, apercu = ligne.split("\t", 1)
         apercu = apercu.strip().replace("\n", " ")
-        if q and q.lower() not in apercu.lower():
+        if ident in epingles:
             continue
-        out.append(resultat("presse", apercu[:80] or "(vide)",
-                            f"entrée {ident} · {len(apercu)} car.", "", "presse",
-                            action="copy", arg=ident))
+        if q and q not in apercu.lower():
+            continue
+        nature = _type_entree(ident)
+        vignette = _vignette(ident) if nature == "image" else ""
+        detail = f"entrée {ident} · {nature}"
+        if vignette:
+            detail += " · vignette prête"
+        out.append(resultat("presse", apercu[:80] or f"({nature})", detail,
+                            vignette, "presse", action="copy", arg=ident))
         if len(out) >= limite:
             break
     return out
