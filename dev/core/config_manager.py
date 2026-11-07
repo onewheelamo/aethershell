@@ -364,7 +364,7 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-onboarding", "shell-spotlight",
                          "shell-spotlight-rest", "shell-cheatsheet",
                          "shell-tray-menu", "shell-shotbar",
-                         "shell-menu-session")
+                         "shell-menu-session", "shell-menu-widget")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 # Colors proposées au visualiseur : des jetons du thème, pas des valeurs libres —
 # une couleur en dur ne suivrait pas un changement de palette.

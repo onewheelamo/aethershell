@@ -103,6 +103,9 @@ Item {
         // Ouverture du menu d'un widget sans souris : l'IPC s'en sert, le clic
         // milieu passe par la même propriété d'état.
         Theme.widgetMenuHook = function(id) {
+            // Un identifiant vide referme : c'est ce que fait l'IPC pour les tests,
+            // et ça évite d'ajouter une seconde fonction au gestionnaire.
+            if (String(id) === "") { root.menuWidgetId = ""; return }
             const l = Theme.widgets || []
             for (let i = 0; i < l.length; ++i) {
                 if (String(l[i].id) !== String(id)) continue
