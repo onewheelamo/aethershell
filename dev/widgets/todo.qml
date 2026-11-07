@@ -22,10 +22,48 @@ Item {
     }
 
     property var etat: ({})
-    readonly property var ouverts: {
-        const l = (root.etat.items || []).filter(function (i) { return !i.fait || i.demande })
-        return l.slice(0, 3)
+
+    // Options du widget (widgets.json, écrites par le panneau) : quels fichiers
+    // suivis, combien de lignes d'items, et si les items cochés comptent. Une
+    // liste de fichiers vide veut dire « tous » — c'est le défaut historique,
+    // conservé pour qu'un widget sans options se comporte comme avant.
+    readonly property var fichiersChoisis: {
+        const brut = root.options && root.options.fichiers
+        const liste = Array.isArray(brut) ? brut
+                    : (typeof brut === "string" && brut !== "" ? brut.split(",") : [])
+        const sortie = []
+        for (let i = 0; i < liste.length; ++i) {
+            const nom = String(liste[i]).trim()
+            if (nom !== "") sortie.push(nom)
+        }
+        return sortie
     }
+    readonly property bool afficherFaits: {
+        // La valeur vient d'un `widget_set` par ligne de commande : elle peut
+        // être le booléen JSON ou la chaîne « true ». `Boolean("false")` vaut
+        // vrai, donc on compare explicitement.
+        const v = root.options && root.options.afficher_faits
+        return v === true || v === "true" || v === 1 || v === "1"
+    }
+    readonly property int lignesAffichees: {
+        const v = Number(root.options && root.options.lignes)
+        return (v >= 1 && v <= 6) ? Math.round(v) : 3
+    }
+    // Le filtre s'applique aussi au compteur : annoncer « 11 tâches » puis n'en
+    // montrer que trois d'un seul fichier se lirait comme un bug.
+    readonly property var itemsAffiches: {
+        const choix = root.fichiersChoisis
+        return (root.etat.items || []).filter(function (i) {
+            const nom = String(i.nom_fichier || "")
+            if (choix.length > 0 && choix.indexOf(nom) < 0) return false
+            if (!root.afficherFaits && i.fait && !i.demande) return false
+            return true
+        })
+    }
+    readonly property int compteOuverts: {
+        return root.itemsAffiches.filter(function (i) { return !i.fait || i.demande }).length
+    }
+    readonly property var ouverts: itemsAffiches.slice(0, root.lignesAffichees)
 
     function rafraichir() {
         proc.running = false
@@ -92,9 +130,7 @@ Item {
             Text {
                 width: parent.width - Math.round(60 * echelle)
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.etat.ouverts !== undefined
-                      ? root.etat.ouverts + (root.etat.ouverts > 1 ? " tâches" : " tâche")
-                      : "tâches"
+                text: root.compteOuverts + (root.compteOuverts > 1 ? " tâches" : " tâche")
                 color: Theme.fg
                 font.pixelSize: Math.round(11 * echelle)
                 elide: Text.ElideRight
@@ -133,7 +169,14 @@ Item {
                 Text {
                     width: Math.round(34 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: (root.etat.fichiers || []).length > 1
+                    // La provenance n'a de sens que si plusieurs fichiers sont
+                    // affichés : le choix du widget prime sur la liste suivie.
+                    visible: {
+                        const suivis = root.fichiersChoisis.length > 0
+                                       ? root.fichiersChoisis.length
+                                       : (root.etat.fichiers || []).length
+                        return suivis > 1
+                    }
                     text: String(modelData.nom_fichier || "")
                     color: Qt.alpha(Theme.fg, 0.35)
                     font.pixelSize: Math.round(8.5 * echelle)

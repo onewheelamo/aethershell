@@ -1668,8 +1668,18 @@ def widget_set(wid, key, value):
         elif key == "id":
             w[key] = str(value)
         else:
-            # Tout le reste va dans options (secondes, ville…).
-            w.setdefault("options", {})[key] = value
+            # Tout le reste va dans options (secondes, ville, fichiers…). Une
+            # valeur JSON (liste des fichiers suivis) est rangée telle quelle,
+            # sinon le widget relirait la chaîne qui la contient. Ne pas
+            # réaffecter `value` : il est capturé par la fermeture.
+            brut = str(value)
+            rangee = value
+            if brut[:1] in ("[", "{"):
+                try:
+                    rangee = json.loads(brut)
+                except ValueError:
+                    pass
+            w.setdefault("options", {})[key] = rangee
     return _widget_update(wid, mutate)
 
 

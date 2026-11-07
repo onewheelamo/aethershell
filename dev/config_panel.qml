@@ -643,6 +643,31 @@ Rectangle {
         appletCommande(["echelle", id, String(v)])
     }
 
+    // Fichiers suivis par le widget Tâches : une option vide veut dire « tous »,
+    // donc on matérialise la liste complète avant d'en retirer un — sinon la
+    // première case décochée ne changerait rien.
+    function basculerFichierWidget(wid, nom) {
+        let vive = null
+        for (let i = 0; i < root.widgetsList.length; ++i) {
+            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
+        }
+        if (!vive) return
+        const o = vive.options || ({})
+        let liste = Array.isArray(o.fichiers)
+                  ? o.fichiers.map(function (s) { return String(s) })
+                  : (typeof o.fichiers === "string" && o.fichiers !== ""
+                     ? o.fichiers.split(",").map(function (s) { return s.trim() }) : [])
+        liste = liste.filter(function (s) { return s !== "" })
+        if (liste.length === 0) {
+            for (let i = 0; i < root.todoFichiers.length; ++i)
+                liste.push(String(root.todoFichiers[i].nom || ""))
+        }
+        const i = liste.indexOf(String(nom))
+        if (i >= 0) liste.splice(i, 1)
+        else liste.push(String(nom))
+        root.runConfigCmd(["widget_set", wid, "fichiers", JSON.stringify(liste)])
+    }
+
     // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
     // toutes ses instances — il ne doit pas y en avoir plusieurs.
     function toggleWidgetType(nature, present) {
@@ -3753,6 +3778,34 @@ Rectangle {
                                 return !(v === false || v === "false" || v === 0 || v === "0")
                             }
 
+                            // Widget Tâches : fichiers suivis, nombre de lignes et
+                            // affichage des cochés. Une liste vide veut dire « tous »
+                            // — c'est le défaut d'un widget sans options.
+                            readonly property var wFichiers: {
+                                const brut = widgetCard.wOptions.fichiers
+                                let liste = Array.isArray(brut)
+                                          ? brut.map(function (s) { return String(s) })
+                                          : (typeof brut === "string" && brut !== ""
+                                             ? brut.split(",").map(function (s) { return s.trim() })
+                                             : [])
+                                liste = liste.filter(function (s) { return s !== "" })
+                                if (liste.length === 0) {
+                                    const tous = []
+                                    for (let i = 0; i < root.todoFichiers.length; ++i)
+                                        tous.push(String(root.todoFichiers[i].nom || ""))
+                                    return tous
+                                }
+                                return liste
+                            }
+                            readonly property int wLignes: {
+                                const v = Number(widgetCard.wOptions.lignes)
+                                return (v >= 1 && v <= 6) ? Math.round(v) : 3
+                            }
+                            readonly property bool wAfficherFaits: {
+                                const v = widgetCard.wOptions.afficher_faits
+                                return v === true || v === "true" || v === 1 || v === "1"
+                            }
+
                             readonly property int wTextScale: {
                                 const v = Number(widgetCard.wOptions.text_scale)
                                 if (v >= 60 && v <= 160) return Math.round(v)
@@ -4111,6 +4164,99 @@ Rectangle {
                                 }
                             }
 
+                            // Widget Tâches : quels fichiers suivis, combien de
+                            // lignes d'items, et si les items cochés comptent. La
+                            // liste vide veut dire « tous » (défaut historique).
+                            Row {
+                                width: parent.width
+                                spacing: Theme.space2
+                                visible: widgetCard.wtype === "todo"
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 56
+                                    text: "Tâches"
+                                    color: Qt.alpha(Theme.fg, 0.75)
+                                    font.pixelSize: Theme.textXs
+                                }
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 6
+
+                                    Repeater {
+                                        model: root.todoFichiers
+
+                                        Rectangle {
+                                            required property var modelData
+                                            readonly property bool pris:
+                                                widgetCard.wFichiers.indexOf(String(modelData.nom)) >= 0
+                                            width: nomFichier.width + 16
+                                            height: 24
+                                            radius: Theme.globalRadius
+                                            color: pris ? Qt.alpha(Theme.accent, 0.16)
+                                                        : Theme.surfaceVariant
+                                            border.width: 1
+                                            border.color: pris ? Theme.accent : Theme.surfaceVariant
+
+                                            Text {
+                                                id: nomFichier
+                                                anchors.centerIn: parent
+                                                text: String(modelData.nom || "")
+                                                color: Theme.fg
+                                                font.pixelSize: Theme.textXs
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.basculerFichierWidget(
+                                                               widgetCard.wid, modelData.nom)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Stepper {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 84
+                                    value: widgetCard.wLignes
+                                    minimumValue: 1
+                                    maximumValue: 6
+                                    stepSize: 1
+                                    suffix: " l."
+                                    onValueModified: newVal =>
+                                        root.runConfigCmd(["widget_set", widgetCard.wid,
+                                                           "lignes", String(newVal)])
+                                }
+
+                                Rectangle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 92
+                                    height: 24
+                                    radius: Theme.globalRadius
+                                    color: widgetCard.wAfficherFaits ? Theme.accent : Theme.surfaceVariant
+                                    border.width: 1
+                                    border.color: Theme.accent
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: widgetCard.wAfficherFaits ? "✓ cochés" : "✕ cochés"
+                                        color: widgetCard.wAfficherFaits ? Theme.bg : Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.runConfigCmd([
+                                            "widget_set", widgetCard.wid, "afficher_faits",
+                                            widgetCard.wAfficherFaits ? "false" : "true"
+                                        ])
+                                    }
+                                }
+                            }
+
                             id: widgetCard
                         }
                     }
@@ -4135,9 +4281,10 @@ Rectangle {
 
                         Item {
                             width: parent.width - 76 - Theme.space2
-                            // Trois rangées visibles (28 px + 6 d'écart), puis on
-                            // fait défiler à la molette quand la liste grandit.
-                            height: Math.min(gridPicker.implicitHeight, 3 * 28 + 2 * 6 + 2)
+                            // Six rangées visibles (28 px + 6 d'écart) : les dix-sept
+                            // natures tiennent en 6 lignes de trois colonnes. Au-delà,
+                            // on fait défiler et la bande du bas le signale.
+                            height: Math.min(gridPicker.implicitHeight, 6 * 28 + 5 * 6 + 2)
 
                             Flickable {
                                 id: widgetPicker
@@ -4224,7 +4371,7 @@ Rectangle {
                             }
 
                             // Repère de défilement : n'apparaît que si la liste
-                            // dépasse les trois rangées visibles.
+                            // dépasse les rangées visibles.
                             Rectangle {
                                 visible: gridPicker.implicitHeight > widgetPicker.height
                                 width: 3
@@ -4236,6 +4383,33 @@ Rectangle {
                                 y: widgetPicker.contentY + widgetPicker.contentY
                                      * (widgetPicker.height - height)
                                      / Math.max(1, gridPicker.implicitHeight - widgetPicker.height)
+                            }
+
+                            // « Il en reste en dessous » : une bande dégradée et un
+                            // chevron, qui disparaissent une fois arrivé au bas de la
+                            // liste. Le simple trait de 3 px ne se voyait pas.
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 26
+                                visible: widgetPicker.contentHeight > widgetPicker.height + 1
+                                         && widgetPicker.contentY + widgetPicker.height
+                                            < widgetPicker.contentHeight - 2
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "transparent" }
+                                    GradientStop { position: 0.55; color: Qt.alpha(Theme.bg, 0.82) }
+                                    GradientStop { position: 1.0; color: Qt.alpha(Theme.bg, 0.96) }
+                                }
+
+                                Icon {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: 1
+                                    glyph: "chevron-down"
+                                    size: 14
+                                    color: Theme.accent
+                                }
                             }
                         }
                     }
