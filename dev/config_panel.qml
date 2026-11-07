@@ -74,7 +74,7 @@ Rectangle {
         { label: "Applets de la barre", words: "applets barre ilot ordre position echelle cloche volume reseau",
           tab: 1, section: "quickshell_applets", target: "secApplets" },
         { label: "Barre et surfaces du shell", words: "barre hauteur opacite flou arrondi ilot popups bordure",
-          tab: 1, section: "quickshell_barre", target: "secBarre" },
+          tab: 0, section: "quickshell_barre", target: "secBarre" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
           tab: 2, section: "widgets", target: "secWidgets" },
         { label: "Position du lanceur", words: "lanceur position capsule haut bas centre gauche droite",
@@ -98,25 +98,25 @@ Rectangle {
         { label: "Forme des coins", words: "arrondi rounding power chanfrein squircle forme coin courbe",
           tab: 0, section: "esthetique_aspect", target: "roundingPowerRow" },
         { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
-          tab: 1, section: "quickshell_barre", target: "roundingIslandRow" },
+          tab: 0, section: "quickshell_barre", target: "roundingIslandRow" },
         { label: "Hauteur de la barre", words: "hauteur barre taille bar",
-          tab: 1, section: "quickshell_barre", target: "barHeightRow" },
+          tab: 0, section: "quickshell_barre", target: "barHeightRow" },
         { label: "Pas de redimensionnement", words: "pas redimensionnement resize step",
           tab: 0, section: "esthetique_aspect", target: "resizeRow" },
         { label: "Opacité des fenêtres", words: "opacite fenetres transparence hyprland",
           tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
         { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
-          tab: 1, section: "quickshell_barre", target: "shellOpacityRow" },
+          tab: 0, section: "quickshell_barre", target: "shellOpacityRow" },
         { label: "Réglages du visualiseur audio", words: "visualiseur audio onde barres fps colonnes sensibilite lissage epaisseur couleur",
           tab: 1, section: "quickshell_visualiseur", target: "secVisualiseur" },
         { label: "Espaces entre les îlots", words: "espaces ilots transparence transparence vide gap barre media",
-          tab: 1, section: "quickshell_barre", target: "barGapsRow" },
+          tab: 0, section: "quickshell_barre", target: "barGapsRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
         { label: "Variante du flou", words: "flou blur variante variant acrylic kawase haze aurora",
           tab: 0, section: "esthetique_aspect", target: "blurVariantRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
-          tab: 1, section: "quickshell_barre", target: "shellBlurRow" },
+          tab: 0, section: "quickshell_barre", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
           tab: 3, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
@@ -1482,8 +1482,9 @@ Rectangle {
             }
 
             // ═══════════════════════════════════════════════════════════════════════════
-            // TAB 0: BUREAU — fonds d'écran, thèmes, fenêtres Hyprland.
-            // La barre et les applets sont dans l'onglet « Quickshell ».
+            // TAB 0: BUREAU — fonds d'écran, thèmes, fenêtres Hyprland, barre et surfaces.
+            // Le tiroir « Barre & surfaces » est ici ; les barres annexes, les applets
+            // et le visualiseur sont dans l'onglet « Quickshell ».
             // ═══════════════════════════════════════════════════════════════════════════
             Column {
                 id: tabEsthetiqueCol
@@ -2435,9 +2436,389 @@ Rectangle {
                 }
             }
 
+
+            // Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
+            CollapsibleSection {
+                id: secBarre
+                objectName: "secBarre"
+                title: "Barre & surfaces"
+                icon: "monitor"
+                expanded: root.sectionOpen("quickshell_barre", true)
+                onToggled: expanded => root.setPanelSection("quickshell_barre", expanded)
+
+                Grid {
+                    width: parent.width
+                    columns: 1
+                    columnSpacing: 14
+                    rowSpacing: 12
+
+                    // 5. Arrondis îlots (Quickshell)
+                    Row {
+                        id: roundingIslandRow   // ancre de recherche
+                        objectName: "roundingIslandRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Arrondis îlots (QS) :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Slider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.globalRadius
+                            minimumValue: 0
+                            maximumValue: 30
+                            stepSize: 1
+                            suffix: " px"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "global_radius", String(newVal)])
+                            }
+                        }
+                    }
+
+                    // 6. Hauteur de barre
+                    Row {
+                        id: barHeightRow   // ancre de recherche
+                        objectName: "barHeightRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Hauteur de barre :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Slider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.barHeight
+                            minimumValue: 28
+                            maximumValue: 60
+                            stepSize: 2
+                            suffix: " px"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "bar_height", String(newVal)])
+                            }
+                        }
+                    }
+
+                }
+
+                Grid {
+                    width: parent.width
+                    columns: 1
+                    columnSpacing: 14
+                    rowSpacing: 12
+
+                    // 12. Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
+                    Row {
+                        id: shellOpacityRow   // ancre de recherche
+                        objectName: "shellOpacityRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Opacité surfaces :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.shellOpacity
+                            minimumValue: 0.20
+                            maximumValue: 1.00
+                            stepSize: 0.05
+                            decimals: 2
+                            textFormatter: v => Math.round(v * 100) + " %"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "shell_opacity", String(newVal)])
+                            }
+                        }
+                    }
+
+                    // 13. Flou des surfaces du shell (barre, OSD, panneau)
+                    Row {
+                        id: shellBlurRow   // ancre de recherche
+                        objectName: "shellBlurRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Flou Quickshell :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
+                                color: root.shellBlurEnabled ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.shellBlurEnabled = !root.shellBlurEnabled
+                                    root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
+
+                    // 14. Seuil de transparence (ignore_alpha)
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Seuil de flou :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: root.shellBlurAlpha
+                            minimumValue: 0.05
+                            maximumValue: 0.9
+                            stepSize: 0.05
+                            decimals: 2
+                            onValueModified: newVal => {
+                                root.shellBlurAlpha = newVal
+                                root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
+                            }
+                        }
+                    }
+
+                    // 14b. Bordure de la barre du haut (capsule fusionnée et îlots)
+                    Row {
+                        id: barBorderRow   // ancre de recherche
+                        objectName: "barBorderRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Bordure de la barre :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.barBorder ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.barBorder ? "✓ Bordure" : "✕ Sans bordure"
+                                color: root.barBorder ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.barBorder = !root.barBorder
+                                    root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
+
+                    // 14c. Espaces entre les îlots : transparents (et donc sans flou)
+                    // ou peints comme le reste de la capsule. En mode transparent,
+                    // les deux vides restent des régions de la barre, réservées à
+                    // une animation de lecture média.
+                    Row {
+                        id: barGapsRow   // ancre de recherche
+                        objectName: "barGapsRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Espaces entre les îlots :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.barGapsTransparent ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.barGapsTransparent ? "✓ Transparents" : "✕ Peints"
+                                color: root.barGapsTransparent ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.barGapsTransparent = !root.barGapsTransparent
+                                    root.runConfigCmd(["style", "bar_gaps_transparent", root.barGapsTransparent ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
+
+                    // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Flou des popups :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
+                                color: root.shellBlurPopups ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.shellBlurPopups = !root.shellBlurPopups
+                                    root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
+                }   // fin Grid shell
+
+                Text {
+                    width: parent.width
+                    topPadding: 8
+                    text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
+                        + "L'opacité et le flou des fenêtres se règlent dans l'onglet Bureau, section Hyprland. "
+                        + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
+                        + "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
+                    color: Theme.fg
+                    opacity: 0.6
+                    font.pixelSize: Theme.textXs
+                    wrapMode: Text.WordWrap
+                }
+
+                Grid {
+                    width: parent.width
+                    columns: 1
+                    columnSpacing: 14
+                    rowSpacing: 12
+                    topPadding: 12
+
+                    // 16. Bouton central (engrenage) — bascule d'affichage
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Bouton central :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: Theme.showConfigButton ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+H)"
+                                color: Theme.showConfigButton ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["style", "show_config_button", String(!Theme.showConfigButton)])
+                            }
+                        }
+                    }
+                }   // end Grid
+            }   // end CollapsibleSection secShell
+
     }   // end Column tabEsthetiqueCol
         // ═════════════════════════════════════════════════════════════════════
-        // TAB 1: GESTION QUICKSHELL — la barre et ses applets, en deux tiroirs
+        // TAB 1: GESTION QUICKSHELL — barres annexes, applets et visualiseur.
+        // La barre elle-même (îlots, panneau, popups) est dans l'onglet « Bureau ».
         // ═════════════════════════════════════════════════════════════════════
         Column {
             id: tabQuickshellCol
@@ -2446,383 +2827,6 @@ Rectangle {
             spacing: 11
 
 
-        // 4. Surfaces dessinées par Quickshell : îlots, barre, panneau, popups.
-        CollapsibleSection {
-            id: secBarre
-            objectName: "secBarre"
-            title: "Barre & surfaces"
-            icon: "monitor"
-            expanded: root.sectionOpen("quickshell_barre", true)
-            onToggled: expanded => root.setPanelSection("quickshell_barre", expanded)
-
-            Grid {
-                width: parent.width
-                columns: 1
-                columnSpacing: 14
-                rowSpacing: 12
-
-                // 5. Arrondis îlots (Quickshell)
-                Row {
-                    id: roundingIslandRow   // ancre de recherche
-                    objectName: "roundingIslandRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Arrondis îlots (QS) :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Slider {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.globalRadius
-                        minimumValue: 0
-                        maximumValue: 30
-                        stepSize: 1
-                        suffix: " px"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "global_radius", String(newVal)])
-                        }
-                    }
-                }
-
-                // 6. Hauteur de barre
-                Row {
-                    id: barHeightRow   // ancre de recherche
-                    objectName: "barHeightRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Hauteur de barre :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Slider {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.barHeight
-                        minimumValue: 28
-                        maximumValue: 60
-                        stepSize: 2
-                        suffix: " px"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "bar_height", String(newVal)])
-                        }
-                    }
-                }
-
-            }
-
-            Grid {
-                width: parent.width
-                columns: 1
-                columnSpacing: 14
-                rowSpacing: 12
-
-                // 12. Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
-                Row {
-                    id: shellOpacityRow   // ancre de recherche
-                    objectName: "shellOpacityRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Opacité surfaces :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Stepper {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: Theme.shellOpacity
-                        minimumValue: 0.20
-                        maximumValue: 1.00
-                        stepSize: 0.05
-                        decimals: 2
-                        textFormatter: v => Math.round(v * 100) + " %"
-                        onValueModified: newVal => {
-                            root.runConfigCmd(["style", "shell_opacity", String(newVal)])
-                        }
-                    }
-                }
-
-                // 13. Flou des surfaces du shell (barre, OSD, panneau)
-                Row {
-                    id: shellBlurRow   // ancre de recherche
-                    objectName: "shellBlurRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Flou Quickshell :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
-                            color: root.shellBlurEnabled ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.shellBlurEnabled = !root.shellBlurEnabled
-                                root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
-                            }
-                        }
-                    }
-                }
-
-                // 14. Seuil de transparence (ignore_alpha)
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Seuil de flou :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Stepper {
-                        anchors.verticalCenter: parent.verticalCenter
-                        value: root.shellBlurAlpha
-                        minimumValue: 0.05
-                        maximumValue: 0.9
-                        stepSize: 0.05
-                        decimals: 2
-                        onValueModified: newVal => {
-                            root.shellBlurAlpha = newVal
-                            root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
-                        }
-                    }
-                }
-
-                // 14b. Bordure de la barre du haut (capsule fusionnée et îlots)
-                Row {
-                    id: barBorderRow   // ancre de recherche
-                    objectName: "barBorderRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Bordure de la barre :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.barBorder ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.barBorder ? "✓ Bordure" : "✕ Sans bordure"
-                            color: root.barBorder ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.barBorder = !root.barBorder
-                                root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
-                            }
-                        }
-                    }
-                }
-
-                // 14c. Espaces entre les îlots : transparents (et donc sans flou)
-                // ou peints comme le reste de la capsule. En mode transparent,
-                // les deux vides restent des régions de la barre, réservées à
-                // une animation de lecture média.
-                Row {
-                    id: barGapsRow   // ancre de recherche
-                    objectName: "barGapsRow"
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Espaces entre les îlots :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.barGapsTransparent ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.barGapsTransparent ? "✓ Transparents" : "✕ Peints"
-                            color: root.barGapsTransparent ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.barGapsTransparent = !root.barGapsTransparent
-                                root.runConfigCmd(["style", "bar_gaps_transparent", root.barGapsTransparent ? "true" : "false"])
-                            }
-                        }
-                    }
-                }
-
-                // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Flou des popups :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
-                            color: root.shellBlurPopups ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.shellBlurPopups = !root.shellBlurPopups
-                                root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
-                            }
-                        }
-                    }
-                }
-            }   // fin Grid shell
-
-            Text {
-                width: parent.width
-                topPadding: 8
-                text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
-                    + "L'opacité et le flou des fenêtres se règlent dans l'onglet Bureau, section Hyprland. "
-                    + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
-                    + "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
-                color: Theme.fg
-                opacity: 0.6
-                font.pixelSize: Theme.textXs
-                wrapMode: Text.WordWrap
-            }
-
-            Grid {
-                width: parent.width
-                columns: 1
-                columnSpacing: 14
-                rowSpacing: 12
-                topPadding: 12
-
-                // 16. Bouton central (engrenage) — bascule d'affichage
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Bouton central :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: Theme.showConfigButton ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+H)"
-                            color: Theme.showConfigButton ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                            font.bold: true
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfigCmd(["style", "show_config_button", String(!Theme.showConfigButton)])
-                        }
-                    }
-                }
-            }   // end Grid
-        }   // end CollapsibleSection secShell
 
             // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
             // applet reste invisible : on le dit, sinon le réglage semble cassé.
