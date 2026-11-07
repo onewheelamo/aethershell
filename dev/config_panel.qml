@@ -340,6 +340,7 @@ Rectangle {
         { type: "homelab", label: "Homelab" },
         { type: "hermes",  label: "Hermes" },
         { type: "usb",     label: "Périphériques" },
+        { type: "todo",    label: "Tâches" },
         { type: "presse_papiers", label: "Presse-papiers" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },

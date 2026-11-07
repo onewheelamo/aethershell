@@ -334,6 +334,21 @@
                 "masquer_vide": true
             },
             "widget": "usb"
+        },
+        {
+            "id": "todo",
+            "nom": "Tâches",
+            "description": "Les cases à cocher des fichiers Markdown suivis ; cocher une case commande l'étape à l'agent",
+            "categorie": "Productivité",
+            "icone": "check",
+            "service": "core/todo_applet.py",
+            "popup": "TodoPopup.qml",
+            "ile": "haut:debut",
+            "ordre": 35,
+            "cadence": 1,
+            "text_scale": 100,
+            "genre": "service",
+            "widget": "todo"
         }
     ]
 }
