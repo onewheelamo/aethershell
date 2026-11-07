@@ -875,6 +875,14 @@ def main(argv):
     requete, limite = "", LIMITE_DEFAUT
     i = 1
     while i < len(argv):
+        # Épinglage depuis le launcher (SHIFT+P) ou le terminal : ces deux options
+        # n'ont pas besoin du vocabulaire des préfixes, elles agissent sur un id.
+        if argv[i] == "--epingler" and i + 1 < len(argv):
+            print(presse_epingler(argv[i + 1], ""))
+            return 0
+        if argv[i] == "--desepingler" and i + 1 < len(argv):
+            print(presse_desepingler(argv[i + 1]))
+            return 0
         if argv[i] == "--query" and i + 1 < len(argv):
             requete = argv[i + 1]
             i += 2
