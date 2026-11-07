@@ -67,7 +67,7 @@ Item {
                                        && String(root.entreeSel.arg) === root.apercuPour
                                        && root.apercu.ok === true
 
-    readonly property int maxResults: root.serviceKind === "aide" ? 11 : 6
+    readonly property int maxResults: root.serviceKind === "aide" ? 11 : 8
     readonly property int rowHeight: 46
     readonly property bool cmdMode: mode === "cmd"
 
