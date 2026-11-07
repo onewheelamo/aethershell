@@ -107,6 +107,8 @@ Rectangle {
           tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
         { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
           tab: 1, section: "quickshell_barre", target: "shellOpacityRow" },
+        { label: "Espaces entre les îlots", words: "espaces ilots transparence transparence vide gap barre media",
+          tab: 1, section: "quickshell_barre", target: "barGapsRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
@@ -170,6 +172,7 @@ Rectangle {
         "roundingWinRow": roundingWinRow,
         "roundingIslandRow": roundingIslandRow,
         "barHeightRow": barHeightRow,
+        "barGapsRow": barGapsRow,
         "resizeRow": resizeRow,
         "winOpacityRow": winOpacityRow,
         "shellOpacityRow": shellOpacityRow,
@@ -575,6 +578,8 @@ Rectangle {
     // Flou des surfaces layer-shell du shell (layer rules de general.lua)
     property bool shellBlurEnabled: true
     property bool barBorder: true
+    // Espaces entre les îlots de la barre du haut : transparents et sans flou
+    property bool barGapsTransparent: false
     property real shellBlurAlpha: 0.4
     property bool shellBlurPopups: true
     property int resizeStep: 15
@@ -649,6 +654,7 @@ Rectangle {
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = data.blur_vibrancy
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
+        if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
         if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
         if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
@@ -2414,6 +2420,53 @@ Rectangle {
                             onClicked: {
                                 root.barBorder = !root.barBorder
                                 root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
+                            }
+                        }
+                    }
+                }
+
+                // 14c. Espaces entre les îlots : transparents (et donc sans flou)
+                // ou peints comme le reste de la capsule. En mode transparent,
+                // les deux vides restent des régions de la barre, réservées à
+                // une animation de lecture média.
+                Row {
+                    id: barGapsRow   // ancre de recherche
+                    objectName: "barGapsRow"
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Espaces entre les îlots :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 160
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: root.barGapsTransparent ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.barGapsTransparent ? "✓ Transparents" : "✕ Peints"
+                            color: root.barGapsTransparent ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.barGapsTransparent = !root.barGapsTransparent
+                                root.runConfigCmd(["style", "bar_gaps_transparent", root.barGapsTransparent ? "true" : "false"])
                             }
                         }
                     }

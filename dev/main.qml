@@ -188,7 +188,7 @@ Item {
             // 5a : surface unique derrière les trois groupes
             Rectangle {
                 id: capsuleBg
-                visible: Theme.barMerged
+                visible: Theme.barMerged && !Theme.barGapsTransparent
                 anchors.fill: parent
                 radius: Theme.pillRadius
                 color: Theme.barBg
@@ -197,11 +197,101 @@ Item {
 
                 Behavior on color { ColorAnimation { duration: 180 } }
                 Behavior on border.color { ColorAnimation { duration: 180 } }
+            }
 
-                // Déclaré avant les îlots pour rester dessous.
-                MouseArea {
-                    anchors.fill: parent
-                }
+            // 5c : capsule découpée — option « espaces entre les îlots en
+            // transparence » (Theme.barGapsTransparent, clé bar_gaps_transparent).
+            //
+            // Le fond n'est peint que sous les trois zones ; les deux espaces
+            // entre elles ne sont plus peints du tout. Transparent ne veut pas
+            // dire flouté : l'alpha 0 tombe sous le seuil `ignore_alpha` de la
+            // règle de flou de general.lua, donc le mur derrière s'y voit net.
+            //
+            // Ce n'est pas un retour aux trois îlots indépendants : un seul
+            // conteneur, une seule mise en page, les mêmes ancres, et les deux
+            // vides sont des régions nommées qui gardent leur géométrie
+            // (slotGauche / slotDroit) — c'est là que se posera l'animation de
+            // lecture média.
+            //
+            // L'arrondi est celui du panneau (global_radius, via pillRadius) sur
+            // les bords extérieurs *et* intérieurs : les deux rives d'un espace
+            // ont la même courbe, la barre ne se coupe pas à angle droit.
+            Rectangle {
+                id: zoneGauche
+                visible: Theme.barMerged && Theme.barGapsTransparent
+                x: 0
+                width: Math.max(1, leftLoader.x + leftLoader.width)
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.barHeight
+                radius: Theme.pillRadius
+                color: Theme.barBg
+                border.color: Theme.accent
+                border.width: Theme.barBorder ? 1 : 0
+
+                Behavior on color { ColorAnimation { duration: 180 } }
+                Behavior on border.color { ColorAnimation { duration: 180 } }
+            }
+
+            Rectangle {
+                id: zoneCentre
+                visible: Theme.barMerged && Theme.barGapsTransparent
+                x: centerLoader.x
+                width: Math.max(1, centerLoader.width)
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.barHeight
+                radius: Theme.pillRadius
+                color: Theme.barBg
+                border.color: Theme.accent
+                border.width: Theme.barBorder ? 1 : 0
+
+                Behavior on color { ColorAnimation { duration: 180 } }
+                Behavior on border.color { ColorAnimation { duration: 180 } }
+            }
+
+            Rectangle {
+                id: zoneDroite
+                visible: Theme.barMerged && Theme.barGapsTransparent
+                x: rightLoader.x
+                width: Math.max(1, parent.width - rightLoader.x)
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.barHeight
+                radius: Theme.pillRadius
+                color: Theme.barBg
+                border.color: Theme.accent
+                border.width: Theme.barBorder ? 1 : 0
+
+                Behavior on color { ColorAnimation { duration: 180 } }
+                Behavior on border.color { ColorAnimation { duration: 180 } }
+            }
+
+            // Les deux espaces transparents, en tant que régions. Rien n'y est
+            // dessiné : ils portent x/width/height pour que l'animation média
+            // s'y ancre (ids volontairement stables). Leur largeur est celle qui
+            // reste entre les zones, jamais nulle ni négative.
+            Item {
+                id: slotGauche
+                x: zoneGauche.x + zoneGauche.width
+                width: Math.max(0, zoneCentre.x - x)
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.barHeight
+                visible: false
+            }
+
+            Item {
+                id: slotDroit
+                x: zoneCentre.x + zoneCentre.width
+                width: Math.max(0, zoneDroite.x - x)
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.barHeight
+                visible: false
+            }
+
+            // La barre avale les clics, zones peintes comme espaces vides : un
+            // clic dans une transparence ne doit pas traverser jusqu'à la fenêtre
+            // d'en dessous. Déclaré avant les îlots, donc dessous.
+            MouseArea {
+                anchors.fill: parent
+                enabled: Theme.barMerged
             }
 
             // LEFT ISLAND: Launcher + Workspaces
@@ -236,8 +326,11 @@ Item {
             // coupure se lisait comme un manque de place plutôt que comme la fin
             // du groupe. Le trait colle maintenant à l'endroit où le texte
             // disparaît.
+            //
+            // En mode « espaces transparents », le vide sépare déjà les zones :
+            // le trait flotterait dans la transparence, il est masqué.
             Rectangle {
-                visible: Theme.barMerged
+                visible: Theme.barMerged && !Theme.barGapsTransparent
                 width: 1
                 height: Theme.barHeight * 0.4
                 x: leftLoader.x + leftLoader.width - Math.round(Theme.padH / 2)
@@ -246,7 +339,7 @@ Item {
                 opacity: 0.09
             }
             Rectangle {
-                visible: Theme.barMerged
+                visible: Theme.barMerged && !Theme.barGapsTransparent
                 width: 1
                 height: Theme.barHeight * 0.4
                 x: rightLoader.x + Math.round(Theme.padH / 2) - 1

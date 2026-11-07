@@ -601,6 +601,10 @@ def update_style_var(key, value):
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_border":
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "bar_gaps_transparent":
+        # Espaces entre les îlots de la barre du haut : booléen, relu par
+        # Theme.qml (barGapsTransparent), qui découpe le fond en trois zones.
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "cheatsheet_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
@@ -1524,6 +1528,7 @@ def get_full_config_state():
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
         "bar_border": bool(style_data.get("bar_border", True)),
+        "bar_gaps_transparent": bool(style_data.get("bar_gaps_transparent", False)),
         "hypr_rounding": get_hypr_rounding(),
         "hypr_rounding_power": get_hypr_rounding_power(),
         "api_keys": resume_secrets(),

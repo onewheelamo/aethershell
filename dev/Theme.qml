@@ -34,6 +34,13 @@ QtObject {
     property int barHeight: 40
     // Bordure de la barre du haut (capsule fusionnée et îlots) : réglable.
     property bool barBorder: true
+    // Espaces entre les îlots de la barre du haut : transparents au lieu d'être
+    // peints comme le reste de la capsule. Transparent ne veut pas dire flouté :
+    // l'alpha 0 passe sous le seuil `ignore_alpha` de la règle de flou de
+    // general.lua, donc le fond d'écran s'y voit net. Les deux vides gardent
+    // leur géométrie (main.qml les expose en slotGauche / slotDroit) pour y
+    // poser une animation de lecture média.
+    property bool barGapsTransparent: false
     // Position de la capsule du lanceur : six emplacements prédéfinis (§3.5 de
     // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
     // dans main.qml à partir de cette clé et de la largeur de la capsule.
@@ -333,6 +340,7 @@ QtObject {
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
+        if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
         if (typeof data.bar_bottom === "boolean") root.barBottomVisible = data.bar_bottom
         if (typeof data.bar_left === "boolean") root.barLeftVisible = data.bar_left
         if (typeof data.bar_right === "boolean") root.barRightVisible = data.bar_right
