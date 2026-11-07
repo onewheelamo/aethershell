@@ -339,6 +339,7 @@ Rectangle {
         { type: "disques", label: "Disques" },
         { type: "homelab", label: "Homelab" },
         { type: "hermes",  label: "Hermes" },
+        { type: "usb",     label: "Périphériques" },
         { type: "presse_papiers", label: "Presse-papiers" },
         { type: "deepseek", label: "DeepSeek" },
         { type: "ollama",   label: "Ollama Cloud" },

@@ -1442,7 +1442,7 @@ def sync_programs_lua(app_data):
 # Un type par widget disponible dans widgets/ — le panneau coche, `widget_add`
 # valide. Ajouter un fournisseur LLM passe par core/llm_providers.json.
 WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "systeme",
-                "reseau", "disques", "homelab", "hermes", "presse_papiers",
+                "reseau", "disques", "homelab", "hermes", "usb", "presse_papiers",
                 "deepseek", "ollama", "antigravity", "comptes")
 WIDGET_DEFAULT_OPACITY = 0.35
 

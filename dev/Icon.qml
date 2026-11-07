@@ -45,6 +45,12 @@ Item {
 
     readonly property var glyphs: ({
         "cog": "\u{F0493}",
+        "usb": "\u{F0553}",
+        "harddisk": "\u{F02CA}",
+        "eject": "\u{F01EA}",
+        "disc": "\u{F05EE}",
+        "sd": "\u{F0479}",
+        "folder": "\u{F024B}",
         "close": "\u{F0156}",
         "check": "\u{F012C}",
         "chevron-up": "\u{F0143}",

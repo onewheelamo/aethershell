@@ -316,6 +316,24 @@
             "garde": true,
             "text_scale": 100,
             "options": {}
+        },
+        {
+            "id": "usb",
+            "nom": "Périphériques",
+            "description": "Clés USB, cartes SD et disques optiques : voir, monter, déverrouiller, ouvrir et retirer sans risque",
+            "categorie": "Système & matériel",
+            "icone": "usb",
+            "service": "core/usb_applet.py",
+            "popup": "UsbPopup.qml",
+            "ile": "haut:fin",
+            "ordre": 60,
+            "cadence": 0.5,
+            "text_scale": 100,
+            "genre": "service",
+            "options": {
+                "masquer_vide": true
+            },
+            "widget": "usb"
         }
     ]
 }
