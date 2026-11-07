@@ -93,9 +93,20 @@ ETATS = {
 
 
 def analyser():
-    d = lire()
+    # Source de vérité : la base de Hermes lue en lecture seule (hermes_lecteur.py).
+    # Le fichier publié par d'anciens déploiements reste un repli, jamais la règle :
+    # il n'était jamais écrit, et l'applet restait donc vide.
+    d = {}
+    try:
+        from hermes_lecteur import etat as etat_hermes
+        d = etat_hermes() or {}
+    except Exception as erreur:              # import cassé, sqlite absent…
+        print("hermes_applet : lecteur indisponible (%s)" % erreur, file=sys.stderr)
+        d = {}
     if not d.get("present"):
-        return {"etat": "hors_ligne", "raison": "aucun fichier d'état"}
+        d = lire()
+    if not d.get("present"):
+        return {"etat": "hors_ligne", "raison": d.get("raison") or "état indisponible"}
     if d.get("illisible"):
         return {"etat": "hors_ligne", "raison": "état illisible"}
 
@@ -143,6 +154,10 @@ def analyser():
         "cron": cron[:4],
         "jetons": jetons,
         "approbations": attente[:3],
+        "attention": int(d.get("attention") or len(attente)),
+        "sessions": d.get("sessions") or [],
+        "profils": d.get("profils") or [],
+        "source": d.get("source") or "",
         "age_s": d.get("age_s"),
         "perime": bool(d.get("perime")),
         "present": True,
@@ -169,7 +184,11 @@ def presenter(a):
     elif a["etat"] == "erreur":
         valeur, libelle = "!", "erreur"
     elif a["etat"] == "en_cours":
-        valeur, libelle = "…", a.get("tache", "")[:24] or "en cours"
+        profils = a.get("profils") or []
+        if len(profils) > 1:
+            valeur, libelle = str(len(profils)), "%d sessions" % len(profils)
+        else:
+            valeur, libelle = "…", a.get("tache", "")[:24] or "en cours"
     elif a["file"]:
         valeur, libelle = str(a["file"]), "en file"
     else:
