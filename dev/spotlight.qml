@@ -687,11 +687,16 @@ Item {
 
                                 Image {
                                     anchors.centerIn: parent
-                                    width: 18
-                                    height: 18
+                                    // Une vignette de presse-papiers est une image réelle :
+                                    // à 18 px on ne distingue qu'une tache de couleur. Les
+                                    // glyphes, eux, gardent leur taille.
+                                    readonly property bool fichier: String(modelData.icon).charAt(0) === "/"
+                                    width: fichier ? 34 : 18
+                                    height: fichier ? 30 : 18
+                                    fillMode: Image.PreserveAspectCrop
                                     visible: status === Image.Ready
-                                    sourceSize.width: 36
-                                    sourceSize.height: 36
+                                    sourceSize.width: fichier ? 68 : 36
+                                    sourceSize.height: fichier ? 60 : 36
                                     // Un chemin absolu est une vignette (presse-papiers
                                     // image) : `image://icon/` ne sait résoudre que des
                                     // noms de glyphes, donc on passe par le fichier.
