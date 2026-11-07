@@ -692,8 +692,13 @@ Item {
                                     visible: status === Image.Ready
                                     sourceSize.width: 36
                                     sourceSize.height: 36
-                                    source: modelData.icon !== ""
-                                            ? "image://icon/" + modelData.icon : ""
+                                    // Un chemin absolu est une vignette (presse-papiers
+                                    // image) : `image://icon/` ne sait résoudre que des
+                                    // noms de glyphes, donc on passe par le fichier.
+                                    source: modelData.icon === "" ? ""
+                                            : (String(modelData.icon).charAt(0) === "/"
+                                               ? "file://" + modelData.icon
+                                               : "image://icon/" + modelData.icon)
                                 }
                             }
 

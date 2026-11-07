@@ -1,5 +1,15 @@
 [
   {
+    "name": "Presse-papiers (texte)",
+    "enabled": true,
+    "cmd": "sh -c 'pgrep -f \"wl-paste --watch\" >/dev/null || exec wl-paste --watch cliphist store'"
+  },
+  {
+    "name": "Presse-papiers (images)",
+    "enabled": true,
+    "cmd": "sh -c 'pgrep -f \"wl-paste --type image\" >/dev/null || exec wl-paste --type image --watch cliphist store'"
+  },
+  {
     "name": "Hermes (canal d'approbation)",
     "cmd": "sh -c 'pgrep -f hermes_approbations.py >/dev/null || exec python3 \"$HOME/.config/quickshell/core/hermes_approbations.py\" serveur' &",
     "enabled": true
