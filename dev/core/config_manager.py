@@ -559,6 +559,46 @@ def set_panel_section(name, expanded):
     save_json(STYLE_FILE, data)
 
 
+def inscrire_variante_general(variant):
+    """Inscrit la variante de flou choisie dans le `general.lua` vivant.
+
+    `hyprctl reload` relit le fichier : sans cette écriture, le défaut qu'il
+    porte (`acrylic`) reprend le pas sur le choix du panneau jusqu'au prochain
+    démarrage du shell. Le fichier du dépôt garde son propre défaut, seule la
+    copie vivante est réécrite — comme pour les gaps et l'arrondi.
+    """
+    gen_path = os.path.join(HYPR_DIR, "general.lua")
+    try:
+        with open(gen_path, "r", encoding="utf-8") as f:
+            txt = f.read()
+    except OSError as e:
+        print(f"Error reading general.lua: {e}", file=sys.stderr)
+        return False
+
+    # On reste dans la table `blur` : `variant` n'apparaît nulle part ailleurs,
+    # et elle ne contient aucune accolade imbriquée.
+    debut = txt.find("blur = {")
+    if debut < 0:
+        return False
+    fin = txt.find("}", debut)
+    bloc = txt[debut:fin if fin > 0 else len(txt)]
+    ligne = '            variant   = "%s",' % variant
+    if re.search(r'^\s*variant\s*=\s*"[^"]*",?\s*$', bloc, re.M):
+        nouveau = re.sub(r'^\s*variant\s*=\s*"[^"]*",?\s*$', ligne, bloc, count=1, flags=re.M)
+    else:
+        nouveau = re.sub(r'^(\s*enabled\s*=\s*true,\s*)$', r"\1\n" + ligne,
+                         bloc, count=1, flags=re.M)
+        if nouveau == bloc:
+            return False
+    try:
+        with open(gen_path, "w", encoding="utf-8") as f:
+            f.write(txt[:debut] + nouveau + txt[debut + len(bloc):])
+    except OSError as e:
+        print(f"Error updating general.lua: {e}", file=sys.stderr)
+        return False
+    return True
+
+
 def update_style_var(key, value):
     if key == "wallpaper_dir":
         return set_wallpaper_dir(value)
@@ -672,8 +712,11 @@ def update_style_var(key, value):
         data[key] = max(0.0, min(1.0, float(value)))
     elif key == "blur_variant" and str(value) in BLUR_VARIANTS:
         # La variante est un nom : Hyprland le résout lui-même (les index
-        # changent d'une version à l'autre, pas les noms).
+        # changent d'une version à l'autre, pas les noms). On l'inscrit aussi
+        # dans general.lua pour qu'un `hyprctl reload` ne reprenne pas le
+        # défaut du fichier.
         data[key] = str(value)
+        inscrire_variante_general(str(value))
     elif key in SHELL_BLUR_KEYS:
         if key == "shell_blur_alpha":
             data[key] = round(max(0.0, min(1.0, float(value))), 2)

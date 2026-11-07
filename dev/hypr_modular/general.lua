@@ -29,11 +29,11 @@ hl.config({
         },
         blur = {
             enabled   = true,
-            -- Variante du flou (kawase par défaut). Acrylic : même flou, rendu
-            -- plus « verre » (clarity 0,82, refraction 24, bulb 48 — les valeurs
-            -- par défaut de la variante). Coût mesuré : 1,5× le Kawase sous une
-            -- charge de flou continue (45 % contre 37 % d'utilisation GPU,
-            -- +2,3 W) ; négligeable au repos.
+            -- Variante du flou (défaut de la machine neuve ; kawase si la ligne
+            -- manque). Le panneau « Bureau » fait foi : il réécrit cette ligne
+            -- depuis style_vars.json, sinon un `hyprctl reload` reprendrait ce
+            -- défaut. Coût mesuré de l'acrylic : 1,5× le Kawase sous une charge
+            -- de flou continue (+2,3 W), négligeable au repos.
             variant   = "acrylic",
             size      = 3,
             passes    = 3,
