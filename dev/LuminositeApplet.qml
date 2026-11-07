@@ -191,9 +191,11 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: mouse => {
             // Première zone = l'icône de mode nuit ; ailleurs, le panneau
-            // alimentation, qui garde les curseurs de luminosité et de charge.
+            // d'énergie (gestion-energie), qui porte les curseurs de luminosité
+            // et de charge depuis que l'applet alimentation ne garde que les
+            // gestes de session.
             if (mouse.x <= root.nuitLargeur) root.basculerNuit()
-            else Theme.togglePopup("applet:alimentation")
+            else Theme.togglePopup("applet:gestion-energie")
         }
     }
 }
