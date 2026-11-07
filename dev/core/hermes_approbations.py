@@ -28,7 +28,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -61,6 +63,7 @@ class Serveur:
         self.attente = {}                 # id -> dict de la demande
         self.verdicts = {}                # id -> dict du verdict
         self.verrou = threading.Lock()
+        self.notifs = {}                  # id demande -> id de notification
 
     # ── état publié pour le shell ────────────────────────────────────────────
     def publier(self):
@@ -97,6 +100,37 @@ class Serveur:
             except OSError:
                 pass
 
+    def toast(self, entree):
+        """Prévenir par une notification : l'applet passe en « ! », mais on ne
+        regarde pas sa barre toutes les dix secondes. Le toast est un confort —
+        s'il échoue (pas de serveur de notification), la demande reste valable."""
+        if not shutil.which("notify-send"):
+            return
+        try:
+            sortie = subprocess.run(["notify-send", "-p", "-a", "Hermes", "-u", "normal", "-t", "10000",
+                            "Accord demandé : " + entree["titre"],
+                            (entree.get("detail") or "") + "\nClique sur la fusée dans la barre pour répondre."],
+                           timeout=3, capture_output=True, text=True)
+            if sortie.stdout.strip().isdigit():
+                self.notifs[entree["id"]] = sortie.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    def retirer_toast(self, identifiant):
+        """Une demande réglée ne doit pas laisser son toast à l'écran : sans ça,
+        la notification survit au verdict et se lit comme un doublon."""
+        notif = self.notifs.pop(identifiant, None)
+        if not notif or not shutil.which("gdbus"):
+            return
+        try:
+            subprocess.run(["gdbus", "call", "--session",
+                            "--dest", "org.freedesktop.Notifications",
+                            "--object-path", "/org/freedesktop/Notifications",
+                            "--method", "org.freedesktop.Notifications.CloseNotification",
+                            notif], timeout=3, capture_output=True)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
     def demande(self, fichier, message):
         identifiant = uuid.uuid4().hex[:8]
         delai = float(message.get("delai") or DELAI_DEFAUT)
@@ -110,6 +144,7 @@ class Serveur:
         with self.verrou:
             self.attente[identifiant] = entree
         self.publier()
+        self.toast(entree)
 
         limite = time.monotonic() + delai
         while time.monotonic() < limite:
@@ -124,6 +159,7 @@ class Serveur:
         with self.verrou:
             self.attente.pop(identifiant, None)
             self.verdicts.pop(identifiant, None)
+        self.retirer_toast(identifiant)
         self.publier()
 
         fichier.write(json.dumps(verdict, ensure_ascii=False) + "\n")
