@@ -177,8 +177,9 @@ Item {
         onFileChanged: reload()
         // `onTextChanged` ne couvre pas le premier chargement : sans `onLoaded`,
         // le repli restait vide au démarrage.
-        onLoaded: islandRight.lireArchive(text())
-        onTextChanged: islandRight.lireArchive(text())
+        id: archiveFile
+        onLoaded: islandRight.lireArchive(archiveFile.text())
+        onTextChanged: islandRight.lireArchive(archiveFile.text())
     }
 
     function lireArchive(txt) {

@@ -1329,6 +1329,12 @@ DEFAULT_AUTOSTART = [
     {"name": "Quickshell (barre)", "cmd": "sh -c '/usr/bin/pgrep -x quickshell >/dev/null || exec quickshell -n' &", "enabled": True},
     {"name": "Hypridle (inactivité)", "cmd": "systemctl --user start hypridle", "enabled": True},
     {"name": "awww-daemon (wallpaper, si Noctalia absent)", "cmd": "sh -c '/usr/bin/pgrep -x awww-daemon >/dev/null || exec awww-daemon' &", "enabled": True},
+    # Un seul superviseur pour les deux veilleurs cliphist : il se garde par un
+    # pidfile, là où `pgrep -f "wl-paste --watch"` se trouvait lui-même dans son
+    # propre `sh -c` et ne démarrait jamais rien.
+    # La garde est dans le script (pidfile) : un `pgrep -f` sur le nom du script se
+    # trouverait lui-même dans le `sh -c` qui le porte.
+    {"name": "Presse-papiers (veilleurs cliphist)", "cmd": "sh -c '$HOME/.config/quickshell/core/cliphist_watch.sh' &", "enabled": True},
     {"name": "Agent Polkit", "cmd": "sh -c '/usr/bin/pgrep -x hyprpolkitagent >/dev/null && exit 0; for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
 ]
 

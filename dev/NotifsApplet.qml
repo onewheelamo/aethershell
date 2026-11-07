@@ -56,6 +56,7 @@ Item {
     property var archive: []
 
     FileView {
+        id: historiqueFile
         path: {
             const xdg = Quickshell.env("XDG_CACHE_HOME")
             const base = xdg ? String(xdg)
@@ -64,8 +65,10 @@ Item {
         }
         watchChanges: true
         onFileChanged: reload()
-        onLoaded: root.lireHistorique(text())
-        onTextChanged: root.lireHistorique(text())
+        // `text()` non qualifié ne résout pas ici : le repli restait donc vide en
+        // silence, alors que le fichier contenait bien des entrées.
+        onLoaded: root.lireHistorique(historiqueFile.text())
+        onTextChanged: root.lireHistorique(historiqueFile.text())
     }
 
     function lireHistorique(txt) {
@@ -378,7 +381,11 @@ Item {
 
                         // État vide
                         Item {
-                            visible: Theme.notifList.length === 0
+                            // La liste affichée est `root.notifications` (vive, ou
+                            // repli sur l'historique) : tester `Theme.notifList`
+                            // affichait « Aucune notification » par-dessus des
+                            // entrées pourtant présentes.
+                            visible: root.notifications.length === 0
                             width: parent.width
                             height: notifFlick.height
 
