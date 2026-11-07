@@ -182,6 +182,12 @@ QtObject {
     // au changement de bureau. Faux par défaut, le fond d'écran du démon reste
     // intact tant qu'on ne l'allume pas.
     property bool depthWallpaper: false
+    // Masque de premier plan (CalqueProfondeur.qml) : les widgets de bureau
+    // passent derrière les objets proches du fond. Seuil et adoucissement sont
+    // ceux du plugin Noctalia, exposés tels quels (0-100 et 0-50).
+    property bool depthMask: false
+    property int depthMaskSeuil: 30
+    property int depthMaskAdouci: 8
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 4: OSD (ON-SCREEN DISPLAY) STATE & CONTROLLER
@@ -393,6 +399,9 @@ QtObject {
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
+        if (typeof data.depth_mask === "boolean") root.depthMask = data.depth_mask
+        if (typeof data.depth_mask_seuil === "number") root.depthMaskSeuil = data.depth_mask_seuil
+        if (typeof data.depth_mask_adouci === "number") root.depthMaskAdouci = data.depth_mask_adouci
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height

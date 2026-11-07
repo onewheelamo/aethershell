@@ -2465,6 +2465,86 @@ Rectangle {
                     }
                 }
 
+                // Masque de premier plan (idée du plugin Noctalia wallpaper_depth) :
+                // une carte de profondeur du fond décide ce qui passe devant les
+                // widgets de bureau. Le modèle (~150 Mo) s'installe à la demande.
+                Row {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 160
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Masque de profondeur :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 160
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
+                            color: Theme.depthMask ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.runConfigCmd([
+                                "style", "depth_mask", Theme.depthMask ? "false" : "true"
+                            ])
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "seuil"
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.text2xs
+                    }
+
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 84
+                        value: Theme.depthMaskSeuil
+                        minimumValue: 0
+                        maximumValue: 100
+                        stepSize: 5
+                        onValueModified: newVal => root.runConfigCmd([
+                            "style", "depth_mask_seuil", String(newVal)
+                        ])
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "adouci"
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.text2xs
+                    }
+
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 84
+                        value: Theme.depthMaskAdouci
+                        minimumValue: 0
+                        maximumValue: 50
+                        stepSize: 1
+                        onValueModified: newVal => root.runConfigCmd([
+                            "style", "depth_mask_adouci", String(newVal)
+                        ])
+                    }
+                }
+
             }   // fin Grid fenêtres
 
         }   // end CollapsibleSection secAspect

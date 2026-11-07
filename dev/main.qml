@@ -1103,4 +1103,10 @@ Item {
         cote: "cote-droite"
         screen: topBarWindow.screen
     }
+    // Masque de premier plan du fond (couche `bottom`) : déclaré en dernier
+    // pour être empilé au-dessus des fenêtres de widgets, qui sont créées
+    // plus haut dans ce fichier.
+    CalqueProfondeur {
+        id: calqueProfondeur
+    }
 }

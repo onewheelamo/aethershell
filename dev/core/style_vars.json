@@ -70,5 +70,8 @@
     "launcher_position": "bas-centre",
     "cheatsheet_opacity": 0.88,
     "bar_border": true,
-    "weather_city": "Paris, France"
+    "weather_city": "Paris, France",
+    "depth_mask": false,
+    "depth_mask_seuil": 30,
+    "depth_mask_adouci": 8
 }

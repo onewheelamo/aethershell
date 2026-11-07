@@ -107,6 +107,7 @@ MIT, et tout code repris garde son en-tête de provenance d'origine.
 | [USB Manager](https://github.com/noctalia-dev/community-plugins/tree/main/usb-manager) | Marco Ziliani | le duo applet/widget qui lit l'état dans sysfs et udev, sans processus de fond |
 | [To Do](https://github.com/noctalia-dev/community-plugins/tree/main/todo) | nightwatch75 | le duo applet/widget pour une liste de tâches priorisée |
 | [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | tordex | les idées du duo de surveillance système : tri par colonne, outil lancé seulement quand le panneau est ouvert |
+| [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | noctalia | l'idée du masque de premier plan tiré d'une carte de profondeur (Depth Anything V2 Small, Apache-2.0), pour faire passer les widgets derrière le décor proche ; le service et le calque sont réécrits pour AetherShell |
 
 Les idées, les dispositions et les protocoles ne s'héritent pas ; les remerciements, si.
 

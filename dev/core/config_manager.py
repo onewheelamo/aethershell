@@ -725,6 +725,14 @@ def update_style_var(key, value):
         # Fond en profondeur (parallaxe au changement de bureau), rendu par
         # FondProfondeur.qml sur une couche `background`.
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "depth_mask":
+        # Masque de premier plan (idée du plugin Noctalia `wallpaper_depth`) :
+        # les widgets de bureau passent derrière les objets proches du fond.
+        data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "depth_mask_seuil":
+        data[key] = max(0, min(100, int(float(value))))
+    elif key == "depth_mask_adouci":
+        data[key] = max(0, min(50, int(float(value))))
     elif key in SHELL_BLUR_KEYS:
         if key == "shell_blur_alpha":
             data[key] = round(max(0.0, min(1.0, float(value))), 2)
@@ -1768,6 +1776,9 @@ def get_full_config_state():
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
+        "depth_mask": bool(style_data.get("depth_mask", False)),
+        "depth_mask_seuil": int(style_data.get("depth_mask_seuil", 30)),
+        "depth_mask_adouci": int(style_data.get("depth_mask_adouci", 8)),
         "launch_history": bool(style_data.get("launch_history", False)),
         "resize_step": int(style_data.get("resize_step", 15)),
         "panel_sections": style_data.get("panel_sections", {}),
