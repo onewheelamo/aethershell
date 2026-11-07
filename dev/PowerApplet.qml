@@ -114,9 +114,13 @@ Item {
 
         readonly property int hauteurEcran: root.screen ? root.screen.height : 1080
         readonly property int yTiersBas: Math.round(hauteurEcran * 2 / 3)
+        // Décalage réglé à l'œil (demande d'Amo) : le menu se pose 100 px plus
+        // haut que le centre strict du tiers inférieur. Le tiers reste la
+        // référence, le décalage n'est qu'une correction de lecture.
+        readonly property int decalage: -100
 
         anchors.top: true
-        margins.top: Math.round(yTiersBas + (hauteurEcran - yTiersBas - implicitHeight) / 2)
+        margins.top: Math.round(yTiersBas + (hauteurEcran - yTiersBas - implicitHeight) / 2 + decalage)
 
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
