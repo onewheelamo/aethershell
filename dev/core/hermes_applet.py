@@ -101,9 +101,14 @@ def analyser():
 
     brut = str(d.get("etat") or "repos").lower()
     symbole, libelle, niveau = ETATS.get(brut, ETATS["repos"])
-    if d.get("perime"):
+    # Un état périmé n'est un problème que s'il prétend encore quelque chose :
+    # une tâche « en cours » qui ne publie plus est morte, alors qu'un « repos »
+    # d'il y a dix minutes est simplement la vie normale d'un agent qui dort.
+    if d.get("perime") and brut == "en_cours":
         libelle = "état périmé"
         niveau = "attention"
+    elif d.get("perime"):
+        libelle, symbole, niveau = "repos", "", "ok"
 
     # Approbations en attente : publiées par le démon, lues comme le reste.
     try:
