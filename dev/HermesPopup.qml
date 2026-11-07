@@ -96,7 +96,7 @@ Item {
         property string identifiant: ""
         property string verdict: "oui"
         command: ["python3", Quickshell.shellPath("core/hermes_approbations.py"),
-                  "repondre", action.identifiant, action.verdict]
+                  "repondre", action.identifiant, action.verdict, "--par", "shell"]
         onExited: root.charger()
     }
 

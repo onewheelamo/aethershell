@@ -190,7 +190,9 @@ class Serveur:
                     "id": identifiant,
                     "accord": bool(message.get("accord")),
                     "motif": str(message.get("motif") or ""),
-                    "par": "shell",
+                    # Ce que le client dit de lui-même ; « inconnu » plutôt qu'un
+                    # « shell » aimable qui attribuerait tout au panneau.
+                    "par": str(message.get("par") or "inconnu")[:24],
                 }
 
     # ── boucle ───────────────────────────────────────────────────────────────
@@ -273,9 +275,18 @@ def cmd_demander(argv):
 
 def cmd_repondre(argv):
     if len(argv) < 2 or argv[1] not in ("oui", "non"):
-        return "repondre : attendu <id> oui|non", 2
+        return "repondre : attendu <id> oui|non [--par <origine>]", 2
     accord = argv[1] == "oui"
-    reponse = envoyer({"role": "verdict", "id": argv[0], "accord": accord}, attendre_reponse=False)
+    # Qui a tranché : le popup du shell ou une commande. Le démon l'écrit tel quel
+    # dans le verdict — une trace qui dit toujours « shell » ne vaut rien.
+    origine = "cli"
+    if "--par" in argv and argv.index("--par") + 1 < len(argv):
+        demande = "".join(c for c in argv[argv.index("--par") + 1].lower()
+                          if c.isalnum() or c in "-_")[:24]
+        if demande:
+            origine = demande
+    reponse = envoyer({"role": "verdict", "id": argv[0], "accord": accord,
+                       "par": origine}, attendre_reponse=False)
     if reponse is None:
         return "aucun démon d'approbation", 1
     return f"verdict envoyé : {'accordé' if accord else 'refusé'}", 0
