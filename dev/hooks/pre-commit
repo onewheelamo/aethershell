@@ -17,8 +17,6 @@
 set -euo pipefail
 
 INTERDITS=(
-    '^sync\.sh$'
-    '^dev/sync\.sh$'
     '^core/secrets\.json$'
     '\.upstream$'
 )

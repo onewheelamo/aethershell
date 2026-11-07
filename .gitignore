@@ -39,6 +39,3 @@ JOURNAL*.md
 # Rapport d'audit externe : il cite des chemins de la machine, il reste local.
 bug_report.md
 
-# Scripts de synchronisation entre machines — locaux, hors dépôt
-sync.sh
-dev/sync.sh
