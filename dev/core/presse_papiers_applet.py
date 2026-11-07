@@ -16,6 +16,7 @@ import json
 import subprocess
 import sys
 import os
+import pathlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from applet_contrat import compact, presenter, sortir  # noqa: E402
@@ -88,9 +89,23 @@ def analyser():
     # qu'on en montre : il restait figé à 40 (et à 6 côté widget) sur une base
     # qui en contenait cinq cents.
     toutes = entrees(0)
+
+    # Les épinglés ne sont pas dans cliphist (ils survivent à sa rotation) : on
+    # les compte à part, et le compteur dit « 7 + 1 » plutôt que de les fondre
+    # dans un total qui ne veut plus rien dire.
+    epingles = 0
+    try:
+        import json as _json
+        chemin = pathlib.Path(os.environ.get("XDG_CACHE_HOME", str(pathlib.Path.home() / ".cache")))
+        d = _json.loads((chemin / "quickshell" / "presse_epingles.json").read_text(encoding="utf-8"))
+        epingles = len(d) if isinstance(d, dict) else 0
+    except (OSError, ValueError):
+        epingles = 0
+    valeur = f"{len(toutes)} + {epingles}" if epingles else str(len(toutes))
+
     return {
         "ok": True,
-        "compact": compact(str(len(toutes)), "presse-papiers", alerte=False),
+        "compact": compact(valeur, "presse-papiers", alerte=False),
         "detail": {"entrees": decrire(toutes[:40])},
         "applet": "presse-papiers",
         "icone": "selection",
