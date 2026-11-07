@@ -335,10 +335,13 @@ hq_diff() {
     tar -xzf "$arch" -C "$tmp" || { rm -rf "$tmp"; return 1; }
     echo "Comparaison avec $HOME/.config (archive ➜ vivant) :"
     # `diff -rq` liste les différences sans afficher le contenu.
-    diff -rq "$tmp/hypr" "$HOME/.config/hypr" 2>/dev/null \
-        | sed -E "s#$tmp/##g; s#$HOME/.config/##g; s/ et / : /g" | sed 's/^/  /'
-    diff -rq "$tmp/quickshell" "$HOME/.config/quickshell" 2>/dev/null \
-        | sed -E "s#$tmp/##g; s#$HOME/.config/##g; s/ et / : /g" | sed 's/^/  /'
+    for arbre in hypr quickshell; do
+        # Le motif « Les fichiers X et Y » est traité en premier : sans cela, le
+        # retrait des préfixes laisse les deux chemins collés dans la même ligne.
+        diff -rq "$tmp/$arbre" "$HOME/.config/$arbre" 2>/dev/null \
+            | sed -E "s#^Les fichiers $tmp/(.*) et .* sont différents#\1 : différent#; s#^Only in $HOME/.config/(.*)#\1 : absent de l archive#" \
+            | sed 's/^/  /'
+    done
     rm -rf "$tmp"
 }
 
@@ -349,7 +352,11 @@ hq_get() {
     case "$chemin" in
         /*|*..*) echo "❌ Chemin refusé : $chemin" >&2; return 1 ;;
     esac
-    tar -tzf "$arch" 2>/dev/null | grep -qxF "$chemin" \
+    # Listing capturé AVANT le grep : `tar | grep -q` renvoie 141 sous
+    # `set -o pipefail` dès que grep sort, donc un faux « absent ».
+    local contenu
+    contenu=$(tar -tzf "$arch" 2>/dev/null || true)
+    grep -qxF "$chemin" <<<"$contenu" \
         || { echo "❌ $chemin n'est pas dans l'archive" >&2; return 1; }
     # Rien n'est écrit dans ~/.config : on extrait sous BACKUP_DIR pour que
     # l'utilisateur voie le fichier et décide lui-même de le remettre en place.
@@ -674,6 +681,19 @@ if [ -n "${HQ_ACTION:-}" ]; then
     exit $?
 fi
 
+# Entrée de menu : voir ce qui a changé depuis une sauvegarde, puis récupérer
+# un seul fichier si besoin. Rien n'est écrit dans ~/.config ici.
+inspecter_hq() {
+    local arch chemin
+    arch="$(hq_derniere)"
+    [ -f "$arch" ] || { echo "⚠️  Aucune sauvegarde HQ datée dans $BACKUP_DIR."; return 1; }
+    echo "Archive : $(basename "$arch")"
+    hq_diff "$arch"
+    read -p "Fichier à extraire (vide pour revenir au menu) : " chemin
+    [ -n "$chemin" ] || return 0
+    hq_get "$arch" "$chemin"
+}
+
 while true; do
     echo "------------------------------------------"
     echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
@@ -681,6 +701,7 @@ while true; do
     echo "1 > Deploy & Switch to Quickshell ($DISTRO)"
     echo "2 > Backup HQ (Hyprland + Quickshell)"
     echo "3 > Restore HQ from an older version"
+    echo "4 > Inspecter une sauvegarde (diff + extraire un fichier)"
     echo "q > Quit"
     echo "------------------------------------------"
     read -p "Choice: " choice
@@ -695,6 +716,7 @@ while true; do
             ;;
         2) backup_env ;;
         3) restore_hq && exit 0 ;;
+        4) inspecter_hq ;;
         q|Q) exit 0 ;;
         *) echo "Invalid choice." ;;
     esac
