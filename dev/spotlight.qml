@@ -569,12 +569,6 @@ Item {
                 // SHIFT+P plutôt que CTRL+P : ce dernier est le raccourci
                 // d'impression, et le détourner dans un launcher surprend.
                 Keys.onPressed: (event) => {
-                    if (event.key === Qt.Key_D && (event.modifiers & Qt.ShiftModifier)
-                        && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
-                        root.supprimerSelection()
-                        event.accepted = true
-                        return
-                    }
                     // CTRL+SHIFT+D vide tout. Testé avant SHIFT+D seul : les deux
                     // modificateurs satisfont aussi le test « Shift », et sans cet
                     // ordre le vidage serait pris pour une suppression de ligne.
@@ -583,6 +577,12 @@ Item {
                         && (event.modifiers & Qt.ControlModifier)
                         && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
                         root.viderHistorique()
+                        event.accepted = true
+                        return
+                    }
+                    if (event.key === Qt.Key_D && (event.modifiers & Qt.ShiftModifier)
+                        && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
+                        root.supprimerSelection()
                         event.accepted = true
                         return
                     }
