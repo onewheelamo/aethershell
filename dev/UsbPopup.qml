@@ -160,7 +160,11 @@ Item {
                     }
 
                     Text {
-                        width: parent.width - Math.round(96 * echelle)
+                        // La somme des largeurs doit tenir : icône (13) + trois
+                        // espacements (18) + la colonne de droite (90). Oublier
+                        // l'icône poussait la taille hors de la carte, où elle
+                        // était rognée à « 14 G ».
+                        width: parent.width - Math.round(122 * echelle)
                         anchors.verticalCenter: parent.verticalCenter
                         text: String(blocDisque.modelData.modele || blocDisque.modelData.nom)
                         color: Theme.fg
@@ -188,6 +192,10 @@ Item {
                     Column {
                         id: blocVolume
                         required property var modelData
+                        // `index` n'est pas garanti dans un délégué imbriqué : sans
+                        // cette déclaration, « retirer » (réservé au premier
+                        // volume) ne s'affichait jamais.
+                        required property int index
                         readonly property string dev: String(modelData.dev || "")
                         width: blocDisque.width
                         spacing: Math.round(3 * echelle)
@@ -204,7 +212,7 @@ Item {
                             }
 
                             Text {
-                                width: parent.width - Math.round(150 * echelle)
+                                width: parent.width - Math.round(163 * echelle)
                                 text: String(blocVolume.modelData.etiquette
                                              || blocVolume.modelData.fs || blocVolume.modelData.nom)
                                       + (blocVolume.modelData.chiffre ? "  (chiffré)" : "")
@@ -271,9 +279,7 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             if (modelData.a === "ouvrir") {
-                                                ouvreur.cible = String(blocVolume.modelData.montage)
-                                                ouvreur.running = false
-                                                ouvreur.running = true
+                                                root.agir("ouvrir", String(blocVolume.modelData.montage))
                                             } else if (modelData.a === "deverrouiller") {
                                                 root.deverrouillage =
                                                     root.deverrouillage === blocVolume.dev ? "" : blocVolume.dev
@@ -290,7 +296,7 @@ Item {
                                 width: Math.round(64 * echelle)
                                 height: Math.round(20 * echelle)
                                 radius: Math.round(5 * echelle)
-                                visible: index === 0 && !blocDisque.modelData.systeme
+                                visible: blocVolume.index === 0 && !blocDisque.modelData.systeme
                                 color: Qt.alpha(Theme.warn, 0.14)
                                 border.width: 1
                                 border.color: Qt.alpha(Theme.warn, 0.4)
@@ -380,11 +386,4 @@ Item {
         }
     }
 
-    // Ouvrir le dossier monté : `xdg-open` est le seul chemin qui respecte le
-    // gestionnaire de fichiers choisi par l'utilisateur.
-    Process {
-        id: ouvreur
-        property string cible: ""
-        command: ["xdg-open", ouvreur.cible]
-    }
 }

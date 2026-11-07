@@ -272,6 +272,41 @@ def demonter(dev):
     return _udisks("unmount", "-b", dev)
 
 
+def _gestionnaire():
+    """Le gestionnaire de fichiers du shell, sinon un repli, sinon xdg-open.
+
+    `xdg-open` seul ne suffit pas : sur cette machine, le type `inode/directory`
+    est associé à un analyseur d'occupation disque, donc « ouvrir » une clé y
+    ouvrait un camembert au lieu du contenu. Le shell a déjà son gestionnaire
+    (réglages → programmes), c'est lui qui décide.
+    """
+    configure = ""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "style_vars.json"), "r", encoding="utf-8") as f:
+            apps = (json.load(f) or {}).get("apps") or {}
+        configure = str(apps.get("Files") or "").strip()
+    except (OSError, ValueError):
+        configure = ""
+    for candidat in (configure, "thunar", "nemo", "nautilus", "dolphin", "pcmanfm"):
+        if candidat and shutil.which(candidat):
+            return [candidat]
+    return ["xdg-open"]
+
+
+def ouvrir(chemin):
+    """Ouvre un dossier monté dans le gestionnaire de fichiers."""
+    if not chemin or not os.path.isdir(chemin):
+        return False, "dossier introuvable"
+    commande = _gestionnaire() + [chemin]
+    try:
+        subprocess.Popen(commande, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    except OSError as erreur:
+        return False, str(erreur)
+    return True, " ".join(commande)
+
+
 def verrouiller(dev):
     return _udisks("lock", "-b", dev)
 
@@ -302,27 +337,47 @@ def deverrouiller(dev, phrase):
             pass
 
 
+def _chemin_disque(nom_disque):
+    """Le chemin d'objet D-Bus du disque, tel que udisks2 le nomme.
+
+    On ne le reconstruit pas depuis /dev/disk/by-id : les identifiants contiennent
+    des « : » et des « - », interdits dans un chemin D-Bus, et udisks2 les échappe
+    à sa façon. `udisksctl info` donne la réponse exacte.
+    """
+    ok, sortie = _udisks("info", "-b", "/dev/%s" % nom_disque)
+    if not ok:
+        return ""
+    for ligne in sortie.splitlines():
+        ligne = ligne.strip()
+        if ligne.startswith("Drive:"):
+            return ligne.split(":", 1)[1].strip().strip("'")
+    return ""
+
+
 def retirer(nom_disque):
     """Coupe l'alimentation (clé USB) ou éjecte (carte, disque optique).
 
-    `udisksctl power-off` refuse quand un volume est monté : on le laisse refuser
-    plutôt que de démonter à la place de l'utilisateur.
+    `power-off` refuse quand un volume est monté : ce refus est rendu tel quel
+    plutôt que masqué par une tentative d'éjection, qui donnait un message
+    incompréhensible sur un chemin D-Bus mal reconstruit.
     """
     ok, message = _udisks("power-off", "-b", "/dev/%s" % nom_disque,
                           "--no-user-interaction")
     if ok:
-        return ok, message
-    # Un lecteur de carte ou un lecteur optique n'a pas d'alimentation à couper :
-    # `Drive.Eject` est la seule voie, et elle n'a pas d'équivalent udisksctl.
-    identifiant = _identifiant_disque(nom_disque)
-    if identifiant and shutil.which("gdbus"):
+        return ok, message or "retiré"
+    if "mount" in message.lower() or "monté" in message.lower():
+        return False, message
+
+    # Pas d'alimentation à couper (lecteur de carte, lecteur optique) : `Eject`
+    # n'a pas d'équivalent dans udisksctl, il passe par D-Bus.
+    chemin = _chemin_disque(nom_disque)
+    if chemin and shutil.which("gdbus"):
         try:
             res = subprocess.run(
                 ["gdbus", "call", "--system",
                  "--dest", "org.freedesktop.UDisks2",
-                 "--object-path", "/org/freedesktop/UDisks2/drives/%s" % identifiant,
-                 "--method", "org.freedesktop.UDisks2.Drive.Eject",
-                 "{}"],
+                 "--object-path", chemin,
+                 "--method", "org.freedesktop.UDisks2.Drive.Eject", "{}"],
                 capture_output=True, text=True, timeout=DELAI)
             if res.returncode == 0:
                 return True, "éjecté"
@@ -330,20 +385,6 @@ def retirer(nom_disque):
         except (OSError, subprocess.TimeoutExpired) as erreur:
             return False, str(erreur)
     return False, message
-
-
-def _identifiant_disque(nom):
-    """Le nom D-Bus du disque : le lien /dev/disk/by-id usb-… qui pointe sur lui."""
-    dossier = "/dev/disk/by-id"
-    try:
-        for entree in os.listdir(dossier):
-            if not entree.startswith("usb-") or "-part" in entree:
-                continue
-            if os.path.realpath(os.path.join(dossier, entree)) == "/dev/%s" % nom:
-                return entree.replace("/", "_")
-    except OSError:
-        pass
-    return ""
 
 
 def _options_cli(argv):
@@ -359,6 +400,11 @@ def _options_cli(argv):
 
 def main(argv):
     action = argv[1] if len(argv) > 1 else ""
+    if action == "ouvrir" and len(argv) > 2:
+        ok, message = ouvrir(argv[2])
+        print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))
+        return 0 if ok else 1
+
     if action in ("monter", "demonter", "verrouiller", "deverrouiller", "retirer") and len(argv) > 2:
         cible = argv[2]
         if action == "monter":
