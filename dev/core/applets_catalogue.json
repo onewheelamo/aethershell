@@ -222,7 +222,7 @@
             "popup": "PressePapiersPopup.qml",
             "ile": "haut:fin",
             "ordre": 25,
-            "cadence": 10,
+            "cadence": 0.17,
             "text_scale": 100
         },
         {
