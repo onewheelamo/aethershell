@@ -295,6 +295,14 @@ Rectangle {
     property string homelabTokenId: ""
     property string homelabTokenTail: ""
     property bool homelabTokenPresent: false
+    // Fichiers suivis par l'applet et le widget « Tâches » (core/todo.json).
+    property var todoFichiers: []
+    property string todoFocus: ""
+
+    function rechargerTodo() {
+        todoListProc.running = false
+        todoListProc.running = true
+    }
     // Mode nuit (onglet Système & Écrans) : température, plage, état.
     property int nuitTemp: 4000
     property bool nuitAllumee: false
@@ -809,6 +817,10 @@ Rectangle {
             root.homelabTokenTail = String(data.homelab.jeton_tail || "")
             root.homelabTokenPresent = data.homelab.jeton_present === true
         }
+        if (data.todo && typeof data.todo === "object") {
+            root.todoFichiers = Array.isArray(data.todo.fichiers) ? data.todo.fichiers : []
+            root.todoFocus = String(data.todo.focus || "")
+        }
         if (Array.isArray(data.llm_providers)) root.llmProviders = data.llm_providers
         if (typeof data.hypr_rounding_power === "number")
             root.hyprRoundingPower = data.hypr_rounding_power
@@ -976,6 +988,22 @@ Rectangle {
         }
     }
 
+    // Après chaque geste, on relit la liste au lieu de la deviner : c'est le
+    // fichier qui fait foi, et deux panneaux ouverts ne peuvent pas diverger.
+    Process {
+        id: todoListProc
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "todo_list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.todoFichiers = d.fichiers || []
+                    root.todoFocus = String(d.focus || "")
+                } catch (e) { }
+            }
+        }
+    }
+
     function homelabSet(cle, valeur) {
         homelabProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
                                "homelab_set", cle, valeur]
@@ -1111,6 +1139,9 @@ Rectangle {
     Component.onCompleted: {
         refreshConfigState()
         appletsRafraichir()
+        // Un seul gestionnaire de démarrage par objet : deux lèvent
+        // « Property value set multiple times » et le panneau ne se crée pas.
+        todoListProc.running = true
     }
 
     // Absorb mouse clicks inside the panel so they don't close the overlay
@@ -4688,6 +4719,242 @@ Rectangle {
                     }
                 }
             }
+
+            // ── Tâches : fichiers suivis par l'applet et le widget ──────────
+            // Le widget voit tous ces fichiers ; l'applet n'en montre qu'un, et
+            // c'est celui marqué « affiché ». Rien ici n'est un réglage du dépôt :
+            // les chemins vivent dans core/todo.json, sur la machine.
+            CollapsibleSection {
+                id: secTaches
+                objectName: "secTaches"
+                title: "Tâches — fichiers suivis"
+                icon: "check"
+                expanded: root.sectionOpen("taches_fichiers", false)
+                onToggled: expanded => root.setPanelSection("taches_fichiers", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Chaque ligne `- [ ] **Titre**` d'un fichier Markdown devient "
+                              + "une case à cocher. Cocher dans le panneau commande l'étape "
+                              + "à l'agent, qui réécrit la ligne une fois faite."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.todoFichiers.length === 0
+                        text: "Aucun fichier suivi."
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    Repeater {
+                        model: root.todoFichiers
+
+                        Row {
+                            required property var modelData
+                            width: parent.width
+                            spacing: 8
+
+                            Text {
+                                width: Math.round(parent.width * 0.28)
+                                text: String(modelData.nom || "")
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                width: parent.width - Math.round(parent.width * 0.28) - 46
+                                text: String(modelData.chemin || "")
+                                color: Qt.alpha(Theme.fg, 0.45)
+                                font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                elide: Text.ElideMiddle
+                            }
+
+                            // Une croix dans un rond, comme les autres retraits du
+                            // panneau : un mot entier ne tenait pas dans la ligne et
+                            // se retrouvait coupé.
+                            Rectangle {
+                                width: 22
+                                height: 22
+                                radius: width / 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: croixRetirer.containsMouse ? Theme.error
+                                                                  : Qt.alpha(Theme.fg, 0.08)
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.error, 0.45)
+
+                                Icon {
+                                    anchors.centerIn: parent
+                                    glyph: "close"
+                                    size: Math.round(Theme.iconSm * 0.78)
+                                    color: croixRetirer.containsMouse ? Theme.bg : Theme.error
+                                    opacityLevel: 1
+                                }
+
+                                MouseArea {
+                                    id: croixRetirer
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        root.runConfigCmd(["todo_del", String(modelData.nom || "")])
+                                        root.rechargerTodo()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Ajouter un fichier : le nom est libre, le chemin est étendu
+                    // par l'applet (`~` reste `~`, c'est elle qui l'interprète).
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Rectangle {
+                            width: 140
+                            height: 30
+                            radius: 6
+                            color: Qt.alpha(Theme.fg, 0.06)
+                            border.width: 1
+                            border.color: Qt.alpha(Theme.fg, 0.2)
+
+                            TextInput {
+                                id: nouveauTodoNom
+                                anchors.fill: parent
+                                anchors.margins: 6
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                                clip: true
+                                Text {
+                                    anchors.fill: parent
+                                    verticalAlignment: Text.AlignVCenter
+                                    visible: nouveauTodoNom.text === ""
+                                    text: "nom (ex. perso)"
+                                    color: Qt.alpha(Theme.fg, 0.3)
+                                    font.pixelSize: Theme.textXs
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: parent.width - 140 - 96 - 16
+                            height: 30
+                            radius: 6
+                            color: Qt.alpha(Theme.fg, 0.06)
+                            border.width: 1
+                            border.color: Qt.alpha(Theme.fg, 0.2)
+
+                            TextInput {
+                                id: nouveauTodoChemin
+                                anchors.fill: parent
+                                anchors.margins: 6
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                                clip: true
+                                Text {
+                                    anchors.fill: parent
+                                    verticalAlignment: Text.AlignVCenter
+                                    visible: nouveauTodoChemin.text === ""
+                                    text: "~/chemin/vers/todo.md"
+                                    color: Qt.alpha(Theme.fg, 0.3)
+                                    font.pixelSize: Theme.textXs
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 96
+                            height: 30
+                            radius: 6
+                            color: survolTodoAjout.containsMouse
+                                   ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "+ Ajouter"
+                                color: Theme.accent
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: survolTodoAjout
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (nouveauTodoChemin.text.trim() === "") return
+                                    root.runConfigCmd(["todo_add",
+                                                       nouveauTodoNom.text.trim(),
+                                                       nouveauTodoChemin.text.trim()])
+                                    nouveauTodoNom.text = ""
+                                    nouveauTodoChemin.text = ""
+                                    root.rechargerTodo()
+                                }
+                            }
+                        }
+                    }
+
+                    // Quel fichier l'applet montre : le widget, lui, les voit tous.
+                    Row {
+                        width: parent.width
+                        spacing: 6
+                        visible: root.todoFichiers.length > 0
+
+                        Text {
+                            width: 150
+                            text: "Affiché par l'applet"
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Repeater {
+                            model: root.todoFichiers
+
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool choisi: root.todoFocus === String(modelData.nom)
+                                width: Math.max(56, labelChoisi.implicitWidth + 18)
+                                height: 24
+                                radius: 6
+                                color: choisi ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
+                                border.width: 1
+                                border.color: choisi ? Qt.alpha(Theme.accent, 0.5)
+                                                     : Qt.alpha(Theme.fg, 0.18)
+
+                                Text {
+                                    id: labelChoisi
+                                    anchors.centerIn: parent
+                                    text: String(modelData.nom || "")
+                                    color: choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                    font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        root.runConfigCmd(["todo_focus", String(modelData.nom || "")])
+                                        root.todoFocus = String(modelData.nom || "")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

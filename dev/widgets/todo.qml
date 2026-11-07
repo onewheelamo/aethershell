@@ -127,8 +127,23 @@ Item {
                     color: modelData.demande ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
                 }
 
+                // Plusieurs fichiers alimentent ce widget : la provenance évite de
+                // confondre deux items homonymes. Masquée quand un seul fichier est
+                // suivi — le nom n'apprendrait alors rien.
                 Text {
-                    width: parent.width - Math.round(8 * echelle)
+                    width: Math.round(34 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: (root.etat.fichiers || []).length > 1
+                    text: String(modelData.nom_fichier || "")
+                    color: Qt.alpha(Theme.fg, 0.35)
+                    font.pixelSize: Math.round(8.5 * echelle)
+                    elide: Text.ElideRight
+                }
+
+                // Plusieurs fichiers alimentent ce widget : la provenance est
+                // dans le texte, sinon deux items homonymes deviennent ambigus.
+                Text {
+                    width: parent.width - Math.round(42 * echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     text: String(modelData.titre)
                     color: modelData.demande ? Qt.alpha(Theme.accent, 0.95)

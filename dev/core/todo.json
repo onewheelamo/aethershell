@@ -1,0 +1,12 @@
+{
+    "fichiers": [
+        {
+            "chemin": "~/Documents/homelab/todo.md",
+            "nom": "homelab"
+        },
+        {
+            "chemin": "~/dev/quickshell_todo/RESTE_A_FAIRE.md",
+            "nom": "shell"
+        }
+    ]
+}

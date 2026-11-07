@@ -1107,6 +1107,11 @@ def set_app_var(alias, command):
 
 SECRETS_FILE = os.path.join(BASE_DIR, "secrets.json")
 HOMELAB_FILE = os.path.join(BASE_DIR, "homelab.json")
+# Les fichiers de tâches suivis par l'applet : même fichier que celui que lit
+# `todo_applet.py`, pour qu'il n'y en ait qu'un.
+TODO_FILE = os.path.join(BASE_DIR, "todo.json")
+TODO_FOCUS = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+                          "quickshell", "todo-focus.json")
 
 
 def lire_secrets():
@@ -1180,6 +1185,75 @@ def lire_homelab():
         "jeton_tail": secret[-4:] if secret else "",
         "hotes": d.get("hotes") or [],
     }
+
+
+def lire_todo():
+    """Les fichiers suivis, tels que l'applet les lit (`core/todo.json`)."""
+    try:
+        with open(TODO_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        liste = d.get("fichiers") if isinstance(d, dict) else d
+    except (OSError, ValueError):
+        liste = []
+    sortie = []
+    for entree in liste or []:
+        if isinstance(entree, str):
+            entree = {"chemin": entree}
+        chemin = str((entree or {}).get("chemin") or "").strip()
+        if not chemin:
+            continue
+        sortie.append({"chemin": chemin,
+                       "nom": str(entree.get("nom") or os.path.basename(chemin))})
+    return sortie
+
+
+def ecrire_todo(liste):
+    tmp = TODO_FILE + ".tmp"
+    os.makedirs(os.path.dirname(TODO_FILE), exist_ok=True)
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"fichiers": liste}, f, ensure_ascii=False, indent=4)
+    os.replace(tmp, TODO_FILE)
+    return True
+
+
+def todo_add(nom, chemin):
+    """Ajoute un fichier suivi. Le chemin est gardé tel qu'il est saisi (`~` reste
+    `~`, c'est l'applet qui l'étend) ; l'existence est vérifiée tout de suite, pour
+    qu'une faute de frappe se voie au moment où on la tape."""
+    chemin = str(chemin or "").strip()
+    if not chemin:
+        return False
+    liste = lire_todo()
+    for entree in liste:
+        if entree["chemin"] == chemin:
+            return True
+    liste.append({"chemin": chemin,
+                  "nom": str(nom or "").strip() or os.path.basename(chemin)})
+    return ecrire_todo(liste)
+
+
+def todo_del(nom):
+    liste = [e for e in lire_todo() if e["nom"] != str(nom)]
+    return ecrire_todo(liste)
+
+
+def todo_focus(nom):
+    """Le fichier que l'applet montre. Il vit dans le cache : c'est une
+    préférence de machine, pas une donnée du dépôt."""
+    os.makedirs(os.path.dirname(TODO_FOCUS), exist_ok=True)
+    tmp = TODO_FOCUS + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"fichier": str(nom or "")}, f, ensure_ascii=False)
+    os.replace(tmp, TODO_FOCUS)
+    return True
+
+
+def lire_todo_focus():
+    try:
+        with open(TODO_FOCUS, "r", encoding="utf-8") as f:
+            return str(json.load(f).get("fichier") or "")
+    except (OSError, ValueError):
+        return ""
 
 
 def homelab_set(cle, valeur):
@@ -1609,6 +1683,7 @@ def get_full_config_state():
         "apps": load_json(APP_VARS_FILE),
         "autostart": get_autostart(),
         "homelab": lire_homelab(),
+        "todo": {"fichiers": lire_todo(), "focus": lire_todo_focus()},
         # Mode nuit : état et plage, pour l'onglet « Système & Écrans ».
         "night": {
             "mode": bool(style_data.get("night_mode", False)),
@@ -1627,6 +1702,15 @@ if __name__ == "__main__":
     elif action == "kb_layout" and len(sys.argv) > 2:
         set_kb_layout(sys.argv[2], mark_first_run_done=True)
         print(json.dumps(get_full_config_state()))
+    elif action == "todo_add" and len(sys.argv) > 3:
+        print(json.dumps({"ok": todo_add(sys.argv[2], sys.argv[3])}, ensure_ascii=False))
+    elif action == "todo_del" and len(sys.argv) > 2:
+        print(json.dumps({"ok": todo_del(sys.argv[2])}, ensure_ascii=False))
+    elif action == "todo_focus" and len(sys.argv) > 2:
+        print(json.dumps({"ok": todo_focus(sys.argv[2])}, ensure_ascii=False))
+    elif action == "todo_list":
+        print(json.dumps({"fichiers": lire_todo(), "focus": lire_todo_focus()},
+                         ensure_ascii=False))
     elif action == "homelab_set" and len(sys.argv) > 3:
         homelab_set(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))
