@@ -220,12 +220,21 @@ def peripheriques():
 
 
 # ── état pour la barre ────────────────────────────────────────────────────────
+def _vrai(valeur, defaut=True):
+    """Un booléen venu du panneau peut être `true`, "true", "oui", "1"…"""
+    if isinstance(valeur, bool):
+        return valeur
+    if valeur is None:
+        return defaut
+    return str(valeur).strip().lower() not in ("false", "0", "non", "")
+
+
 def analyser(options=None):
     disques = peripheriques()
     options = options or {}
     # Rien de branché : la barre n'affiche rien du tout si l'option le demande
     # (un applet qui compte des périphériques n'a pas à occuper une place vide).
-    masquer = bool(options.get("masquer_vide", True))
+    masquer = _vrai(options.get("masquer_vide"), True)
     montes = [d for d in disques if d["monte"]]
     if not disques:
         return {"ok": True, "compact": compact("" if masquer else "0",
