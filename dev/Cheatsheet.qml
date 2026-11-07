@@ -139,7 +139,7 @@ Item {
                 Icon { anchors.verticalCenter: parent.verticalCenter; glyph: "keyboard"; size: Theme.iconSm; color: Theme.accent }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Raccourcis"
+                    text: "AetherShell — raccourcis"
                     color: Theme.fg
                     font.pixelSize: Theme.textMd
                     font.bold: true

@@ -690,7 +690,7 @@ deploy_new_env() {
         echo "   SUPER + SHIFT + S   captures d'écran et vidéos"
         systemd-run --user --collect --quiet --on-active=8 --unit="qs-welcome-$$" \
             notify-send -a "Installation" \
-                "Ton environnement est prêt" \
+                "AetherShell est prêt" \
                 "SUPER + K : tous les raccourcis — SUPER + H : réglages — SUPER + SHIFT + S : captures d'écran" \
             >/dev/null 2>&1 || true
     fi

@@ -1,5 +1,5 @@
 [Unit]
-Description=Hermes — canal d'approbation (socket Unix)
+Description=AetherShell — canal d'approbation Hermes (socket Unix)
 PartOf=graphical-session.target
 After=graphical-session.target
 

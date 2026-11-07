@@ -1000,7 +1000,7 @@ Rectangle {
         height: 30
 
         Text {
-            text: "Réglages · " + root.hostName
+            text: "AetherShell · Réglages · " + root.hostName
             color: Theme.fg
             font.pixelSize: Theme.textLg
             font.bold: true

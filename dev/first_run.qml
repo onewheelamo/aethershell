@@ -285,7 +285,7 @@ Item {
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Premier lancement — " + root.titres[root.etape]
+                        text: "AetherShell — premier lancement — " + root.titres[root.etape]
                         color: Theme.accent
                         font.pixelSize: Theme.textXl
                         font.bold: true

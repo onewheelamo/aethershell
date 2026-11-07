@@ -1,5 +1,5 @@
 [Unit]
-Description=Quickshell (barre, panneaux, widgets)
+Description=AetherShell (barre, panneaux, widgets)
 # Rattaché à la session graphique : arrêté avec elle, relancé avec elle.
 PartOf=graphical-session.target
 After=graphical-session.target
