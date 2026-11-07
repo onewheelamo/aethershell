@@ -25,9 +25,12 @@ Item {
         const v = Number(applet.text_scale)
         return (v >= 60 && v <= 160) ? v / 100 : 1.0
     }
-    readonly property int cadenceMin: {
+    // En minutes, et fractionnaire : un applet qui attend une réponse humaine
+    // ne peut pas se contenter d'une minute (0.17 ≈ 10 s). L'arrondi à l'entier
+    // interdisait toute cadence sous la minute.
+    readonly property real cadenceMin: {
         const v = Number(applet.cadence)
-        return (v >= 1 && v <= 120) ? Math.round(v) : 5
+        return (v > 0 && v <= 120) ? v : 5
     }
 
     property var donnees: ({})
@@ -152,7 +155,7 @@ Item {
     Component.onCompleted: if (!root.estQml && root.service !== "") root.rafraichir(false)
 
     Timer {
-        interval: root.cadenceMin * 60000
+        interval: Math.max(1000, root.cadenceMin * 60000)
         repeat: true
         running: !root.estQml
         // La cadence choisie est la cadence réelle : sans --force, le cache du

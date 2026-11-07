@@ -234,7 +234,7 @@
             "popup": "HermesPopup.qml",
             "ile": "haut:fin",
             "ordre": 15,
-            "cadence": 10,
+            "cadence": 0.17,
             "text_scale": 100,
             "widget": "hermes",
             "genre": "service",
