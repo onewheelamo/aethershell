@@ -492,6 +492,10 @@ Item {
                         services: (root.applet.options || {}).services
                     }
                     item.widgetId = ""
+                    // Le popup a besoin de savoir qu'il est ouvert : sans cela son
+                    // timer de relecture (approbations, états vivants) ne démarre
+                    // pas, et le panneau reste figé sur l'état de l'ouverture.
+                    if ("ouvert" in item) item.ouvert = Qt.binding(function () { return root.ouvert })
                 }
             }
         }
