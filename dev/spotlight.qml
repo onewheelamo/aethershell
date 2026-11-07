@@ -420,6 +420,42 @@ Item {
     // SHIFT+P : épingle l'entrée de presse-papiers sélectionnée, ou la détache si
     // elle l'est déjà. L'épinglage vit dans le service (il survit à la rotation de
     // cliphist), le launcher ne fait qu'appeler et relire.
+    // SHIFT+D : efface l'entrée sélectionnée. SHIFT+W : vide tout — action sans
+    // retour, donc un premier appui arme et le second confirme dans les 4 s.
+    property bool vidageArme: false
+
+    function supprimerSelection() {
+        const e = root.entreeSel
+        if (e === undefined || e.kind !== "presse") return
+        const id = String(e.arg || "")
+        if (id === "") return
+        action.identifiant = id
+        action.mode = "--supprimer"
+        action.running = false
+        action.running = true
+    }
+
+    function viderHistorique() {
+        if (root.entreeSel === undefined || root.entreeSel.kind !== "presse") return
+        if (!root.vidageArme) {
+            root.vidageArme = true
+            gardeVidage.restart()
+            return
+        }
+        root.vidageArme = false
+        gardeVidage.stop()
+        action.identifiant = ""
+        action.mode = "--vider"
+        action.running = false
+        action.running = true
+    }
+
+    Timer {
+        id: gardeVidage
+        interval: 4000
+        onTriggered: root.vidageArme = false
+    }
+
     function epinglerSelection() {
         const e = root.entreeSel
         if (e === undefined || e.kind !== "presse") return
@@ -430,6 +466,15 @@ Item {
         epinglage.identifiant = id
         epinglage.running = false
         epinglage.running = true
+    }
+
+    Process {
+        id: action
+        property string identifiant: ""
+        property string mode: "--supprimer"
+        command: ["python3", Quickshell.shellPath("core/launcher_service.py"),
+                  action.mode, action.identifiant]
+        onExited: root.build()
     }
 
     Process {
@@ -539,6 +584,18 @@ Item {
                 // SHIFT+P plutôt que CTRL+P : ce dernier est le raccourci
                 // d'impression, et le détourner dans un launcher surprend.
                 Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_D && (event.modifiers & Qt.ShiftModifier)
+                        && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
+                        root.supprimerSelection()
+                        event.accepted = true
+                        return
+                    }
+                    if (event.key === Qt.Key_W && (event.modifiers & Qt.ShiftModifier)
+                        && root.entreeSel !== undefined && root.entreeSel.kind === "presse") {
+                        root.viderHistorique()
+                        event.accepted = true
+                        return
+                    }
                     if (event.key === Qt.Key_P
                         && (event.modifiers & Qt.ShiftModifier)
                         && root.entreeSel !== undefined

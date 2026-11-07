@@ -554,6 +554,48 @@ def presse_desepingler(ident):
     return "cette entrée n'était pas épinglée"
 
 
+def presse_supprimer(ident):
+    """Efface une entrée précise. `cliphist delete` lit des sélections sur
+    l'entrée standard, au format « id<TAB>aperçu » : on lui donne l'id seul,
+    suffisant pour qu'il retrouve la ligne."""
+    if not ident:
+        return "identifiant manquant"
+    # `cliphist delete` sort en 0 même quand l'id n'existe pas : on vérifie avant.
+    if not any(l.split("\t", 1)[0] == str(ident)
+               for l in borne(["cliphist", "list"], timeout=2.0).splitlines()):
+        return f"entrée {ident} introuvable"
+    try:
+        r = subprocess.run(["cliphist", "delete"], input=f"{ident}\t\n",
+                           capture_output=True, text=True, timeout=5)
+    except (subprocess.TimeoutExpired, OSError):
+        return "suppression impossible"
+    d = _epingles()
+    if d.pop(str(ident), None) is not None:
+        _ecrire_epingles(d)
+        for reste in (PRESSE_CACHE / f"{ident}.png", PRESSE_CACHE.parent / "epingles" / f"{ident}.bin"):
+            try:
+                reste.unlink()
+            except OSError:
+                pass
+    return f"entrée {ident} supprimée" if r.returncode == 0 else "suppression refusée"
+
+
+def presse_vider():
+    """Vide l'historique complet, épingles comprises. Action destructive : c'est
+    au launcher de demander une confirmation, pas au service."""
+    try:
+        r = subprocess.run(["cliphist", "wipe"], capture_output=True, timeout=10)
+    except (subprocess.TimeoutExpired, OSError):
+        return "purge impossible"
+    _ecrire_epingles({})
+    try:
+        for f in PRESSE_CACHE.glob("*.png"):
+            f.unlink()
+    except OSError:
+        pass
+    return "historique vidé" if r.returncode == 0 else "purge refusée"
+
+
 def presse(texte, limite=8):
     """Historique cliphist, enrichi : type reconnu, vignette pour les images,
     épinglés d'abord. L'action reste « copy » pour tout : c'est le contrat que le
@@ -887,6 +929,12 @@ def main(argv):
     while i < len(argv):
         # Épinglage depuis le launcher (SHIFT+P) ou le terminal : ces deux options
         # n'ont pas besoin du vocabulaire des préfixes, elles agissent sur un id.
+        if argv[i] == "--supprimer" and i + 1 < len(argv):
+            print(presse_supprimer(argv[i + 1]))
+            return 0
+        if argv[i] == "--vider":
+            print(presse_vider())
+            return 0
         if argv[i] == "--epingler" and i + 1 < len(argv):
             print(presse_epingler(argv[i + 1], ""))
             return 0
