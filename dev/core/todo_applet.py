@@ -322,6 +322,13 @@ def _retirer_alerte(lignes, numero):
 
 
 def cocher(identifiant, fait=True):
+    """Coche ou décoche une case.
+
+    Depuis le 2026-11-07 une coche n'est plus un ordre : elle n'écrit rien dans
+    la file des demandes (l'applet est un lecteur, l'agent coche lui-même à la
+    demande de l'utilisateur). On retire en revanche toute demande qui
+    traînerait encore pour cet item, pour ne pas laisser d'alerte orpheline.
+    """
     item = _trouver(identifiant)
     if not item:
         return False, "item inconnu"
@@ -334,18 +341,7 @@ def cocher(identifiant, fait=True):
 
     if not _reecrire(item["fichier"], identifiant, transformation):
         return False, "ligne introuvable"
-    demandes = [d for d in _lire_file() if d.get("id") != identifiant]
-    if fait:
-        demandes.append({
-            "id": identifiant,
-            "titre": item["titre"],
-            "fichier": item["fichier"],
-            "nom_fichier": item["nom_fichier"],
-            "section": item["section"],
-            "quand": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            "etat": "attente",
-        })
-    _ecrire_file(demandes)
+    _ecrire_file([d for d in _lire_file() if d.get("id") != identifiant])
     return True, "coché" if fait else "décoché"
 
 
