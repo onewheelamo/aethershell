@@ -212,7 +212,7 @@ EXEMPLE = {
     "executions": [
         {"nom": "revue des commits", "debut": "2026-11-06T20:12:00Z", "duree_s": 42,
          "resultat": "ok", "modele": "deepseek"},
-        {"nom": "sauvegarde portable", "debut": "2026-11-06T19:40:00Z", "duree_s": 130,
+        {"nom": "sauvegarde du portable", "debut": "2026-11-06T19:40:00Z", "duree_s": 130,
          "resultat": "echec", "modele": "—"},
     ],
     "cron": [

@@ -9,7 +9,7 @@ popup).
 Aucune adresse n'est écrite dans le dépôt : la liste des machines vit dans
 `core/flotte.json`, fichier local préservé par le déploiement.
 
-    {"machines": [{"nom": "portable", "cible": "amo@192.0.2.10"}], "delai_s": 3}
+    {"machines": [{"nom": "portable", "cible": "utilisateur@portable.local"}], "delai_s": 3}
 
 Trois règles de conception :
 
