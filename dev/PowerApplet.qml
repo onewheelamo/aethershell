@@ -3,6 +3,7 @@ import "."
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Wayland
 
 // APPLET ALIMENTATION — les cinq gestes de session, et rien d'autre.
 //
@@ -92,15 +93,34 @@ Item {
     }
 
     // ── menu ────────────────────────────────────────────────────────────────
-    Popup {
-        ancre: root
-        ile: String(root.applet.ile || "")
-        alignement: "droite"
+    // Panneau **autonome** : il n'emprunte plus `Popup.qml`, donc il ne se pose
+    // plus sous le bouton de l'applet. Position fixe, liée à l'écran seul :
+    // centré horizontalement, et centré verticalement dans le tiers inférieur.
+    //
+    // Pourquoi : le menu d'extinction est un geste de panique. Le chercher sous
+    // une icône, à l'angle de la barre, oblige à viser ; au centre du bas de
+    // l'écran il est à une distance connue du curseur, quel que soit le nombre
+    // d'applets à droite de la barre.
+    //
+    // Mécanique : un `PanelWindow` ancré seulement en haut, avec une marge qui
+    // vaut le haut du tiers inférieur plus la moitié de l'espace libre. Sur l'axe
+    // horizontal, aucun ancrage : wlr-layer-shell centre la surface toute seule.
+    PanelWindow {
         id: menu
+        visible: root.ouvert
+        color: "transparent"
         implicitWidth: root.largeurCarte
         implicitHeight: carte.implicitHeight
-        color: "transparent"
-        visible: root.ouvert
+
+        readonly property int hauteurEcran: root.screen ? root.screen.height : 1080
+        readonly property int yTiersBas: Math.round(hauteurEcran * 2 / 3)
+
+        anchors.top: true
+        margins.top: Math.round(yTiersBas + (hauteurEcran - yTiersBas - implicitHeight) / 2)
+
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.namespace: "shell-menu-session"
 
         Rectangle {
             id: carte

@@ -363,7 +363,8 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-bar-cote-droite", "shell-osd", "shell-config",
                          "shell-onboarding", "shell-spotlight",
                          "shell-spotlight-rest", "shell-cheatsheet",
-                         "shell-tray-menu", "shell-shotbar")
+                         "shell-tray-menu", "shell-shotbar",
+                         "shell-menu-session")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :
