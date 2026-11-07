@@ -239,6 +239,21 @@
             "widget": "hermes",
             "genre": "service",
             "garde": true
+        },
+        {
+            "id": "flotte",
+            "nom": "Flotte",
+            "genre": "service",
+            "description": "L'état des autres machines : charge, mémoire, barre vivante",
+            "icone": "cloud",
+            "service": "core/flotte_applet.py",
+            "popup": "FlottePopup.qml",
+            "ile": "haut:fin",
+            "ordre": 12,
+            "cadence": 0.5,
+            "garde": true,
+            "text_scale": 100,
+            "options": {}
         }
     ]
 }

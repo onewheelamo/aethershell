@@ -12,6 +12,12 @@
             "ordre": 15,
             "text_scale": 100,
             "options": {}
+        },
+        "flotte": {
+            "ile": "haut:fin",
+            "ordre": 12,
+            "text_scale": 100,
+            "options": {}
         }
     }
 }
