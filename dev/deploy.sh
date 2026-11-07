@@ -71,10 +71,7 @@ for arg in "$@"; do
                 *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora)" >&2; exit 2 ;;
             esac
             ;;
-        --hq-list [archive]         Liste le contenu d'une sauvegarde (la plus récente par défaut)
-  --hq-diff [archive]         Compare une sauvegarde à l'état vivant
-  --hq-get <archive> <chemin> Extrait un fichier sous BACKUP_DIR/extrait
-  --deps) PRINT_DEPS=1 ;;
+        --deps) PRINT_DEPS=1 ;;
         --hq-list) HQ_ACTION="list"; shift || true; HQ_ARG1="${1:-}" ;;
         --hq-diff) HQ_ACTION="diff"; shift || true; HQ_ARG1="${1:-}" ;;
         --hq-get)  HQ_ACTION="get";  shift || true; HQ_ARG1="${1:-}"; HQ_ARG2="${2:-}" ;;
@@ -332,15 +329,39 @@ hq_lister() {
 }
 
 hq_diff() {
-    local arch="${1:-$(hq_derniere)}" tmp
+    local arch="${1:-$(hq_derniere)}" manifeste
     [ -f "$arch" ] || { echo "❌ Archive introuvable : ${arch:-aucune}" >&2; return 1; }
+    manifeste="$arch.manifeste"
+
+    # Avec le manifeste, on compare des empreintes : rien à décompresser, donc
+    # instantané et sans écrire des centaines de fichiers dans un dossier
+    # temporaire. Sans manifeste (archives antérieures), on retombe sur
+    # l'extraction — le résultat est le même, seulement plus lent.
+    if [ -f "$manifeste" ]; then
+        echo "Comparaison avec $HOME/.config (archive ➜ vivant) :"
+        local somme chemin vue
+        while read -r somme chemin; do
+            [ -n "$chemin" ] || continue
+            if [ ! -f "$HOME/.config/$chemin" ]; then
+                echo "  $chemin : absent du vivant"
+            elif [ "$(sha256sum "$HOME/.config/$chemin" 2>/dev/null | cut -d' ' -f1)" != "$somme" ]; then
+                echo "  $chemin : différent"
+            fi
+        done < "$manifeste"
+        # Et l'inverse : ce qui existe aujourd'hui sans être dans la sauvegarde.
+        ( cd "$HOME/.config" && find hypr quickshell -type f -print0 2>/dev/null \
+            | sort -z | xargs -0 sha256sum 2>/dev/null ) \
+        | while read -r _somme _chemin; do
+            grep -qF "  $_chemin" "$manifeste" || echo "  $_chemin : absent de l archive"
+        done
+        return 0
+    fi
+
+    local tmp
     tmp=$(mktemp -d)
     tar -xzf "$arch" -C "$tmp" || { rm -rf "$tmp"; return 1; }
     echo "Comparaison avec $HOME/.config (archive ➜ vivant) :"
-    # `diff -rq` liste les différences sans afficher le contenu.
     for arbre in hypr quickshell; do
-        # Le motif « Les fichiers X et Y » est traité en premier : sans cela, le
-        # retrait des préfixes laisse les deux chemins collés dans la même ligne.
         diff -rq "$tmp/$arbre" "$HOME/.config/$arbre" 2>/dev/null \
             | sed -E "s#^Les fichiers $tmp/(.*) et .* sont différents#\1 : différent#; s#^Only in $HOME/.config/(.*)#\1 : absent de l archive#" \
             | sed 's/^/  /'
