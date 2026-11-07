@@ -115,8 +115,7 @@ Item {
 
     HyprlandFocusGrab {
         active: root.ouvert && root.pretGrab
-        readonly property var fenetreBarre: root.QsWindow ? root.QsWindow.window : null
-        windows: fenetreBarre ? [notificationsPopup, fenetreBarre] : [notificationsPopup]
+        windows: Theme.fenetresGrab(notificationsPopup, root)
         onCleared: if (root.ouvert) Theme.activePopup = ""
     }
     readonly property int compte: Theme.notifCount

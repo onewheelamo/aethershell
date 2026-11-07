@@ -252,6 +252,18 @@ QtObject {
         configPanelVisible = true
     }
 
+    // Fenêtres à faire tenir par un `HyprlandFocusGrab` de popup : celle du popup
+    // **et** celle de la barre. Sans la barre, Hyprland lève le grab au premier
+    // clic et avale ce clic : cliquer un autre bureau fermait le panneau sans
+    // changer de bureau, et cliquer un autre applet ne faisait rien. La règle
+    // vivait recopiée dans cinq fichiers ; elle vit ici.
+    function fenetresGrab(fenetrePopup, ancre) {
+        const l = fenetrePopup ? [fenetrePopup] : []
+        const w = (ancre && ancre.QsWindow) ? ancre.QsWindow.window : null
+        if (w && l.indexOf(w) < 0) l.push(w)
+        return l
+    }
+
     function togglePopup(name) {
         activePopup = (activePopup === name) ? "" : name
     }

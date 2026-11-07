@@ -259,8 +259,7 @@ Item {
 
     HyprlandFocusGrab {
         active: root.ouvert && root.pretGrab
-        readonly property var fenetreBarre: root.QsWindow ? root.QsWindow.window : null
-        windows: fenetreBarre ? [fenetre, fenetreBarre] : [fenetre]
+        windows: Theme.fenetresGrab(fenetre, root)
         onCleared: if (Theme.activePopup === "applet:volume") Theme.activePopup = ""
     }
 }

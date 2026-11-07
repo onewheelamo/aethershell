@@ -716,8 +716,7 @@ Item {
 
     HyprlandFocusGrab {
         active: root.ouvert && root.pretGrab
-        readonly property var fenetreBarre: root.QsWindow ? root.QsWindow.window : null
-        windows: fenetreBarre ? [wifiPanelPopup, fenetreBarre] : [wifiPanelPopup]
+        windows: Theme.fenetresGrab(wifiPanelPopup, root)
         onCleared: if (root.ouvert) Theme.activePopup = ""
     }
 }

@@ -119,12 +119,7 @@ Item {
     }
     onOuvertChanged: if (!panneau.ouvert) panneau.attrapeurPret = false
 
-    readonly property var fenetresGrab: {
-        const l = [fenetre]
-        const w = (panneau.ancre && panneau.ancre.QsWindow) ? panneau.ancre.QsWindow.window : null
-        if (w && l.indexOf(w) < 0) l.push(w)
-        return l
-    }
+    readonly property var fenetresGrab: Theme.fenetresGrab(fenetre, panneau.ancre)
     HyprlandFocusGrab {
         active: panneau.ouvert && panneau.attrapeurPret
         windows: panneau.fenetresGrab
