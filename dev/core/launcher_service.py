@@ -499,6 +499,50 @@ def _vignette(ident):
         return ""
 
 
+IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")
+
+
+def _uri_image(texte):
+    """Un fichier copié depuis un gestionnaire de fichiers arrive en texte :
+    `file:///chemin/image.png`. Ce n'est pas une image binaire, mais c'en est une
+    pour l'utilisateur — on rend le chemin pour pouvoir en faire une vignette."""
+    if not texte:
+        return None
+    premiere = texte.strip().splitlines()[0].strip() if texte.strip() else ""
+    if premiere.startswith("file://"):
+        chemin = premiere[len("file://"):]
+    elif premiere.startswith("x-special/gnome-copied-files"):
+        lignes = texte.strip().splitlines()
+        if len(lignes) < 2 or not lignes[1].startswith("file://"):
+            return None
+        chemin = lignes[1][len("file://"):]
+    elif premiere.startswith("x-special/nautilus-clipboard"):
+        lignes = texte.strip().splitlines()
+        if len(lignes) < 3 or not lignes[2].startswith("file://"):
+            return None
+        chemin = lignes[2][len("file://"):]
+    else:
+        return None
+    chemin = chemin.strip()
+    if not chemin.lower().endswith(IMG_EXT):
+        return None
+    return chemin if Path(chemin).is_file() else None
+
+
+def _vignette_fichier(chemin, ident):
+    """Vignette d'un fichier image copié depuis un gestionnaire de fichiers."""
+    try:
+        PRESSE_CACHE.mkdir(parents=True, exist_ok=True)
+        cible = PRESSE_CACHE / f"f{ident}.png"
+        if cible.exists() and cible.stat().st_size > 0:
+            return str(cible)
+        r = subprocess.run(["magick", chemin, "-thumbnail", "96x96", f"png:{cible}"],
+                           capture_output=True, timeout=8.0)
+        return str(cible) if r.returncode == 0 and cible.exists() else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def _epingles():
     try:
         d = json.loads(PRESSE_EPINGLES.read_text(encoding="utf-8"))
@@ -627,6 +671,13 @@ def presse(texte, limite=8):
             continue
         nature = _type_entree(ident)
         vignette = _vignette(ident) if nature == "image" else ""
+        # Fichier image copié dans Thunar/Nautilus : le texte est une URI.
+        if nature == "texte":
+            chemin = _uri_image(apercu)
+            if chemin:
+                nature = "image (fichier)"
+                vignette = _vignette_fichier(chemin, ident)
+                apercu = Path(chemin).name
         libelle = apercu[:80] or f"({nature})"
         # cliphist nomme une image « [[ binary data 1 KiB png 300x200 ]] » : lisible
         # par personne. On en tire ce qui compte — le format et les dimensions.
