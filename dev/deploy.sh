@@ -72,6 +72,9 @@ for arg in "$@"; do
             esac
             ;;
         --deps) PRINT_DEPS=1 ;;
+        --hq-list) HQ_ACTION="list"; shift || true; HQ_ARG1="${1:-}" ;;
+        --hq-diff) HQ_ACTION="diff"; shift || true; HQ_ARG1="${1:-}" ;;
+        --hq-get)  HQ_ACTION="get";  shift || true; HQ_ARG1="${1:-}"; HQ_ARG2="${2:-}" ;;
     esac
 done
 
@@ -299,10 +302,60 @@ backup_env() {
         echo "⚠️ Backup incomplete (hypr ou quickshell manquant), archive retiree."
         return 1
     fi
+    # Manifeste a côté de l'archive : liste des fichiers et leur empreinte, pour
+    # pouvoir comparer sans extraire ni restaurer. Le tar reste la source de
+    # vérité ; le manifeste n'est qu'un index lisible.
+    ( cd "$HOME/.config" && find hypr quickshell -type f -print0 2>/dev/null \
+        | sort -z | xargs -0 sha256sum 2>/dev/null ) > "$archive.manifeste" || true
+
     cp -f "$archive" "$HQ_ALIAS"
     echo "✅ HQ saved: $(basename "$archive") ($(du -h "$archive" | cut -f1))"
     rotate_backups
     BACKUP_OK=1
+}
+
+# ── inspecter une sauvegarde sans la restaurer ──────────────────────────────
+# Le déploiement archivait tout ou rien : impossible de savoir ce qui changeait,
+# ni de récupérer un seul fichier. Ces trois fonctions ouvrent l'archive.
+hq_derniere() {
+    find "$BACKUP_DIR" -maxdepth 1 -name "backup_*_hq_20*.tar.gz" -printf "%T@ %p\n" 2>/dev/null \
+        | sort -nr | head -1 | awk '{print $2}'
+}
+
+hq_lister() {
+    local arch="${1:-$(hq_derniere)}"
+    [ -f "$arch" ] || { echo "❌ Archive introuvable : ${arch:-aucune}" >&2; return 1; }
+    tar -tzf "$arch" 2>/dev/null | grep -v '/$'
+}
+
+hq_diff() {
+    local arch="${1:-$(hq_derniere)}" tmp
+    [ -f "$arch" ] || { echo "❌ Archive introuvable : ${arch:-aucune}" >&2; return 1; }
+    tmp=$(mktemp -d)
+    tar -xzf "$arch" -C "$tmp" || { rm -rf "$tmp"; return 1; }
+    echo "Comparaison avec $HOME/.config (archive ➜ vivant) :"
+    # `diff -rq` liste les différences sans afficher le contenu.
+    diff -rq "$tmp/hypr" "$HOME/.config/hypr" 2>/dev/null \
+        | sed -E "s#$tmp/##g; s#$HOME/.config/##g; s/ et / : /g" | sed 's/^/  /'
+    diff -rq "$tmp/quickshell" "$HOME/.config/quickshell" 2>/dev/null \
+        | sed -E "s#$tmp/##g; s#$HOME/.config/##g; s/ et / : /g" | sed 's/^/  /'
+    rm -rf "$tmp"
+}
+
+hq_get() {
+    local arch="${1:-$(hq_derniere)}" chemin="$2"
+    [ -f "$arch" ] || { echo "❌ Archive introuvable : $arch" >&2; return 1; }
+    [ -n "$chemin" ] || { echo "❌ Chemin manquant (ex. quickshell/Theme.qml)" >&2; return 1; }
+    case "$chemin" in
+        /*|*..*) echo "❌ Chemin refusé : $chemin" >&2; return 1 ;;
+    esac
+    tar -tzf "$arch" 2>/dev/null | grep -qxF "$chemin" \
+        || { echo "❌ $chemin n'est pas dans l'archive" >&2; return 1; }
+    # Rien n'est écrit dans ~/.config : on extrait sous BACKUP_DIR pour que
+    # l'utilisateur voie le fichier et décide lui-même de le remettre en place.
+    mkdir -p "$BACKUP_DIR/extrait"
+    tar -xzf "$arch" -C "$BACKUP_DIR/extrait" "$chemin" \
+        && echo "✅ $chemin extrait dans $BACKUP_DIR/extrait/$chemin"
 }
 
 # Retour a une version anterieure de HQ : on liste les sauvegardes datees, on
@@ -611,6 +664,15 @@ deploy_new_env() {
             >/dev/null 2>&1 || true
     fi
 }
+
+if [ -n "${HQ_ACTION:-}" ]; then
+    case "$HQ_ACTION" in
+        list) hq_lister "${HQ_ARG1:-}" ;;
+        diff) hq_diff "${HQ_ARG1:-}" ;;
+        get)  hq_get "${HQ_ARG1:-}" "${HQ_ARG2:-}" ;;
+    esac
+    exit $?
+fi
 
 while true; do
     echo "------------------------------------------"
