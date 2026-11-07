@@ -2,12 +2,12 @@
   {
     "name": "Presse-papiers (texte)",
     "enabled": true,
-    "cmd": "sh -c 'pgrep -f \"wl-paste --watch\" >/dev/null || exec wl-paste --watch cliphist store'"
+    "cmd": "sh -c 'pgrep -f \"wl-paste --watch\" >/dev/null || exec wl-paste --watch cliphist -max-items 300 store'"
   },
   {
     "name": "Presse-papiers (images)",
     "enabled": true,
-    "cmd": "sh -c 'pgrep -f \"wl-paste --type image\" >/dev/null || exec wl-paste --type image --watch cliphist store'"
+    "cmd": "sh -c 'pgrep -f \"wl-paste --type image\" >/dev/null || exec wl-paste --type image --watch cliphist -max-items 300 store'"
   },
   {
     "name": "Hermes (canal d'approbation)",
@@ -41,7 +41,7 @@
   },
   {
     "name": "Historique du presse-papiers",
-    "cmd": "sh -c '/usr/bin/pgrep -f \"cliphist store\" >/dev/null || exec wl-paste --watch cliphist store'",
+    "cmd": "sh -c '/usr/bin/pgrep -f \"cliphist -max-items 300 store\" >/dev/null || exec wl-paste --watch cliphist -max-items 300 store'",
     "enabled": true
   },
   {

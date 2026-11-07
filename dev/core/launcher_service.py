@@ -525,11 +525,21 @@ def presse_epingler(ident, texte=""):
     d = _epingles()
     if any(t[:60] == brut[:60] for t in ()):      # garde-fou de forme, jamais vrai
         return ""
+    # L'épingle survit à cliphist : on conserve donc l'image entière, pas
+    # seulement sa vignette. Sans cela, une capture épinglée devenait une vignette
+    # de 96 px une fois l'original évincé.
+    epingles_dir = PRESSE_CACHE.parent / "epingles"
+    try:
+        epingles_dir.mkdir(parents=True, exist_ok=True)
+        (epingles_dir / f"{ident}.bin").write_bytes(brut)
+    except OSError:
+        pass
     vign = PRESSE_CACHE / f"{ident}.png"
     d[str(ident)] = {
         "texte": texte[:200],
         "type": _type_entree(ident),
         "vignette": str(vign) if vign.exists() else "",
+        "original": str(epingles_dir / f"{ident}.bin") if (epingles_dir / f"{ident}.bin").exists() else "",
         "quand": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     _ecrire_epingles(d)
