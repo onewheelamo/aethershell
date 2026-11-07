@@ -116,7 +116,13 @@ MARKER="$CURRENT_HYPR/.quickshell_managed"
 # laisse `sync_file` écraser la cible par la version du dépôt — c'est ainsi que
 # la composition de la barre (15 applets) a été remplacée par la version minimale
 # du dépôt (2 applets), vidant la barre.
-ETAT_UTILISATEUR="bar_applets.json flotte.json style_vars.json widgets.json launch_history.json homelab.json app_vars.json secrets.json autostart.json notif_targets.json llm_providers.json"
+# Fichiers .json de core/ qui sont du **code ou des données livrées** : eux seuls
+# sont déployés. Tout le reste est un état de cette machine-là — composition de la
+# barre, palette, caches, secrets, cibles distantes — et ne doit jamais être
+# écrasé. La règle est structurelle : elle couvre les fichiers futurs sans qu'on
+# ait à les inscrire un par un (deux incidents successifs ont montré le coût de
+# la liste au cas par cas).
+JSON_DEPLOYES="applets_catalogue.json emoji.json tray_icons.json secrets.example.json"
 
 PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json homelab.json launch_history.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
@@ -164,9 +170,18 @@ copy_dir_files() {
     for f in "$src"/*; do
         [ -f "$f" ] || continue
         name="$(basename "$f")"
-        # État utilisateur : présent = intouchable, même si le dépôt en a une
-        # autre version. Absent = on installe la valeur par défaut du dépôt.
-        if [ -e "$dst/$name" ] && [[ " $ETAT_UTILISATEUR " == *" $name "* ]]; then
+        # core/ : un .json présent sur la cible n'est jamais remplacé, sauf s'il
+        # fait partie des données livrées. Absent = on installe celui du dépôt.
+        case "$dst" in
+            */core)
+                if [ -e "$dst/$name" ] && [[ "$name" == *.json ]] \
+                   && [[ " $JSON_DEPLOYES " != *" $name "* ]]; then
+                    continue
+                fi
+                ;;
+        esac
+        # Fichiers d'état hors core/ (le cas échéant) : même règle, par liste.
+        if [ -e "$dst/$name" ] && [[ " ${NON_ECRASABLES:-} " == *" $name "* ]]; then
             continue
         fi
         if [ -e "$dst/$name" ] && is_preserved "$name" "$list"; then
