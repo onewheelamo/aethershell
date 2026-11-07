@@ -366,6 +366,9 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-tray-menu", "shell-shotbar",
                          "shell-menu-session")
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
+# Colors proposées au visualiseur : des jetons du thème, pas des valeurs libres —
+# une couleur en dur ne suivrait pas un changement de palette.
+VIZ_COULEURS = ("accent", "accentMuted", "fg", "warn", "success")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :
 # bord haut/bas, centre ou tiers gauche/droit.
@@ -602,6 +605,18 @@ def update_style_var(key, value):
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_border":
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "viz_fps":
+        data[key] = max(10, min(60, int(float(value))))
+    elif key == "viz_cols":
+        data[key] = max(16, min(256, int(float(value))))
+    elif key == "viz_sensibilite":
+        data[key] = round(max(0.05, min(4.0, float(value))), 2)
+    elif key == "viz_lissage":
+        data[key] = round(max(0.0, min(0.99, float(value))), 2)
+    elif key == "viz_epaisseur":
+        data[key] = round(max(0.5, min(4.0, float(value))), 1)
+    elif key == "viz_couleur" and str(value) in VIZ_COULEURS:
+        data[key] = str(value)
     elif key == "bar_gaps_transparent":
         # Espaces entre les îlots de la barre du haut : booléen, relu par
         # Theme.qml (barGapsTransparent), qui découpe le fond en trois zones.
@@ -1530,6 +1545,12 @@ def get_full_config_state():
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
         "bar_border": bool(style_data.get("bar_border", True)),
         "bar_gaps_transparent": bool(style_data.get("bar_gaps_transparent", False)),
+        "viz_fps": int(style_data.get("viz_fps", 30)),
+        "viz_cols": int(style_data.get("viz_cols", 96)),
+        "viz_sensibilite": float(style_data.get("viz_sensibilite", 1.0)),
+        "viz_lissage": float(style_data.get("viz_lissage", 0.2)),
+        "viz_epaisseur": float(style_data.get("viz_epaisseur", 1.4)),
+        "viz_couleur": str(style_data.get("viz_couleur", "accent")),
         "hypr_rounding": get_hypr_rounding(),
         "hypr_rounding_power": get_hypr_rounding_power(),
         "api_keys": resume_secrets(),

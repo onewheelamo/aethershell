@@ -77,15 +77,27 @@ Singleton {
     // Une trame non silencieuse est passée depuis le dernier réveil.
     property bool activiteVue: false
 
-    // Réglages de capture. Ils ne changent qu'à l'arrêt/relance du processus :
-    // c'est voulu, un redémarrage du flux à chaque pixel serait pire que le
-    // défaut. Le panneau les écrira dans style_vars plus tard.
-    readonly property int fps: 30
-    readonly property int colsOnde: 96
-    readonly property int colsBarres: 24
+    // Réglages de capture, lus dans le thème (donc dans style_vars.json, réglés
+    // par le panneau). Ils ne changent qu'à l'arrêt/relance du processus : un
+    // redémarrage du flux à chaque pixel serait pire que le défaut, d'où les
+    // `on…Changed` qui réarment.
+    readonly property int fps: Theme.vizFps
+    readonly property int colsOnde: Theme.vizCols
+    // cava veut un nombre de bandes, pas une largeur : on garde le même ordre de
+    // grandeur que le mode onde (une bande pour quatre colonnes), borné.
+    readonly property int colsBarres: Math.max(8, Math.min(64, Math.round(Theme.vizCols / 4)))
 
     onActifChanged: racine.rearmer()
     onStyleChanged: racine.rearmer()
+    onFpsChanged: racine.rearmer()
+    onColsOndeChanged: racine.rearmer()
+    onColsBarresChanged: racine.rearmer()
+    // La sensibilité et le lissage sont des arguments de pwscope : même régime.
+    Connections {
+        target: Theme
+        function onVizSensibiliteChanged() { racine.rearmer() }
+        function onVizLissageChanged() { racine.rearmer() }
+    }
 
     // ── registre : quels applets sont allumés, et avec quelles options ──────
     // `onLoaded` et non `onTextChanged` : FileView charge en asynchrone, donc
@@ -136,6 +148,10 @@ Singleton {
                 if (nav) navigateursActifs++
             }
             racine.seulementNavigateurs = actifs > 0 && actifs === navigateursActifs
+            // Un flux joue déjà au démarrage (ou reprend sans événement) : la
+            // veille ne doit pas attendre. `majFlux` ne tourne qu'au démarrage
+            // et sur événement, donc ce réveil ne boucle pas.
+            if (actifs > 0 && racine.veille) racine.reveiller(false)
         } catch (e) {
             // Lecture impossible : on ne filtre pas plutôt que de tout masquer.
             racine.seulementNavigateurs = false
@@ -225,7 +241,9 @@ Singleton {
         running: false
         command: racine.binaire !== ""
             ? racine.lanceur("'" + racine.binaire + "' --fps " + racine.fps
-                             + " --cols " + racine.colsOnde)
+                             + " --cols " + racine.colsOnde
+                             + " --sensitivity " + Theme.vizSensibilite
+                             + " --smoothing " + Theme.vizLissage)
             : []
         stdout: SplitParser {
             onRead: line => racine.trameScope(line)
@@ -250,7 +268,8 @@ Singleton {
     Process {
         id: barres
         running: false
-        command: racine.lanceur("cava -p '" + Quickshell.shellPath("core/cava_viz.conf") + "'")
+        command: racine.lanceur("cava -p '" + Quickshell.shellPath("core/cava_viz.conf")
+                                + "' -b " + racine.colsBarres)
         stdout: SplitParser {
             onRead: line => racine.trameCava(line)
         }
@@ -458,7 +477,10 @@ Singleton {
 
     function rearmer() {
         racine.arreter()
-        if (racine.actif) racine.demarrer()
+        // Même raison que dans reveiller() : après un arrêt, `running` reste
+        // vrai un instant côté Quickshell, et un démarrage immédiat ne relance
+        // rien. Chaque réglage du panneau passe par ici.
+        if (racine.actif) demarrageDiffere.restart()
     }
 
     Component.onCompleted: {

@@ -107,6 +107,8 @@ Rectangle {
           tab: 0, section: "esthetique_aspect", target: "winOpacityRow" },
         { label: "Opacité des surfaces du shell", words: "opacite surfaces shell verre barre panneau",
           tab: 1, section: "quickshell_barre", target: "shellOpacityRow" },
+        { label: "Réglages du visualiseur audio", words: "visualiseur audio onde barres fps colonnes sensibilite lissage epaisseur couleur",
+          tab: 1, section: "quickshell_visualiseur", target: "secVisualiseur" },
         { label: "Espaces entre les îlots", words: "espaces ilots transparence transparence vide gap barre media",
           tab: 1, section: "quickshell_barre", target: "barGapsRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
@@ -173,6 +175,7 @@ Rectangle {
         "roundingIslandRow": roundingIslandRow,
         "barHeightRow": barHeightRow,
         "barGapsRow": barGapsRow,
+        "secVisualiseur": secVisualiseur,
         "resizeRow": resizeRow,
         "winOpacityRow": winOpacityRow,
         "shellOpacityRow": shellOpacityRow,
@@ -186,6 +189,52 @@ Rectangle {
         "launchHistoryRow": launchHistoryRow,
         "secAutostart": secAutostart
     })
+
+    // Correspondance section → ancre : le clic milieu d'un applet donne un nom
+    // de section (celui de `panel_sections`), l'ancre est l'id de l'objet à
+    // amener à l'écran. Sans correspondance, on déplie sans défiler.
+    readonly property var ancreDeSection: ({
+        "quickshell_applets": "secApplets",
+        "quickshell_visualiseur": "secVisualiseur",
+        "quickshell_barre": "secBarre",
+        "quickshell_barres": "secBarres",
+        "quickshell_disques": "secDisques",
+        "widgets": "secWidgets",
+        "apps_programs": "secApps"
+    })
+
+    // Un nom de section ne dit pas dans quel onglet il vit : sans ça, le clic
+    // milieu ouvrait le panneau sur « Bureau » et dépliait une section cachée.
+    readonly property var ongletDeSection: ({
+        "quickshell_applets": 1, "quickshell_visualiseur": 1, "quickshell_barre": 1,
+        "quickshell_barres": 1, "quickshell_disques": 1,
+        "widgets": 2, "apps_programs": 5
+    })
+
+    function ouvrirSection(nom) {
+        const section = String(nom || "")
+        if (section === "") return
+        const onglet = root.ongletDeSection[section]
+        if (onglet !== undefined) root.currentTab = onglet
+        root.setPanelSection(section, true)
+        const ancre = root.ancreDeSection[section] || ""
+        if (ancre !== "") {
+            root.scrollTargetName = ancre
+            root.scrollTries = 0
+            scrollTimer.restart()
+        }
+    }
+
+    // Ouverture demandée de l'extérieur (clic milieu d'un applet).
+    Connections {
+        target: Theme
+        function onConfigPanelVisibleChanged() {
+            if (!Theme.configPanelVisible) return
+            const cible = String(Theme.configTarget || "")
+            Theme.configTarget = ""
+            if (cible !== "") root.ouvrirSection(cible)
+        }
+    }
 
     function scrollToAnchor(name) {
         const target = root.targetMap[name]
@@ -625,6 +674,29 @@ Rectangle {
     property bool barBorder: true
     // Espaces entre les îlots de la barre du haut : transparents et sans flou
     property bool barGapsTransparent: false
+    // Visualiseur audio (style_vars) : capture et dessin.
+    property int vizFps: 30
+    property int vizCols: 96
+    property real vizSensibilite: 1.0
+    property real vizLissage: 0.2
+    property real vizEpaisseur: 1.4
+    property string vizCouleur: "accent"
+    // Jetons proposés au visualiseur — les mêmes que VIZ_COULEURS dans
+    // core/config_manager.py, qui refuse tout le reste.
+    readonly property var vizCouleurs: [
+        { code: "accent", nom: "Accent" },
+        { code: "accentMuted", nom: "Accent 2" },
+        { code: "fg", nom: "Texte" },
+        { code: "warn", nom: "Alerte" },
+        { code: "success", nom: "Succès" }
+    ]
+    function couleurViz(code) {
+        return code === "accentMuted" ? Theme.accentMuted
+             : code === "fg" ? Theme.fg
+             : code === "warn" ? Theme.warn
+             : code === "success" ? Theme.success
+             : Theme.accent
+    }
     property real shellBlurAlpha: 0.4
     property bool shellBlurPopups: true
     property int resizeStep: 15
@@ -700,6 +772,12 @@ Rectangle {
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
+        if (typeof data.viz_fps === "number") root.vizFps = data.viz_fps
+        if (typeof data.viz_cols === "number") root.vizCols = data.viz_cols
+        if (typeof data.viz_sensibilite === "number") root.vizSensibilite = data.viz_sensibilite
+        if (typeof data.viz_lissage === "number") root.vizLissage = data.viz_lissage
+        if (typeof data.viz_epaisseur === "number") root.vizEpaisseur = data.viz_epaisseur
+        if (typeof data.viz_couleur === "string") root.vizCouleur = data.viz_couleur
         if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
         if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
@@ -3326,6 +3404,153 @@ Rectangle {
                     }
                 }
             }
+                // ═══════════════════════════════════════════════════════════════
+                // Visualiseur audio — capture et dessin
+                // ═══════════════════════════════════════════════════════════════
+                CollapsibleSection {
+                    id: secVisualiseur
+                    objectName: "secVisualiseur"
+                    title: "Visualiseur audio"
+                    icon: "music"
+                    expanded: root.sectionOpen("quickshell_visualiseur", false)
+                    onToggled: expanded => root.setPanelSection("quickshell_visualiseur", expanded)
+
+                    Column {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: parent.width
+                            text: "La capture est relancée à chaque réglage : c'est voulu, un redémarrage du flux à chaque pixel serait pire que le défaut. "
+                                  + "Le rendu (onde ou barres) se choisit dans la ligne de l'applet ; ces valeurs valent pour les deux."
+                            color: Qt.alpha(Theme.fg, 0.45)
+                            font.pixelSize: Math.max(9, Theme.textXs - 1)
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Images par seconde :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                            Stepper {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: root.vizFps
+                                minimumValue: 10; maximumValue: 60; stepSize: 5; decimals: 0
+                                onValueModified: newVal => {
+                                    root.vizFps = newVal
+                                    root.runConfigCmd(["style", "viz_fps", String(newVal)])
+                                }
+                            }
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Colonnes :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                            Stepper {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: root.vizCols
+                                minimumValue: 16; maximumValue: 256; stepSize: 8; decimals: 0
+                                onValueModified: newVal => {
+                                    root.vizCols = newVal
+                                    root.runConfigCmd(["style", "viz_cols", String(newVal)])
+                                }
+                            }
+                            Text { anchors.verticalCenter: parent.verticalCenter; text: "bandes en mode barres : colonnes / 4"; color: Qt.alpha(Theme.fg, 0.45); font.pixelSize: Math.max(9, Theme.textXs - 1) }
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Sensibilité :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                            Stepper {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: root.vizSensibilite
+                                minimumValue: 0.05; maximumValue: 4.0; stepSize: 0.05; decimals: 2
+                                onValueModified: newVal => {
+                                    root.vizSensibilite = newVal
+                                    root.runConfigCmd(["style", "viz_sensibilite", String(newVal)])
+                                }
+                            }
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Lissage :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                            Stepper {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: root.vizLissage
+                                minimumValue: 0.0; maximumValue: 0.99; stepSize: 0.05; decimals: 2
+                                onValueModified: newVal => {
+                                    root.vizLissage = newVal
+                                    root.runConfigCmd(["style", "viz_lissage", String(newVal)])
+                                }
+                            }
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 8
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Épaisseur du trait :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                            Stepper {
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: root.vizEpaisseur
+                                minimumValue: 0.5; maximumValue: 4.0; stepSize: 0.5; decimals: 1
+                                onValueModified: newVal => {
+                                    root.vizEpaisseur = newVal
+                                    root.runConfigCmd(["style", "viz_epaisseur", String(newVal)])
+                                }
+                            }
+                        }
+
+                        // Couleur : des jetons du thème, pas une valeur libre — une
+                        // couleur en dur ne suivrait pas un changement de palette.
+                        Row {
+                            width: parent.width
+                            spacing: 8
+
+                            Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Couleur :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+
+                            Row {
+                                spacing: 6
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                Repeater {
+                                    model: root.vizCouleurs
+
+                                    Rectangle {
+                                        required property var modelData
+                                        readonly property bool choisi: root.vizCouleur === modelData.code
+                                        width: 74; height: 22; radius: Theme.globalRadius
+                                        color: choisi ? root.couleurViz(modelData.code) : "transparent"
+                                        border.color: root.couleurViz(modelData.code)
+                                        border.width: 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData.nom
+                                            color: parent.choisi ? Theme.bg : root.couleurViz(modelData.code)
+                                            font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                            font.bold: parent.choisi
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                root.vizCouleur = modelData.code
+                                                root.runConfigCmd(["style", "viz_couleur", modelData.code])
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
         }
 
 

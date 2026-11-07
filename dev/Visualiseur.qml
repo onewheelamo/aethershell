@@ -26,8 +26,8 @@ Item {
     // barre à la fois porte le visualiseur : c'est un réglage, pas un hasard.
     property string barre: ""
 
-    property color teinte: Theme.accent
-    property real epaisseur: 1.4
+    property color teinte: Theme.vizColor
+    property real epaisseur: Theme.vizEpaisseur
     property real remplissage: 0.16
 
     // L'appelant autorise le dessin (mode « espaces transparents » de la barre).
@@ -62,7 +62,10 @@ Item {
         id: canevas
         anchors.fill: parent
         antialiasing: true
-        renderTarget: Canvas.FramebufferObject
+        // Pas de `renderTarget: FramebufferObject` : la cible FBO ne se vidait
+        // pas franchement entre deux trames, et un changement de couleur
+        // laissait l'ancienne teinte par-dessous (constaté). Le rendu direct
+        // coûte un peu plus, pour 128 points à 30 fps c'est sans importance.
         renderStrategy: Canvas.Cooperative
 
         onPaint: {

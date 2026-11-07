@@ -59,6 +59,17 @@ Item {
                                   ? donnees.survol : []
     property bool carteSurvol: false
 
+    // Clic milieu : les réglages de cet applet, comme un widget qui ouvre ses
+    // préférences. Déclaré avant les autres surfaces, donc dessous : les applets
+    // ne réclament que le bouton gauche, le milieu retombe ici. Le catalogue
+    // peut nommer une section (`panneau`), sinon c'est la liste des applets.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.MiddleButton
+        cursorShape: Qt.PointingHandCursor
+        onClicked: Theme.openConfigSection(String(root.applet.panneau || "quickshell_applets"))
+    }
+
     HoverHandler {
         id: survolHover
         onHoveredChanged: {

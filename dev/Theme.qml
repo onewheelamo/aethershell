@@ -34,6 +34,21 @@ QtObject {
     property int barHeight: 40
     // Bordure de la barre du haut (capsule fusionnée et îlots) : réglable.
     property bool barBorder: true
+    // ── Visualiseur audio (style_vars) ──────────────────────────────────────
+    // Réglages de capture et de dessin ; l'applet choisit son rendu (onde ou
+    // barres) dans sa propre option, ces valeurs-ci valent pour les deux.
+    property int vizFps: 30
+    property int vizCols: 96
+    property real vizSensibilite: 1.0
+    property real vizLissage: 0.2
+    property real vizEpaisseur: 1.4
+    property string vizCouleur: "accent"
+    readonly property color vizColor: vizCouleur === "accentMuted" ? accentMuted
+                                     : vizCouleur === "fg" ? fg
+                                     : vizCouleur === "warn" ? warn
+                                     : vizCouleur === "success" ? success
+                                     : accent
+
     // Espaces entre les îlots de la barre du haut : transparents au lieu d'être
     // peints comme le reste de la capsule. Transparent ne veut pas dire flouté :
     // l'alpha 0 passe sous le seuil `ignore_alpha` de la règle de flou de
@@ -209,6 +224,9 @@ QtObject {
     // Clés des panneaux : celles des îlots ("calendar", "media", "notifications")
     // et celles des applets ("applet:<id>", rendues par le composant lui-même).
     property string activePopup: ""
+    // Clic milieu sur un applet : nom de la section du panneau à déplier.
+    // Consommé (et remis à vide) par config_panel.qml à l'ouverture.
+    property string configTarget: ""
 
     // Applications dont les notifications n'apparaissent pas en toast (elles vont
     // directement au centre). Alimentée par core/style_vars.json.
@@ -341,6 +359,12 @@ QtObject {
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
+        if (typeof data.viz_fps === "number") root.vizFps = Math.max(10, Math.min(60, Math.round(data.viz_fps)))
+        if (typeof data.viz_cols === "number") root.vizCols = Math.max(16, Math.min(256, Math.round(data.viz_cols)))
+        if (typeof data.viz_sensibilite === "number") root.vizSensibilite = Math.max(0.05, Math.min(4.0, data.viz_sensibilite))
+        if (typeof data.viz_lissage === "number") root.vizLissage = Math.max(0, Math.min(0.99, data.viz_lissage))
+        if (typeof data.viz_epaisseur === "number") root.vizEpaisseur = Math.max(0.5, Math.min(4.0, data.viz_epaisseur))
+        if (typeof data.viz_couleur === "string" && data.viz_couleur.length > 0) root.vizCouleur = data.viz_couleur
         if (typeof data.bar_bottom === "boolean") root.barBottomVisible = data.bar_bottom
         if (typeof data.bar_left === "boolean") root.barLeftVisible = data.bar_left
         if (typeof data.bar_right === "boolean") root.barRightVisible = data.bar_right
@@ -513,6 +537,12 @@ QtObject {
         }
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
+        }
+        // Ouvre le panneau sur une section précise — utilisé par le clic milieu
+        // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets
+        function openConfigSection(section: string) {
+            root.configTarget = section
+            root.configPanelVisible = true
         }
         function setConfigButtonVisible(visible: bool) {
             root.showConfigButton = visible
