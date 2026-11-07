@@ -172,11 +172,10 @@ def analyser(options=None, force=False):
         except (OSError, ValueError):
             pass
 
-    voulues = _choisies(options)
     barres = []
     detail = {}
 
-    for cle in voulues:
+    for cle in MESURES:
         if cle == "cpu":
             v = cpu_pourcent()
             if v is not None:
@@ -212,7 +211,7 @@ def analyser(options=None, force=False):
         CACHE.write_text(json.dumps(donnees, ensure_ascii=False), encoding="utf-8")
     except OSError:
         pass
-    return donnees
+    return _filtrer(donnees, options)
 
 
 def _choisies(options):
@@ -343,8 +342,18 @@ def processus(limite=14):
             "ram_mo": round(rss * (os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 4096) / 1048576, 1),
             "gpu_mo": gpu.get(pid, 0),
         })
-    lignes.sort(key=lambda l: (l["cpu"], l["ram_mo"]), reverse=True)
-    retenues = [l for l in lignes if l["cpu"] >= CPU_MIN or l["gpu_mo"] > 0][:limite]
+    # Le popup trie en mémoire par CPU, RAM ou GPU : on garde la tête de chaque
+    # axe pour qu'un gros consommateur de RAM au repos CPU reste visible.
+    par_cpu = sorted([l for l in lignes if l["cpu"] >= CPU_MIN],
+                     key=lambda l: (l["cpu"], l["ram_mo"]), reverse=True)[:limite]
+    par_ram = sorted([l for l in lignes if l["ram_mo"] > 0],
+                     key=lambda l: (l["ram_mo"], l["cpu"]), reverse=True)[:limite]
+    par_gpu = sorted([l for l in lignes if l["gpu_mo"] > 0],
+                     key=lambda l: (l["gpu_mo"], l["cpu"]), reverse=True)[:limite]
+    vus = {}
+    for l in par_cpu + par_ram + par_gpu:
+        vus[l["pid"]] = l
+    retenues = sorted(vus.values(), key=lambda l: (l["cpu"], l["ram_mo"]), reverse=True)
     commandes = _commandes([l["pid"] for l in retenues])
     for ligne in retenues:
         ligne["commande"] = commandes.get(ligne["pid"], "")

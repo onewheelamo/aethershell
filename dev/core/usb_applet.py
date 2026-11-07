@@ -146,6 +146,15 @@ def _enfants(nom):
         return []
 
 
+def _titulaire(nom):
+    """Le volume en clair (`dm-*`) ouvert par udisks sur une partition LUKS."""
+    try:
+        entrees = sorted(os.listdir("/sys/class/block/%s/holders" % nom))
+    except OSError:
+        return ""
+    return entrees[0] if entrees else ""
+
+
 def _volume(nom, montages, echanges):
     majmin = _majmin(nom)
     props = _proprietes_udev("%d:%d" % majmin) if majmin else {}
@@ -155,15 +164,28 @@ def _volume(nom, montages, echanges):
     taille = _nombre("/sys/class/block/%s/size" % nom) * 512
     fs = props.get("ID_FS_TYPE") or ""
     etiquette = _decoder(props.get("ID_FS_LABEL_ENC") or props.get("ID_FS_LABEL") or "")
+    chiffre = fs == "crypto_LUKS"
+    clair = _titulaire(nom) if chiffre else ""
+    montage = montages.get(majmin, "") if majmin else ""
+    if clair:
+        majmin_clair = _majmin(clair)
+        props_clair = _proprietes_udev("%d:%d" % majmin_clair) if majmin_clair else {}
+        if majmin_clair:
+            montage = montages.get(majmin_clair, "") or montage
+        if not etiquette:
+            etiquette = _decoder(props_clair.get("ID_FS_LABEL_ENC")
+                                 or props_clair.get("ID_FS_LABEL") or "")
     return {
         "dev": dev,
         "nom": nom,
         "etiquette": etiquette,
         "fs": fs,
         "taille_o": taille,
-        "montage": montages.get(majmin, "") if majmin else "",
-        "chiffre": fs == "crypto_LUKS",
-        "echange": nom in echanges,
+        "montage": montage,
+        "chiffre": chiffre,
+        "ouvert": bool(clair),
+        "dev_clair": ("/dev/%s" % clair) if clair else "",
+        "echange": nom in echanges or (bool(clair) and clair in echanges),
     }
 
 
@@ -273,12 +295,19 @@ def _udisks(*args):
     return True, (res.stdout or "").strip()
 
 
+def _dev_effectif(dev):
+    """Si `dev` est une partition LUKS déjà déverrouillée, cible son volume `dm-*`."""
+    nom = os.path.basename(str(dev or ""))
+    clair = _titulaire(nom) if nom else ""
+    return ("/dev/%s" % clair) if clair else dev
+
+
 def monter(dev):
-    return _udisks("mount", "-b", dev)
+    return _udisks("mount", "-b", _dev_effectif(dev))
 
 
 def demonter(dev):
-    return _udisks("unmount", "-b", dev)
+    return _udisks("unmount", "-b", _dev_effectif(dev))
 
 
 def _gestionnaire():
@@ -292,8 +321,8 @@ def _gestionnaire():
     configure = ""
     try:
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "style_vars.json"), "r", encoding="utf-8") as f:
-            apps = (json.load(f) or {}).get("apps") or {}
+                               "app_vars.json"), "r", encoding="utf-8") as f:
+            apps = json.load(f) or {}
         configure = str(apps.get("Files") or "").strip()
     except (OSError, ValueError):
         configure = ""
@@ -317,21 +346,42 @@ def ouvrir(chemin):
 
 
 def verrouiller(dev):
+    nom = os.path.basename(str(dev or ""))
+    clair = _titulaire(nom) if nom else ""
+    if clair:
+        majmin_clair = _majmin(clair)
+        if majmin_clair and _montages().get(majmin_clair):
+            ok, msg = _udisks("unmount", "-b", "/dev/%s" % clair)
+            if not ok:
+                return False, msg
     return _udisks("lock", "-b", dev)
 
 
-def deverrouiller(dev, phrase):
+def deverrouiller(dev, phrase="", fichier_phrase=""):
     """Déverrouille un volume LUKS. La phrase ne passe pas par la ligne de
     commande — elle serait visible dans `ps` — mais par un fichier de passage
-    en mémoire, effacé aussitôt."""
+    en mémoire, créé en mode 0600 et effacé aussitôt."""
+    if fichier_phrase:
+        try:
+            with open(fichier_phrase, "r", encoding="utf-8") as f:
+                phrase = f.read().rstrip("\r\n")
+        except OSError as erreur:
+            return False, str(erreur)
+        finally:
+            try:
+                os.unlink(fichier_phrase)
+            except OSError:
+                pass
+    if not phrase:
+        return False, "phrase absente"
     if not shutil.which("udisksctl"):
         return False, "udisksctl absent (paquet udisks2)"
     chemin = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"),
                           "quickshell-luks-%d" % os.getpid())
     try:
-        with open(chemin, "w", encoding="utf-8") as f:
+        fd = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(phrase)
-        os.chmod(chemin, 0o600)
         res = subprocess.run(["udisksctl", "unlock", "-b", dev, "--key-file", chemin],
                              capture_output=True, text=True, timeout=DELAI)
         if res.returncode != 0:
@@ -423,13 +473,16 @@ def main(argv):
         elif action == "verrouiller":
             ok, message = verrouiller(cible)
         elif action == "deverrouiller":
+            fichier_phrase = ""
+            if "--fichier-phrase" in argv and argv.index("--fichier-phrase") + 1 < len(argv):
+                fichier_phrase = argv[argv.index("--fichier-phrase") + 1]
             phrase = ""
             if "--phrase" in argv and argv.index("--phrase") + 1 < len(argv):
                 phrase = argv[argv.index("--phrase") + 1]
-            if not phrase:
+            if not phrase and not fichier_phrase:
                 print(json.dumps({"ok": False, "erreur": "phrase absente"}))
                 return 2
-            ok, message = deverrouiller(cible, phrase)
+            ok, message = deverrouiller(cible, phrase=phrase, fichier_phrase=fichier_phrase)
         else:
             ok, message = retirer(cible)
         print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))

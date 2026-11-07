@@ -507,6 +507,7 @@ Item {
                     // timer de relecture (approbations, états vivants) ne démarre
                     // pas, et le panneau reste figé sur l'état de l'ouverture.
                     if ("ouvert" in item) item.ouvert = Qt.binding(function () { return root.ouvert })
+                    if ("notifier" in item) item.notifier = function () { root.rafraichir(true) }
                 }
             }
         }

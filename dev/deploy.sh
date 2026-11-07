@@ -124,7 +124,7 @@ MARKER="$CURRENT_HYPR/.quickshell_managed"
 # la liste au cas par cas).
 JSON_DEPLOYES="applets_catalogue.json emoji.json tray_icons.json secrets.example.json"
 
-PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json homelab.json launch_history.json"
+PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json homelab.json launch_history.json todo.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
 # programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et

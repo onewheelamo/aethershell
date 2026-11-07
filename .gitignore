@@ -48,3 +48,7 @@ dev/sync.sh
 # machine, le dépôt n'a pas à les porter.
 PROPOSITION*.md
 dev/PROPOSITION*.md
+
+# Brouillons, propositions et archives de travail. Le répertoire de travail ne
+# garde que ce qui sert : les propositions s'écrivent ici et meurent ici.
+tmp/

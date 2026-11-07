@@ -13,6 +13,7 @@ Item {
     id: root
     property var options: ({})
     property string widgetId: ""
+    property var notifier: null
     // Le popup est monté par l'applet ; il connaît son état d'ouverture.
     property bool ouvert: false
 
@@ -29,6 +30,7 @@ Item {
     property var processus: []
     property string tri: "cpu"
     property string message: ""
+    property int dernierPidArrete: 0
 
     function rafraichirProcessus() {
         if (!root.ouvert) return
@@ -37,9 +39,21 @@ Item {
     }
 
     function arreter(pid) {
+        const forcer = (root.dernierPidArrete === pid)
+        root.dernierPidArrete = forcer ? 0 : pid
         geste.pid = pid
+        geste.forcer = forcer
         geste.running = false
         geste.running = true
+    }
+
+    function valeurProcessus(p) {
+        if (root.tri === "ram_mo" || root.tri === "gpu_mo") {
+            const mo = Number(p[root.tri]) || 0
+            if (mo >= 1024) return (mo / 1024).toFixed(1).replace(".", ",") + " Go"
+            return Math.round(mo) + " Mo"
+        }
+        return Number(p.cpu || 0).toFixed(1) + " %"
     }
 
     readonly property var processusTries: {
@@ -130,7 +144,10 @@ Item {
     Process {
         id: geste
         property int pid: 0
-        command: ["python3", Quickshell.shellPath("core/systeme_applet.py"), "tuer", String(geste.pid)]
+        property bool forcer: false
+        command: geste.forcer
+                 ? ["python3", Quickshell.shellPath("core/systeme_applet.py"), "tuer", String(geste.pid), "--force"]
+                 : ["python3", Quickshell.shellPath("core/systeme_applet.py"), "tuer", String(geste.pid)]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -142,7 +159,10 @@ Item {
         onExited: root.rafraichirProcessus()
     }
 
-    onOuvertChanged: if (ouvert) rafraichirProcessus()
+    onOuvertChanged: {
+        if (ouvert) rafraichirProcessus()
+        else root.dernierPidArrete = 0
+    }
 
     Process {
         id: etat
@@ -181,7 +201,7 @@ Item {
     Process {
         id: ecriture
         stdout: StdioCollector {
-            onStreamFinished: root.charger()
+            onStreamFinished: { root.charger(); if (root.notifier) root.notifier() }
         }
     }
 
@@ -386,7 +406,7 @@ Item {
                     width: Math.round(44 * root.echelle)
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignRight
-                    text: Number(modelData.cpu).toFixed(1) + " %"
+                    text: root.valeurProcessus(modelData)
                     color: Qt.alpha(Theme.fg, 0.6)
                     font.pixelSize: Math.round(Theme.textXs * 0.72 * root.echelle)
                     font.features: { "tnum": 1 }
@@ -395,17 +415,18 @@ Item {
                 // « arrêter » demande un SIGTERM ; forcer reste possible en
                 // recliquant sur la même ligne, en connaissance de cause.
                 Rectangle {
+                    readonly property bool enAttenteForce: root.dernierPidArrete === Number(modelData.pid)
                     width: Math.round(46 * root.echelle)
                     height: Math.round(16 * root.echelle)
                     radius: Math.round(4 * root.echelle)
-                    color: Qt.alpha(Theme.warn, 0.12)
+                    color: Qt.alpha(enAttenteForce ? Theme.error : Theme.warn, 0.14)
                     border.width: 1
-                    border.color: Qt.alpha(Theme.warn, 0.3)
+                    border.color: Qt.alpha(enAttenteForce ? Theme.error : Theme.warn, 0.35)
 
                     Text {
                         anchors.centerIn: parent
-                        text: "arrêter"
-                        color: Qt.alpha(Theme.warn, 0.9)
+                        text: parent.enAttenteForce ? "forcer" : "arrêter"
+                        color: Qt.alpha(parent.enAttenteForce ? Theme.error : Theme.warn, 0.9)
                         font.pixelSize: Math.round(Theme.textXs * 0.66 * root.echelle)
                     }
 

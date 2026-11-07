@@ -247,14 +247,11 @@ def processus_hermes():
             brut = entree.joinpath("cmdline").read_bytes()
         except (FileNotFoundError, PermissionError, ProcessLookupError):
             continue
-        if b"hermes_cli" not in brut:
+        if b"hermes_cli" not in brut or b"process_supervisor" in brut:
             continue
         # Les tokens sont séparés par des NUL, pas par des espaces : on cherche le
         # drapeau comme token, et le profil est celui qui le suit.
         morceaux = brut.split(b"\0")
-        if b"process_supervisor" in " ".join(m.decode("utf-8", "ignore")
-                                              for m in morceaux[:1]).encode():
-            continue
         profil = None
         for i, m in enumerate(morceaux):
             if m == b"-p" and i + 1 < len(morceaux):
@@ -305,10 +302,16 @@ def _iso(horodatage):
 
 
 def _duree(session):
-    """Durée lisible côté QML : la session en cours compte jusqu'à maintenant."""
+    """Durée lisible côté QML : la session vivante compte jusqu'à maintenant,
+    une session interrompue s'arrête à sa dernière activité."""
     try:
         debut = float(session.get("started_at") or 0)
-        fin = float(session.get("ended_at") or time.time())
+        if session.get("ended_at"):
+            fin = float(session["ended_at"])
+        elif session.get("vivante"):
+            fin = time.time()
+        else:
+            fin = float(session.get("last_activity_at") or debut)
         return max(0, int(fin - debut))
     except (TypeError, ValueError):
         return 0

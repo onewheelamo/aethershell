@@ -335,7 +335,7 @@ Item {
 
     HyprlandFocusGrab {
         active: root.ouvert && root.pretGrab
-        windows: [menu]
-        onCleared: if (root.ouvert) Theme.activePopup = ""
+        windows: Theme.fenetresGrab(menu, root)
+        onCleared: if (Theme.activePopup === "applet:gestion-energie") Theme.activePopup = ""
     }
 }

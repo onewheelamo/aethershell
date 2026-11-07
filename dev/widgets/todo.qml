@@ -23,7 +23,7 @@ Item {
 
     property var etat: ({})
     readonly property var ouverts: {
-        const l = (root.etat.items || []).filter(function (i) { return !i.fait })
+        const l = (root.etat.items || []).filter(function (i) { return !i.fait || i.demande })
         return l.slice(0, 3)
     }
 

@@ -274,12 +274,27 @@ def _reecrire(chemin, identifiant, transformation):
     return True
 
 
+def _retirer_alerte(lignes, numero):
+    """Retire les lignes « ⚠ … » indentées sous l'item."""
+    suivant = numero + 1
+    while suivant < len(lignes) and lignes[suivant].startswith((" ", "\t")) \
+            and lignes[suivant].strip():
+        if ITEM.match(lignes[suivant].rstrip("\n")):
+            break
+        if lignes[suivant].strip().startswith("⚠"):
+            del lignes[suivant]
+            continue
+        suivant += 1
+
+
 def cocher(identifiant, fait=True):
     item = _trouver(identifiant)
     if not item:
         return False, "item inconnu"
 
     def transformation(ligne, m, titre, lignes, numero):
+        if fait:
+            _retirer_alerte(lignes, numero)
         etat = "x" if fait else " "
         return "%s- [%s] %s" % (m.group("indent"), etat, m.group("reste"))
 
@@ -308,6 +323,7 @@ def fait(identifiant, date=None):
     le_jour = date or datetime.date.today().isoformat()
 
     def transformation(ligne, m, titre, lignes, numero):
+        _retirer_alerte(lignes, numero)
         titre_propre = re.sub(r"\s*✓ fait le \d{4}-\d{2}-\d{2}\s*$", "", m.group("reste")).rstrip()
         return "%s- [x] %s ✓ fait le %s" % (m.group("indent"), titre_propre, le_jour)
 
@@ -326,13 +342,7 @@ def bloquer(identifiant, raison):
     def transformation(ligne, m, titre, lignes, numero):
         indent = m.group("indent")
         # Une raison déjà écrite est remplacée, pas empilée.
-        suivant = numero + 1
-        while suivant < len(lignes) and lignes[suivant].startswith((" ", "\t")) \
-                and lignes[suivant].strip():
-            if lignes[suivant].strip().startswith("⚠"):
-                del lignes[suivant]
-                continue
-            break
+        _retirer_alerte(lignes, numero)
         lignes.insert(numero + 1, "%s      ⚠ %s\n" % (indent, raison.strip()))
         return "%s- [ ] %s" % (indent, m.group("reste"))
 

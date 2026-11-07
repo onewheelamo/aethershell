@@ -14,6 +14,7 @@ Item {
     property var options: ({})
     property bool ouvert: false
     property string widgetId: ""
+    property var notifier: null
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
         return (v >= 60 && v <= 160) ? v / 100 : 1.0
@@ -23,7 +24,6 @@ Item {
     property var etat: ({})
     readonly property var items: root.etat.items || []
     readonly property var demandes: root.etat.demandes || []
-    readonly property int maxLignes: 14
 
     // Regroupement par fichier puis par section, dans l'ordre des fichiers.
     readonly property var groupes: {
@@ -31,7 +31,9 @@ Item {
         const l = root.items
         for (let i = 0; i < l.length; ++i) {
             const it = l[i]
-            if (it.fait) continue
+            // Une tâche cochée qui attend encore l'agent reste affichée : c'est
+            // ce qui montre la demande en cours et permet de la décocher.
+            if (it.fait && !it.demande) continue
             let g = null
             for (let j = 0; j < out.length; ++j) {
                 if (out[j].fichier === it.nom_fichier) { g = out[j]; break }
@@ -96,7 +98,7 @@ Item {
         id: focusProc
         property string nom: ""
         command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "focus", focusProc.nom]
-        onExited: root.charger()
+        onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 
     Process {
@@ -105,7 +107,7 @@ Item {
         property string action: "cocher"
         command: ["python3", Quickshell.shellPath("core/todo_applet.py"),
                   geste.action, geste.identifiant]
-        onExited: root.charger()
+        onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 
     implicitWidth: Math.round(336 * echelle)

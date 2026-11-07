@@ -298,10 +298,18 @@ Rectangle {
     // Fichiers suivis par l'applet et le widget « Tâches » (core/todo.json).
     property var todoFichiers: []
     property string todoFocus: ""
+    property string todoErreur: ""
 
     function rechargerTodo() {
         todoListProc.running = false
         todoListProc.running = true
+    }
+
+    function ajouterTodo() {
+        const chemin = nouveauTodoChemin.text.trim()
+        if (chemin === "") return
+        root.todoErreur = ""
+        root.runConfigCmd(["todo_add", nouveauTodoNom.text.trim(), chemin])
     }
     // Mode nuit (onglet Système & Écrans) : température, plage, état.
     property int nuitTemp: 4000
@@ -820,6 +828,13 @@ Rectangle {
         if (data.todo && typeof data.todo === "object") {
             root.todoFichiers = Array.isArray(data.todo.fichiers) ? data.todo.fichiers : []
             root.todoFocus = String(data.todo.focus || "")
+            if (typeof data.todo.erreur === "string") {
+                root.todoErreur = data.todo.erreur
+                if (data.todo.erreur === "") {
+                    nouveauTodoNom.text = ""
+                    nouveauTodoChemin.text = ""
+                }
+            }
         }
         if (Array.isArray(data.llm_providers)) root.llmProviders = data.llm_providers
         if (typeof data.hypr_rounding_power === "number")
@@ -4804,10 +4819,7 @@ Rectangle {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.runConfigCmd(["todo_del", String(modelData.nom || "")])
-                                        root.rechargerTodo()
-                                    }
+                                    onClicked: root.runConfigCmd(["todo_del", String(modelData.nom || "")])
                                 }
                             }
                         }
@@ -4834,7 +4846,10 @@ Rectangle {
                                 verticalAlignment: TextInput.AlignVCenter
                                 color: Theme.fg
                                 font.pixelSize: Theme.textXs
+                                selectByMouse: true
                                 clip: true
+                                onTextEdited: root.todoErreur = ""
+                                onAccepted: nouveauTodoChemin.forceActiveFocus()
                                 Text {
                                     anchors.fill: parent
                                     verticalAlignment: Text.AlignVCenter
@@ -4852,7 +4867,8 @@ Rectangle {
                             radius: 6
                             color: Qt.alpha(Theme.fg, 0.06)
                             border.width: 1
-                            border.color: Qt.alpha(Theme.fg, 0.2)
+                            border.color: root.todoErreur !== ""
+                                          ? Qt.alpha(Theme.error, 0.65) : Qt.alpha(Theme.fg, 0.2)
 
                             TextInput {
                                 id: nouveauTodoChemin
@@ -4861,7 +4877,10 @@ Rectangle {
                                 verticalAlignment: TextInput.AlignVCenter
                                 color: Theme.fg
                                 font.pixelSize: Theme.textXs
+                                selectByMouse: true
                                 clip: true
+                                onTextEdited: root.todoErreur = ""
+                                onAccepted: root.ajouterTodo()
                                 Text {
                                     anchors.fill: parent
                                     verticalAlignment: Text.AlignVCenter
@@ -4893,17 +4912,18 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (nouveauTodoChemin.text.trim() === "") return
-                                    root.runConfigCmd(["todo_add",
-                                                       nouveauTodoNom.text.trim(),
-                                                       nouveauTodoChemin.text.trim()])
-                                    nouveauTodoNom.text = ""
-                                    nouveauTodoChemin.text = ""
-                                    root.rechargerTodo()
-                                }
+                                onClicked: root.ajouterTodo()
                             }
                         }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.todoErreur !== ""
+                        text: root.todoErreur
+                        color: Theme.error
+                        font.pixelSize: Math.max(9, Theme.textXs - 1)
+                        wrapMode: Text.WordWrap
                     }
 
                     // Quel fichier l'applet montre : le widget, lui, les voit tous.

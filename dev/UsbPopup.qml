@@ -14,6 +14,7 @@ Item {
     property var options: ({})
     property bool ouvert: false
     property string widgetId: ""
+    property var notifier: null
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
         return (v >= 60 && v <= 160) ? v / 100 : 1.0
@@ -35,6 +36,11 @@ Item {
     function agir(geste, cible) {
         action.nom = String(geste)
         action.cible = String(cible)
+        if (action.nom === "deverrouiller") {
+            phraseFile.setText(root.phrase)
+            phraseFile.save()
+            return
+        }
         action.running = false
         action.running = true
     }
@@ -72,15 +78,29 @@ Item {
         }
     }
 
+    // La phrase LUKS passe par un fichier temporaire dans $XDG_RUNTIME_DIR,
+    // jamais dans les arguments du processus (visibles dans /proc/<pid>/cmdline).
+    FileView {
+        id: phraseFile
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-luks-phrase"
+        atomicWrites: true
+        printErrors: false
+        onSaved: {
+            action.running = false
+            action.running = true
+        }
+        onSaveFailed: {
+            root.dernierMessage = "écriture du fichier de phrase impossible"
+        }
+    }
+
     Process {
         id: action
         property string nom: ""
         property string cible: ""
-        // « deverrouiller » a besoin de la phrase : un tableau de commande ne
-        // peut pas varier en longueur, donc deux Process et un choix à l'appel.
         command: nom === "deverrouiller"
                  ? ["python3", Quickshell.shellPath("core/usb_applet.py"), nom, cible,
-                    "--phrase", root.phrase]
+                    "--fichier-phrase", phraseFile.path]
                  : ["python3", Quickshell.shellPath("core/usb_applet.py"), nom, cible]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -96,6 +116,7 @@ Item {
             root.phrase = ""
             root.deverrouillage = ""
             root.charger()
+            if (root.notifier) root.notifier()
         }
     }
 
@@ -227,7 +248,9 @@ Item {
                                 horizontalAlignment: Text.AlignRight
                                 text: blocVolume.modelData.montage
                                       ? String(blocVolume.modelData.montage).replace(/^\/run\/media\/[^/]+\//, "")
-                                      : (blocVolume.modelData.chiffre ? "verrouillé" : "non monté")
+                                      : (blocVolume.modelData.chiffre
+                                         ? (blocVolume.modelData.ouvert ? "déverrouillé" : "verrouillé")
+                                         : "non monté")
                                 color: Qt.alpha(Theme.fg, 0.4)
                                 font.pixelSize: Math.round(root.corps * 0.75 * echelle)
                                 elide: Text.ElideRight
@@ -244,16 +267,17 @@ Item {
                                 model: {
                                     const v = blocVolume.modelData
                                     if (v.echange) return []
-                                    if (v.chiffre) {
-                                        return v.montage
-                                            ? [{ t: "verrouiller", a: "verrouiller" }]
-                                            : [{ t: "déverrouiller", a: "deverrouiller" }]
+                                    if (v.chiffre && !v.ouvert) {
+                                        return [{ t: "déverrouiller", a: "deverrouiller" }]
                                     }
                                     const l = []
                                     if (!v.montage) l.push({ t: "monter", a: "monter" })
                                     else {
                                         l.push({ t: "ouvrir", a: "ouvrir" })
                                         l.push({ t: "démonter", a: "demonter" })
+                                    }
+                                    if (v.chiffre && v.ouvert) {
+                                        l.push({ t: "verrouiller", a: "verrouiller" })
                                     }
                                     return l
                                 }
@@ -324,7 +348,7 @@ Item {
                             anchors.leftMargin: Math.round(16 * echelle)
                             visible: root.deverrouillage === blocVolume.dev
                                      && Boolean(blocVolume.modelData.chiffre)
-                                     && !Boolean(blocVolume.modelData.montage)
+                                     && !Boolean(blocVolume.modelData.ouvert)
 
                             Rectangle {
                                 width: parent.width - Math.round(86 * echelle)

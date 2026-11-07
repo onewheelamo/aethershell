@@ -1223,12 +1223,17 @@ def todo_add(nom, chemin):
     chemin = str(chemin or "").strip()
     if not chemin:
         return False
+    reel = os.path.expanduser(os.path.expandvars(chemin))
+    if not os.path.isfile(reel):
+        return False
+    libelle = str(nom or "").strip() or os.path.basename(reel)
     liste = lire_todo()
     for entree in liste:
-        if entree["chemin"] == chemin:
-            return True
-    liste.append({"chemin": chemin,
-                  "nom": str(nom or "").strip() or os.path.basename(chemin)})
+        if entree["chemin"] == chemin or entree["nom"] == libelle:
+            entree["chemin"] = chemin
+            entree["nom"] = libelle
+            return ecrire_todo(liste)
+    liste.append({"chemin": chemin, "nom": libelle})
     return ecrire_todo(liste)
 
 
@@ -1251,9 +1256,13 @@ def todo_focus(nom):
 def lire_todo_focus():
     try:
         with open(TODO_FOCUS, "r", encoding="utf-8") as f:
-            return str(json.load(f).get("fichier") or "")
+            memo = str(json.load(f).get("fichier") or "")
     except (OSError, ValueError):
-        return ""
+        memo = ""
+    noms = [e["nom"] for e in lire_todo()]
+    if memo in noms:
+        return memo
+    return noms[0] if noms else ""
 
 
 def homelab_set(cle, valeur):
@@ -1703,11 +1712,20 @@ if __name__ == "__main__":
         set_kb_layout(sys.argv[2], mark_first_run_done=True)
         print(json.dumps(get_full_config_state()))
     elif action == "todo_add" and len(sys.argv) > 3:
-        print(json.dumps({"ok": todo_add(sys.argv[2], sys.argv[3])}, ensure_ascii=False))
+        ok = todo_add(sys.argv[2], sys.argv[3])
+        etat = get_full_config_state()
+        etat["todo"]["erreur"] = "" if ok else f"Fichier introuvable : {sys.argv[3]}"
+        print(json.dumps(etat))
     elif action == "todo_del" and len(sys.argv) > 2:
-        print(json.dumps({"ok": todo_del(sys.argv[2])}, ensure_ascii=False))
+        todo_del(sys.argv[2])
+        etat = get_full_config_state()
+        etat["todo"]["erreur"] = ""
+        print(json.dumps(etat))
     elif action == "todo_focus" and len(sys.argv) > 2:
-        print(json.dumps({"ok": todo_focus(sys.argv[2])}, ensure_ascii=False))
+        todo_focus(sys.argv[2])
+        etat = get_full_config_state()
+        etat["todo"]["erreur"] = ""
+        print(json.dumps(etat))
     elif action == "todo_list":
         print(json.dumps({"fichiers": lire_todo(), "focus": lire_todo_focus()},
                          ensure_ascii=False))
