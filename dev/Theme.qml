@@ -242,6 +242,16 @@ QtObject {
     property var notifArchive: []
     property var notifOps: ({})
 
+    // Ouvre le panneau de configuration sur une section précise. Le clic milieu
+    // d'un applet passe par ici (`Theme.openConfigSection`), comme l'IPC : une
+    // définition qui ne vivait que dans le gestionnaire IPC laissait le clic
+    // appeler une propriété inexistante — rien ne se passait, et le journal
+    // n'en gardait qu'une TypeError.
+    function openConfigSection(section) {
+        configTarget = String(section || "")
+        configPanelVisible = true
+    }
+
     function togglePopup(name) {
         activePopup = (activePopup === name) ? "" : name
     }
@@ -548,8 +558,7 @@ QtObject {
         // Ouvre le panneau sur une section précise — utilisé par le clic milieu
         // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets
         function openConfigSection(section: string) {
-            root.configTarget = section
-            root.configPanelVisible = true
+            root.openConfigSection(section)
         }
         function setConfigButtonVisible(visible: bool) {
             root.showConfigButton = visible
