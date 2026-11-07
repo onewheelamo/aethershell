@@ -115,7 +115,9 @@ PanelWindow {
         height: fenetre.height + 24
         x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(4)
         y: Math.round((fenetre.height - height) / 2)
-        source: "file://" + fenetre.dossier + "1-lointain.png"
+        // Rien n'est demandé tant que le fond courant n'est pas connu :
+        // sinon le repli se déclenche sur un chemin incomplet.
+        source: fenetre.nomFond === "" ? "" : "file://" + fenetre.dossier + "1-lointain.png"
         onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -130,7 +132,9 @@ PanelWindow {
         height: fenetre.height + 36
         x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(7)
         y: Math.round((fenetre.height - height) / 2)
-        source: "file://" + fenetre.dossier + "2-moyen.png"
+        // Rien n'est demandé tant que le fond courant n'est pas connu :
+        // sinon le repli se déclenche sur un chemin incomplet.
+        source: fenetre.nomFond === "" ? "" : "file://" + fenetre.dossier + "2-moyen.png"
         onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -145,7 +149,9 @@ PanelWindow {
         height: fenetre.height + 52
         x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(10)
         y: Math.round((fenetre.height - height) / 2)
-        source: "file://" + fenetre.dossier + "3-proche.png"
+        // Rien n'est demandé tant que le fond courant n'est pas connu :
+        // sinon le repli se déclenche sur un chemin incomplet.
+        source: fenetre.nomFond === "" ? "" : "file://" + fenetre.dossier + "3-proche.png"
         onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
