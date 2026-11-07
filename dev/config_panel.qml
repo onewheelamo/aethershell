@@ -1386,33 +1386,6 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    width: 130
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: matugenMa.containsMouse ? Theme.accent : Theme.surfaceVariant
-                    border.color: Theme.accent
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Synchroniser Matugen"
-                        color: matugenMa.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        id: matugenMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Quickshell.execDetached([
-                            "bash",
-                            Quickshell.shellPath("core/generate_colors.sh")
-                        ])
-                    }
-                }
             }
             }
 

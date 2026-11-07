@@ -116,8 +116,14 @@ style_data.setdefault("palette", {})["dynamic"] = {
 }
 style_data["active_theme"] = "dynamic"
 
-with open(style_path, "w") as f:
+# Écriture atomique : la palette est relue en continu par le shell (FileView).
+# Un fichier tronqué en cours d'écriture lui ferait perdre toutes ses couleurs,
+# alors qu'un `os.replace` expose l'ancienne version jusqu'à la bascule.
+import os
+tmp_path = style_path + ".tmp"
+with open(tmp_path, "w") as f:
     json.dump(style_data, f, indent=4)
+os.replace(tmp_path, style_path)
 
 print(f"Dynamic palette updated in {style_path}")
 EOF
