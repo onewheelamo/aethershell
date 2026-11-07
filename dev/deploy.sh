@@ -111,6 +111,13 @@ fi
 MARKER="$CURRENT_HYPR/.quickshell_managed"
 # llm_providers.json : adresses et références de clés choisies par l'utilisateur,
 # préservé comme secrets.json — le dépôt n'en fournit que le modèle initial.
+# État de l'utilisateur : le déploiement n'y touche JAMAIS quand le fichier
+# existe déjà. La distinction compte : `PRESERVE_CORE` empêche l'élagage mais
+# laisse `sync_file` écraser la cible par la version du dépôt — c'est ainsi que
+# la composition de la barre (15 applets) a été remplacée par la version minimale
+# du dépôt (2 applets), vidant la barre.
+ETAT_UTILISATEUR="bar_applets.json style_vars.json widgets.json launch_history.json homelab.json app_vars.json secrets.json autostart.json notif_targets.json llm_providers.json"
+
 PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets.json notif_targets.json llm_providers.json bar_applets.json homelab.json launch_history.json"
 # colors.lua est *généré* par generate_rofi_theme.sh depuis style_vars.json :
 # il n'est ni préservé ni comparé (sinon .upstream à chaque changement de palette).
@@ -157,6 +164,11 @@ copy_dir_files() {
     for f in "$src"/*; do
         [ -f "$f" ] || continue
         name="$(basename "$f")"
+        # État utilisateur : présent = intouchable, même si le dépôt en a une
+        # autre version. Absent = on installe la valeur par défaut du dépôt.
+        if [ -e "$dst/$name" ] && [[ " $ETAT_UTILISATEUR " == *" $name "* ]]; then
+            continue
+        fi
         if [ -e "$dst/$name" ] && is_preserved "$name" "$list"; then
             sync_file "$f" "$dst/$name"
             continue
