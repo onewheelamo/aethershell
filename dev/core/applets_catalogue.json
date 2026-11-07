@@ -260,6 +260,19 @@
             }
         },
         {
+            "id": "meteo",
+            "nom": "Météo",
+            "description": "Température et condition ; clic pour le ressenti, le min/max et la ville",
+            "categorie": "Temps & notifications",
+            "icone": "cloud",
+            "service": "core/meteo_applet.py",
+            "popup": "MeteoPopup.qml",
+            "ile": "droite",
+            "ordre": 30,
+            "cadence": 10,
+            "text_scale": 100
+        },
+        {
             "id": "homelab",
             "nom": "Homelab",
             "description": "Les invités Proxmox (CT et VM), les services systemd en échec et les hôtes qui répondent ; clic pour le détail et le redémarrage",

@@ -69,5 +69,6 @@
     "primary_monitor": "DP-1",
     "launcher_position": "bas-centre",
     "cheatsheet_opacity": 0.88,
-    "bar_border": true
+    "bar_border": true,
+    "weather_city": "Paris, France"
 }
