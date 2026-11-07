@@ -43,3 +43,8 @@ bug_report.md
 # Scripts de synchronisation entre machines — locaux, jamais dans le dépôt
 sync.sh
 dev/sync.sh
+
+# Notes de conception jetables (propositions, brouillons) : elles vivent sur la
+# machine, le dépôt n'a pas à les porter.
+PROPOSITION*.md
+dev/PROPOSITION*.md
