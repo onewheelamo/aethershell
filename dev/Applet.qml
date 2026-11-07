@@ -550,7 +550,11 @@ Item {
     HyprlandFocusGrab {
         // Rien à saisir ici : le popup externe a déjà son propre attrapeur.
         active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml
-        windows: [fenetre]
+        // La barre fait partie du grab, comme pour le panneau média : sans cela,
+        // le premier clic sur un applet était avalé par la levée du grab —
+        // cliquer un autre bureau fermait le popup sans changer de bureau.
+        readonly property var fenetreBarre: root.QsWindow ? root.QsWindow.window : null
+        windows: fenetreBarre ? [fenetre, fenetreBarre] : [fenetre]
         onCleared: {
             if (Theme.activePopup === "applet:" + root.appletId) Theme.activePopup = ""
         }
