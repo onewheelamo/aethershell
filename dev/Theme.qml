@@ -512,6 +512,9 @@ QtObject {
     // vient de Hyprland (SUPER + SHIFT + clic), seul endroit où le modificateur est
     // fiable — dans un événement souris QML, `mouse.modifiers` vaut 0.
     property var placeWidgetHook: null
+    // Même principe pour le menu d'un widget de bureau : main.qml y branche
+    // l'ouverture, l'IPC permet de le piloter sans souris (tests).
+    property var widgetMenuHook: null
 
     // Crochet symétrique pour la capture : main.qml y branche requestCapture,
     // ce qui rend les modes lançables par IPC (tests scriptés).
@@ -534,6 +537,10 @@ QtObject {
         function placeWidget() {
             if (root.placeWidgetHook)
                 root.placeWidgetHook()
+        }
+        function openWidgetMenu(id: string) {
+            if (root.widgetMenuHook)
+                root.widgetMenuHook(id)
         }
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible

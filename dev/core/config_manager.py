@@ -1498,6 +1498,11 @@ def widget_set(wid, key, value):
     def mutate(w):
         if key in ("x", "y", "workspace"):
             w[key] = int(float(value))
+            # Le panneau ne règle qu'un bureau à la fois : la liste repasse à un
+            # seul élément, sinon une ancienne sélection multiple continuerait de
+            # gagner sur le choix qui vient d'être fait.
+            if key == "workspace":
+                w["workspaces"] = [w[key]]
         elif key in ("enabled", "blur", "border"):
             w[key] = str(value).lower() in ("true", "1", "yes")
         elif key == "opacity":
@@ -1511,6 +1516,26 @@ def widget_set(wid, key, value):
         else:
             # Tout le reste va dans options (secondes, ville…).
             w.setdefault("options", {})[key] = value
+    return _widget_update(wid, mutate)
+
+
+def widget_workspaces(wid, spec):
+    """Bureaux d'un widget : « 0 » ou vide = tous, sinon « 1,3 » = ces bureaux.
+
+    Deux champs pour une idée : `workspaces` est la vérité, `workspace` reste
+    écrit pour les lecteurs historiques (et pour le panneau, qui ne montre qu'un
+    bureau). 0 dans la liste veut dire « tous les bureaux ».
+    """
+    def mutate(w):
+        morceaux = str(spec or "").replace(";", ",").split(",")
+        chiffres = [int(x) for x in morceaux if str(x).strip().isdigit()]
+        if not chiffres or 0 in chiffres:
+            w["workspaces"] = [0]
+            w["workspace"] = 0
+        else:
+            vus = sorted(set(chiffres))
+            w["workspaces"] = vus
+            w["workspace"] = vus[0]
     return _widget_update(wid, mutate)
 
 
@@ -1618,6 +1643,9 @@ if __name__ == "__main__":
         print(json.dumps(get_full_config_state()))
     elif action == "widget_set" and len(sys.argv) > 4:
         widget_set(sys.argv[2], sys.argv[3], sys.argv[4])
+        print(json.dumps(get_full_config_state()))
+    elif action == "widget_workspaces" and len(sys.argv) > 3:
+        widget_workspaces(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))
     elif action == "widget_move" and len(sys.argv) > 4:
         widget_move(sys.argv[2], sys.argv[3], sys.argv[4])

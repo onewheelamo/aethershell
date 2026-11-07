@@ -32,6 +32,40 @@ Item {
     // déclencheur vient de Hyprland (qui, lui, connaît le modificateur).
     property var widgetWindows: []
 
+    // Menu du widget (clic milieu) : quelle entrée, et où poser la fenêtre.
+    property string menuWidgetId: ""
+    property real menuWidgetX: 0
+    property real menuWidgetY: 0
+    readonly property var menuWidget: {
+        if (menuWidgetId === "") return ({})
+        const l = Theme.widgets || []
+        for (let i = 0; i < l.length; ++i)
+            if (String(l[i].id) === menuWidgetId) return l[i]
+        return ({})
+    }
+
+    // Un widget peut viser plusieurs bureaux (`workspaces: [1,3]`) ; 0 = tous.
+    // `workspace` reste la forme historique : un widget écrit avant la liste
+    // continue de s'afficher au même endroit, sans migration de fichier.
+    function widgetVisible(w) {
+        if (!w || w.enabled === false) return false
+        // Une liste venue du JSON reste un tableau JS, mais on la reconstruit
+        // élément par élément : `.map` n'existe pas si la valeur arrive en
+        // QVariantList, et la liaison échouait alors en silence (widget invisible
+        // quel que soit le réglage).
+        const brut = (w.workspaces && w.workspaces.length > 0)
+            ? w.workspaces : [w.workspace]
+        const liste = []
+        for (let i = 0; i < brut.length; ++i) {
+            const n = Number(brut[i])
+            if (!isNaN(n)) liste.push(n)
+        }
+        if (liste.length === 0) return true
+        if (liste.indexOf(0) >= 0) return true
+        const ici = Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : -1
+        return liste.indexOf(ici) >= 0
+    }
+
     // Appelé par `quickshell ipc call shell placeWidget` (bind SUPER + SHIFT + clic).
     function startPlacementFromCursor() {
         if (placingWindow) { endPlacement(false); return }
@@ -66,6 +100,18 @@ Item {
     // capture) : un seul gestionnaire, QML n'en accepte qu'un par objet.
     Component.onCompleted: {
         Theme.placeWidgetHook = function() { root.startPlacementFromCursor() }
+        // Ouverture du menu d'un widget sans souris : l'IPC s'en sert, le clic
+        // milieu passe par la même propriété d'état.
+        Theme.widgetMenuHook = function(id) {
+            const l = Theme.widgets || []
+            for (let i = 0; i < l.length; ++i) {
+                if (String(l[i].id) !== String(id)) continue
+                root.menuWidgetX = Number(l[i].x) || 0
+                root.menuWidgetY = Number(l[i].y) || 0
+                root.menuWidgetId = String(id)
+                return
+            }
+        }
         Theme.captureHook = function(mode) { root.requestCapture(mode) }
     }
 
@@ -827,9 +873,7 @@ Item {
             readonly property var w: modelData || ({})
 
             screen: topBarWindow.screen
-            visible: w.enabled !== false
-                     && (Number(w.workspace) === 0
-                         || (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === Number(w.workspace)))
+            visible: root.widgetVisible(w)
 
             anchors { top: true; left: true }
             // Glissement : les marges suivent le geste pendant qu'on déplace, puis
@@ -889,6 +933,20 @@ Item {
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
+
+                // Clic milieu : les réglages de ce widget. Déclaré avant les
+                // autres surfaces de la carte, donc dessous : le glissement
+                // garde le bouton gauche, seul le milieu remonte jusqu'ici.
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.MiddleButton
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.menuWidgetX = Number(widgetWindow.w.x) || 0
+                        root.menuWidgetY = Number(widgetWindow.w.y) || 0
+                        root.menuWidgetId = String(widgetWindow.w.id || "")
+                    }
+                }
 
                 // Déplacement à la souris.
                 //
@@ -978,6 +1036,15 @@ Item {
             Keys.onEscapePressed: root.endPlacement(false)
             focus: true
         }
+    }
+
+    // Menu d'un widget du bureau (clic milieu) : retirer, ou choisir les bureaux.
+    WidgetMenu {
+        ouvert: root.menuWidgetId !== ""
+        widget: root.menuWidget
+        xEcran: root.menuWidgetX
+        yEcran: root.menuWidgetY
+        onFermer: root.menuWidgetId = ""
     }
 
     // Barres supplémentaires : bas et côtés. Elles ne s'affichent que si elles

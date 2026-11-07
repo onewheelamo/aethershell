@@ -76,6 +76,8 @@ Singleton {
     property bool veille: false
     // Une trame non silencieuse est passée depuis le dernier réveil.
     property bool activiteVue: false
+    // Échecs consécutifs du moteur : au troisième, on renonce (voir onExited).
+    property int echecs: 0
 
     // Réglages de capture, lus dans le thème (donc dans style_vars.json, réglés
     // par le panneau). Ils ne changent qu'à l'arrêt/relance du processus : un
