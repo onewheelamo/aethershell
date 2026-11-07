@@ -21,8 +21,15 @@ DELAI = 4
 # Lecteurs qui ne sont pas des lecteurs de musique : un onglet Firefox qui joue
 # une vidéo n'est pas « le morceau en cours ». L'option permet de les suivre
 # quand même (radio dans le navigateur, par exemple).
+#
+# `plasma-browser-integration` est le pont KDE : il publie le même média que
+# l'onglet, sous un nom qui ne contient aucun nom de navigateur — c'est lui qui
+# laissait passer une vidéo YouTube dans la barre, Firefox étant pourtant filtré.
+# Le motif `browser` couvre les ponts du même genre ; un futur pont se reconnaît
+# à son nom, et c'est cette liste qu'il faudra compléter.
 NAVIGATEURS = ("firefox", "zen", "chromium", "chrome", "brave", "vivaldi",
-               "opera", "edge", "librewolf", "waterfox")
+               "opera", "edge", "librewolf", "waterfox",
+               "plasma-browser-integration", "browser")
 
 
 def _vrai(valeur, defaut=True):
