@@ -23,6 +23,14 @@ hyprshot
 slurp
 wf-recorder
 hyprsunset
+# Visualiseur audio : moteur pwscope compilé localement (C + PipeWire) et,
+# pour le mode barres, cava. `cc`, `make` et `pkg-config` ne servent qu'à la
+# compilation ; les en-têtes pipewire se contrôlent par pkg-config, pas par
+# command -v (scripts/pwscope_make.sh le fait).
+cc
+make
+pkg-config
+cava
 
 #: fedora
 # Portable seulement : luminosité, volume, profil d'énergie, capteur d'écran.
