@@ -106,9 +106,13 @@ Item {
 
     function lancerMaj() {
         if (root.gestionnaire === "dnf")
-            Quickshell.execDetached([root.terminal, "-e", "sudo dnf upgrade --refresh"])
+            // Le terminal passe par un script qui le choisit parmi ceux installés :
+            // lancer « ghostty » en dur ne fait rien sur une machine sans ghostty.
+            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"),
+                                     "sudo dnf upgrade --refresh"])
         else
-            Quickshell.execDetached([root.terminal, "-e", "arch-update"])
+            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"),
+                                     "arch-update"])
     }
 
     Rectangle {
