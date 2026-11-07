@@ -61,12 +61,69 @@ PanelWindow {
     WlrLayershell.namespace: "shell-bar-" + cote
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+    // ── fond ─────────────────────────────────────────────────────────────────
+    // Marge interne des zones quand le fond est découpé : la même que celle qui
+    // écarte les applets du bord de la barre, pour que la pilule « respire »
+    // autour de son contenu.
+    readonly property int pad: rembourrage
+    readonly property bool decoupe: Theme.barGapsTransparent && nbApplets > 0
+
+    // Géométrie des trois zones le long de l'axe de la barre, en coordonnées de
+    // la barre : { pos, taille }. Une zone sans applet vaut 0 et n'est pas
+    // peinte ; les zones des extrémités vont jusqu'au bord de l'écran, sinon la
+    // barre ne toucherait plus son bord et l'œil verrait un liseré de vide.
+    // Ces trois zones ne peignent que le fond : les rangées/colonnes restent les
+    // mêmes objets ancrés qu'avant, et l'espace entre elles reste une région de
+    // la barre (pour une animation de lecture média, comme la barre du haut).
+    readonly property var zonesFond: {
+        if (!decoupe) return []
+        const a = verticale ? colDebut : debut
+        const b = verticale ? colMilieu : milieu
+        const c = verticale ? colFin : fin
+        const total = verticale ? root.height : root.width
+        const premiere = a.applets.length > 0
+        const mediane = b.applets.length > 0
+        const derniere = c.applets.length > 0
+        const debutPos = verticale ? a.y : a.x
+        const milieuPos = verticale ? b.y : b.x
+        const finPos = verticale ? c.y : c.x
+        const tailleA = verticale ? a.height : a.width
+        const tailleB = verticale ? b.height : b.width
+        const tailleC = verticale ? c.height : c.width
+        return [
+            { pos: 0, taille: premiere ? debutPos + tailleA + pad : 0 },
+            { pos: Math.max(0, milieuPos - pad),
+              taille: mediane ? tailleB + pad * 2 : 0 },
+            { pos: derniere ? Math.max(0, finPos - pad) : 0,
+              taille: derniere ? Math.max(0, total - Math.max(0, finPos - pad)) : 0 }
+        ]
+    }
+
+    // Fond continu : mode normal, ou barre vide (l'invite « Vide » a besoin
+    // d'une surface, sinon elle flotte sur le bureau).
     Rectangle {
+        visible: !root.decoupe
         anchors.fill: parent
         radius: Theme.pillRadius
         color: Theme.barBg
         border.color: Theme.accent
         border.width: Theme.barBorder ? 1 : 0
+    }
+
+    Repeater {
+        model: root.zonesFond
+
+        delegate: Rectangle {
+            readonly property bool horizontal: !root.verticale
+            x: horizontal ? modelData.pos : 0
+            y: horizontal ? 0 : modelData.pos
+            width: horizontal ? modelData.taille : root.width
+            height: horizontal ? root.height : modelData.taille
+            radius: Theme.pillRadius
+            color: Theme.barBg
+            border.color: Theme.accent
+            border.width: Theme.barBorder ? 1 : 0
+        }
     }
 
     // Barre vide : un rappel de la marche à suivre, pas une bande muette.
