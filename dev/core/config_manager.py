@@ -743,6 +743,15 @@ def update_style_var(key, value):
         # Effet d'accordéon du panneau : ouvrir un tiroir referme les autres du
         # même onglet. Réglable depuis l'onglet Apparence.
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "widgets_locked":
+        # Cadenas des widgets de bureau : vrai = le bind de placement ne prend
+        # plus (SUPER + SHIFT + clic), ce qui évite de déplacer un widget par
+        # accident. Lu par Theme.qml (widgetsLocked) et gardé dans main.qml.
+        data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "widgets_multieffect":
+        # Masque de profondeur rendu par un MultiEffect par widget au lieu du
+        # calque plein écran. Booléen relu par Theme.qml (widgetsMultieffect).
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key in ("user_location_ville", "user_location_tz"):
         # Localisation de l'utilisateur : ville affichée et fuseau. Le fuseau
         # n'est pas validé ici (liste mouvante) mais reste une chaîne courte.

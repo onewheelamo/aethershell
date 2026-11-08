@@ -66,6 +66,10 @@ QtObject {
     // leur géométrie (main.qml les expose en slotGauche / slotDroit) pour y
     // poser une animation de lecture média.
     property bool barGapsTransparent: false
+    // Cadenas des widgets de bureau (style_vars.json : widgets_locked). Vrai =
+    // le bind de placement ne prend plus, pour ne pas déplacer un widget d'un
+    // SUPER + SHIFT + clic donné par erreur.
+    property bool widgetsLocked: false
     // Position de la capsule du lanceur : six emplacements prédéfinis (§3.5 de
     // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
     // dans main.qml à partir de cette clé et de la largeur de la capsule.
@@ -207,6 +211,13 @@ QtObject {
     property bool userLocationSet: false
 
     property bool depthMask: false
+    // Rendu du masque quand il est actif : `false` = un calque plein écran
+    // (une copie du fond, peu coûteuse) ; `true` = un MultiEffect par widget de
+    // bureau, qui découpe le widget lui-même — plus juste, plus cher.
+    property bool widgetsMultieffect: false
+    // Chemin du masque courant, publié par CalqueProfondeur.qml : les widgets le
+    // lisent pour le MultiEffect, et n'ont donc pas à relancer l'inférence.
+    property string depthMaskPath: ""
     property int depthMaskSeuil: 30
     property int depthMaskAdouci: 8
 
@@ -447,6 +458,7 @@ QtObject {
             root.userLocationSet = false
         }
         if (typeof data.depth_mask === "boolean") root.depthMask = data.depth_mask
+        if (typeof data.widgets_multieffect === "boolean") root.widgetsMultieffect = data.widgets_multieffect
         if (typeof data.depth_mask_seuil === "number") root.depthMaskSeuil = data.depth_mask_seuil
         if (typeof data.depth_mask_adouci === "number") root.depthMaskAdouci = data.depth_mask_adouci
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
@@ -454,6 +466,7 @@ QtObject {
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
+        if (typeof data.widgets_locked === "boolean") root.widgetsLocked = data.widgets_locked
         if (typeof data.viz_fps === "number") root.vizFps = Math.max(10, Math.min(60, Math.round(data.viz_fps)))
         if (typeof data.viz_cols === "number") root.vizCols = Math.max(16, Math.min(256, Math.round(data.viz_cols)))
         if (typeof data.viz_sensibilite === "number") root.vizSensibilite = Math.max(0.05, Math.min(4.0, data.viz_sensibilite))

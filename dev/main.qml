@@ -1,5 +1,6 @@
 //@ pragma UseQApplication
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
@@ -74,6 +75,12 @@ Item {
 
     // Appelé par `quickshell ipc call shell placeWidget` (bind SUPER + SHIFT + clic).
     function startPlacementFromCursor() {
+        // Cadenas posé dans le panneau : un SUPER + SHIFT + clic ne déplace plus
+        // rien (et annule un déplacement en cours sans rien écrire).
+        if (Theme.widgetsLocked) {
+            if (placingWindow) endPlacement(false)
+            return
+        }
         if (placingWindow) { endPlacement(false); return }
         findWidgetProc.running = true
     }
@@ -988,12 +995,54 @@ Item {
             WlrLayershell.namespace: "shell-widget-" + (w.id || "x")
 
             Rectangle {
+                id: carteWidget
                 anchors.fill: parent
                 radius: Theme.globalRadius
                 // Seul le fond suit l'opacité ; 0 = carte invisible, texte intact.
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
+
+                // Masque de profondeur appliqué au widget lui-même (option
+                // `widgets_multieffect`) : au lieu d'empiler une copie du fond
+                // au-dessus de tous les widgets, chaque carte est découpée par la
+                // carte de profondeur — elle disparaît derrière le décor proche.
+                // Layering Qt : le contenu reste interactif, seul le rendu passe
+                // par l'effet.
+                layer.enabled: Theme.widgetsMultieffect && Theme.depthMask
+                                 && Theme.depthMaskPath !== ""
+                layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskSource: masqueWidget
+                    // Le masque porte l'alpha du décor **proche** : on inverse
+                    // pour effacer la carte là où ce premier plan est présent.
+                    maskInverted: true
+                    maskThresholdMin: 0.15
+                    maskSpreadAtMin: 0.08
+                }
+
+                // Le masque, cadré comme le fond (awww recadre en « crop ») et
+                // aligné sur l'écran : la surface du widget commence à (x, y), donc
+                // l'image pleine taille se décale d'autant. `ShaderEffectSource`
+                // avec `hideSource` la rend sans la dessiner.
+                Image {
+                    id: masqueImage
+                    x: -(Number(widgetWindow.w.x) || 0)
+                    y: -(Number(widgetWindow.w.y) || 0)
+                    width: widgetWindow.screen ? widgetWindow.screen.width : 1920
+                    height: widgetWindow.screen ? widgetWindow.screen.height : 1080
+                    source: Theme.depthMaskPath !== "" ? "file://" + Theme.depthMaskPath : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: true
+                }
+
+                ShaderEffectSource {
+                    id: masqueWidget
+                    sourceItem: masqueImage
+                    hideSource: true
+                    live: true
+                }
 
                 // Clic milieu : les réglages de ce widget. Déclaré avant les
                 // autres surfaces de la carte, donc dessous : le glissement
