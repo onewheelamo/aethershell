@@ -49,9 +49,19 @@ def main():
     dessin = ImageDraw.Draw(masque)
     rayons = []
 
+    # Deux genres : « trait » (geste libre, disques le long du tracé) et
+    # « contour » (polygone fermé, rempli — l'outil point par point).
+    defauts = 40.0 * max(largeur, hauteur) / 1920.0
+
     for trait in traits:
         points = trait.get("points") or []
         if not points:
+            continue
+        if trait.get("genre") == "contour":
+            if len(points) < 3:
+                continue
+            dessin.polygon([(float(x) * largeur, float(y) * hauteur) for x, y in points],
+                           fill=255)
             continue
         r = max(1.0, float(trait.get("taille", 60)) * max(largeur, hauteur) / 1920.0 / 2.0)
         rayons.append(r)
@@ -63,6 +73,11 @@ def main():
         for i in range(1, len(pts)):
             dessin.line((pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]),
                         fill=255, width=int(2 * r))
+
+    if a.douceur > 0 and not rayons:
+        # Contours seuls : un bord net ferait sauter la parallaxe d'un cran, on
+        # adoucit d'un demi-pinceau par défaut.
+        rayons = [defauts / 2]
 
     if a.douceur > 0 and rayons:
         # Le bord doux n'est pas un détail : c'est lui qui donne la couche

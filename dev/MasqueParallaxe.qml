@@ -59,6 +59,18 @@ PanelWindow {
     // Chaque trait : { points: [[x, y], …] en 0–1, taille: diamètre en px écran }
     property var traits: []
     property var traitEnCours: null
+    // Contours fermés, chacun une liste de points [x, y] normalisés. Le mode
+    // « points » sert aux zones qu'on veut suivre au plus près : on pose les
+    // sommets sur les contours de l'objet, puis on referme.
+    property var contours: []
+    property var contourEnCours: []
+    // Deux outils : « pinceau » (geste libre) et « points » (polygone).
+    property string outil: "pinceau"
+    // Position du pointeur dans la vignette (0–1), pour le fil élastique et le
+    // cercle de visée.
+    property real survolX: 0
+    property real survolY: 0
+    property bool survol: false
     property real pinceau: 40
     property string message: ""
     property bool travail: false
@@ -66,6 +78,8 @@ PanelWindow {
     function ouvrir() {
         fenetre.traits = []
         fenetre.traitEnCours = null
+        fenetre.contours = []
+        fenetre.contourEnCours = []
         fenetre.message = ""
         if (!sondeFond.running)
             sondeFond.running = true
@@ -90,10 +104,52 @@ PanelWindow {
         canvasPeinture.requestPaint()
     }
 
+    function ajouterSommet(x, y) {
+        // Recliquer sur le premier sommet referme le contour : c'est le geste
+        // naturel d'un outil de détourage.
+        const pts = fenetre.contourEnCours
+        if (pts.length >= 3) {
+            const p0 = pts[0]
+            const dx = (x - p0[0]) * canvasPeinture.width
+            const dy = (y - p0[1]) * canvasPeinture.height
+            if (Math.sqrt(dx * dx + dy * dy) < 12) {
+                fenetre.fermerContour()
+                return
+            }
+        }
+        fenetre.contourEnCours = pts.concat([[x, y]])
+        canvasPeinture.requestPaint()
+    }
+
+    function fermerContour() {
+        if (fenetre.contourEnCours.length < 3) {
+            fenetre.message = "trois points au moins pour fermer un contour."
+            return
+        }
+        fenetre.contours = fenetre.contours.concat([fenetre.contourEnCours])
+        fenetre.contourEnCours = []
+        fenetre.message = fenetre.contours.length + " contour(s)."
+        canvasPeinture.requestPaint()
+    }
+
+    function annuler() {
+        if (fenetre.outil === "points") {
+            if (fenetre.contourEnCours.length > 0)
+                fenetre.contourEnCours = fenetre.contourEnCours.slice(0, -1)
+            else if (fenetre.contours.length > 0)
+                fenetre.contours = fenetre.contours.slice(0, -1)
+        } else if (fenetre.traits.length > 0) {
+            fenetre.traits = fenetre.traits.slice(0, -1)
+        }
+        canvasPeinture.requestPaint()
+    }
+
     function enregistrer() {
         fenetre.terminerTrait()
-        if (fenetre.traits.length === 0) {
-            fenetre.message = "peins d'abord la zone qui passe devant."
+        if (fenetre.contourEnCours.length >= 3)
+            fenetre.fermerContour()
+        if (fenetre.traits.length === 0 && fenetre.contours.length === 0) {
+            fenetre.message = "désigne d'abord la zone qui passe devant."
             return
         }
         if (fenetre.nomFond === "") {
@@ -106,7 +162,12 @@ PanelWindow {
                            "--sortie", fenetre.cheminMasque,
                            "--ecran", fenetre.ecranLargeur + "x" + fenetre.ecranHauteur]
         peintre.running = true
-        peintre.write(JSON.stringify(fenetre.traits))
+        const envoi = fenetre.traits.map(function (t) {
+            return { genre: "trait", points: t.points, taille: t.taille }
+        }).concat(fenetre.contours.map(function (c) {
+            return { genre: "contour", points: c }
+        }))
+        peintre.write(JSON.stringify(envoi))
     }
 
     onVisibleChanged: if (visible) fenetre.ouvrir()
@@ -216,7 +277,9 @@ PanelWindow {
                 Text {
                     text: fenetre.nomFond === ""
                           ? "fond courant introuvable"
-                          : (fenetre.nomFond + " — peins ce qui doit passer devant ; molette = taille du pinceau")
+                          : (fenetre.nomFond + (fenetre.outil === "points"
+                             ? " — clic = sommet, Entrée ou clic sur le premier point pour fermer"
+                             : " — peins ce qui doit passer devant ; molette = taille du pinceau"))
                     color: Qt.alpha(Theme.fg, 0.55)
                     font.pixelSize: Theme.textXs
                 }
@@ -294,6 +357,51 @@ PanelWindow {
                                 }
                             }
                         }
+
+                        // Contours fermés : remplis à moitié, pour juger la
+                        // couverture sans masquer le fond dessous.
+                        for (let i = 0; i < fenetre.contours.length; i++)
+                            dessinerContour(ctx, fenetre.contours[i], true)
+
+                        // Contour en cours : segments posés, fil élastique
+                        // jusqu'au pointeur, sommets marqués.
+                        if (fenetre.contourEnCours.length > 0) {
+                            dessinerContour(ctx, fenetre.contourEnCours, false)
+                            const dernier = fenetre.contourEnCours[fenetre.contourEnCours.length - 1]
+                            if (fenetre.survol) {
+                                ctx.beginPath()
+                                ctx.moveTo(dernier[0] * width, dernier[1] * height)
+                                ctx.lineTo(fenetre.survolX * width, fenetre.survolY * height)
+                                ctx.strokeStyle = Qt.alpha("#ffffff", 0.45)
+                                ctx.setLineDash([5, 4])
+                                ctx.lineWidth = 1
+                                ctx.stroke()
+                                ctx.setLineDash([])
+                            }
+                        }
+                    }
+
+                    // Trace un contour ; `ferme` remplit et referme le tracé.
+                    function dessinerContour(ctx, points, ferme) {
+                        if (points.length === 0) return
+                        ctx.beginPath()
+                        ctx.moveTo(points[0][0] * width, points[0][1] * height)
+                        for (let i = 1; i < points.length; i++)
+                            ctx.lineTo(points[i][0] * width, points[i][1] * height)
+                        if (ferme) {
+                            ctx.closePath()
+                            ctx.fillStyle = Qt.alpha("#ffffff", 0.4)
+                            ctx.fill()
+                        }
+                        ctx.strokeStyle = Qt.alpha("#ffffff", 0.95)
+                        ctx.lineWidth = 1.5
+                        ctx.stroke()
+                        for (let i = 0; i < points.length; i++) {
+                            ctx.beginPath()
+                            ctx.arc(points[i][0] * width, points[i][1] * height, 3, 0, Math.PI * 2)
+                            ctx.fillStyle = "#ffffff"
+                            ctx.fill()
+                        }
                     }
 
                     function rootTraits() {
@@ -306,7 +414,7 @@ PanelWindow {
                     // la molette la change sur place (10 à 300 px).
                     Rectangle {
                         id: curseur
-                        visible: zonePeinture.containsMouse && !fenetre.travail
+                        visible: fenetre.outil === "pinceau" && fenetre.survol && !fenetre.travail
                         width: Math.max(4, fenetre.pinceau * (canvasPeinture.width / 1920))
                         height: width
                         radius: width / 2
@@ -327,14 +435,31 @@ PanelWindow {
                             const pas = roue.angleDelta.y > 0 ? 6 : -6
                             fenetre.pinceau = Math.max(10, Math.min(300, fenetre.pinceau + pas))
                         }
-                        onPressed: (souris) => {
-                            fenetre.traitEnCours = null
-                            fenetre.ajouterPoint(souris.x, souris.y)
-                        }
                         onPositionChanged: (souris) => {
-                            if (pressed) fenetre.ajouterPoint(souris.x, souris.y)
+                            fenetre.survolX = souris.x / width
+                            fenetre.survolY = souris.y / height
+                            fenetre.survol = true
+                            if (fenetre.outil === "pinceau" && pressed)
+                                fenetre.ajouterPoint(souris.x, souris.y)
+                            canvasPeinture.requestPaint()
                         }
-                        onReleased: fenetre.terminerTrait()
+                        onExited: {
+                            fenetre.survol = false
+                            canvasPeinture.requestPaint()
+                        }
+                        onClicked: (souris) => {
+                            if (fenetre.outil === "points")
+                                fenetre.ajouterSommet(souris.x / width, souris.y / height)
+                        }
+                        onPressed: (souris) => {
+                            fenetre.survolX = souris.x / width
+                            fenetre.survolY = souris.y / height
+                            if (fenetre.outil === "pinceau") {
+                                fenetre.traitEnCours = null
+                                fenetre.ajouterPoint(souris.x, souris.y)
+                            }
+                        }
+                        onReleased: if (fenetre.outil === "pinceau") fenetre.terminerTrait()
                     }
                 }
             }
@@ -353,16 +478,88 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
+                // Deux outils côte à côte : la pastille active est remplie.
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+
+                    Repeater {
+                        model: [{ cle: "pinceau", nom: "Pinceau" },
+                                { cle: "points", nom: "Points" }]
+
+                        Rectangle {
+                            required property var modelData
+                            width: 74
+                            height: 26
+                            radius: 6
+                            color: fenetre.outil === modelData.cle ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.nom
+                                color: fenetre.outil === modelData.cle ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: !fenetre.travail
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    fenetre.outil = modelData.cle
+                                    if (modelData.cle === "points")
+                                        fenetre.terminerTrait()
+                                    fenetre.message = ""
+                                    canvasPeinture.requestPaint()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // « Fermer » n'apparaît qu'en mode points : il referme le
+                // contour en cours (on peut aussi recliquer sur le premier
+                // sommet, ou appuyer sur Entrée).
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: fenetre.outil === "points"
+                    width: visible ? 74 : 0
+                    height: 26
+                    radius: 6
+                    color: fenetre.contourEnCours.length >= 3 ? Qt.alpha(Theme.accent, 0.85)
+                                                                : Theme.surfaceVariant
+                    border.color: Qt.alpha(Theme.fg, 0.25)
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Fermer"
+                        color: fenetre.contourEnCours.length >= 3 ? Theme.bg : Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: !fenetre.travail && fenetre.contourEnCours.length >= 3
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: fenetre.fermerContour()
+                    }
+                }
+
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Pinceau"
+                    visible: fenetre.outil === "pinceau"
+                    text: "Taille"
                     color: Qt.alpha(Theme.fg, 0.7)
                     font.pixelSize: Theme.textXs
                 }
 
                 Rectangle {
                     id: railPinceau
-                    width: 150
+                    visible: fenetre.outil === "pinceau"
+                    width: visible ? 150 : 0
                     height: 4
                     radius: 2
                     color: Theme.surfaceVariant
@@ -404,6 +601,7 @@ PanelWindow {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: fenetre.outil === "pinceau"
                     text: Math.round(fenetre.pinceau) + " px"
                     color: Qt.alpha(Theme.fg, 0.55)
                     font.pixelSize: Theme.textXs
@@ -427,12 +625,11 @@ PanelWindow {
 
                     MouseArea {
                         anchors.fill: parent
-                        enabled: !fenetre.travail && fenetre.traits.length > 0
+                        enabled: !fenetre.travail
+                                 && (fenetre.traits.length > 0 || fenetre.contours.length > 0
+                                     || fenetre.contourEnCours.length > 0)
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            fenetre.traits = fenetre.traits.slice(0, -1)
-                            canvasPeinture.requestPaint()
-                        }
+                        onClicked: fenetre.annuler()
                     }
                 }
 
@@ -458,6 +655,9 @@ PanelWindow {
                         onClicked: {
                             fenetre.traits = []
                             fenetre.traitEnCours = null
+                            fenetre.contours = []
+                            fenetre.contourEnCours = []
+                            fenetre.message = ""
                             canvasPeinture.requestPaint()
                         }
                     }
@@ -508,6 +708,16 @@ PanelWindow {
     Item {
         anchors.fill: parent
         focus: fenetre.visible
-        Keys.onEscapePressed: if (!fenetre.travail) Theme.masqueParallaxeVisible = false
+        Keys.onEscapePressed: {
+            if (fenetre.travail) return
+            if (fenetre.contourEnCours.length > 0) {
+                fenetre.contourEnCours = []
+                canvasPeinture.requestPaint()
+                return
+            }
+            Theme.masqueParallaxeVisible = false
+        }
+        Keys.onReturnPressed: if (fenetre.outil === "points") fenetre.fermerContour()
+        Keys.onEnterPressed: if (fenetre.outil === "points") fenetre.fermerContour()
     }
 }
