@@ -215,10 +215,18 @@ Rectangle {
 
     // Un nom de section ne dit pas dans quel onglet il vit : sans ça, le clic
     // milieu ouvrait le panneau sur « Bureau » et dépliait une section cachée.
+    // Table complète : une section absente d'ici ne fait pas changer d'onglet, donc
+    // le clic milieu et la recherche ouvraient le panneau sur « Bureau » en dépliant
+    // une section cachée. Neuf sections manquaient.
     readonly property var ongletDeSection: ({
-        "quickshell_applets": 1, "quickshell_visualiseur": 1, "quickshell_barre": 1,
-        "quickshell_barres": 1, "quickshell_disques": 1, "quickshell_notifications": 1,
-        "widgets": 2, "apps_programs": 5
+        "esthetique_theme": 0, "esthetique_aspect": 0, "quickshell_barre": 0,
+        "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
+        "quickshell_visualiseur": 1, "quickshell_notifications": 1,
+        "widgets": 2, "widgets_api": 2,
+        "systeme_nuit": 3,
+        "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
+        "greeter_theme": 6,
+        "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7
     })
 
     function ouvrirSection(nom) {
@@ -1500,9 +1508,13 @@ Rectangle {
                 if (root.currentTab === 3) return tabSystemeCol.implicitHeight
                 if (root.currentTab === 4) return tabControlesCol.implicitHeight
                 if (root.currentTab === 5) return tabAppsCol.implicitHeight
-                if (root.currentTab === 6) return greeterTabLoader.item
+                // L'onglet 7 a été inséré au milieu de l'opérateur ternaire de l'onglet 6 :
+                // celui-ci rendait l'**item** du greeter au lieu de sa hauteur (contentHeight
+                // valait NaN, donc ni défilement ni bornes), et l'onglet 7 mesurait la hauteur
+                // du greeter en testant celle de sa propre colonne.
+                if (root.currentTab === 6)
+                    return greeterTabLoader.item ? greeterTabLoader.item.implicitHeight : 0
                 if (root.currentTab === 7) return tabHomelabCol.implicitHeight
-                    ? greeterTabLoader.item.implicitHeight : 0
                 return 0
             }
 
