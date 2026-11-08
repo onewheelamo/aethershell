@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 
@@ -1051,35 +1050,18 @@ Rectangle {
         return s.replace(/^\$HOME/, "~").replace(/\/$/, "")
     }
 
-    // Chemins des réglages → URL de fichier, et retour. Les valeurs du thème
-    // commencent par `$HOME` ; un dialogue Qt n'accepte qu'un chemin absolu.
+    // Chemins des réglages → chemin absolu. Les valeurs du thème commencent par
+    // `$HOME` ; le sélecteur de dossier, lui, ne travaille qu'en absolu.
     function cheminAbsolu(chemin) {
         let s = String(chemin || "")
         if (s.indexOf("$HOME") === 0) s = Quickshell.env("HOME") + s.substring(5)
         return s.replace(/\/$/, "")
     }
-    function urlDepuisChemin(chemin) {
-        return "file://" + cheminAbsolu(chemin)
-    }
-    function cheminDepuisUrl(url) {
-        return String(url).replace(/^file:\/\//, "").replace(/\/$/, "")
-    }
 
-    // Sélecteur de dossier des deux chemins de *Fonds d'écran & Captures*.
-    FolderDialog {
-        id: wpDirDialog
-        title: "Dossier des fonds d'écran"
-        currentFolder: root.urlDepuisChemin(wpDirInput.text)
-        onAccepted: root.runConfigCmd(["style", "wallpaper_dir",
-                                       root.cheminDepuisUrl(selectedFolder) + "/"])
-    }
-    FolderDialog {
-        id: shotsDirDialog
-        title: "Dossier des captures d'écran"
-        currentFolder: root.urlDepuisChemin(shotsDirInput.text)
-        onAccepted: root.runConfigCmd(["style", "screenshots_dir",
-                                       root.cheminDepuisUrl(selectedFolder) + "/"])
-    }
+    // Sélecteur de dossier des deux chemins de *Fonds d'écran & Captures* :
+    // une feuille du panneau (SelecteurDossier.qml), pas un dialogue Qt — une
+    // vraie fenêtre s'ouvrirait sous la surface de couche du panneau.
+    property string selecteurCible: ""
 
     // Installation des paquets manquants (onglet « Apps & Alertes »). Le script
     // lit dependencies.txt, filtre sur la distribution et élève par pkexec —
@@ -2335,7 +2317,7 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: wpDirDialog.open()
+                        onClicked: root.ouvrirSelecteur("wallpaper_dir", "Dossier des fonds d'écran", wpDirInput.text)
                     }
                 }
 
@@ -2429,7 +2411,7 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: shotsDirDialog.open()
+                        onClicked: root.ouvrirSelecteur("screenshots_dir", "Dossier des captures d'écran", shotsDirInput.text)
                     }
                 }
 
@@ -3029,47 +3011,6 @@ Rectangle {
                         width: parent.width
                         spacing: 8
 
-                        Item { width: 160; height: 1 }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: Theme.depthMask
-                            text: "MultiEffect par widget :"
-                            color: Qt.alpha(Theme.fg, 0.6)
-                            font.pixelSize: Theme.textXs
-                            elide: Text.ElideRight
-                        }
-
-                        Rectangle {
-                            width: 160
-                            height: 26
-                            radius: Theme.globalRadius
-                            visible: Theme.depthMask
-                            color: Theme.widgetsMultieffect ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: Theme.widgetsMultieffect ? "✓ MultiEffect" : "✕ calque"
-                                color: Theme.widgetsMultieffect ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.runConfigCmd([
-                                    "style", "widgets_multieffect",
-                                    Theme.widgetsMultieffect ? "false" : "true"
-                                ])
-                            }
-                        }
-                    }
-
-                    Row {
-                        width: parent.width
-                        spacing: 8
-
                         // Aligne « seuil » sous le libellé, pas sous le bouton.
                         Item { width: 160; height: 1 }
                         Text {
@@ -3104,6 +3045,48 @@ Rectangle {
                             stepSize: 1
                             onValueModified: newVal => root.runConfigCmd([
                                 "style", "depth_mask_adouci", String(newVal)
+                            ])
+                        }
+                    }
+                }
+
+                // MultiEffect sur les widgets : réglage à part, indépendant du
+                // masque de profondeur. C'est lui qui découpe la carte de chaque
+                // widget au lieu d'empiler un calque plein écran.
+                Row {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: 200
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "MultiEffect sur les widgets :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        width: 120
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: Theme.widgetsMultieffect ? Theme.accent : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: Theme.widgetsMultieffect ? "✓ Actif" : "✕ Inactif"
+                            color: Theme.widgetsMultieffect ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.runConfigCmd([
+                                "style", "widgets_multieffect",
+                                Theme.widgetsMultieffect ? "false" : "true"
                             ])
                         }
                     }
@@ -5419,18 +5402,33 @@ Rectangle {
                 }
 
                 Rectangle {
-                    width: 160
+                    width: 120
                     height: 26
                     radius: Theme.globalRadius
                     color: Theme.widgetsLocked ? Theme.accent : Theme.surfaceVariant
                     border.color: Theme.accent
                     border.width: 1
 
-                    Text {
+                    Row {
                         anchors.centerIn: parent
-                        text: Theme.widgetsLocked ? "🔒 Verrouillé" : "🔓 Libre"
-                        color: Theme.widgetsLocked ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
+                        spacing: 6
+
+                        // Glyphe monochrome du jeu d'icônes : l'emoji de cadenas
+                        // arrive en couleur dans une barre qui n'en a aucun.
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "lock"
+                            size: Theme.iconSm
+                            color: Theme.widgetsLocked ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                            opacityLevel: 1
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Theme.widgetsLocked ? "Verrouillé" : "Libre"
+                            color: Theme.widgetsLocked ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
                     }
 
                     MouseArea {
@@ -5443,14 +5441,6 @@ Rectangle {
                     }
                 }
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 200 - 160 - 20
-                    text: "verrouillé, le raccourci de placement ne fait plus rien"
-                    color: Qt.alpha(Theme.fg, 0.5)
-                    font.pixelSize: Theme.textXs
-                    elide: Text.ElideRight
-                }
             }
 
         }
@@ -8503,8 +8493,8 @@ Rectangle {
 
                 Rectangle {
                     id: depsBtn
-                    width: depsBtnText.implicitWidth + 34
-                    height: 34
+                    width: depsBtnText.implicitWidth + 26
+                    height: 28
                     radius: Theme.globalRadius
                     color: depsBtnMa.containsMouse ? Theme.accentMuted : Theme.accent
 
@@ -8513,7 +8503,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: "Installer les paquets manquants"
                         color: Theme.bg
-                        font.pixelSize: Theme.textXs
+                        font.pixelSize: Theme.text2xs
                         font.bold: true
                     }
 
@@ -8526,11 +8516,23 @@ Rectangle {
                     }
                 }
 
+                // Rien à côté du bouton quand tout va bien : une coche, et c'est
+                // tout. Un échec, lui, se dit — c'est la seule information utile.
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.depsEtat === "à jour"
+                    glyph: "check"
+                    size: Theme.iconSm
+                    color: Theme.success
+                    opacityLevel: 1
+                }
+
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - depsBtn.width - 10
-                    text: root.depsEtat !== "" ? root.depsEtat : "dependencies.txt · pkexec"
-                    color: Qt.alpha(Theme.fg, 0.55)
+                    visible: root.depsEtat !== "" && root.depsEtat !== "à jour"
+                    width: parent.width - depsBtn.width - Theme.iconSm - 20
+                    text: root.depsEtat
+                    color: Theme.error
                     font.pixelSize: Theme.textXs
                     elide: Text.ElideRight
                 }
@@ -8568,4 +8570,36 @@ Rectangle {
             }
     }   // end Flickable mainFlickable
     }   // end Item tabContentArea
+
+    // Feuille modale du panneau : dernier enfant, donc au-dessus de tout.
+    //
+    // Chargée par **URL** et non par nom de type : « SelecteurDossier is not a
+    // type » — le moteur ne l'enregistre pas dans l'import implicite du dossier,
+    // alors qu'un Loader par chemin n'a pas besoin de cet enregistrement.
+    Loader {
+        id: selecteurLoader
+        anchors.fill: parent
+        z: 1000
+        source: "SelecteurDossier.qml"
+        onLoaded: {
+            item.accepte.connect(chemin => root.validerSelecteur(chemin))
+            item.annule.connect(() => { root.selecteurCible = "" })
+        }
+    }
+
+    function ouvrirSelecteur(cible, titre, chemin) {
+        root.selecteurCible = String(cible)
+        if (!selecteurLoader.item)
+            return
+        selecteurLoader.item.titre = String(titre)
+        selecteurLoader.item.chemin = root.cheminAbsolu(chemin)
+        selecteurLoader.item.ouvert = true
+    }
+
+    function validerSelecteur(chemin) {
+        if (root.selecteurCible === "")
+            return
+        root.runConfigCmd(["style", root.selecteurCible, String(chemin) + "/"])
+        root.selecteurCible = ""
+    }
 }
