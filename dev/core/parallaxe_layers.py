@@ -23,12 +23,37 @@ seuils que le masque de premier plan : le réglage du panneau vaut pour les deux
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
 NOMS = ("1-lointain.png", "2-moyen.png", "3-proche.png")
+# Runtime partagé avec depth_mask.py : c'est lui qui porte numpy et Pillow.
+DATA_DIR = Path.home() / ".cache" / "quickshell" / "depth"
+VENV_PYTHON = DATA_DIR / "runtime" / "bin" / "python"
+
+
+def _se_reexecuter_dans_le_venv():
+    """Bascule dans le venv quand c'est lui qui porte numpy et Pillow.
+
+    Le shell appelle ce script avec le Python du système, qui n'a pas ces
+    modules : sans cette bascule la génération échouerait alors que le runtime
+    est installé. La garde sur `sys.prefix` empêche la boucle (le python du venv
+    est un lien vers celui de base, donc `sys.executable` ne distingue rien).
+    """
+    try:
+        import numpy  # noqa: F401
+        from PIL import Image  # noqa: F401
+        return
+    except Exception:
+        pass
+    if not VENV_PYTHON.is_file():
+        return
+    if Path(sys.prefix).resolve() == (DATA_DIR / "runtime").resolve():
+        return
+    os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
 
 
 def _numpy():
@@ -67,7 +92,25 @@ def _lissage(a, bas, haut):
     return t * t * (3.0 - 2.0 * t)
 
 
-def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None):
+def _cover(image, largeur, hauteur):
+    """Redimensionne en « cover » : remplit l'écran, recadre au centre.
+
+    C'est le cadrage du démon de fond (awww recadre en crop). Mesuré contre une
+    capture du compositeur : écart moyen 0,7 sur 255 avec LANCZOS — largement
+    sous le seuil visible, alors qu'un redimensionnement par Qt dans la surface
+    laissait 187. C'est ce qui permet de produire les calques depuis le fichier
+    du fond, sans capture ni bureau vide.
+    """
+    _, Image = _numpy()
+    ratio = max(largeur / image.width, hauteur / image.height)
+    taille = (round(image.width * ratio), round(image.height * ratio))
+    red = image.resize(taille, Image.LANCZOS)
+    x = (red.width - largeur) // 2
+    y = (red.height - hauteur) // 2
+    return red.crop((x, y, x + largeur, y + hauteur))
+
+
+def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     """`fond` est l'image à découper ; `masque_de` est l'image dont on tire la
     carte de profondeur quand les deux diffèrent.
 
@@ -84,6 +127,8 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None):
     chemin_masque = masque_pour(Path(masque_de).expanduser() if masque_de else fond,
                                 seuil_bas, seuil_haut)
     rgb = Image.open(fond).convert("RGB")
+    if ecran:
+        rgb = _cover(rgb, int(ecran[0]), int(ecran[1]))
     alpha = Image.open(chemin_masque).getchannel("A")
     if alpha.size != rgb.size:
         alpha = alpha.resize(rgb.size, Image.LANCZOS)
@@ -103,6 +148,7 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None):
 
 
 def main():
+    _se_reexecuter_dans_le_venv()
     ap = argparse.ArgumentParser(description="Trois calques de parallaxe depuis une carte de profondeur")
     sous = ap.add_subparsers(dest="cmd", required=True)
     g = sous.add_parser("generate")
@@ -110,11 +156,20 @@ def main():
     g.add_argument("--out", default=str(Path.home() / "Images/wallpapers/profondeur"))
     g.add_argument("--seuil-bas", type=int, default=30)
     g.add_argument("--seuil-haut", type=int, default=65)
+    g.add_argument("--ecran", default=None, metavar="LxH",
+                   help="taille cible des calques (ex. 1920x1080) ; recadrage cover")
     g.add_argument("--masque-de", default=None,
                    help="image dont on tire la profondeur (par défaut : --wallpaper)")
     a = ap.parse_args()
     if a.cmd == "generate":
-        generate(a.wallpaper, a.out, a.seuil_bas, a.seuil_haut, a.masque_de)
+        ecran = None
+        if a.ecran:
+            try:
+                l, h = a.ecran.lower().split("x")
+                ecran = (int(l), int(h))
+            except ValueError:
+                sys.exit("--ecran attend LARGEURxHAUTEUR, par exemple 1920x1080")
+        generate(a.wallpaper, a.out, a.seuil_bas, a.seuil_haut, a.masque_de, ecran)
 
 
 if __name__ == "__main__":

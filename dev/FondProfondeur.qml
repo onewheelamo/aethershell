@@ -101,6 +101,71 @@ PanelWindow {
         onTriggered: if (!sondeFond.running) sondeFond.running = true
     }
 
+    // ── Génération automatique des calques ────────────────────────────────
+    // Le jeu manquant est produit par le shell lui-même, depuis le fichier du
+    // fond, recadré à la taille de l'écran. Mesuré contre une capture du
+    // compositeur : 0,7 d'écart moyen sur 255 — le recadrage LANCZOS du script
+    // reproduit le rendu d'awww de très près, ce qui rend la capture inutile.
+    property bool generationEnCours: false
+    // Un fond dont la génération a échoué n'est pas retenté en boucle.
+    property string derniereTentative: ""
+
+    Timer {
+        id: veilleCalques
+        interval: 1500
+        repeat: true
+        running: Theme.depthWallpaper && !assetsPresents && !generationEnCours
+        onTriggered: {
+            // `Error` = les trois PNG n'existent pas ; `Loading` = patience.
+            if (lointain.status !== Image.Error) return
+            if (fenetre.fondCourant === "" || fenetre.derniereTentative === fenetre.fondCourant) return
+            fenetre.derniereTentative = fenetre.fondCourant
+            fenetre.generationEnCours = true
+            generateur.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
+                                  "generate", "--wallpaper", fenetre.fondCourant,
+                                  "--out", fenetre.dossierSpecifique,
+                                  // Taille de l'**écran**, pas de la fenêtre : la surface
+                                  // n'est pas encore créée (elle attend ses calques), donc
+                                  // `width` vaut 100 et la génération sortait en 100×100.
+                                  "--ecran", (fenetre.screen ? fenetre.screen.width : Screen.width)
+                                             + "x" + (fenetre.screen ? fenetre.screen.height : Screen.height)]
+            generateur.running = true
+            console.log("fond en profondeur : génération des calques pour " + fenetre.fondCourant)
+        }
+    }
+
+    Process {
+        id: generateur
+        onRunningChanged: {
+            if (running) return
+            fenetre.generationEnCours = false
+            fenetre.rechargerCalques()
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                const msg = String(text).trim()
+                if (msg !== "") console.warn("fond en profondeur : " + msg)
+            }
+        }
+    }
+
+    // Relit les trois fichiers après génération : `cache: false` ne suffit pas,
+    // Qt garde la source en échec tant qu'elle n'est pas reposée.
+    function rechargerCalques() {
+        // Le repli sur le dossier commun a pu s'armer avant la génération : sans
+        // cette remise à zéro, les sources repartaient sur un dossier toujours vide.
+        fenetre.repli = false
+        const a = lointain.source, b = moyen.source, c = proche.source
+        lointain.source = ""
+        moyen.source = ""
+        proche.source = ""
+        Qt.callLater(function () {
+            lointain.source = a
+            moyen.source = b
+            proche.source = c
+        })
+    }
+
     // Une option allumée sans assets ne dessine rien : le dire dans le journal
     // plutôt que de laisser croire à une panne.
     onVisibleChanged: {
