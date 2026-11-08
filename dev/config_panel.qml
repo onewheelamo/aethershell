@@ -222,7 +222,8 @@ Rectangle {
     // le clic milieu et la recherche ouvraient le panneau sur « Bureau » en dépliant
     // une section cachée. Neuf sections manquaient.
     readonly property var ongletDeSection: ({
-        "esthetique_theme": 0, "esthetique_aspect": 0, "quickshell_barre": 0,
+        "esthetique_theme": 0, "esthetique_fonds": 0, "esthetique_aspect": 0,
+        "quickshell_barre": 0,
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
         "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_api": 2,
@@ -902,6 +903,7 @@ Rectangle {
     // `expanded` au clic : la liaison est alors perdue, il faut donc agir dessus.
     readonly property var tiroirs: ({
         "esthetique_theme": secTheme,
+        "esthetique_fonds": secFonds,
         "esthetique_aspect": secAspect,
         "quickshell_barre": secBarre,
         "quickshell_barres": secBarres,
@@ -1807,17 +1809,18 @@ Rectangle {
                 spacing: 11
 
                 // 1+2. Thème & Fond d'écran (jeux de couleurs, wallpaper, matugen, palette hex custom)
+            // 1. Thème & Palette : jeux de couleurs, schéma et contraste Matugen,
+            // clé de couleur personnalisée.
             CollapsibleSection {
                 id: secTheme
                 objectName: "secTheme"
-                title: "Thème & Fond d'écran"
+                title: "Thème & Palette"
                 icon: "palette"
                 expanded: root.sectionOpen("esthetique_theme", true)
                 onToggled: expanded => {
                     root.setPanelSection("esthetique_theme", expanded)
                     if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_theme")
                 }
-
                 Text {
                     text: "Jeux de couleurs & Fond d'écran"
                     color: Theme.accent
@@ -1825,7 +1828,6 @@ Rectangle {
                     font.bold: true
                     width: parent.width
                 }
-
             Column {
                 width: parent.width
                 spacing: 8
@@ -1867,48 +1869,7 @@ Rectangle {
                     }
                 }
             }
-
-            Row {
-                width: parent.width
-                spacing: 8
-
-                Rectangle {
-                    width: 135
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: wpPickMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
-                    border.color: Theme.accentMuted
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Fonds d'écran"
-                        color: wpPickMa.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        id: wpPickMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            Theme.configPanelVisible = false
-                            Quickshell.execDetached([
-                                "quickshell",
-                                "-n",
-                                "-p",
-                                Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"
-                            ])
-                        }
-                    }
                 }
-
-            }
-            }
-
-            // Matugen scheme & contrast (regenerates the dynamic palette from the current wallpaper)
             Column {
                 id: matugenRow   // ancre de recherche
                 objectName: "matugenRow"
@@ -2020,155 +1981,6 @@ Rectangle {
                                 }
                 }
 }
-
-            // Même respiration de 10 px que devant les barres d'ajout.
-            Item { width: 1; height: 10 }
-
-            // Wallpaper Directory Path
-            Row {
-                id: wallpaperDirRow   // ancre de recherche
-                objectName: "wallpaperDirRow"
-                spacing: 8
-                width: parent.width
-
-                Text {
-                    width: 145
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Wallpapers"
-                    color: Theme.fg
-                    font.pixelSize: Theme.textSm
-                    font.bold: true
-                }
-
-                Rectangle {
-                    width: parent.width - 145 - 85 - 2 * 8
-                    height: 28
-                    color: Theme.bg
-                    radius: Theme.globalRadius
-                    border.color: wpDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
-                    border.width: 1
-                    clip: true
-
-                    TextInput {
-                        id: wpDirInput
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        verticalAlignment: TextInput.AlignVCenter
-                        text: Theme.wallpaperDir || root.wallpaperDir
-                        color: Theme.fg
-                        font.pixelSize: Theme.textXs
-                        onAccepted: {
-                            if (wpDirInput.text.trim() !== "") {
-                                root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: 85
-                    height: 28
-                    radius: Theme.globalRadius
-                    color: wpDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Appliquer"
-                        color: Theme.bg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        id: wpDirSaveMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (wpDirInput.text.trim() !== "") {
-                                root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 2 px de respiration entre les deux dossiers : sans cet item, les
-            // deux champs se lisent comme une seule ligne à deux étages.
-            Item { width: 1; height: 2 }
-
-            // Dossier des captures d'écran (lu par core/screenshot.sh)
-            Row {
-                id: screenshotsDirRow   // ancre de recherche
-                objectName: "screenshotsDirRow"
-                spacing: 8
-                width: parent.width
-
-                Text {
-                    width: 145
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Screenshots"
-                    color: Theme.fg
-                    font.pixelSize: Theme.textSm
-                    font.bold: true
-                }
-
-                Rectangle {
-                    width: parent.width - 145 - 85 - 2 * 8
-                    height: 28
-                    color: Theme.bg
-                    radius: Theme.globalRadius
-                    border.color: shotsDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
-                    border.width: 1
-                    clip: true
-
-                    TextInput {
-                        id: shotsDirInput
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        verticalAlignment: TextInput.AlignVCenter
-                        text: Theme.screenshotsDir || root.screenshotsDir
-                        color: Theme.fg
-                        font.pixelSize: Theme.textXs
-                        onAccepted: {
-                            if (shotsDirInput.text.trim() !== "") {
-                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: 85
-                    height: 28
-                    radius: Theme.globalRadius
-                    color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Appliquer"
-                        color: Theme.bg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        id: shotsDirSaveMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (shotsDirInput.text.trim() !== "") {
-                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-                            }
-                        }
-                    }
-                }
-            }
-
-            Item { width: 1; height: 10 }
-
-            // 2. Active Palette Swatches & Custom Color Override
             Text {
                 width: parent.width
                 text: "Palette active — cliquer une pastille pour ajuster son hex"
@@ -2280,8 +2092,199 @@ Rectangle {
                             }
                         }
                     }
-            // Parallaxe : trois calques du fond courant, décalés au changement de
-            // bureau ; le shell les produit lui-même quand ils manquent.
+            }
+
+            // 2. Fonds d'écran & Captures : choix du fond, dossiers, parallaxe et
+            // masque du relief. Réglages de fichiers, distincts de la palette.
+            CollapsibleSection {
+                id: secFonds
+                objectName: "secFonds"
+                title: "Fonds d'écran & Captures"
+                icon: "image"
+                expanded: root.sectionOpen("esthetique_fonds", false)
+                onToggled: expanded => {
+                    root.setPanelSection("esthetique_fonds", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_fonds")
+                }
+                Item { width: 1; height: 6 }
+            Row {
+                width: parent.width
+                spacing: 8
+
+                Rectangle {
+                    width: 135
+                    height: 32
+                    radius: Theme.globalRadius
+                    color: wpPickMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+                    border.color: Theme.accentMuted
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Fonds d'écran"
+                        color: wpPickMa.containsMouse ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: wpPickMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Theme.configPanelVisible = false
+                            Quickshell.execDetached([
+                                "quickshell",
+                                "-n",
+                                "-p",
+                                Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"
+                            ])
+                        }
+                    }
+                }
+
+            }
+            Item { width: 1; height: 10 }
+
+            // Wallpaper Directory Path
+            Row {
+                id: wallpaperDirRow   // ancre de recherche
+                objectName: "wallpaperDirRow"
+                spacing: 8
+                width: parent.width
+
+                Text {
+                    width: 145
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Wallpapers"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    font.bold: true
+                }
+
+                Rectangle {
+                    width: parent.width - 145 - 85 - 2 * 8
+                    height: 28
+                    color: Theme.bg
+                    radius: Theme.globalRadius
+                    border.color: wpDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+                    border.width: 1
+                    clip: true
+
+                    TextInput {
+                        id: wpDirInput
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        verticalAlignment: TextInput.AlignVCenter
+                        text: Theme.wallpaperDir || root.wallpaperDir
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        onAccepted: {
+                            if (wpDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 85
+                    height: 28
+                    radius: Theme.globalRadius
+                    color: wpDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Appliquer"
+                        color: Theme.bg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: wpDirSaveMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (wpDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+            }
+            Item { width: 1; height: 2 }
+
+            // Dossier des captures d'écran (lu par core/screenshot.sh)
+            Row {
+                id: screenshotsDirRow   // ancre de recherche
+                objectName: "screenshotsDirRow"
+                spacing: 8
+                width: parent.width
+
+                Text {
+                    width: 145
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Screenshots"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    font.bold: true
+                }
+
+                Rectangle {
+                    width: parent.width - 145 - 85 - 2 * 8
+                    height: 28
+                    color: Theme.bg
+                    radius: Theme.globalRadius
+                    border.color: shotsDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+                    border.width: 1
+                    clip: true
+
+                    TextInput {
+                        id: shotsDirInput
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        verticalAlignment: TextInput.AlignVCenter
+                        text: Theme.screenshotsDir || root.screenshotsDir
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        onAccepted: {
+                            if (shotsDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 85
+                    height: 28
+                    radius: Theme.globalRadius
+                    color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Appliquer"
+                        color: Theme.bg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: shotsDirSaveMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (shotsDirInput.text.trim() !== "") {
+                                root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+                            }
+                        }
+                    }
+                }
+            }
             Row {
                 width: parent.width
                 spacing: 8
@@ -2364,9 +2367,7 @@ Rectangle {
                     }
                 }
             }
-
-
-            }   // end CollapsibleSection secTheme
+            }
 
             // 3. Desktop Aspect: Gaps, Borders, Rounding, Opacity, Blur, Bar (catégorie technique)
             CollapsibleSection {
