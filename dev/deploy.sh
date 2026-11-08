@@ -525,6 +525,10 @@ deploy_new_env() {
 
     mkdir -p "$CORE_DIR"
     copy_dir_files "$DEV_DIR/core" "$CORE_DIR" "$PRESERVE_CORE"
+    # La liste des dépendances part avec le shell : le panneau (« Installer les
+    # paquets manquants », onglet Apps & Alertes) la lit à l'exécution dans
+    # core/dependencies.txt, sans savoir où le dépôt a été cloné.
+    cp -f "$DEPS_FILE" "$CORE_DIR/dependencies.txt" || true
     local core_manifest
     core_manifest=$(mktemp)
     (cd "$DEV_DIR/core" && ls -1) > "$core_manifest"
