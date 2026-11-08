@@ -37,10 +37,10 @@ Item {
     // retombe sur la localisation réglée dans le panneau, puis sur weather_city.
     readonly property string cityOption: (options && options.city) ? String(options.city) : ""
 
-    // Aujourd'hui est déjà résumé au-dessus : on garde les trois jours suivants.
+    // Aujourd'hui est déjà résumé au-dessus : on garde les cinq jours suivants.
     readonly property var previsions: {
         const p = (root.meteo && root.meteo.previsions) ? root.meteo.previsions : []
-        return p.slice(1, 4)
+        return p.slice(1, 6)
     }
 
     implicitWidth: contentCol.implicitWidth
@@ -155,16 +155,21 @@ Item {
         // ── trois jours suivants ──────────────────────────────────────────
         Row {
             visible: root.ok && root.previsions.length > 0
-            spacing: Math.round(14 * root.echelle)
+            spacing: Math.round(10 * root.echelle)
 
             Repeater {
                 model: root.previsions
 
                 Column {
                     required property var modelData
+                    // Largeur fixe : les trois lignes d'une colonne s'alignent
+                    // verticalement et les colonnes se répartissent également.
+                    width: Math.round(62 * root.echelle)
                     spacing: 0
 
                     Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
                         text: root.jourCourt(modelData.date)
                         color: Qt.alpha(Theme.fg, 0.72)
                         font.pixelSize: Math.round(Theme.widgetLabel * 0.9 * root.echelle)
@@ -174,6 +179,8 @@ Item {
                     }
 
                     Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
                         text: root.nombre(modelData.tmin, "°") + " / " + root.nombre(modelData.tmax, "°")
                         color: Theme.fg
                         font.pixelSize: Math.round(Theme.widgetLabel * 0.95 * root.echelle)
@@ -183,6 +190,8 @@ Item {
                     }
 
                     Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
                         visible: modelData.pluie !== null && modelData.pluie !== undefined
                         text: root.nombre(modelData.pluie, " %")
                         color: Qt.alpha(Theme.accent, 0.85)

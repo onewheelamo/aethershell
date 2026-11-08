@@ -198,7 +198,7 @@ def fetch(lat, lon):
            "relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,pressure_msl"
            "&daily=temperature_2m_max,temperature_2m_min,weather_code,"
            "precipitation_probability_max,sunrise,sunset"
-           "&timezone=auto&forecast_days=4")
+           "&timezone=auto&forecast_days=6")
     payload = http_json(url)
     current = payload.get("current") or {}
     daily = payload.get("daily") or {}
