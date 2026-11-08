@@ -187,6 +187,9 @@ QtObject {
     // ceux du plugin Noctalia, exposés tels quels (0-100 et 0-50).
     // Localisation de l'utilisateur : un seul jeu de clés pour tout ce qui a
     // besoin de savoir où l'on est (météo, horloge, calendrier, widgets).
+    // Effet d'accordéon du panneau de réglages : un seul tiroir ouvert par onglet.
+    property bool panelAccordion: true
+
     property string userLocationVille: ""
     property real userLocationLat: 0
     property real userLocationLon: 0
@@ -418,6 +421,7 @@ QtObject {
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
+        if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion
         if (typeof data.user_location_ville === "string") root.userLocationVille = data.user_location_ville
         if (typeof data.user_location_tz === "string") root.userLocationTz = data.user_location_tz
         if (typeof data.user_location_lat === "number" && typeof data.user_location_lon === "number") {

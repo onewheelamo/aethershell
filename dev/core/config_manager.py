@@ -739,6 +739,10 @@ def update_style_var(key, value):
         else:
             data[key] = str(value).lower() in ("true", "1", "yes")
         shell_blur_changed = True
+    elif key == "panel_accordion":
+        # Effet d'accordéon du panneau : ouvrir un tiroir referme les autres du
+        # même onglet. Réglable depuis l'onglet Apparence.
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key in ("user_location_ville", "user_location_tz"):
         # Localisation de l'utilisateur : ville affichée et fuseau. Le fuseau
         # n'est pas validé ici (liste mouvante) mais reste une chaîne courte.
@@ -1789,6 +1793,7 @@ def get_full_config_state():
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
+        "panel_accordion": bool(style_data.get("panel_accordion", True)),
         "user_location_ville": str(style_data.get("user_location_ville", "") or ""),
         "user_location_lat": style_data.get("user_location_lat"),
         "user_location_lon": style_data.get("user_location_lon"),

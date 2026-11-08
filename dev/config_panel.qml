@@ -256,7 +256,7 @@ Rectangle {
         const onglet = root.ongletDeSection[section]
         if (onglet !== undefined) root.currentTab = onglet
         root.setPanelSection(section, true)
-        root.fermerAutresTiroirs(section)
+        if (Theme.panelAccordion) root.fermerAutresTiroirs(section)
         const ancre = root.ancreDeSection[section] || ""
         if (ancre !== "") {
             root.scrollTargetName = ancre
@@ -1643,7 +1643,7 @@ Rectangle {
                 expanded: root.sectionOpen("esthetique_theme", true)
                 onToggled: expanded => {
                     root.setPanelSection("esthetique_theme", expanded)
-                    if (expanded) root.fermerAutresTiroirs("esthetique_theme")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_theme")
                 }
 
                 Text {
@@ -2118,7 +2118,7 @@ Rectangle {
                 expanded: root.sectionOpen("esthetique_aspect", false)
                 onToggled: expanded => {
                     root.setPanelSection("esthetique_aspect", expanded)
-                    if (expanded) root.fermerAutresTiroirs("esthetique_aspect")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_aspect")
                 }
 
             Grid {
@@ -2685,7 +2685,7 @@ Rectangle {
                 expanded: root.sectionOpen("quickshell_barre", false)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_barre", expanded)
-                    if (expanded) root.fermerAutresTiroirs("quickshell_barre")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barre")
                 }
 
                 Grid {
@@ -2994,6 +2994,53 @@ Rectangle {
                             }
                         }
                     }
+                    // 16. Effet d'accordéon : un seul tiroir ouvert par onglet.
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Effet d'accordéon :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: Theme.panelAccordion ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Theme.panelAccordion ? "✓ Actif" : "✕ Désactivé"
+                                color: Theme.panelAccordion ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd([
+                                    "style", "panel_accordion", Theme.panelAccordion ? "false" : "true"
+                                ])
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Actif : ouvrir un tiroir referme les autres du même onglet."
+                            color: Qt.alpha(Theme.fg, 0.5)
+                            font.pixelSize: Theme.text2xs
+                        }
+                    }
                 }   // fin Grid shell
 
                 Text {
@@ -3080,7 +3127,7 @@ Rectangle {
                 expanded: root.sectionOpen("quickshell_barres", true)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_barres", expanded)
-                    if (expanded) root.fermerAutresTiroirs("quickshell_barres")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barres")
                 }
 
                 Column {
@@ -3631,7 +3678,7 @@ Rectangle {
                                     expanded: root.sectionOpen("quickshell_disques", false)
                                     onToggled: expanded => {
                     root.setPanelSection("quickshell_disques", expanded)
-                    if (expanded) root.fermerAutresTiroirs("quickshell_disques")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_disques")
                 }
 
                                     Grid {
@@ -3792,7 +3839,7 @@ Rectangle {
                     expanded: root.sectionOpen("quickshell_visualiseur", false)
                     onToggled: expanded => {
                     root.setPanelSection("quickshell_visualiseur", expanded)
-                    if (expanded) root.fermerAutresTiroirs("quickshell_visualiseur")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_visualiseur")
                 }
 
                     Column {
@@ -3953,7 +4000,7 @@ Rectangle {
                 expanded: root.sectionOpen("widgets", true)
                 onToggled: expanded => {
                     root.setPanelSection("widgets", expanded)
-                    if (expanded) root.fermerAutresTiroirs("widgets")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets")
                 }
 
                 Column {
@@ -4720,7 +4767,7 @@ Rectangle {
                 expanded: root.sectionOpen("widgets_api", false)
                 onToggled: expanded => {
                     root.setPanelSection("widgets_api", expanded)
-                    if (expanded) root.fermerAutresTiroirs("widgets_api")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets_api")
                 }
 
                 Column {
@@ -4873,7 +4920,7 @@ Rectangle {
                 expanded: root.sectionOpen("donnees_localisation", true)
                 onToggled: expanded => {
                     root.setPanelSection("donnees_localisation", expanded)
-                    if (expanded) root.fermerAutresTiroirs("donnees_localisation")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("donnees_localisation")
                 }
 
                 Column {
@@ -5116,7 +5163,10 @@ Rectangle {
                 expanded: root.sectionOpen("quickshell_calendrier", false)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_calendrier", expanded)
-                    if (expanded) { root.fermerAutresTiroirs("quickshell_calendrier"); ncEtatProc.running = true }
+                    if (expanded) {
+                        if (Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_calendrier")
+                        ncEtatProc.running = true
+                    }
                 }
                 Component.onCompleted: ncEtatProc.running = true
 
@@ -5255,7 +5305,7 @@ Rectangle {
                 expanded: root.sectionOpen("widgets_homelab", false)
                 onToggled: expanded => {
                     root.setPanelSection("widgets_homelab", expanded)
-                    if (expanded) root.fermerAutresTiroirs("widgets_homelab")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets_homelab")
                 }
 
                 Column {
@@ -5485,7 +5535,7 @@ Rectangle {
                 expanded: root.sectionOpen("taches_fichiers", false)
                 onToggled: expanded => {
                     root.setPanelSection("taches_fichiers", expanded)
-                    if (expanded) root.fermerAutresTiroirs("taches_fichiers")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("taches_fichiers")
                 }
 
                 Column {
@@ -6219,7 +6269,7 @@ Rectangle {
                 expanded: root.sectionOpen("systeme_nuit", true)
                 onToggled: expanded => {
                     root.setPanelSection("systeme_nuit", expanded)
-                    if (expanded) root.fermerAutresTiroirs("systeme_nuit")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_nuit")
                 }
 
                 Column {
@@ -6718,7 +6768,7 @@ Rectangle {
                 expanded: root.sectionOpen("apps_programs", true)
                 onToggled: expanded => {
                     root.setPanelSection("apps_programs", expanded)
-                    if (expanded) root.fermerAutresTiroirs("apps_programs")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_programs")
                 }
 
             // Historique des lancements de la pilule (style_vars.json : launch_history)
@@ -7036,7 +7086,7 @@ Rectangle {
                 expanded: root.sectionOpen("quickshell_notifications", false)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_notifications", expanded)
-                    if (expanded) root.fermerAutresTiroirs("quickshell_notifications")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_notifications")
                 }
 
                 Column {
@@ -7111,7 +7161,7 @@ Rectangle {
                 expanded: root.sectionOpen("apps_notif_targets", false)
                 onToggled: expanded => {
                     root.setPanelSection("apps_notif_targets", expanded)
-                    if (expanded) root.fermerAutresTiroirs("apps_notif_targets")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_notif_targets")
                 }
 
                 Column {
@@ -7514,7 +7564,7 @@ Rectangle {
                 expanded: root.sectionOpen("apps_autostart", false)
                 onToggled: expanded => {
                     root.setPanelSection("apps_autostart", expanded)
-                    if (expanded) root.fermerAutresTiroirs("apps_autostart")
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_autostart")
                 }
 
             Text {
