@@ -194,9 +194,11 @@ def ip_locate():
 def fetch(lat, lon):
     url = ("https://api.open-meteo.com/v1/forecast"
            f"?latitude={lat:.4f}&longitude={lon:.4f}"
-           "&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m"
-           "&daily=temperature_2m_max,temperature_2m_min"
-           "&timezone=auto&forecast_days=1")
+           "&current=temperature_2m,apparent_temperature,weather_code,is_day,"
+           "relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,pressure_msl"
+           "&daily=temperature_2m_max,temperature_2m_min,weather_code,"
+           "precipitation_probability_max,sunrise,sunset"
+           "&timezone=auto&forecast_days=4")
     payload = http_json(url)
     current = payload.get("current") or {}
     daily = payload.get("daily") or {}
@@ -206,10 +208,34 @@ def fetch(lat, lon):
     tmin = (daily.get("temperature_2m_min") or [None])[0]
     tmax = (daily.get("temperature_2m_max") or [None])[0]
 
+    # Prévisions : trois jours après aujourd'hui, dans l'ordre du service.
+    prevision = []
+    jours = daily.get("time") or []
+    for i in range(len(jours)):
+        c = int((daily.get("weather_code") or [0] * len(jours))[i] or 0)
+        etiq, ico = WMO.get(c, ("—", "cloud"))
+        prevision.append({
+            "date": jours[i],
+            "tmin": round(float(daily["temperature_2m_min"][i]), 1) if daily.get("temperature_2m_min") else None,
+            "tmax": round(float(daily["temperature_2m_max"][i]), 1) if daily.get("temperature_2m_max") else None,
+            "code": c,
+            "label": etiq,
+            "icon": ico,
+            "pluie": (daily.get("precipitation_probability_max") or [None] * len(jours))[i],
+            "lever": (daily.get("sunrise") or [None] * len(jours))[i],
+            "coucher": (daily.get("sunset") or [None] * len(jours))[i],
+        })
+
     return {
         "ok": True,
         "temp": round(float(current.get("temperature_2m") or 0), 1),
         "feels": round(float(current.get("apparent_temperature") or 0), 1),
+        "humidite": current.get("relative_humidity_2m"),
+        "vent": round(float(current.get("wind_speed_10m") or 0), 1),
+        "vent_dir": current.get("wind_direction_10m"),
+        "pluie_mm": current.get("precipitation"),
+        "pression": current.get("pressure_msl"),
+        "previsions": prevision,
         "code": code,
         "label": label,
         "icon": icon,
