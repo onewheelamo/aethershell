@@ -228,6 +228,7 @@ Rectangle {
         "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_api": 7,
         "systeme_nuit": 3,
+        "clavier_disposition": 4, "clavier_binds": 4,
         "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
         "quickshell_notifications": 5,
         "greeter_theme": 6,
@@ -909,6 +910,8 @@ Rectangle {
         "quickshell_barres": secBarres,
         "quickshell_applets": secApplets,
         "quickshell_visualiseur": secVisualiseur,
+        "clavier_disposition": secClavier,
+        "clavier_binds": secBinds,
         "widgets": secWidgets,
         "widgets_api": secApiKeys,
         "donnees_localisation": secLocalisation,
@@ -6735,6 +6738,18 @@ Rectangle {
             spacing: 10
 
             // Top bar: Current Keyboard Layout + Button to reopen First-Run Keyboard Selector
+            // Tiroir : disposition active et changement de clavier.
+            CollapsibleSection {
+                id: secClavier
+                objectName: "secClavier"
+                title: "Disposition du clavier"
+                icon: "keyboard"
+                expanded: root.sectionOpen("clavier_disposition", true)
+                onToggled: expanded => {
+                    root.setPanelSection("clavier_disposition", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("clavier_disposition")
+                }
+
             Rectangle {
                 id: kbdRow   // ancre de recherche
                 objectName: "kbdRow"
@@ -6794,6 +6809,19 @@ Rectangle {
                     }
                 }
             }
+            }
+
+            // Tiroir : raccourcis Hyprland — liste, ajout, suppression.
+            CollapsibleSection {
+                id: secBinds
+                objectName: "secBinds"
+                title: "Raccourcis Hyprland"
+                icon: "cog"
+                expanded: root.sectionOpen("clavier_binds", false)
+                onToggled: expanded => {
+                    root.setPanelSection("clavier_binds", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("clavier_binds")
+                }
 
             Text {
                 width: parent.width
@@ -6803,7 +6831,6 @@ Rectangle {
                 font.bold: true
                 elide: Text.ElideRight
             }
-
             Flickable {
                 width: parent.width
                 height: 245
@@ -6903,8 +6930,6 @@ Rectangle {
                     }
                 }
             }
-
-            // Add / Update Keybind Bar
             Column {
                 width: parent.width
                 spacing: 8
@@ -7014,6 +7039,7 @@ Rectangle {
                         }
                     }
                 }
+            }
             }
         }
 
