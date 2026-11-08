@@ -3939,8 +3939,12 @@ Rectangle {
 
                             Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Couleur :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
 
-                            Row {
+                            // Flow plutôt que Row : à cinq jetons et 540 px de
+                            // contenu, la dernière pastille sortait du panneau.
+                            // Flow passe à la ligne tout seul.
+                            Flow {
                                 spacing: 6
+                                width: parent.width - 168
                                 anchors.verticalCenter: parent.verticalCenter
 
                                 Repeater {
