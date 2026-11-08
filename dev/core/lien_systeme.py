@@ -34,6 +34,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 APP_VARS = BASE_DIR / "app_vars.json"
 HELPERS = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "xfce4" / "helpers.rc"
+# Aides d'exo : sans ces fichiers `.rc`, `helpers.rc` ne suffit pas — exo cherche
+# l'aide qui porte le nom qu'on lui donne, et sur cette machine le paquet n'en
+# installe aucune (`/usr/share/xfce4/helpers` n'existe pas).
+AIDES = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "xfce4" / "helpers"
 MIMEAPPS = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "mimeapps.list"
 
 # Dossiers où chercher les fichiers .desktop, du plus prioritaire au moins.
@@ -172,7 +176,7 @@ def resoudre(nom, categories, entrees):
 
 def construire(apps, entrees):
     """Rend (lignes helpers.rc, {mime: id desktop}) sans rien écrire."""
-    helpers, mimes = {}, {}
+    helpers, mimes, aides = {}, {}, {}
     for role, regle in ROLES.items():
         nom = apps.get(role)
         if not nom:
@@ -181,12 +185,20 @@ def construire(apps, entrees):
         if not entree:
             continue
         if regle.get("exo"):
-            helpers[regle["exo"]] = Path(entree["id"]).stem
+            binaire = Path(re.split(r"[\s/]", entree["exec"].replace('"', "").strip())[0]).name
+            identifiant = binaire or Path(entree["id"]).stem
+            helpers[regle["exo"]] = identifiant
+            aides[identifiant] = {
+                "nom": entree["nom"] or identifiant,
+                "categorie": regle["categories"][0],
+                "icone": Path(entree["id"]).stem,
+                "binaire": binaire,
+            }
         for mime in regle["mimes"]:
             # Le premier rôle qui revendique un type gagne : Browser2 ne doit pas
             # écraser le navigateur principal sur http/https.
             mimes.setdefault(mime, entree["id"])
-    return helpers, mimes
+    return helpers, mimes, aides
 
 
 def ecrire_helpers(helpers):
@@ -198,6 +210,28 @@ def ecrire_helpers(helpers):
         lignes.append("%s=%s" % (cle, valeur))
     HELPERS.parent.mkdir(parents=True, exist_ok=True)
     HELPERS.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+
+
+def ecrire_aides(aides):
+    """Écrit un fichier d'aide exo par rôle (`~/.local/share/xfce4/helpers/*.rc`).
+
+    Format attendu par exo : un `Type=X-XFCE-Helper`, une catégorie et le nom du
+    binaire. C'est ce fichier que `helpers.rc` désigne ensuite par son nom.
+    """
+    AIDES.mkdir(parents=True, exist_ok=True)
+    for identifiant, aide in aides.items():
+        contenu = [
+            "[Desktop Entry]",
+            "Version=1.0",
+            "Encoding=UTF-8",
+            "Type=X-XFCE-Helper",
+            "Name=%s" % aide["nom"],
+            "Icon=%s" % aide["icone"],
+            "X-XFCE-Category=%s" % aide["categorie"],
+            "X-XFCE-Binaries=%s;" % aide["binaire"],
+            "",
+        ]
+        (AIDES / ("%s.rc" % identifiant)).write_text("\n".join(contenu), encoding="utf-8")
 
 
 def ecrire_mimeapps(mimes):
@@ -236,7 +270,8 @@ def appliquer(silencieux=False):
         sys.exit("app_vars.json introuvable : %s" % APP_VARS)
     apps = json.loads(APP_VARS.read_text(encoding="utf-8"))
     entrees = tous_desktop()
-    helpers, mimes = construire(apps, entrees)
+    helpers, mimes, aides = construire(apps, entrees)
+    ecrire_aides(aides)
     ecrire_helpers(helpers)
     ecrire_mimeapps(mimes)
     # `xdg-open`/GLib gardent un cache : on le rafraîchit pour que le prochain
@@ -246,14 +281,14 @@ def appliquer(silencieux=False):
                         str(Path.home() / ".local" / "share" / "applications")],
                        check=False)
     if not silencieux:
-        print(json.dumps({"ok": True, "helpers": helpers, "mimes": len(mimes)},
-                         ensure_ascii=False))
+        print(json.dumps({"ok": True, "helpers": helpers, "aides": sorted(aides),
+                          "mimes": len(mimes)}, ensure_ascii=False))
 
 
 def etat():
     apps = json.loads(APP_VARS.read_text(encoding="utf-8")) if APP_VARS.is_file() else {}
     entrees = tous_desktop()
-    helpers, mimes = construire(apps, entrees)
+    helpers, mimes, aides = construire(apps, entrees)
     manquants = [role for role in ROLES
                  if apps.get(role) and not resoudre(apps[role], ROLES[role]["categories"], entrees)]
     print(json.dumps({"app_vars": apps, "helpers": helpers, "mimes": mimes,
