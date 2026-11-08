@@ -1004,11 +1004,11 @@ Item {
                 border.color: Qt.alpha(Theme.accent, 0.16)
 
                 // Masque de profondeur appliqué au widget lui-même (option
-                // `widgets_multieffect`) : au lieu d'empiler une copie du fond
-                // au-dessus de tous les widgets, chaque carte est découpée par la
-                // carte de profondeur — elle disparaît derrière le décor proche.
-                // Layering Qt : le contenu reste interactif, seul le rendu passe
-                // par l'effet.
+                // `widgets_multieffect`, **en attente** — rendu pas encore juste :
+                // alignement du masque et sens de l'inversion à reprendre). Le
+                // code reste en place comme base de travail ; tant que la clé
+                // n'est pas posée à la main dans style_vars.json, il ne s'active
+                // jamais et le calque plein écran fait le travail.
                 layer.enabled: Theme.widgetsMultieffect && Theme.depthMask
                                  && Theme.depthMaskPath !== ""
                 layer.effect: MultiEffect {

@@ -214,6 +214,12 @@ QtObject {
     // Rendu du masque quand il est actif : `false` = un calque plein écran
     // (une copie du fond, peu coûteuse) ; `true` = un MultiEffect par widget de
     // bureau, qui découpe le widget lui-même — plus juste, plus cher.
+    //
+    // EN ATTENTE : le rendu par widget n'était pas juste (alignement et sens du
+    // masque à reprendre). Aucune bascule dans le panneau ; la clé se pose à la
+    // main dans style_vars.json pour reprendre le travail. Le code est conservé
+    // comme base : `layer.effect` dans main.qml, masque publié par
+    // CalqueProfondeur.qml, clé acceptée par config_manager.py.
     property bool widgetsMultieffect: false
     // Chemin du masque courant, publié par CalqueProfondeur.qml : les widgets le
     // lisent pour le MultiEffect, et n'ont donc pas à relancer l'inférence.

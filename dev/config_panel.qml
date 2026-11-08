@@ -3050,48 +3050,6 @@ Rectangle {
                     }
                 }
 
-                // MultiEffect sur les widgets : réglage à part, indépendant du
-                // masque de profondeur. C'est lui qui découpe la carte de chaque
-                // widget au lieu d'empiler un calque plein écran.
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 200
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "MultiEffect sur les widgets :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        width: 120
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: Theme.widgetsMultieffect ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: Theme.widgetsMultieffect ? "✓ Actif" : "✕ Inactif"
-                            color: Theme.widgetsMultieffect ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfigCmd([
-                                "style", "widgets_multieffect",
-                                Theme.widgetsMultieffect ? "false" : "true"
-                            ])
-                        }
-                    }
-                }
-
             }   // fin Grid fenêtres
 
         }   // end CollapsibleSection secAspect

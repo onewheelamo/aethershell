@@ -29,7 +29,8 @@ PanelWindow {
     aboveWindows: false
     // Quand le MultiEffect par widget est actif, chaque widget découpe son propre
     // contenu : ce calque plein écran ferait double emploi (et redessinerait une
-    // copie du fond, avec le décalage que ça suppose).
+    // copie du fond, avec le décalage que ça suppose). Option **en attente** —
+    // voir Theme.widgetsMultieffect ; le calque reste donc le rendu par défaut.
     visible: Theme.depthMask && masque !== "" && !Theme.widgetsMultieffect
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
