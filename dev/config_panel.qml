@@ -619,6 +619,19 @@ Rectangle {
         return false
     }
 
+    // Recentrage différé : la mise en page du tiroir qui se déplie n'est pas
+    // encore à jour quand on écrit contentY, d'où le délai d'une frame.
+    Timer {
+        id: recentrage
+        interval: 60
+        repeat: false
+        onTriggered: {
+            const t = root.tiroirOuvertCourant
+            if (t) root.amenerTiroirEnHaut(t.nom)
+            root.majEnteteCollant()
+        }
+    }
+
     // Tiroir ouvert de l'onglet courant (l'accordéon n'en laisse qu'un, mais on
     // ne s'y fie pas : on prend le premier ouvert de l'onglet).
     readonly property var tiroirOuvertCourant: {
@@ -642,6 +655,18 @@ Rectangle {
         const visible = haut < mainFlickable.contentY && bas > mainFlickable.contentY + 34
         root.tiroirCollant = visible ? t.nom : ""
         root.titreCollant = visible ? String(t.item.title || "") : ""
+    }
+
+    // Réduire un tiroir au-dessus décale tout : sans ce recentrage, le tiroir
+    // qu'on vient d'ouvrir pouvait se retrouver hors de vue et le clic semblait
+    // sans effet. On place son en-tête sous le bandeau collant.
+    function amenerTiroirEnHaut(nom) {
+        const tiroir = root.tiroirs[nom]
+        if (!tiroir) return
+        const y = tiroir.mapToItem(mainFlickable.contentItem, 0, 0).y
+        const marge = root.tiroirCollant !== "" ? 44 : 10
+        const maxY = Math.max(0, mainFlickable.contentHeight - mainFlickable.height)
+        mainFlickable.contentY = Math.max(0, Math.min(y - marge, maxY))
     }
 
     function replierTiroirCollant() {
@@ -911,6 +936,7 @@ Rectangle {
         root.runConfigCmd(["panel_section", name, String(expanded)])
         root.rafraichirTiroirs()
         majEnteteCollant()
+        if (expanded) recentrage.restart()
     }
 
     // Accordéon : ouvrir un tiroir referme ceux du même onglet.
