@@ -5,20 +5,17 @@
 # Usage:
 #   ./dev/clean_targets.sh            -> Dry-run (lists files without removing)
 #   ./dev/clean_targets.sh --apply    -> Archives and removes tier 1 + tier 3
-#   ./dev/clean_targets.sh --apply --maybe -> Also archives and removes tier 2
 # ══════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
 DRY=1
-INCLUDE_MAYBE=0
 
 for arg in "$@"; do
     case "$arg" in
         --apply) DRY=0 ;;
-        --maybe) INCLUDE_MAYBE=1 ;;
         -h|--help)
-            echo "Usage: $0 [--apply] [--maybe]"
+            echo "Usage: $0 [--apply]"
             exit 0
             ;;
     esac
@@ -50,11 +47,6 @@ SAFE+=( "$HY"/scripts )
 SAFE+=( "$HY"/shaders )
 shopt -u nullglob
 
-# Tier 2 : À confirmer (outils manuels / legacy)
-MAYBE=(
-    "$HY/rotate.sh"
-)
-
 # Tier 3 : Artefacts de build et caches
 BUILD=(
     "$QS/core/fuzzel.ini"
@@ -84,13 +76,6 @@ do_rm "${SAFE[@]}"
 
 echo "=== TIER 3 (Artefacts de build & caches dans core) ==="
 do_rm "${BUILD[@]}"
-
-if [ "$INCLUDE_MAYBE" -eq 1 ]; then
-    echo "=== TIER 2 (Scripts legacy hôte) ==="
-    do_rm "${MAYBE[@]}"
-else
-    echo "=== TIER 2 ignoré (utilisez --maybe pour inclure ${MAYBE[*]}) ==="
-fi
 
 # Gestion des fichiers .new résiduels
 shopt -s nullglob
@@ -137,7 +122,7 @@ fi
 if [ "$DRY" -eq 1 ]; then
     echo ""
     echo "💡 Mode simulation terminé. Pour appliquer réellement les suppressions :"
-    echo "   $0 --apply [--maybe]"
+    echo "   $0 --apply"
 else
     echo ""
     echo "✅ Nettoyage terminé ! Éléments archivés dans : $ARC"
