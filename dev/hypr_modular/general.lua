@@ -38,6 +38,10 @@ hl.config({
             size      = 3,
             passes    = 3,
             vibrancy  = 0.1696,
+            -- Les menus (popups GTK) héritent de l'opacité de la fenêtre mais
+            -- n'ont aucun flou derrière eux par défaut : le texte du menu se
+            -- superpose au contenu net de la fenêtre et devient illisible.
+            popups    = true,
         },
     },
     animations = {
