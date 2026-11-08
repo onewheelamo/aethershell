@@ -453,7 +453,7 @@ Rectangle {
             const a = appletRows[i] || {}
             // Le visualiseur n'a pas d'emplacement : son activation vit dans son
             // propre tiroir, pas dans la liste des applets.
-            if (a.applet && String(a.applet.id) === "visualiseur") continue
+            if (String(root.donneeApplet(a).id) === "visualiseur") continue
             const cat = String(a.categorie || "Autres")
             if (!seaux[cat]) {
                 seaux[cat] = []
@@ -601,14 +601,20 @@ Rectangle {
     }
 
     // Chaque commande rend l'état complet : pas de deuxième requête à faire.
+    // Les lignes brutes du registre portent `id` et `actif` à la racine ; les
+    // entrées groupées les enveloppent dans `applet`. Une seule lecture pour les
+    // deux, sinon le visualiseur passait pour éteint alors qu'il était actif.
+    function donneeApplet(ligne) {
+        return (ligne && ligne.applet) ? ligne.applet : (ligne || {})
+    }
+
     // Activation du visualiseur audio : absent de la liste des applets (pas
     // d'emplacement), son état se lit dans la même liste, produite par
     // bar_applets.py.
     readonly property bool vizActif: {
         for (let i = 0; i < root.appletRows.length; ++i) {
-            const a = root.appletRows[i] || {}
-            if (a.applet && String(a.applet.id) === "visualiseur")
-                return a.applet.actif === true
+            const a = root.donneeApplet(root.appletRows[i])
+            if (String(a.id) === "visualiseur") return a.actif === true
         }
         return false
     }
