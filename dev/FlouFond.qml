@@ -97,13 +97,18 @@ Item {
 
     Image {
         id: imageEcran
+        anchors.fill: parent
         source: racine.cheminEcran !== "" ? "file://" + racine.cheminEcran : ""
-        // Taille de l'écran, décalée pour que le pixel sous la surface soit le
-        // bon : la surface est une fenêtre sur cette image, pas une copie.
-        width: racine.ecran.width
-        height: racine.ecran.height
-        x: -racine.positionEcran.x
-        y: -racine.positionEcran.y
+        // La fenêtre du fond à montrer se choisit par `sourceClipRect`, pas en
+        // déplaçant l'image : MultiEffect aligne la texture de sa source sur son
+        // propre coin, donc une image décalée sortait déformée (le fond de la
+        // barre montrait la mauvaise région).
+        // À l'échelle 1 (fond-ecran.png fait exactement la taille de l'écran), la
+        // découpe est au pixel : aucun rééchantillonnage, donc plus de couture.
+        readonly property point coin: Qt.point(
+            Math.max(0, Math.min(racine.ecran.width - width, racine.positionEcran.x)),
+            Math.max(0, Math.min(racine.ecran.height - height, racine.positionEcran.y)))
+        sourceClipRect: Qt.rect(coin.x, coin.y, width, height)
         fillMode: Image.Pad
         asynchronous: true
         cache: true
