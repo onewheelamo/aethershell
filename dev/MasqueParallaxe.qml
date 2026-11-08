@@ -184,6 +184,16 @@ PanelWindow {
         border.color: Qt.alpha(Theme.accent, 0.35)
         border.width: 1
 
+        // Rectangle ne consomme pas les clics : sans cette surface, un clic sur
+        // une zone morte de la carte (en-tête, libellés, espaces du pied)
+        // traversait jusqu'au fond assombri et **fermait la fenêtre** — d'où
+        // l'impression qu'elle se fermait toute seule pendant qu'on peignait.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {}
+            onWheel: (roue) => { roue.accepted = true }
+        }
+
         // ── en-tête ───────────────────────────────────────────────────────────
         Item {
             id: entete
