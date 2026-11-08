@@ -739,6 +739,19 @@ def update_style_var(key, value):
         else:
             data[key] = str(value).lower() in ("true", "1", "yes")
         shell_blur_changed = True
+    elif key in ("user_location_ville", "user_location_tz"):
+        # Localisation de l'utilisateur : ville affichée et fuseau. Le fuseau
+        # n'est pas validé ici (liste mouvante) mais reste une chaîne courte.
+        data[key] = str(value).strip()[:80]
+    elif key in ("user_location_lat", "user_location_lon"):
+        try:
+            nombre = float(str(value).replace(",", "."))
+        except ValueError:
+            return False
+        if key == "user_location_lat":
+            data[key] = round(max(-90.0, min(90.0, nombre)), 4)
+        else:
+            data[key] = round(max(-180.0, min(180.0, nombre)), 4)
     elif key == "launcher_position" and str(value) in LAUNCHER_POSITIONS:
         data[key] = str(value)
     elif key == "active_theme" and value in data.get("palette", {}):
@@ -1776,6 +1789,10 @@ def get_full_config_state():
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
+        "user_location_ville": str(style_data.get("user_location_ville", "") or ""),
+        "user_location_lat": style_data.get("user_location_lat"),
+        "user_location_lon": style_data.get("user_location_lon"),
+        "user_location_tz": str(style_data.get("user_location_tz", "") or ""),
         "depth_mask": bool(style_data.get("depth_mask", False)),
         "depth_mask_seuil": int(style_data.get("depth_mask_seuil", 30)),
         "depth_mask_adouci": int(style_data.get("depth_mask_adouci", 8)),

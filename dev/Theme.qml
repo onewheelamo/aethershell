@@ -185,6 +185,14 @@ QtObject {
     // Masque de premier plan (CalqueProfondeur.qml) : les widgets de bureau
     // passent derrière les objets proches du fond. Seuil et adoucissement sont
     // ceux du plugin Noctalia, exposés tels quels (0-100 et 0-50).
+    // Localisation de l'utilisateur : un seul jeu de clés pour tout ce qui a
+    // besoin de savoir où l'on est (météo, horloge, calendrier, widgets).
+    property string userLocationVille: ""
+    property real userLocationLat: 0
+    property real userLocationLon: 0
+    property string userLocationTz: ""
+    property bool userLocationSet: false
+
     property bool depthMask: false
     property int depthMaskSeuil: 30
     property int depthMaskAdouci: 8
@@ -410,6 +418,15 @@ QtObject {
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
+        if (typeof data.user_location_ville === "string") root.userLocationVille = data.user_location_ville
+        if (typeof data.user_location_tz === "string") root.userLocationTz = data.user_location_tz
+        if (typeof data.user_location_lat === "number" && typeof data.user_location_lon === "number") {
+            root.userLocationLat = data.user_location_lat
+            root.userLocationLon = data.user_location_lon
+            root.userLocationSet = true
+        } else {
+            root.userLocationSet = false
+        }
         if (typeof data.depth_mask === "boolean") root.depthMask = data.depth_mask
         if (typeof data.depth_mask_seuil === "number") root.depthMaskSeuil = data.depth_mask_seuil
         if (typeof data.depth_mask_adouci === "number") root.depthMaskAdouci = data.depth_mask_adouci

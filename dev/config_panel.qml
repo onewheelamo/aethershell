@@ -74,6 +74,8 @@ Rectangle {
           section: "widgets_api", target: "secApiKeys" },
         { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 1,
           section: "quickshell_notifications", target: "secNotifs" },
+        { label: "Localisation (ville, coordonnées, fuseau)", words: "localisation ville position coordonnees latitude longitude fuseau timezone meteo", tab: 7,
+          section: "donnees_localisation", target: "secLocalisation" },
         { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 7,
           section: "quickshell_calendrier", target: "secCalendrier" },
         { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 7,
@@ -210,7 +212,8 @@ Rectangle {
         "quickshell_barres": "secBarres",
         "quickshell_disques": "secDisques",
         "widgets": "secWidgets",
-        "apps_programs": "secApps"
+        "apps_programs": "secApps",
+        "donnees_localisation": "secLocalisation"
     })
 
     // Un nom de section ne dit pas dans quel onglet il vit : sans ça, le clic
@@ -226,8 +229,25 @@ Rectangle {
         "systeme_nuit": 3,
         "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
         "greeter_theme": 6,
-        "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7
+        "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7,
+        "donnees_localisation": 7
     })
+
+    // Écrit la localisation : quatre clés, une par champ, dans style_vars.json.
+    function enregistrerLocalisation(ville, lat, lon, tz) {
+        runConfigCmd(["style", "user_location_ville", String(ville || "")])
+        runConfigCmd(["style", "user_location_lat", String(lat || "")])
+        runConfigCmd(["style", "user_location_lon", String(lon || "")])
+        runConfigCmd(["style", "user_location_tz", String(tz || "")])
+    }
+
+    // Géocodage de la ville saisie, par le service météo (Open-Meteo, sans clé).
+    function geocoder(ville) {
+        if (String(ville || "").trim() === "") return
+        geocodage.command = ["python3", Quickshell.shellPath("core/weather_service.py"),
+                             "--geocode", String(ville)]
+        geocodage.running = true
+    }
 
     function ouvrirSection(nom) {
         const section = String(nom || "")
@@ -4834,6 +4854,245 @@ Rectangle {
             width: mainFlickable.width
             spacing: 12
 
+
+            // Tiroir : localisation de l'utilisateur. Un seul endroit pour « où
+            // suis-je » : l'applet et le widget météo, l'horloge et le calendrier
+            // lisent les clés user_location_* de style_vars.json.
+            CollapsibleSection {
+                id: secLocalisation
+                objectName: "secLocalisation"
+                title: "Localisation"
+                icon: "cloud"
+                expanded: root.sectionOpen("donnees_localisation", false)
+                onToggled: expanded => root.setPanelSection("donnees_localisation", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "Ville et coordonnées lues par les applets et widgets qui ont besoin de "
+                            + "savoir où l'on est — la météo d'abord, mais aussi l'horloge et le calendrier "
+                            + "pour le fuseau. Sans coordonnées, ils annoncent « localisation non réglée » "
+                            + "plutôt que d'inventer une position."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                        height: contentHeight
+                    }
+
+                    // Ville + bouton de vérification (géocodage Open-Meteo, sans clé).
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 76
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Ville"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: parent.width - 76 - 8 - verifier.width - 8
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champVille
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                selectionColor: Theme.accent
+                                selectedTextColor: Theme.bg
+                                font.pixelSize: Theme.textSm
+                                clip: true
+                                text: Theme.userLocationVille
+                                onAccepted: root.enregistrerLocalisation(champVille.text, champLat.text,
+                                                                          champLon.text, champTz.text)
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: parent.text === ""
+                                    text: "Paris, France"
+                                    color: Qt.alpha(Theme.fg, 0.35)
+                                    font.pixelSize: Theme.textSm
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: verifier
+                            width: 96
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: geocodage.running ? "…" : "Vérifier"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.geocoder(champVille.text)
+                            }
+                        }
+                    }
+
+                    // Latitude / longitude : remplies par « Vérifier », modifiables à la main.
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 76
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Latitude"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 120
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champLat
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                text: Theme.userLocationSet ? String(Theme.userLocationLat) : ""
+                                onAccepted: root.enregistrerLocalisation(champVille.text, champLat.text,
+                                                                          champLon.text, champTz.text)
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Longitude"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 120
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champLon
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                text: Theme.userLocationSet ? String(Theme.userLocationLon) : ""
+                                onAccepted: root.enregistrerLocalisation(champVille.text, champLat.text,
+                                                                          champLon.text, champTz.text)
+                            }
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 76
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Fuseau"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            width: 200
+                            height: 30
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            TextInput {
+                                id: champTz
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                text: Theme.userLocationTz
+                                onAccepted: root.enregistrerLocalisation(champVille.text, champLat.text,
+                                                                          champLon.text, champTz.text)
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Europe/Paris"
+                            color: Qt.alpha(Theme.fg, 0.35)
+                            font.pixelSize: Theme.text2xs
+                        }
+                    }
+
+                    Text {
+                        id: etatLocalisation
+                        width: parent.width
+                        text: Theme.userLocationSet
+                              ? "Réglée : " + (Theme.userLocationVille || "sans nom")
+                                + " (" + Theme.userLocationLat + ", " + Theme.userLocationLon + ")"
+                                + (Theme.userLocationTz ? " · " + Theme.userLocationTz : "")
+                              : "Non réglée : les applets et widgets qui en dépendent le disent à l'écran."
+                        color: Theme.userLocationSet ? Qt.alpha(Theme.fg, 0.6) : Qt.alpha(Theme.warn, 0.85)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                        height: contentHeight
+                    }
+
+                    // Géocodage : le service météo sait déjà le faire, on lui demande
+                    // la même chose que pour un `--city`, et il rend le fuseau en plus.
+                    Process {
+                        id: geocodage
+                        stdout: StdioCollector {
+                            onStreamFinished: {
+                                let d = null
+                                try { d = JSON.parse(String(text).trim()) } catch (e) { d = null }
+                                if (!d || !d.ok) {
+                                    etatLocalisation.text = "Ville introuvable : "
+                                        + String((d && d.error) || "réponse illisible")
+                                    return
+                                }
+                                champVille.text = d.libelle || d.ville || ""
+                                champLat.text = String(d.lat)
+                                champLon.text = String(d.lon)
+                                champTz.text = d.tz || ""
+                                root.enregistrerLocalisation(champVille.text, champLat.text,
+                                                             champLon.text, champTz.text)
+                            }
+                        }
+                    }
+                }
+            }
 
             // Tiroir : identifiants du calendrier Nextcloud. Sert à l'applet
             // « calendrier » comme au widget « date » — même fichier, même

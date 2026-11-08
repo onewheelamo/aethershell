@@ -156,8 +156,15 @@ def geocode_city(spec):
         return value
 
     best = max(results, key=score)
-    return (float(best["latitude"]), float(best["longitude"]),
-            best.get("name") or name, (best.get("country_code") or "").upper())
+    return {
+        "lat": float(best["latitude"]),
+        "lon": float(best["longitude"]),
+        "ville": best.get("name") or name,
+        "pays": (best.get("country_code") or "").upper(),
+        # Le fuseau sert au panneau (tiroir Localisation) et à l'horloge.
+        "tz": best.get("timezone") or "",
+        "libelle": ", ".join(x for x in (best.get("name") or name, best.get("country") or "") if x),
+    }
 
 
 def ip_locate():
@@ -213,6 +220,23 @@ def fetch(lat, lon):
     }
 
 
+def stored_location():
+    """Localisation réglée dans le panneau (tiroir « Localisation »).
+
+    Rend None si les coordonnées sont absentes : un champ vide ne vaut pas zéro,
+    sinon le service demanderait la météo au large du golfe de Guinée.
+    """
+    data = read_json(STYLE_FILE, {}) or {}
+    try:
+        lat = float(data.get("user_location_lat"))
+        lon = float(data.get("user_location_lon"))
+    except (TypeError, ValueError):
+        return None
+    return {"lat": lat, "lon": lon,
+            "ville": str(data.get("user_location_ville") or "").strip(),
+            "tz": str(data.get("user_location_tz") or "").strip()}
+
+
 def resolve_spec(argv):
     """Ville demandée : --city, sinon style_vars.json, sinon vide (= IP)."""
     if "--city" in argv:
@@ -225,10 +249,25 @@ def resolve_spec(argv):
 
 def main():
     argv = sys.argv[1:]
-    force = "--force" in argv
-    spec = resolve_spec(argv)
 
-    key = spec.lower() if spec else "__auto__"
+    # Mode géocodage, pour le bouton « Vérifier la ville » du panneau :
+    #   weather_service.py --geocode "Paris, France"
+    if "--geocode" in argv:
+        idx = argv.index("--geocode")
+        demande = argv[idx + 1] if idx + 1 < len(argv) else ""
+        try:
+            g = geocode_city(demande)
+            g["ok"] = True
+            print(json.dumps(g, ensure_ascii=False))
+        except Exception as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
+        return 0
+
+    force = "--force" in argv
+    loc = stored_location()
+    spec = "" if loc else resolve_spec(argv)
+
+    key = ("loc:%.4f,%.4f" % (loc["lat"], loc["lon"])) if loc else (spec.lower() if spec else "__auto__")
     cache = read_json(CACHE_FILE, {}) or {}
     same = cache.get("spec") == key and cache.get("lat") is not None
     fresh = same and (time.time() - float(cache.get("fetched") or 0) < TTL)
@@ -247,8 +286,13 @@ def main():
             lat, lon = float(cache["lat"]), float(cache["lon"])
             label = cache.get("label") or "—"
             source = cache.get("source") or ("city" if spec else "ip")
+        elif loc:
+            lat, lon = loc["lat"], loc["lon"]
+            label = loc["ville"] or "Localisation réglée"
+            source = "location"
         elif spec:
-            lat, lon, label, _ = geocode_city(spec)
+            g = geocode_city(spec)
+            lat, lon, label = g["lat"], g["lon"], g["ville"]
             source = "city"
         else:
             lat, lon, label, _ = ip_locate()
