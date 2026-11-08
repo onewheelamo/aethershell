@@ -5,7 +5,7 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
-## [0.2.0] — 2026-11-08
+## [0.1.1] — 2026-11-08
 
 ### Ajouté
 
@@ -109,5 +109,5 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
-[0.2.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.2.0
+[0.1.1]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.1
 [0.1.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.0
