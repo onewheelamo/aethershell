@@ -271,9 +271,28 @@ QtObject {
     // définition qui ne vivait que dans le gestionnaire IPC laissait le clic
     // appeler une propriété inexistante — rien ne se passait, et le journal
     // n'en gardait qu'une TypeError.
+    // Compteur de demandes : ouvrir la même section deux fois de suite ne change
+    // pas `configPanelVisible`, donc le panneau ne verrait rien. Le compteur émet
+    // à chaque appel, panneau déjà ouvert compris.
+    property int configRequest: 0
     function openConfigSection(section) {
         configTarget = String(section || "")
+        // L'état d'abord, le compteur ensuite : le panneau teste la visibilité
+        // dans son gestionnaire, et l'incrément qui suit garantit l'émission.
         configPanelVisible = true
+        configRequest = configRequest + 1
+    }
+
+    // Même chose pour le panneau d'aperçu de la refonte : sa cible et son état
+    // sont distincts, sinon un clic milieu ouvrirait l'ancien panneau.
+    property string configTargetV2: ""
+    property int configRequestV2: 0
+    function openConfigSectionV2(section) {
+        configTargetV2 = String(section || "")
+        // L'état d'abord, le compteur ensuite : le panneau teste la visibilité
+        // dans son gestionnaire, et l'incrément qui suit garantit l'émission.
+        configPanelV2Visible = true
+        configRequestV2 = configRequestV2 + 1
     }
 
     // Fenêtres à faire tenir par un `HyprlandFocusGrab` de popup : celle du popup
@@ -611,6 +630,9 @@ QtObject {
         // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets
         function openConfigSection(section: string) {
             root.openConfigSection(section)
+        }
+        function openConfigSectionV2(section: string) {
+            root.openConfigSectionV2(section)
         }
         function setConfigButtonVisible(visible: bool) {
             root.showConfigButton = visible

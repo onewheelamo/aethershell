@@ -246,7 +246,7 @@ Rectangle {
     // Ouverture demandée de l'extérieur (clic milieu d'un applet).
     Connections {
         target: Theme
-        function onConfigPanelVisibleChanged() {
+        function onConfigRequestChanged() {
             if (!Theme.configPanelVisible) return
             const cible = String(Theme.configTarget || "")
             Theme.configTarget = ""
@@ -1217,6 +1217,13 @@ Rectangle {
     Component.onCompleted: {
         refreshConfigState()
         appletsRafraichir()
+        // Ouverture demandée avant que le panneau n'existe (IPC) : la Connections
+        // rate le changement d'état puisque l'item naît après. On reprend la cible ici.
+        if (Theme.configPanelVisible && Theme.configTarget !== "") {
+            const demande = String(Theme.configTarget)
+            Theme.configTarget = ""
+            root.ouvrirSection(demande)
+        }
         // Un seul gestionnaire de démarrage par objet : deux lèvent
         // « Property value set multiple times » et le panneau ne se crée pas.
         todoListProc.running = true
@@ -3918,6 +3925,10 @@ Rectangle {
                         color: Qt.alpha(Theme.fg, 0.6)
                         font.pixelSize: Theme.textXs
                         wrapMode: Text.WordWrap
+                        // Sans hauteur explicite, un texte replié sur deux lignes
+                        // gardait la hauteur d'une seule et la ligne suivante
+                        // (les pastilles des widgets) passait par-dessus.
+                        height: contentHeight
                     }
 
                     Repeater {
@@ -4343,100 +4354,100 @@ Rectangle {
                                         }
                                     }
                                 }
-                            }
-
-                            // Widget Tâches : quels fichiers suivis, combien de
-                            // lignes d'items, et si les items cochés comptent. La
-                            // liste vide veut dire « tous » (défaut historique).
-                            Row {
-                                width: parent.width
-                                spacing: Theme.space2
-                                visible: widgetCard.wtype === "todo"
-
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 56
-                                    text: "Tâches"
-                                    color: Qt.alpha(Theme.fg, 0.75)
-                                    font.pixelSize: Theme.textXs
-                                }
-
+                                // Widget Tâches : quels fichiers suivis, combien de
+                                // lignes d'items, et si les items cochés comptent. La
+                                // liste vide veut dire « tous » (défaut historique).
                                 Row {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 6
-
-                                    Repeater {
-                                        model: root.todoFichiers
-
-                                        Rectangle {
-                                            required property var modelData
-                                            readonly property bool pris:
-                                                widgetCard.wFichiers.indexOf(String(modelData.nom)) >= 0
-                                            width: nomFichier.width + 16
-                                            height: 24
-                                            radius: Theme.globalRadius
-                                            color: pris ? Qt.alpha(Theme.accent, 0.16)
-                                                        : Theme.surfaceVariant
-                                            border.width: 1
-                                            border.color: pris ? Theme.accent : Theme.surfaceVariant
-
-                                            Text {
-                                                id: nomFichier
-                                                anchors.centerIn: parent
-                                                text: String(modelData.nom || "")
-                                                color: Theme.fg
-                                                font.pixelSize: Theme.textXs
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.basculerFichierWidget(
-                                                               widgetCard.wid, modelData.nom)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Stepper {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 84
-                                    value: widgetCard.wLignes
-                                    minimumValue: 1
-                                    maximumValue: 6
-                                    stepSize: 1
-                                    suffix: " l."
-                                    onValueModified: newVal =>
-                                        root.runConfigCmd(["widget_set", widgetCard.wid,
-                                                           "lignes", String(newVal)])
-                                }
-
-                                Rectangle {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 92
-                                    height: 24
-                                    radius: Theme.globalRadius
-                                    color: widgetCard.wAfficherFaits ? Theme.accent : Theme.surfaceVariant
-                                    border.width: 1
-                                    border.color: Theme.accent
+                                    width: parent.width
+                                    spacing: Theme.space2
+                                    visible: widgetCard.wtype === "todo"
 
                                     Text {
-                                        anchors.centerIn: parent
-                                        text: widgetCard.wAfficherFaits ? "✓ cochés" : "✕ cochés"
-                                        color: widgetCard.wAfficherFaits ? Theme.bg : Theme.fg
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 56
+                                        text: "Tâches"
+                                        color: Qt.alpha(Theme.fg, 0.75)
                                         font.pixelSize: Theme.textXs
                                     }
 
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.runConfigCmd([
-                                            "widget_set", widgetCard.wid, "afficher_faits",
-                                            widgetCard.wAfficherFaits ? "false" : "true"
-                                        ])
+                                    Row {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
+
+                                        Repeater {
+                                            model: root.todoFichiers
+
+                                            Rectangle {
+                                                required property var modelData
+                                                readonly property bool pris:
+                                                    widgetCard.wFichiers.indexOf(String(modelData.nom)) >= 0
+                                                width: nomFichier.width + 16
+                                                height: 24
+                                                radius: Theme.globalRadius
+                                                color: pris ? Qt.alpha(Theme.accent, 0.16)
+                                                            : Theme.surfaceVariant
+                                                border.width: 1
+                                                border.color: pris ? Theme.accent : Theme.surfaceVariant
+
+                                                Text {
+                                                    id: nomFichier
+                                                    anchors.centerIn: parent
+                                                    text: String(modelData.nom || "")
+                                                    color: Theme.fg
+                                                    font.pixelSize: Theme.textXs
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: root.basculerFichierWidget(
+                                                                   widgetCard.wid, modelData.nom)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Stepper {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 84
+                                        value: widgetCard.wLignes
+                                        minimumValue: 1
+                                        maximumValue: 6
+                                        stepSize: 1
+                                        suffix: " l."
+                                        onValueModified: newVal =>
+                                            root.runConfigCmd(["widget_set", widgetCard.wid,
+                                                               "lignes", String(newVal)])
+                                    }
+
+                                    Rectangle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 92
+                                        height: 24
+                                        radius: Theme.globalRadius
+                                        color: widgetCard.wAfficherFaits ? Theme.accent : Theme.surfaceVariant
+                                        border.width: 1
+                                        border.color: Theme.accent
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: widgetCard.wAfficherFaits ? "✓ cochés" : "✕ cochés"
+                                            color: widgetCard.wAfficherFaits ? Theme.bg : Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.runConfigCmd([
+                                                "widget_set", widgetCard.wid, "afficher_faits",
+                                                widgetCard.wAfficherFaits ? "false" : "true"
+                                            ])
+                                        }
                                     }
                                 }
                             }
+
 
                             id: widgetCard
                         }
