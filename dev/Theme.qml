@@ -221,10 +221,6 @@ QtObject {
     property bool barRightVisible: false
 
     property bool configPanelVisible: false
-    // Panneau de la refonte (chantier « Refonte du panneau ») : vit à côté de
-    // l'ancien, avec son fichier, sa couche et son raccourci (SUPER SHIFT H),
-    // pour constater l'avancement sans rien casser de celui en service.
-    property bool configPanelV2Visible: false
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
     // Barre de capture (SUPER + SHIFT + S) : pastille verticale à gauche.
@@ -281,18 +277,6 @@ QtObject {
         // dans son gestionnaire, et l'incrément qui suit garantit l'émission.
         configPanelVisible = true
         configRequest = configRequest + 1
-    }
-
-    // Même chose pour le panneau d'aperçu de la refonte : sa cible et son état
-    // sont distincts, sinon un clic milieu ouvrirait l'ancien panneau.
-    property string configTargetV2: ""
-    property int configRequestV2: 0
-    function openConfigSectionV2(section) {
-        configTargetV2 = String(section || "")
-        // L'état d'abord, le compteur ensuite : le panneau teste la visibilité
-        // dans son gestionnaire, et l'incrément qui suit garantit l'émission.
-        configPanelV2Visible = true
-        configRequestV2 = configRequestV2 + 1
     }
 
     // Fenêtres à faire tenir par un `HyprlandFocusGrab` de popup : celle du popup
@@ -621,18 +605,10 @@ QtObject {
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
         }
-        // Panneau d'aperçu de la refonte : SUPER SHIFT H, et pilotable par IPC
-        // pour les tests (quickshell ipc call shell toggleConfigV2).
-        function toggleConfigV2() {
-            root.configPanelV2Visible = !root.configPanelV2Visible
-        }
         // Ouvre le panneau sur une section précise — utilisé par le clic milieu
         // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets
         function openConfigSection(section: string) {
             root.openConfigSection(section)
-        }
-        function openConfigSectionV2(section: string) {
-            root.openConfigSectionV2(section)
         }
         function setConfigButtonVisible(visible: bool) {
             root.showConfigButton = visible

@@ -42,7 +42,7 @@ import Quickshell.Io
 
 Rectangle {
     id: root
-    width: 620
+    width: 740
     height: parent ? parent.height : 600
     color: Theme.surfaceBg
     radius: Theme.globalRadius
@@ -1248,7 +1248,7 @@ Rectangle {
         height: 30
 
         Text {
-            text: "AetherShell · Réglages · " + root.hostName
+            text: "AetherShell · Réglages · " + root.hostName + ""
             color: Theme.fg
             font.pixelSize: Theme.textLg
             font.bold: true
@@ -1429,7 +1429,8 @@ Rectangle {
         }
     }
 
-    // Rail vertical d'onglets : 4 icônes, libellé au survol.
+    // Rail vertical d'onglets : icône + libellé, pour ne plus deviner huit
+    // pictogrammes abstraits (voir tmp/MOCKUP_00, §1.1).
     Column {
         id: navRail
         anchors.top: searchBar.bottom
@@ -1438,20 +1439,22 @@ Rectangle {
         anchors.leftMargin: Theme.space3
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.space4
-        width: 40
+        width: 168
         spacing: Theme.space2
         z: 5
 
         Repeater {
+            // Ordre et noms de tmp/MOCKUP_00 §2.1. Les contenus suivront dans
+            // les étapes suivantes : ici seule la charpente change.
             model: [
-                { icon: "palette", label: "Bureau" },
-                { icon: "cog", label: "Quickshell" },
-                { icon: "widgets", label: "Widgets" },
-                { icon: "monitor", label: root.isLaptop ? "Système & TV" : "Système & Écrans" },
-                { icon: "keyboard", label: "Contrôles" },
-                { icon: "rocket", label: "Applications" },
+                { icon: "palette", label: "Apparence" },
+                { icon: "cog", label: "Barres & Applets" },
+                { icon: "widgets", label: "Bureau & Lanceur" },
+                { icon: "monitor", label: root.isLaptop ? "Écrans & Système" : "Écrans & Système" },
+                { icon: "keyboard", label: "Clavier & Binds" },
+                { icon: "rocket", label: "Apps & Alertes" },
                 { icon: "lock", label: "Connexion" },
-                { icon: "cloud-check", label: "Homelab" }
+                { icon: "cloud-check", label: "Données & Comptes" }
             ]
 
             Rectangle {
@@ -1460,7 +1463,7 @@ Rectangle {
                 required property var modelData
                 readonly property bool active: root.currentTab === index
 
-                width: 40
+                width: 168
                 height: 36
                 radius: Theme.globalRadius
                 color: active
@@ -1469,12 +1472,29 @@ Rectangle {
                 border.color: active ? Theme.accent : Theme.surfaceVariant
                 border.width: 1
 
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: railBtn.modelData.icon
-                    size: Theme.iconMd
-                    color: railBtn.active ? Theme.bg : Theme.fg
-                    opacityLevel: railBtn.active ? 1 : 0.78
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: railBtn.modelData.icon
+                        size: Theme.iconMd
+                        color: railBtn.active ? Theme.bg : Theme.fg
+                        opacityLevel: railBtn.active ? 1 : 0.78
+                    }
+
+                    Text {
+                        width: 120
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: railBtn.modelData.label
+                        color: railBtn.active ? Theme.bg : Theme.fg
+                        opacity: railBtn.active ? 1 : 0.86
+                        font.pixelSize: Theme.textSm
+                        elide: Text.ElideRight
+                    }
                 }
 
                 MouseArea {
