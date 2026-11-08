@@ -378,6 +378,9 @@ SHELL_BLUR_END = "-- END shell-blur"
 # ajoutee a la main dans general.lua disparaitrait a ce moment-la.
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-bar-cote-droite", "shell-osd", "shell-config",
+                         # Panneau d'aperçu de la refonte : même traitement que
+                         # l'ancien, sinon il n'a que son verre interne.
+                         "shell-config-v2",
                          "shell-onboarding", "shell-spotlight",
                          "shell-spotlight-rest", "shell-cheatsheet",
                          "shell-tray-menu", "shell-shotbar",
