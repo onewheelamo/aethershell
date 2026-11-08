@@ -221,6 +221,10 @@ QtObject {
     property bool barRightVisible: false
 
     property bool configPanelVisible: false
+    // Panneau de la refonte (chantier « Refonte du panneau ») : vit à côté de
+    // l'ancien, avec son fichier, sa couche et son raccourci (SUPER SHIFT H),
+    // pour constater l'avancement sans rien casser de celui en service.
+    property bool configPanelV2Visible: false
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
     // Barre de capture (SUPER + SHIFT + S) : pastille verticale à gauche.
@@ -597,6 +601,11 @@ QtObject {
         }
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
+        }
+        // Panneau d'aperçu de la refonte : SUPER SHIFT H, et pilotable par IPC
+        // pour les tests (quickshell ipc call shell toggleConfigV2).
+        function toggleConfigV2() {
+            root.configPanelV2Visible = !root.configPanelV2Visible
         }
         // Ouvre le panneau sur une section précise — utilisé par le clic milieu
         // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets

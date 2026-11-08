@@ -566,6 +566,38 @@ Item {
         }
     }
 
+    // Panneau de la refonte (aperçu) : même mécanique que l'ancien, fichier,
+    // couche et état distincts — SUPER SHIFT H l'ouvre, SUPER H ouvre l'ancien.
+    PanelWindow {
+        id: configV2OverlayWindow
+        screen: topBarWindow.screen
+        visible: Theme.configPanelV2Visible
+        anchors {
+            top: true
+            bottom: true
+            left: true
+            right: true
+        }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        aboveWindows: true
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: Theme.configPanelV2Visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-config-v2"
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Theme.configPanelV2Visible = false
+        }
+
+        Loader {
+            anchors.centerIn: parent
+            width: 740
+            height: Math.min(parent.height - Theme.barHeight - Theme.gutter * 4, 900)
+            source: "config_panel_v2.qml"
+        }
+    }
+
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
     PanelWindow {
         id: spotlightWindow
