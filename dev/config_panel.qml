@@ -226,7 +226,7 @@ Rectangle {
         "quickshell_barre": 0,
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
         "quickshell_visualiseur": 1,
-        "widgets": 2, "widgets_api": 2,
+        "widgets": 2, "widgets_api": 7,
         "systeme_nuit": 3,
         "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
         "quickshell_notifications": 5,
@@ -5023,6 +5023,23 @@ Rectangle {
             // Accès API : les widgets qui interrogent un service externe ont besoin
             // d'une clé. Elle est rangée dans secrets.json (mode 600) et le panneau
             // ne montre jamais que ses derniers caractères.
+
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // TAB HOMELAB : ce qui parle à l'extérieur — Nextcloud d'un côté, Proxmox de
+        // l'autre. Sortis de l'onglet Quickshell, où ils n'avaient rien à faire : la
+        // barre et les applets se règlent là-bas, pas les accès aux serveurs.
+        // ═══════════════════════════════════════════════════════════════════════════
+        Column {
+            id: tabHomelabCol
+            visible: root.currentTab === 7
+            width: mainFlickable.width
+            spacing: 12
+
+
+            // Tiroir : fournisseurs d'IA, une ligne par fournisseur. Les clés
+            // ne sortent jamais du shell : le fichier est en mode 600.
             CollapsibleSection {
                 id: secApiKeys
                 objectName: "secApiKeys"
@@ -5158,20 +5175,6 @@ Rectangle {
                     }
                 }
             }
-
-        }
-
-        // ═══════════════════════════════════════════════════════════════════════════
-        // TAB HOMELAB : ce qui parle à l'extérieur — Nextcloud d'un côté, Proxmox de
-        // l'autre. Sortis de l'onglet Quickshell, où ils n'avaient rien à faire : la
-        // barre et les applets se règlent là-bas, pas les accès aux serveurs.
-        // ═══════════════════════════════════════════════════════════════════════════
-        Column {
-            id: tabHomelabCol
-            visible: root.currentTab === 7
-            width: mainFlickable.width
-            spacing: 12
-
 
             // Tiroir : localisation de l'utilisateur. Un seul endroit pour « où
             // suis-je » : l'applet et le widget météo, l'horloge et le calendrier
