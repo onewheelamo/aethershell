@@ -146,7 +146,12 @@ Item {
             implicitWidth: root.rowWidth + Theme.space2 * 2
             implicitHeight: (rows.implicitHeight + Theme.space2 * 2)
             radius: Theme.globalRadius
-            color: Qt.alpha(Theme.surface, 0.92)
+            // Même verre que le reste du shell : `surfaceBg` = surface à
+            // `shellOpacity` (0,7 par défaut, réglable dans le panneau). La
+            // valeur était figée à 0,92 — le menu paraissait opaque, et le flou
+            // de la règle de couche (`shell-tray-menu`, dans general.lua) n'avait
+            // plus rien à montrer derrière.
+            color: Theme.surfaceBg
             border.width: 1
             border.color: Qt.alpha(Theme.accent, 0.16)
 

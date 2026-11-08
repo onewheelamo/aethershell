@@ -1,6 +1,7 @@
 import QtQuick
 import "."
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.SystemTray
 
 // APPLET SYSTRAY — les icônes des applications en arrière-plan.
@@ -23,6 +24,35 @@ Item {
     // Menu contextuel des items du systray, rendu maison.
     TrayMenu {
         id: trayMenu
+    }
+
+    // Double clic → la fenêtre de l'application.
+    //
+    // `activate()` seul ne suffit pas : un item publié avec `ItemIsMenu = true`
+    // (Proton VPN) n'a aucun handler Activate, l'appel ne fait rien du tout. Le
+    // choix est donc confié à `core/tray_apps.py` : fenêtre déjà ouverte → au
+    // premier plan (`hl.dsp.focus`), sinon lancement de l'entrée .desktop, et
+    // code 3 quand l'application n'a ni fenêtre ni entrée — on retombe alors sur
+    // `activate()`, seule chose qui reste.
+    Process {
+        id: ouvreur
+        property var cible: null
+        onExited: code => {
+            if (code === 3 && cible)
+                cible.activate()
+            cible = null
+        }
+    }
+
+    function ouvrirFenetre(item) {
+        if (!item)
+            return
+        if (trayMenu.opened)
+            trayMenu.close()
+        ouvreur.cible = item
+        ouvreur.command = ["python3", Quickshell.shellPath("core/tray_apps.py"),
+                           String(item.id || ""), String(item.title || "")]
+        ouvreur.running = true
     }
 
     // Un `Grid` plutôt qu'un `Row` : une seule colonne sur une barre latérale,
@@ -92,6 +122,12 @@ Item {
                                 } else if (mouse.button === Qt.MiddleButton) {
                                     trayDelegate.modelData.secondaryActivate()
                                 }
+                            }
+                            // Deuxième clic : `ouvrirFenetre` met la fenêtre au
+                            // premier plan ou lance l'application (tray_apps.py).
+                            onDoubleClicked: mouse => {
+                                if (mouse.button === Qt.LeftButton)
+                                    root.ouvrirFenetre(trayDelegate.modelData)
                             }
                             onWheel: wheel => {
                                 trayDelegate.modelData.scroll(wheel.angleDelta.y, false)
