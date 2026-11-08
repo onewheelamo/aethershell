@@ -145,8 +145,16 @@ def style():
 
 
 def ecrire(donnees):
-    STYLE_FILE.write_text(json.dumps(donnees, ensure_ascii=False, indent=4) + "\n",
+    """Écrit en deux temps puis renomme : le shell relit ce fichier en continu.
+
+    Une écriture directe laissait Theme lire un JSON tronqué (« Failed to parse
+    style_vars.json ») le temps de l'écriture — le panneau importe les thèmes au
+    moment où il s'ouvre, donc les deux se croisent à coup sûr.
+    """
+    temporaire = STYLE_FILE.with_suffix(".json.tmp")
+    temporaire.write_text(json.dumps(donnees, ensure_ascii=False, indent=4) + "\n",
                           encoding="utf-8")
+    os.replace(temporaire, STYLE_FILE)
 
 
 def synchroniser(silencieux=False):
