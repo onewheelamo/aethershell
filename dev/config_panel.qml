@@ -227,7 +227,7 @@ Rectangle {
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
         "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_api": 7,
-        "systeme_nuit": 3,
+        "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
         "clavier_disposition": 4, "clavier_binds": 4,
         "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
         "quickshell_notifications": 5,
@@ -912,6 +912,9 @@ Rectangle {
         "quickshell_visualiseur": secVisualiseur,
         "clavier_disposition": secClavier,
         "clavier_binds": secBinds,
+        "ecrans_moniteurs": secEcrans,
+        "ecrans_profils": secProfils,
+        "systeme_horloge": secHorloge,
         "widgets": secWidgets,
         "widgets_api": secApiKeys,
         "donnees_localisation": secLocalisation,
@@ -6047,6 +6050,19 @@ Rectangle {
             width: mainFlickable.width
             spacing: 12
 
+            // Tiroir : moniteurs détectés, moniteur principal, résolution et
+            // fréquence.
+            CollapsibleSection {
+                id: secEcrans
+                objectName: "secEcrans"
+                title: "Moniteurs & Résolution"
+                icon: "monitor"
+                expanded: root.sectionOpen("ecrans_moniteurs", true)
+                onToggled: expanded => {
+                    root.setPanelSection("ecrans_moniteurs", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("ecrans_moniteurs")
+                }
+
             Text {
                 width: parent.width
                 text: "Moniteurs détectés (" + root.hostName + ") — cliquer pour sélectionner un écran"
@@ -6315,6 +6331,20 @@ Rectangle {
             }
 
             // Scale factor selector (Mouse only)
+            }
+
+            // Tiroir : mise à l'échelle, profils multi-écrans et mode tablette.
+            CollapsibleSection {
+                id: secProfils
+                objectName: "secProfils"
+                title: "Profils & Rotation"
+                icon: "tablet"
+                expanded: root.sectionOpen("ecrans_profils", false)
+                onToggled: expanded => {
+                    root.setPanelSection("ecrans_profils", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("ecrans_profils")
+                }
+
             Row {
                 spacing: 10
                 Text {
@@ -6444,6 +6474,20 @@ Rectangle {
             }
 
             // System Time, Network Shortcut (& Battery 80% Limiter if Laptop)
+            }
+
+            // Tiroir : fuseau horaire, donc l'heure affichée par la barre.
+            CollapsibleSection {
+                id: secHorloge
+                objectName: "secHorloge"
+                title: "Horloge, Réseau & Batterie"
+                icon: "clock"
+                expanded: root.sectionOpen("systeme_horloge", false)
+                onToggled: expanded => {
+                    root.setPanelSection("systeme_horloge", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_horloge")
+                }
+
             Column {
                 id: timezoneRow   // ancre de recherche
                 objectName: "timezoneRow"
@@ -6528,6 +6572,8 @@ Rectangle {
                     }
                 }
             }
+            }
+
             // Mode nuit : le filtre chaud de l'écran. Une plage horaire vide
             // signifie « à la main » — c'est l'icône de l'applet luminosité qui
             // décide ; dès qu'une plage existe, le service s'en charge seul.
