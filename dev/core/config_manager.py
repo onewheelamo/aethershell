@@ -1191,6 +1191,15 @@ def remove_keybind(key_combo):
 # SECTION 7: DYNAMIC VARIABLES & APPLICATIONS (app_vars.json <-> programs.lua)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _propager_vers_systeme():
+    """Écrit helpers.rc (exo) et mimeapps.list depuis app_vars.json."""
+    try:
+        import lien_systeme
+        lien_systeme.appliquer(silencieux=True)
+    except Exception as e:                      # jamais bloquant pour le panneau
+        print("lien système non appliqué : %s" % e, file=sys.stderr)
+
+
 def set_app_var(alias, command):
     if not lua_ident(alias) or not command.strip():
         print(f"Invalid app alias or empty command: {alias!r}", file=sys.stderr)
@@ -1199,6 +1208,11 @@ def set_app_var(alias, command):
     data[alias.strip()] = command.strip()
     save_json(APP_VARS_FILE, data)
     sync_programs_lua(data)
+    # Le reste du monde ne lit pas `app_vars.json` : Thunar demande son terminal à
+    # exo, `xdg-open` lit mimeapps.list. Sans cette propagation, un programme
+    # choisi dans le panneau restait inconnu du système (clic droit → « Could not
+    # find fallback TerminalEmulator application »).
+    _propager_vers_systeme()
     return True
 
 

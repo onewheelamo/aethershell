@@ -169,6 +169,17 @@ Item {
         command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
     }
 
+    // Programmes par défaut : le shell les tient dans `core/app_vars.json`, le
+    // reste du système ne connaît que deux registres — `~/.config/xfce4/helpers.rc`
+    // (exo, donc le clic droit de Thunar) et `mimeapps.list` (xdg-open). On les
+    // réécrit au démarrage : un `app_vars.json` modifié à la main ou restauré
+    // d'une sauvegarde reste ainsi valable pour tout le bureau.
+    Process {
+        id: lienSystemeProc
+        running: true
+        command: ["python3", Quickshell.shellPath("core/lien_systeme.py"), "--appliquer"]
+    }
+
     // Mode nuit : la plage horaire s'applique **d'ici**, pas depuis l'applet
     // luminosité. Un minuteur posé dans un applet s'arrête avec lui, et la
     // modularisation permet de retirer cet applet : l'automatisme disparaissait
