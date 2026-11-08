@@ -36,11 +36,6 @@ Item {
     // Force du flou : MultiEffect attend 0..1 (1 = flou maximal pour `blurMax`).
     property real flou: 0.85
     property int flouMax: 48
-    // Marge de débord : le flou a besoin de vrais voisins au bord, sinon il
-    // fabrique une frange de quelques pixels le long des pastilles — invisible
-    // à faible intensité, nette à 100 %. On déborde d'un rayon de flou, la
-    // surface recoupe ensuite d'elle-même.
-    readonly property int marge: Math.min(64, Math.ceil(flouMax * Math.max(flou, 0.05)))
     // Chemin du fond d'écran courant : lu au démarrage auprès d'awww, avec un
     // repli sur le dossier de fonds si le démon ne répond pas.
     property string fond: ""
@@ -91,10 +86,7 @@ Item {
     // ce qui évite le rectangle flouté qui dépassait des pastilles arrondies.
     Image {
         id: image
-        x: -racine.marge
-        y: -racine.marge
-        width: parent.width + 2 * racine.marge
-        height: parent.height + 2 * racine.marge
+        anchors.fill: parent
         source: racine.fond !== "" ? "file://" + racine.fond : ""
         sourceSize.width: Math.max(160, Math.round(width / 4))
         // `sourceClipRect` s'exprime dans les pixels de l'image **décodée**, pas
@@ -102,8 +94,8 @@ Item {
         // l'image pour les surfaces de droite et Qt servait un coin sombre —
         // visible dès qu'on montait le flou interne.
         readonly property real rapport: width > 0 ? sourceSize.width / racine.ecran.width : 0
-        sourceClipRect: Qt.rect((racine.positionEcran.x - racine.marge) * rapport,
-                                (racine.positionEcran.y - racine.marge) * rapport,
+        sourceClipRect: Qt.rect(racine.positionEcran.x * rapport,
+                                racine.positionEcran.y * rapport,
                                 width * rapport,
                                 height * rapport)
         fillMode: Image.PreserveAspectCrop
@@ -113,13 +105,8 @@ Item {
         layer.enabled: true
     }
 
-    // Même géométrie que l'image débordante : un MultiEffect étire sa source sur
-    // ses propres bornes, il les faut identiques pour rester au pixel.
     MultiEffect {
-        x: image.x
-        y: image.y
-        width: image.width
-        height: image.height
+        anchors.fill: parent
         source: image
         blurEnabled: true
         blur: racine.flou
