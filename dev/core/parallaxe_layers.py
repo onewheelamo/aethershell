@@ -67,13 +67,22 @@ def _lissage(a, bas, haut):
     return t * t * (3.0 - 2.0 * t)
 
 
-def generate(fond, sortie, seuil_bas, seuil_haut):
+def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None):
+    """`fond` est l'image à découper ; `masque_de` est l'image dont on tire la
+    carte de profondeur quand les deux diffèrent.
+
+    Le cas d'usage : découper une **capture du bureau** plutôt que le fichier du
+    fond. Les pixels sont alors ceux du compositeur, à l'échelle 1:1 ; les
+    calques se superposent au fond sans le moindre écart, là où réduire un
+    3904×2240 avec le filtre de Qt donnait une image légèrement différente de
+    celle d'awww (couture visible sous la barre)."""
     np, Image = _numpy()
     fond = Path(fond).expanduser().resolve()
     if not fond.exists():
         sys.exit("fond introuvable : " + str(fond))
 
-    chemin_masque = masque_pour(fond, seuil_bas, seuil_haut)
+    chemin_masque = masque_pour(Path(masque_de).expanduser() if masque_de else fond,
+                                seuil_bas, seuil_haut)
     rgb = Image.open(fond).convert("RGB")
     alpha = Image.open(chemin_masque).getchannel("A")
     if alpha.size != rgb.size:
@@ -101,9 +110,11 @@ def main():
     g.add_argument("--out", default=str(Path.home() / "Images/wallpapers/profondeur"))
     g.add_argument("--seuil-bas", type=int, default=30)
     g.add_argument("--seuil-haut", type=int, default=65)
+    g.add_argument("--masque-de", default=None,
+                   help="image dont on tire la profondeur (par défaut : --wallpaper)")
     a = ap.parse_args()
     if a.cmd == "generate":
-        generate(a.wallpaper, a.out, a.seuil_bas, a.seuil_haut)
+        generate(a.wallpaper, a.out, a.seuil_bas, a.seuil_haut, a.masque_de)
 
 
 if __name__ == "__main__":

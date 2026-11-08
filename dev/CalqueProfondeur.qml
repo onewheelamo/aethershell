@@ -30,6 +30,11 @@ PanelWindow {
     visible: Theme.depthMask && masque !== ""
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // Zone exclusive neutre : sans ça, la barre réserve le haut de l'écran et
+    // la surface est rétrécie à 1080-46 px. Les images, taillées à la hauteur
+    // de la fenêtre, ne couvraient donc pas le fond véritable — d'où la couture
+    // visible pile sous la barre.
+    WlrLayershell.exclusiveZone: -1
     WlrLayershell.namespace: "shell-masque-profondeur"
 
     // Chemin du masque courant, et l'erreur éventuelle à ne pas cacher.

@@ -36,6 +36,11 @@ PanelWindow {
     visible: Theme.depthWallpaper && assetsPresents
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // Zone exclusive neutre : sans ça, la barre réserve le haut de l'écran et
+    // la surface est rétrécie à 1080-46 px. Les images, taillées à la hauteur
+    // de la fenêtre, ne couvraient donc pas le fond véritable — d'où la couture
+    // visible pile sous la barre.
+    WlrLayershell.exclusiveZone: -1
     WlrLayershell.namespace: "shell-fond-profondeur"
 
     // Le bureau courant donne le pas de parallaxe : chaque changement décale les
@@ -106,15 +111,22 @@ PanelWindow {
     // `facteur` = pixels de décalage par bureau ; la marge d'agrandissement est
     // calculée pour que le décalage maximal ne découvre jamais un bord.
     function decalage(facteur) {
-        return (fenetre.bureau - 1) * facteur
+        // Les calques font exactement la taille de l'écran : un décalage qui
+        // grandirait sans fin découvrirait un bord nu au dixième bureau. On
+        // boucle donc sur quatre bureaux — retour à l'identique tous les quatre.
+        return ((fenetre.bureau - 1) % 4) * facteur
     }
 
     Image {
         id: lointain
-        width: fenetre.width + 24
-        height: fenetre.height + 24
-        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(4)
-        y: Math.round((fenetre.height - height) / 2)
+        // Exactement la taille de l'écran : au bureau 1 le décalage est nul et
+        // le calque redonne le fond pixel pour pixel. Agrandir l'image pour se
+        // ménager une marge la zoomait de 1 %, d'où une couture visible le long
+        // de la barre et sur tout bureau inoccupé.
+        width: fenetre.width
+        height: fenetre.height
+        x: fenetre.decalage(0)
+        y: 0
         // Rien n'est demandé tant que le fond courant n'est pas connu :
         // sinon le repli se déclenche sur un chemin incomplet.
         source: (Theme.depthWallpaper && fenetre.nomFond !== "")
@@ -129,10 +141,10 @@ PanelWindow {
 
     Image {
         id: moyen
-        width: fenetre.width + 36
-        height: fenetre.height + 36
-        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(7)
-        y: Math.round((fenetre.height - height) / 2)
+        width: fenetre.width
+        height: fenetre.height
+        x: fenetre.decalage(7)
+        y: 0
         // Rien n'est demandé tant que le fond courant n'est pas connu :
         // sinon le repli se déclenche sur un chemin incomplet.
         source: (Theme.depthWallpaper && fenetre.nomFond !== "")
@@ -147,10 +159,10 @@ PanelWindow {
 
     Image {
         id: proche
-        width: fenetre.width + 52
-        height: fenetre.height + 52
-        x: Math.round((fenetre.width - width) / 2) - fenetre.decalage(10)
-        y: Math.round((fenetre.height - height) / 2)
+        width: fenetre.width
+        height: fenetre.height
+        x: fenetre.decalage(10)
+        y: 0
         // Rien n'est demandé tant que le fond courant n'est pas connu :
         // sinon le repli se déclenche sur un chemin incomplet.
         source: (Theme.depthWallpaper && fenetre.nomFond !== "")
