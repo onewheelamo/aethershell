@@ -451,6 +451,9 @@ Rectangle {
         const apparues = []
         for (let i = 0; i < appletRows.length; ++i) {
             const a = appletRows[i] || {}
+            // Le visualiseur n'a pas d'emplacement : son activation vit dans son
+            // propre tiroir, pas dans la liste des applets.
+            if (a.applet && String(a.applet.id) === "visualiseur") continue
             const cat = String(a.categorie || "Autres")
             if (!seaux[cat]) {
                 seaux[cat] = []
@@ -598,6 +601,31 @@ Rectangle {
     }
 
     // Chaque commande rend l'état complet : pas de deuxième requête à faire.
+    // Activation du visualiseur audio : absent de la liste des applets (pas
+    // d'emplacement), son état se lit dans la même liste, produite par
+    // bar_applets.py.
+    readonly property bool vizActif: {
+        for (let i = 0; i < root.appletRows.length; ++i) {
+            const a = root.appletRows[i] || {}
+            if (a.applet && String(a.applet.id) === "visualiseur")
+                return a.applet.actif === true
+        }
+        return false
+    }
+
+    // La commande écrit bar_applets.json ; on relit la liste juste après.
+    Timer {
+        id: vizRafraichir
+        interval: 350
+        repeat: false
+        onTriggered: root.appletsRafraichir()
+    }
+
+    function basculerVisualiseur() {
+        root.appletCommande([root.vizActif ? "desactiver" : "activer", "visualiseur"])
+        vizRafraichir.restart()
+    }
+
     function appletCommande(args) {
         appletsCmdProc.command = ["python3", Quickshell.shellPath("core/bar_applets.py")].concat(args)
         appletsCmdProc.running = true
@@ -3845,6 +3873,55 @@ Rectangle {
                     Column {
                         width: parent.width
                         spacing: 8
+
+                        // Activation : elle vivait dans la liste des applets, où
+                        // elle n'avait rien à faire (aucun emplacement à choisir).
+                        Row {
+                            width: parent.width
+                            spacing: 8
+
+                            Text {
+                                width: 160
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Visualiseur :"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                elide: Text.ElideRight
+                            }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 160
+                                height: 26
+                                radius: Theme.globalRadius
+                                color: root.vizActif ? Theme.accent : Theme.surfaceVariant
+                                border.color: Theme.accent
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: root.vizActif ? "✓ Actif" : "✕ Éteint"
+                                    color: root.vizActif ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.basculerVisualiseur()
+                                }
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 340
+                                text: "Occupe les espaces entre les îlots, un de chaque côté du centre."
+                                color: Qt.alpha(Theme.fg, 0.5)
+                                font.pixelSize: Theme.text2xs
+                                wrapMode: Text.WordWrap
+                            }
+                        }
 
                         Text {
                             width: parent.width
