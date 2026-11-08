@@ -137,7 +137,7 @@ Rectangle {
         { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
           tab: 5, section: "apps_programs", target: "secApps" },
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
-          tab: 5, section: "apps_programs", target: "launchHistoryRow" },
+          tab: 2, section: "widgets_pilule", target: "launchHistoryRow" },
         { label: "Cible du clic sur une notification", words: "notification notifications clic titre cible lien fichier video image dossier commande", 
           tab: 5, section: "quickshell_notifications", target: "secNotifs" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
@@ -226,7 +226,7 @@ Rectangle {
         "quickshell_barre": 0,
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
         "quickshell_visualiseur": 1,
-        "widgets": 2, "widgets_api": 7,
+        "widgets": 2, "widgets_pilule": 2, "widgets_api": 7,
         "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
         "clavier_disposition": 4, "clavier_binds": 4,
         "apps_programs": 5, "apps_autostart": 5, "quickshell_notifications": 5,
@@ -915,6 +915,7 @@ Rectangle {
         "ecrans_profils": secProfils,
         "systeme_horloge": secHorloge,
         "widgets": secWidgets,
+        "widgets_pilule": secPilule,
         "widgets_api": secApiKeys,
         "donnees_localisation": secLocalisation,
         "quickshell_calendrier": secCalendrier,
@@ -4966,63 +4967,146 @@ Rectangle {
                     }
 
 
-                    // Le lanceur : intégré, position parmi six emplacements
-                    Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
-
-                    Row {
-                        width: parent.width
-                        spacing: Theme.space2
-
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            glyph: "search"
-                            size: Theme.iconSm
-                            color: Theme.accent
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 320
-                            text: "Lanceur — intégré, position fixe"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textXs
-                            elide: Text.ElideRight
-                        }
-
-                        Repeater {
-                            model: [
-                                { key: "haut-gauche", tip: "↖" },
-                                { key: "haut-centre", tip: "↑" },
-                                { key: "haut-droit",  tip: "↗" },
-                                { key: "bas-gauche",  tip: "↙" },
-                                { key: "bas-centre",  tip: "↓" },
-                                { key: "bas-droit",   tip: "↘" }
-                            ]
-
-                            Rectangle {
-                                required property var modelData
-                                width: 30
-                                height: 26
-                                radius: Theme.globalRadius
-                                color: root.launcherPosition === modelData.key ? Theme.accent : Theme.surfaceVariant
-                                border.width: 1
-                                border.color: Theme.accent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.tip
-                                    color: root.launcherPosition === modelData.key ? Theme.bg : Theme.fg
-                                    font.pixelSize: Theme.textSm
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.runConfigCmd(["style", "launcher_position", modelData.key])
-                                }
-                            }
-                        }
-                    }
                 }
             }
+            // Tiroir : la pilule de lancement (Spotlight). Sa position et son
+            // historique étaient éparpillés dans deux onglets.
+            CollapsibleSection {
+                id: secPilule
+                objectName: "secPilule"
+                title: "Pilule de lancement (Spotlight)"
+                icon: "rocket"
+                expanded: root.sectionOpen("widgets_pilule", false)
+                onToggled: expanded => {
+                    root.setPanelSection("widgets_pilule", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets_pilule")
+                }
+
+                // Le lanceur : intégré, position parmi six emplacements
+                Rectangle { width: parent.width; height: 1; color: Qt.alpha(Theme.fg, 0.09) }
+
+                Row {
+                width: parent.width
+                spacing: Theme.space2
+
+                Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "search"
+                size: Theme.iconSm
+                color: Theme.accent
+                }
+                Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 320
+                text: "Lanceur — intégré, position fixe"
+                color: Theme.fg
+                font.pixelSize: Theme.textXs
+                elide: Text.ElideRight
+                }
+
+                Repeater {
+                model: [
+                { key: "haut-gauche", tip: "↖" },
+                { key: "haut-centre", tip: "↑" },
+                { key: "haut-droit",  tip: "↗" },
+                { key: "bas-gauche",  tip: "↙" },
+                { key: "bas-centre",  tip: "↓" },
+                { key: "bas-droit",   tip: "↘" }
+                ]
+
+                Rectangle {
+                required property var modelData
+                width: 30
+                height: 26
+                radius: Theme.globalRadius
+                color: root.launcherPosition === modelData.key ? Theme.accent : Theme.surfaceVariant
+                border.width: 1
+                border.color: Theme.accent
+
+                Text {
+                anchors.centerIn: parent
+                text: modelData.tip
+                color: root.launcherPosition === modelData.key ? Theme.bg : Theme.fg
+                font.pixelSize: Theme.textSm
+                }
+                MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.runConfigCmd(["style", "launcher_position", modelData.key])
+                }
+                }
+                }
+                }
+
+
+                // Historique des lancements de la pilule (style_vars.json : launch_history)
+                Row {
+                id: launchHistoryRow
+                width: parent.width
+                spacing: 10
+
+                Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 32 - 10
+                - (clearHistBtn.visible ? clearHistBtn.width + 10 : 0)
+                text: "Mémoriser les lancements récents dans la pilule"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+                }
+
+                Rectangle {
+                id: clearHistBtn
+                visible: root.launchHistory
+                width: visible ? clearHistText.implicitWidth + 22 : 0
+                height: 32
+                radius: Theme.globalRadius
+                color: Theme.surfaceVariant
+                border.color: Theme.accentMuted
+                border.width: 1
+
+                Text {
+                id: clearHistText
+                anchors.centerIn: parent
+                text: "Vider"
+                color: Theme.accent
+                font.pixelSize: Theme.textSm
+                }
+
+                MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.clearLaunchHistory()
+                }
+                }
+
+                Rectangle {
+                width: 32
+                height: 32
+                radius: Theme.globalRadius
+                color: Theme.surfaceVariant
+                border.color: root.launchHistory ? Theme.success : Theme.error
+                border.width: 1
+
+                Text {
+                anchors.centerIn: parent
+                text: root.launchHistory ? "✓" : "✕"
+                color: root.launchHistory ? Theme.success : Theme.error
+                font.pixelSize: root.launchHistory ? Theme.textMd : Theme.textSm
+                font.bold: true
+                }
+
+                MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.runConfigCmd(["style", "launch_history",
+                String(!root.launchHistory)])
+                }
+                }
+
+                }
+            }
+
 
             // Accès API : les widgets qui interrogent un service externe ont besoin
             // d'une clé. Elle est rangée dans secrets.json (mode 600) et le panneau
@@ -7107,73 +7191,6 @@ Rectangle {
                     root.setPanelSection("apps_programs", expanded)
                     if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_programs")
                 }
-
-            // Historique des lancements de la pilule (style_vars.json : launch_history)
-            Row {
-                id: launchHistoryRow
-                width: parent.width
-                spacing: 10
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 32 - 10
-                           - (clearHistBtn.visible ? clearHistBtn.width + 10 : 0)
-                    text: "Mémoriser les lancements récents dans la pilule"
-                    color: Theme.fg
-                    font.pixelSize: Theme.textSm
-                    elide: Text.ElideRight
-                }
-
-                Rectangle {
-                    id: clearHistBtn
-                    visible: root.launchHistory
-                    width: visible ? clearHistText.implicitWidth + 22 : 0
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: Theme.surfaceVariant
-                    border.color: Theme.accentMuted
-                    border.width: 1
-
-                    Text {
-                        id: clearHistText
-                        anchors.centerIn: parent
-                        text: "Vider"
-                        color: Theme.accent
-                        font.pixelSize: Theme.textSm
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.clearLaunchHistory()
-                    }
-                }
-
-                Rectangle {
-                    width: 32
-                    height: 32
-                    radius: Theme.globalRadius
-                    color: Theme.surfaceVariant
-                    border.color: root.launchHistory ? Theme.success : Theme.error
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.launchHistory ? "✓" : "✕"
-                        color: root.launchHistory ? Theme.success : Theme.error
-                        font.pixelSize: root.launchHistory ? Theme.textMd : Theme.textSm
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.runConfigCmd(["style", "launch_history",
-                                                      String(!root.launchHistory)])
-                    }
-                }
-
-            }
 
             Text {
                 text: "Les alias ci-dessous sont aussi proposés par la pilule ; « > » y lance une commande shell."
