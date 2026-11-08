@@ -923,6 +923,7 @@ Rectangle {
         "systeme_nuit": secNuit,
         "apps_programs": secApps,
         "quickshell_notifications": secNotifs,
+        "greeter_theme": secGreeter,
         "apps_autostart": secAutostart
     })
 
@@ -1784,8 +1785,7 @@ Rectangle {
                 // celui-ci rendait l'**item** du greeter au lieu de sa hauteur (contentHeight
                 // valait NaN, donc ni défilement ni bornes), et l'onglet 7 mesurait la hauteur
                 // du greeter en testant celle de sa propre colonne.
-                if (root.currentTab === 6)
-                    return greeterTabLoader.item ? greeterTabLoader.item.implicitHeight : 0
+                if (root.currentTab === 6) return tabConnexionCol.implicitHeight
                 if (root.currentTab === 7) return tabHomelabCol.implicitHeight
                 return 0
             }
@@ -8122,15 +8122,33 @@ Rectangle {
             }   // end CollapsibleSection secAutostart
         }   // end Column tabAppsCol
 
-            // Onglet Connexion (thème du greeter) : composant séparé pour ne pas
-            // alourdir ce fichier — il porte sa grille de miniatures et son backend.
-            Loader {
-                id: greeterTabLoader
-                width: mainFlickable.width
+            // Onglet Connexion : le greeter est un composant séparé (grille de
+            // miniatures + backend), posé dans un tiroir comme le reste.
+            Column {
+                id: tabConnexionCol
                 visible: root.currentTab === 6
-                active: visible
-                source: "GreeterTab.qml"
-                onLoaded: item.width = mainFlickable.width
+                width: mainFlickable.width
+                spacing: 11
+
+                CollapsibleSection {
+                    id: secGreeter
+                    objectName: "secGreeter"
+                    title: "Thème de l'écran de connexion (SDDM)"
+                    icon: "lock"
+                    expanded: root.sectionOpen("greeter_theme", true)
+                    onToggled: expanded => {
+                        root.setPanelSection("greeter_theme", expanded)
+                        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("greeter_theme")
+                    }
+
+                    Loader {
+                        id: greeterTabLoader
+                        width: parent.width
+                        active: root.currentTab === 6
+                        source: "GreeterTab.qml"
+                        onLoaded: item.width = parent.width
+                    }
+                }
             }
     }   // end Flickable mainFlickable
     }   // end Item tabContentArea
