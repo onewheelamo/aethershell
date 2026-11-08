@@ -333,7 +333,11 @@ QtObject {
     // est toujours floutée. Contrairement à la capsule de repos du lanceur, il
     // n'y a ici ni état de veille ni réveil au clic.
     readonly property real barOpacity: shellOpacity
-    readonly property color barBg: Qt.alpha(surface, barOpacity)
+    // La barre ne pose pas sa couleur de thème sur le fond : un noir neutre
+    // assombrit sans décaler la teinte, donc les couleurs restent celles du
+    // fond quel qu'il soit. La teinte `surface` reste pour les panneaux, où
+    // l'opacité est bien plus élevée.
+    readonly property color barBg: Qt.alpha("#000000", barOpacity)
 
     // ── Lanceur au repos ──────────────────────────────────────────────────────
     // La pilule reste posée en bas au centre, en veille à 0.2 (donc sans flou :

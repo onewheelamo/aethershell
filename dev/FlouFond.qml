@@ -80,30 +80,30 @@ Item {
     // le pixel sous la surface soit le bon. Le flou est appliqué au cadre
     // (`layer.effect`), pas à une source recadrée sur la surface : un MultiEffect
     // étirerait son entrée sur ses propres bornes et perdrait le décalage.
-    Item {
-        id: cadre
+    // Le fond est pris **sous la surface** : `sourceClipRect` découpe la bonne
+    // fenêtre de l'image d'écran, donc le fond redessiné est celui qu'on
+    // recouvre et non le centre de l'image. Le rendu reste borné à la surface,
+    // ce qui évite le rectangle flouté qui dépassait des pastilles arrondies.
+    Image {
+        id: image
         anchors.fill: parent
-        clip: true
+        source: racine.fond !== "" ? "file://" + racine.fond : ""
+        sourceClipRect: Qt.rect(racine.positionEcran.x, racine.positionEcran.y, width, height)
+        sourceSize.width: Math.max(160, Math.round(width / 4))
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        visible: false
         layer.enabled: true
-        layer.effect: MultiEffect {
-            blurEnabled: true
-            blur: racine.flou
-            blurMax: racine.flouMax
-            saturation: 0.9
-        }
+    }
 
-        Image {
-            id: image
-            width: racine.ecran.width
-            height: racine.ecran.height
-            x: -racine.positionEcran.x
-            y: -racine.positionEcran.y
-            source: racine.fond !== "" ? "file://" + racine.fond : ""
-            sourceSize.width: Math.max(160, Math.round(width / 4))
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-        }
+    MultiEffect {
+        anchors.fill: parent
+        source: image
+        blurEnabled: true
+        blur: racine.flou
+        blurMax: racine.flouMax
+        saturation: 1.0
     }
 
     // Voile de couleur : sans lui, le verre tire vers les teintes du fond et
@@ -111,7 +111,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: racine.rayon
-        color: Qt.alpha(Theme.bg, 0.28)
+        color: Qt.alpha("#000000", 0.15)
     }
 
     Rectangle {
