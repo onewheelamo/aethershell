@@ -72,6 +72,12 @@ PanelWindow {
     property real survolY: 0
     property bool survol: false
     property real pinceau: 40
+    // Zoom de la vignette : 1 = vue entière. On place les sommets au plus près
+    // des contours d'un objet, ce qui demande de grossir fortement.
+    property real zoom: 1
+    // Coin haut-gauche de la vue zoomée, dans le repère du cadre.
+    property real ox: 0
+    property real oy: 0
     property string message: ""
     property bool travail: false
 
@@ -80,6 +86,9 @@ PanelWindow {
         fenetre.traitEnCours = null
         fenetre.contours = []
         fenetre.contourEnCours = []
+        fenetre.zoom = 1
+        fenetre.ox = 0
+        fenetre.oy = 0
         fenetre.message = ""
         if (!sondeFond.running)
             sondeFond.running = true
@@ -102,6 +111,32 @@ PanelWindow {
             fenetre.traits = fenetre.traits.concat([fenetre.traitEnCours])
         fenetre.traitEnCours = null
         canvasPeinture.requestPaint()
+    }
+
+    // Grossit ou dégrossit en gardant sous le curseur le même pixel du fond.
+    // `cx`/`cy` sont dans le repère du cadre (celui de l'écran, pas de la vue).
+    function zoomer(facteur, cx, cy) {
+        const avant = fenetre.zoom
+        const apres = Math.max(1, Math.min(10, avant * facteur))
+        if (Math.abs(apres - avant) < 0.001) return
+        const lx = (cx - fenetre.ox) / avant
+        const ly = (cy - fenetre.oy) / avant
+        fenetre.zoom = apres
+        fenetre.ox = cx - lx * apres
+        fenetre.oy = cy - ly * apres
+        fenetre.borner()
+        canvasPeinture.requestPaint()
+    }
+
+    // Garde la vue dans le cadre : à 1× elle colle aux bords, au-delà elle ne
+    // laisse pas de vide sur les côtés.
+    function borner() {
+        const l = cadreApercu.width
+        const h = cadreApercu.height
+        const lg = l * fenetre.zoom
+        const hg = h * fenetre.zoom
+        fenetre.ox = Math.min(0, Math.max(l - lg, fenetre.ox))
+        fenetre.oy = Math.min(0, Math.max(h - hg, fenetre.oy))
     }
 
     function ajouterSommet(x, y) {
@@ -312,10 +347,23 @@ PanelWindow {
             height: Math.round(width * 9 / 16)
 
             Rectangle {
+                id: cadreApercu
                 anchors.fill: parent
                 radius: 8
                 color: Theme.bg
                 clip: true
+
+                // La vue porte le zoom et le décalage : le fond, la peinture et
+                // le curseur vivent dedans, donc tout grossit ensemble et les
+                // coordonnées des traits restent celles de l'image entière.
+                Item {
+                    id: vue
+                    width: cadreApercu.width
+                    height: cadreApercu.height
+                    transformOrigin: Item.TopLeft
+                    scale: fenetre.zoom
+                    x: fenetre.ox
+                    y: fenetre.oy
 
                 Image {
                     anchors.fill: parent
@@ -428,14 +476,41 @@ PanelWindow {
                     MouseArea {
                         id: zonePeinture
                         anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                         enabled: !fenetre.travail
                         cursorShape: Qt.CrossCursor
                         hoverEnabled: true
                         onWheel: (roue) => {
-                            const pas = roue.angleDelta.y > 0 ? 6 : -6
-                            fenetre.pinceau = Math.max(10, Math.min(300, fenetre.pinceau + pas))
+                            const c = zonePeinture.mapToItem(cadreApercu, zonePeinture.mouseX,
+                                                             zonePeinture.mouseY)
+                            const grossir = roue.angleDelta.y > 0
+                            // Molette = zoom, dans les deux outils. La taille du
+                            // pinceau se règle avec Ctrl + molette ou au rail,
+                            // pour que le même geste zoome partout.
+                            if (roue.modifiers & Qt.ControlModifier) {
+                                const pas = grossir ? 6 : -6
+                                fenetre.pinceau = Math.max(10, Math.min(300,
+                                                                        fenetre.pinceau + pas))
+                                roue.accepted = true
+                            } else {
+                                fenetre.zoomer(grossir ? 1.25 : 0.8, c.x, c.y)
+                                roue.accepted = true
+                            }
                         }
+
+                        // Déplacement dans la vue grossie : bouton du milieu, ou
+                        // Maj + clic gauche (le clic gauche pose des sommets).
+                        property point departPan: Qt.point(0, 0)
+                        property bool panActif: false
                         onPositionChanged: (souris) => {
+                            if (zonePeinture.panActif) {
+                                const c = zonePeinture.mapToItem(cadreApercu, souris.x, souris.y)
+                                fenetre.ox += c.x - zonePeinture.departPan.x
+                                fenetre.oy += c.y - zonePeinture.departPan.y
+                                zonePeinture.departPan = c
+                                fenetre.borner()
+                                return
+                            }
                             fenetre.survolX = souris.x / width
                             fenetre.survolY = souris.y / height
                             fenetre.survol = true
@@ -454,13 +529,28 @@ PanelWindow {
                         onPressed: (souris) => {
                             fenetre.survolX = souris.x / width
                             fenetre.survolY = souris.y / height
+                            if (souris.button === Qt.MiddleButton
+                                    || (souris.button === Qt.LeftButton
+                                        && (souris.modifiers & Qt.ShiftModifier))) {
+                                zonePeinture.panActif = true
+                                zonePeinture.departPan = zonePeinture.mapToItem(
+                                    cadreApercu, souris.x, souris.y)
+                                return
+                            }
                             if (fenetre.outil === "pinceau") {
                                 fenetre.traitEnCours = null
                                 fenetre.ajouterPoint(souris.x, souris.y)
                             }
                         }
-                        onReleased: if (fenetre.outil === "pinceau") fenetre.terminerTrait()
+                        onReleased: {
+                            if (zonePeinture.panActif) {
+                                zonePeinture.panActif = false
+                                return
+                            }
+                            if (fenetre.outil === "pinceau") fenetre.terminerTrait()
+                        }
                     }
+                }
                 }
             }
         }
@@ -545,6 +635,88 @@ PanelWindow {
                         enabled: !fenetre.travail && fenetre.contourEnCours.length >= 3
                         cursorShape: Qt.PointingHandCursor
                         onClicked: fenetre.fermerContour()
+                    }
+                }
+
+                // Zoom : mêmes commandes dans les deux outils.
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Zoom"
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    Repeater {
+                        model: [{ signe: "−", facteur: 0.8 },
+                                { signe: "+", facteur: 1.25 }]
+
+                        Rectangle {
+                            required property var modelData
+                            width: 24
+                            height: 26
+                            radius: 6
+                            color: Theme.surfaceVariant
+                            border.color: Qt.alpha(Theme.fg, 0.25)
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.signe
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: !fenetre.travail
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: fenetre.zoomer(modelData.facteur,
+                                                          cadreApercu.width / 2,
+                                                          cadreApercu.height / 2)
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: 42
+                        horizontalAlignment: Text.AlignHCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.round(fenetre.zoom * 100) + " %"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        font.features: { "tnum": 1 }
+                    }
+
+                    Rectangle {
+                        width: 42
+                        height: 26
+                        radius: 6
+                        color: Theme.surfaceVariant
+                        border.color: Qt.alpha(Theme.fg, 0.25)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "1:1"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: !fenetre.travail
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                fenetre.zoom = 1
+                                fenetre.ox = 0
+                                fenetre.oy = 0
+                                canvasPeinture.requestPaint()
+                            }
+                        }
                     }
                 }
 
