@@ -3923,15 +3923,6 @@ Rectangle {
                             }
                         }
 
-                        Text {
-                            width: parent.width
-                            text: "La capture est relancée à chaque réglage : c'est voulu, un redémarrage du flux à chaque pixel serait pire que le défaut. "
-                                  + "Le rendu (onde ou barres) se choisit dans la ligne de l'applet ; ces valeurs valent pour les deux."
-                            color: Qt.alpha(Theme.fg, 0.45)
-                            font.pixelSize: Math.max(9, Theme.textXs - 1)
-                            wrapMode: Text.WordWrap
-                        }
-
                         Row {
                             width: parent.width
                             spacing: 8
