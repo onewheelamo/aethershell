@@ -484,18 +484,18 @@ PanelWindow {
                             const c = zonePeinture.mapToItem(cadreApercu, zonePeinture.mouseX,
                                                              zonePeinture.mouseY)
                             const grossir = roue.angleDelta.y > 0
-                            // Molette = zoom, dans les deux outils. La taille du
-                            // pinceau se règle avec Ctrl + molette ou au rail,
-                            // pour que le même geste zoome partout.
-                            if (roue.modifiers & Qt.ControlModifier) {
+                            // Molette = zoom, dans les deux outils, avec ou sans
+                            // Ctrl (les deux marchent : c'est le geste qu'on a
+                            // dans les doigts). La taille du pinceau passe par
+                            // Alt + molette ou par le rail.
+                            if (roue.modifiers & Qt.AltModifier) {
                                 const pas = grossir ? 6 : -6
                                 fenetre.pinceau = Math.max(10, Math.min(300,
                                                                         fenetre.pinceau + pas))
-                                roue.accepted = true
                             } else {
                                 fenetre.zoomer(grossir ? 1.25 : 0.8, c.x, c.y)
-                                roue.accepted = true
                             }
+                            roue.accepted = true
                         }
 
                         // Déplacement dans la vue grossie : bouton du milieu, ou
@@ -551,6 +551,27 @@ PanelWindow {
                         }
                     }
                 }
+                }
+
+                // Rappel des gestes, posé sur la vignette mais **hors** de la vue
+                // zoomée pour rester lisible à 400 %.
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 10
+                    width: rappel.implicitWidth + 16
+                    height: rappel.implicitHeight + 10
+                    radius: 6
+                    color: Qt.alpha("#000000", 0.55)
+
+                    Text {
+                        id: rappel
+                        anchors.centerIn: parent
+                        text: "molette ou Ctrl + molette : zoom  ·  Maj + glisser : déplacer"
+                              + (fenetre.outil === "pinceau" ? "  ·  Alt + molette : taille" : "")
+                        color: Qt.alpha("#ffffff", 0.85)
+                        font.pixelSize: Theme.textXs
+                    }
                 }
             }
         }
