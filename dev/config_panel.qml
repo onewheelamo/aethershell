@@ -224,10 +224,11 @@ Rectangle {
     readonly property var ongletDeSection: ({
         "esthetique_theme": 0, "esthetique_aspect": 0, "quickshell_barre": 0,
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
-        "quickshell_visualiseur": 1, "quickshell_notifications": 1,
+        "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_api": 2,
         "systeme_nuit": 3,
         "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
+        "quickshell_notifications": 5,
         "greeter_theme": 6,
         "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7,
         "donnees_localisation": 7
@@ -2061,7 +2062,7 @@ Rectangle {
                 id: secAspect
                 title: "Hyprland"
                 icon: "cog"
-                expanded: root.sectionOpen("esthetique_aspect", true)
+                expanded: root.sectionOpen("esthetique_aspect", false)
                 onToggled: expanded => root.setPanelSection("esthetique_aspect", expanded)
 
             Grid {
@@ -2625,7 +2626,7 @@ Rectangle {
                 objectName: "secBarre"
                 title: "Barre & surfaces"
                 icon: "monitor"
-                expanded: root.sectionOpen("quickshell_barre", true)
+                expanded: root.sectionOpen("quickshell_barre", false)
                 onToggled: expanded => root.setPanelSection("quickshell_barre", expanded)
 
                 Grid {
@@ -3010,77 +3011,6 @@ Rectangle {
 
 
 
-            // Notifications : un seul réglage global ici, la bascule « ne pas
-            // déranger ». Elle coupe les toasts ; l'historique continue de se
-            // remplir, et la cloche de la barre se barre.
-            CollapsibleSection {
-                id: secNotifs
-                objectName: "secNotifs"
-                title: "Notifications"
-                icon: "bell"
-                expanded: root.sectionOpen("quickshell_notifications", false)
-                onToggled: expanded => root.setPanelSection("quickshell_notifications", expanded)
-
-                Column {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: parent.width
-                        text: "« Ne pas déranger » n'affiche plus aucun toast : les notifications "
-                            + "arrivent quand même dans le centre et dans l'historique."
-                        color: Qt.alpha(Theme.fg, 0.6)
-                        font.pixelSize: Theme.textXs
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Item {
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Ne pas déranger"
-                            color: root.dndActif ? Theme.accent : Theme.fg
-                            font.pixelSize: Theme.textSm
-                        }
-
-                        Rectangle {
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 44
-                            height: 22
-                            radius: 11
-                            color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
-
-                            Rectangle {
-                                width: 18
-                                height: 18
-                                radius: 9
-                                y: 2
-                                x: root.dndActif ? parent.width - width - 2 : 2
-                                color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
-                                Behavior on x { NumberAnimation { duration: 130 } }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.reglerDnd(!root.dndActif)
-                            }
-                        }
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: root.dndActif ? "Actif : aucun toast ne s'affiche." : "Inactif : les toasts s'affichent normalement."
-                        color: Qt.alpha(Theme.fg, 0.5)
-                        font.pixelSize: Theme.textXs
-                    }
-                }
-            }
-
             // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
             // applet reste invisible : on le dit, sinon le réglage semble cassé.
             CollapsibleSection {
@@ -3088,7 +3018,7 @@ Rectangle {
                 objectName: "secBarres"
                 title: "Barres supplémentaires"
                 icon: "monitor"
-                expanded: root.sectionOpen("quickshell_barres", false)
+                expanded: root.sectionOpen("quickshell_barres", true)
                 onToggled: expanded => root.setPanelSection("quickshell_barres", expanded)
 
                 Column {
@@ -3225,7 +3155,7 @@ Rectangle {
                 objectName: "secApplets"
                 title: "Applets de la barre"
                 icon: "widgets"
-                expanded: root.sectionOpen("quickshell_applets", true)
+                expanded: root.sectionOpen("quickshell_applets", false)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_applets", expanded)
                     if (expanded) disquesListeProc.running = true
@@ -3950,7 +3880,10 @@ Rectangle {
                 objectName: "secWidgets"
                 title: "Widgets du bureau"
                 icon: "widgets"
-                expanded: true
+                // État persisté comme les autres tiroirs ; ouvert par défaut,
+                // c'est le premier de l'onglet « Bureau & Lanceur ».
+                expanded: root.sectionOpen("widgets", true)
+                onToggled: expanded => root.setPanelSection("widgets", expanded)
 
                 Column {
                     width: parent.width
@@ -4863,7 +4796,7 @@ Rectangle {
                 objectName: "secLocalisation"
                 title: "Localisation"
                 icon: "cloud"
-                expanded: root.sectionOpen("donnees_localisation", false)
+                expanded: root.sectionOpen("donnees_localisation", true)
                 onToggled: expanded => root.setPanelSection("donnees_localisation", expanded)
 
                 Column {
@@ -6200,7 +6133,7 @@ Rectangle {
                 objectName: "secNuit"
                 title: "Mode nuit"
                 icon: "weather-night"
-                expanded: root.sectionOpen("systeme_nuit", false)
+                expanded: root.sectionOpen("systeme_nuit", true)
                 onToggled: expanded => root.setPanelSection("systeme_nuit", expanded)
 
                 Column {
@@ -7003,6 +6936,77 @@ Rectangle {
             }
             }   // end CollapsibleSection secApps
 
+            // Notifications : un seul réglage global ici, la bascule « ne pas
+            // déranger ». Elle coupe les toasts ; l'historique continue de se
+            // remplir, et la cloche de la barre se barre.
+            CollapsibleSection {
+                id: secNotifs
+                objectName: "secNotifs"
+                title: "Notifications"
+                icon: "bell"
+                expanded: root.sectionOpen("quickshell_notifications", false)
+                onToggled: expanded => root.setPanelSection("quickshell_notifications", expanded)
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Text {
+                        width: parent.width
+                        text: "« Ne pas déranger » n'affiche plus aucun toast : les notifications "
+                            + "arrivent quand même dans le centre et dans l'historique."
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.textXs
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        width: parent.width
+                        height: 30
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Ne pas déranger"
+                            color: root.dndActif ? Theme.accent : Theme.fg
+                            font.pixelSize: Theme.textSm
+                        }
+
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 44
+                            height: 22
+                            radius: 11
+                            color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                            Rectangle {
+                                width: 18
+                                height: 18
+                                radius: 9
+                                y: 2
+                                x: root.dndActif ? parent.width - width - 2 : 2
+                                color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                Behavior on x { NumberAnimation { duration: 130 } }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.reglerDnd(!root.dndActif)
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: root.dndActif ? "Actif : aucun toast ne s'affiche." : "Inactif : les toasts s'affichent normalement."
+                        color: Qt.alpha(Theme.fg, 0.5)
+                        font.pixelSize: Theme.textXs
+                    }
+                }
+            }
+
             // Cible du clic sur le titre d'une notification (core/notif_targets.json).
             // Aucun programme n'est écrit ici : les alias renvoient au tiroir
             // « Programmes par défaut » ci-dessus. Le résolveur relit le fichier à
@@ -7412,7 +7416,7 @@ Rectangle {
                 objectName: "secAutostart"
                 title: "Programmes lancés au démarrage"
                 icon: "power"
-                expanded: root.sectionOpen("apps_autostart", true)
+                expanded: root.sectionOpen("apps_autostart", false)
                 onToggled: expanded => root.setPanelSection("apps_autostart", expanded)
 
             Text {
