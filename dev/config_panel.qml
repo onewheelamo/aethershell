@@ -256,6 +256,7 @@ Rectangle {
         const onglet = root.ongletDeSection[section]
         if (onglet !== undefined) root.currentTab = onglet
         root.setPanelSection(section, true)
+        if (Theme.panelAccordion) root.fermerAutresTiroirs(section)
         const ancre = root.ancreDeSection[section] || ""
         if (ancre !== "") {
             root.scrollTargetName = ancre
@@ -922,14 +923,30 @@ Rectangle {
     // Applique l'état persisté à tous les tiroirs : l'état est la seule source
     // de vérité, donc un tiroir ouvert en referme un autre sans course.
     function rafraichirTiroirs() {
+        // Un seul tiroir ouvert par onglet, et c'est le premier marqué ouvert :
+        // l'invariant est tenu ici plutôt que dans chaque bascule, sinon l'ordre
+        // des écritures peut laisser deux tiroirs ouverts (cas vu avec le
+        // visualiseur sous les applets).
+        const ouvertParOnglet = ({})
+        for (const nom in root.tiroirs) {
+            if (!root.sectionOpen(nom, false)) continue
+            const onglet = root.ongletDeSection[nom]
+            if (ouvertParOnglet[onglet] === undefined) ouvertParOnglet[onglet] = nom
+        }
         for (const nom in root.tiroirs) {
             const tiroir = root.tiroirs[nom]
             if (!tiroir) continue
-            const voulu = root.sectionOpen(nom, false)
+            const voulu = Theme.panelAccordion
+                ? (ouvertParOnglet[root.ongletDeSection[nom]] === nom)
+                : root.sectionOpen(nom, false)
             if (tiroir.expanded !== voulu) tiroir.expanded = voulu
         }
     }
 
+    // Seul endroit qui décide : à l'ouverture d'un tiroir, ceux du même onglet
+    // sont refermés **dans la même écriture d'état**. L'ordre des écritures ne
+    // peut donc plus laisser deux tiroirs ouverts (cas vu avec le visualiseur
+    // sous les applets).
     function setPanelSection(name, expanded) {
         const s = Object.assign({}, root.panelSections)
         const fermes = []
@@ -953,301 +970,20 @@ Rectangle {
         if (expanded) recentrage.restart()
     }
 
-    // Réduire un tiroir au-dessus décale tout : sans ce recentrage, le tiroir
-    // qu'on vient d'ouvrir pouvait se retrouver hors de vue et le clic semblait
-    // sans effet. On place son en-tête sous le bandeau collant.
-    function amenerTiroirEnHaut(nom) {
-        const tiroir = root.tiroirs[nom]
-        if (!tiroir) return
-        const y = tiroir.mapToItem(mainFlickable.contentItem, 0, 0).y
-        const marge = root.tiroirCollant !== "" ? 44 : 10
-        const maxY = Math.max(0, mainFlickable.contentHeight - mainFlickable.height)
-        mainFlickable.contentY = Math.max(0, Math.min(y - marge, maxY))
-    }
-
-    function replierTiroirCollant() {
-        const nom = root.tiroirCollant
-        const tiroir = root.tiroirs[nom]
-        if (tiroir) tiroir.expanded = false
-        root.setPanelSection(nom, false)
-        root.tiroirCollant = ""
-    }
-
-    // La commande écrit bar_applets.json ; on relit la liste juste après.
-    Timer {
-        id: vizRafraichir
-        interval: 350
-        repeat: false
-        onTriggered: root.appletsRafraichir()
-    }
-
-    function basculerVisualiseur() {
-        root.appletCommande([root.vizActif ? "desactiver" : "activer", "visualiseur"])
-        vizRafraichir.restart()
-    }
-
-    function appletCommande(args) {
-        appletsCmdProc.command = ["python3", Quickshell.shellPath("core/bar_applets.py")].concat(args)
-        appletsCmdProc.running = true
-    }
-
-    // Placer un applet dans une barre éteinte le rendrait invisible : on allume
-    // la barre dans le même geste. C'était le cas vécu « je choisis → et l'applet
-    // disparaît ».
-    function placerApplet(id, ile) {
-        appletCommande(["placer", id, ile])
-        if (ile === "bas" && !Theme.barBottomVisible)
-            runConfigCmd(["style", "bar_bottom", "true"])
-        else if (ile === "cote-gauche" && !Theme.barLeftVisible)
-            runConfigCmd(["style", "bar_left", "true"])
-        else if (ile === "cote-droite" && !Theme.barRightVisible)
-            runConfigCmd(["style", "bar_right", "true"])
-    }
-
-    // ── Disques : la sélection se fait sur la liste réelle des montages ──────
-    property var disquesListe: []
-
-    Process {
-        id: disquesListeProc
-        command: ["python3", Quickshell.shellPath("core/disques_applet.py"), "liste"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.disquesListe = Array.isArray(d.montages) ? d.montages : []
-                } catch (e) {
-                    root.disquesListe = []
-                }
-            }
+    // Accordéon : ouvrir un tiroir referme ceux du même onglet.
+    function fermerAutresTiroirs(cle) {
+        const onglet = root.ongletDeSection[cle]
+        if (onglet === undefined) return
+        for (const autre in root.tiroirs) {
+            if (autre === cle) continue
+            if (root.ongletDeSection[autre] !== onglet) continue
+            if (root.sectionOpen(autre, false) === false) continue
+            const s = Object.assign({}, root.panelSections)
+            s[autre] = false
+            root.panelSections = s
+            root.runConfigCmd(["panel_section", autre, "false"])
         }
-    }
-
-    // Sans choix enregistré, le service affiche tout sauf la racine : la case doit
-    // refléter ce défaut, sinon la première coche décocherait tout le reste.
-    function montagesChoisis(donnee) {
-        const o = (donnee && donnee.options) || ({})
-        if (Array.isArray(o.montages)) return o.montages.slice()
-        const defaut = []
-        for (let i = 0; i < root.disquesListe.length; ++i) {
-            const m = String(root.disquesListe[i].montage || "")
-            if (m !== "" && m !== "/") defaut.push(m)
-        }
-        return defaut
-    }
-
-    function montageCoche(donnee, montage) {
-        return montagesChoisis(donnee).indexOf(String(montage)) >= 0
-    }
-
-    // L'entrée telle que le panneau la connaît **maintenant** : le délégué peut
-    // porter un `modelData` périmé, et c'est ce qui faisait repartir la sélection
-    // du défaut (tout sauf la racine) au lieu du choix courant.
-    function entreeApplet(id) {
-        const cle = String(id || "")
-        for (let i = 0; i < root.appletRows.length; ++i) {
-            if (String(root.appletRows[i].id) === cle) return root.appletRows[i]
-        }
-        return null
-    }
-
-    function basculerMontage(donnee, montage) {
-        const vive = entreeApplet(donnee && donnee.id) || donnee
-        const liste = montagesChoisis(vive)
-        const i = liste.indexOf(String(montage))
-        if (i >= 0) liste.splice(i, 1)
-        else liste.push(String(montage))
-        appletCommande(["option", (vive && vive.id) || donnee.id, "montages", JSON.stringify(liste)])
-    }
-
-    function appletBasculer(id, actif) {
-        appletCommande([actif ? "desactiver" : "activer", id])
-    }
-
-    function appletEchelle(id, valeur) {
-        const v = Math.max(60, Math.min(160, Math.round(valeur)))
-        appletCommande(["echelle", id, String(v)])
-    }
-
-    // Fichiers suivis par le widget Tâches : une option vide veut dire « tous »,
-    // donc on matérialise la liste complète avant d'en retirer un — sinon la
-    // première case décochée ne changerait rien.
-    function basculerFichierWidget(wid, nom) {
-        let vive = null
-        for (let i = 0; i < root.widgetsList.length; ++i) {
-            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
-        }
-        if (!vive) return
-        const o = vive.options || ({})
-        let liste = Array.isArray(o.fichiers)
-                  ? o.fichiers.map(function (s) { return String(s) })
-                  : (typeof o.fichiers === "string" && o.fichiers !== ""
-                     ? o.fichiers.split(",").map(function (s) { return s.trim() }) : [])
-        liste = liste.filter(function (s) { return s !== "" })
-        if (liste.length === 0) {
-            for (let i = 0; i < root.todoFichiers.length; ++i)
-                liste.push(String(root.todoFichiers[i].nom || ""))
-        }
-        const i = liste.indexOf(String(nom))
-        if (i >= 0) liste.splice(i, 1)
-        else liste.push(String(nom))
-        root.runConfigCmd(["widget_set", wid, "fichiers", JSON.stringify(liste)])
-    }
-
-    // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
-    // toutes ses instances — il ne doit pas y en avoir plusieurs.
-    function toggleWidgetType(nature, present) {
-        if (present) {
-            for (let i = 0; i < widgetsList.length; i++) {
-                if (String(widgetsList[i].type) === String(nature))
-                    root.runConfigCmd(["widget_remove", widgetsList[i].id])
-            }
-            return
-        }
-        root.runConfigCmd(["widget_add", String(nature), "1", "120", "160"])
-    }
-    property string launcherPosition: "bas-centre"
-    property var appVarsModel: []
-    // Cible du clic sur une notification (core/notif_targets.json) : lignes
-    // dérivées pour la section « Cible du clic sur une notification ».
-    property var notifTargets: ({ "apps": ({}), "types": ({}), "url": "Browser" })
-    readonly property var notifTypeRows: [
-        { nature: "video",  label: "Vidéo",   alias: String(root.notifTargets.types.video || "") },
-        { nature: "image",  label: "Image",   alias: String(root.notifTargets.types.image || "") },
-        { nature: "folder", label: "Dossier", alias: String(root.notifTargets.types.folder || "") },
-        { nature: "text",   label: "Texte",   alias: String(root.notifTargets.types.text || "") }
-    ]
-    readonly property var notifAppRows: {
-        const out = []
-        const apps = root.notifTargets.apps || ({})
-        for (const key in apps) {
-            const rule = apps[key]
-            const command = (rule && typeof rule === "object") ? String(rule.run || "") : String(rule || "")
-            out.push({ key: key, command: command,
-                       terminal: Boolean(rule && typeof rule === "object" && rule.terminal) })
-        }
-        return out
-    }
-    property var autostartModel: []
-    property bool batLimit80: false
-
-    // Selected color key for live hex editing in Appearance tab
-    property string selectedColorKey: "accent"
-    property string selectedColorHex: Theme.accent
-    property string wallpaperDir: Theme.wallpaperDir || "$HOME/Images/wallpapers/"
-    property string matugenScheme: "scheme-tonal-spot"
-    property real matugenContrast: 0
-    property bool blurEnabled: true
-    property bool launchHistory: false
-    property int blurSize: 3
-    property int blurPasses: 3
-    property real blurVibrancy: 0.17
-    // Variante du flou (decoration:blur:variant) : le panneau gagne, la valeur
-    // est rangée dans style_vars.json et Theme.qml l'applique à chaud.
-    property string blurVariant: "acrylic"
-    // Les onze variantes que Hyprland 0.57 accepte en clair ; l'ordre suit le
-    // binaire (kawase 0 … haze 10). Les libellés sont mis en forme, la clé
-    // reste le nom brut que `hl.config` attend.
-    readonly property var blurVariantChoix: [
-        { key: "kawase",       label: "Kawase" },
-        { key: "frost",        label: "Frost" },
-        { key: "ripple",       label: "Ripple" },
-        { key: "drops",        label: "Drops" },
-        { key: "water",        label: "Water" },
-        { key: "fluid_jar",    label: "Fluid jar" },
-        { key: "prism",        label: "Prism" },
-        { key: "heat_shimmer", label: "Heat shimmer" },
-        { key: "acrylic",      label: "Acrylic" },
-        { key: "aurora",       label: "Aurora" },
-        { key: "haze",         label: "Haze" }
-    ]
-    // Flou des surfaces layer-shell du shell (layer rules de general.lua)
-    property bool shellBlurEnabled: true
-    property bool barBorder: true
-    // Espaces entre les îlots de la barre du haut : transparents et sans flou
-    property bool barGapsTransparent: false
-    // Visualiseur audio (style_vars) : capture et dessin.
-    property int vizFps: 30
-    property int vizCols: 96
-    property real vizSensibilite: 1.0
-    property real vizLissage: 0.2
-    property real vizEpaisseur: 1.4
-    property string vizCouleur: "accent"
-    // Jetons proposés au visualiseur — les mêmes que VIZ_COULEURS dans
-    // core/config_manager.py, qui refuse tout le reste.
-    readonly property var vizCouleurs: [
-        { code: "accent", nom: "Accent" },
-        { code: "accentMuted", nom: "Accent 2" },
-        { code: "fg", nom: "Texte" },
-        { code: "warn", nom: "Alerte" },
-        { code: "success", nom: "Succès" }
-    ]
-    function couleurViz(code) {
-        return code === "accentMuted" ? Theme.accentMuted
-             : code === "fg" ? Theme.fg
-             : code === "warn" ? Theme.warn
-             : code === "success" ? Theme.success
-             : Theme.accent
-    }
-    property real shellBlurAlpha: 0.4
-    property bool shellBlurPopups: true
-    property int resizeStep: 15
-    property var panelSections: ({})
-
-    // Table nom de section → objet, pour pouvoir replier les tiroirs d'un onglet.
-    // Les sections sont nommées parce qu'une section réécrit elle-même son
-    // `expanded` au clic : la liaison est alors perdue, il faut donc agir dessus.
-    readonly property var tiroirs: ({
-        "esthetique_theme": secTheme,
-        "esthetique_aspect": secAspect,
-        "quickshell_barre": secBarre,
-        "quickshell_barres": secBarres,
-        "quickshell_applets": secApplets,
-        "quickshell_visualiseur": secVisualiseur,
-        "widgets": secWidgets,
-        "widgets_api": secApiKeys,
-        "donnees_localisation": secLocalisation,
-        "quickshell_calendrier": secCalendrier,
-        "widgets_homelab": secHomelab,
-        "taches_fichiers": secTaches,
-        "systeme_nuit": secNuit,
-        "apps_programs": secApps,
-        "quickshell_notifications": secNotifs,
-        "apps_notif_targets": secNotifTargets,
-        "apps_autostart": secAutostart
-    })
-
-    // Applique l'état persisté à tous les tiroirs : l'état est la seule source
-    // de vérité, donc un tiroir ouvert en referme un autre sans course.
-    function rafraichirTiroirs() {
-        for (const nom in root.tiroirs) {
-            const tiroir = root.tiroirs[nom]
-            if (!tiroir) continue
-            const voulu = root.sectionOpen(nom, false)
-            if (tiroir.expanded !== voulu) tiroir.expanded = voulu
-        }
-    }
-
-    function setPanelSection(name, expanded) {
-        const s = Object.assign({}, root.panelSections)
-        const fermes = []
-        if (expanded && Theme.panelAccordion) {
-            const onglet = root.ongletDeSection[name]
-            for (const autre in root.tiroirs) {
-                if (autre === name) continue
-                if (root.ongletDeSection[autre] !== onglet) continue
-                if (s[autre] === false) continue
-                s[autre] = false
-                fermes.push(autre)
-            }
-        }
-        s[name] = expanded
-        root.panelSections = s
-        root.runConfigCmd(["panel_section", name, String(expanded)])
-        for (let i = 0; i < fermes.length; ++i)
-            root.runConfigCmd(["panel_section", fermes[i], "false"])
         root.rafraichirTiroirs()
-        majEnteteCollant()
-        if (expanded) recentrage.restart()
     }
 
     function refreshConfigState() {
@@ -2077,7 +1813,10 @@ Rectangle {
                 title: "Thème & Fond d'écran"
                 icon: "palette"
                 expanded: root.sectionOpen("esthetique_theme", true)
-                onToggled: expanded => root.setPanelSection("esthetique_theme", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("esthetique_theme", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_theme")
+                }
 
                 Text {
                     text: "Jeux de couleurs & Fond d'écran"
@@ -2549,7 +2288,10 @@ Rectangle {
                 title: "Hyprland"
                 icon: "cog"
                 expanded: root.sectionOpen("esthetique_aspect", false)
-                onToggled: expanded => root.setPanelSection("esthetique_aspect", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("esthetique_aspect", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_aspect")
+                }
 
             Grid {
                 width: parent.width
@@ -3113,7 +2855,10 @@ Rectangle {
                 title: "Barre & surfaces"
                 icon: "monitor"
                 expanded: root.sectionOpen("quickshell_barre", false)
-                onToggled: expanded => root.setPanelSection("quickshell_barre", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_barre", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barre")
+                }
 
                 Grid {
                     width: parent.width
@@ -3552,7 +3297,10 @@ Rectangle {
                 title: "Barres supplémentaires"
                 icon: "monitor"
                 expanded: root.sectionOpen("quickshell_barres", true)
-                onToggled: expanded => root.setPanelSection("quickshell_barres", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_barres", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barres")
+                }
 
                 Column {
                     width: parent.width
@@ -4100,7 +3848,10 @@ Rectangle {
                                                   || "Disques affichés")
                                     icon: "disque"
                                     expanded: root.sectionOpen("quickshell_disques", false)
-                                    onToggled: expanded => root.setPanelSection("quickshell_disques", expanded)
+                                    onToggled: expanded => {
+                    root.setPanelSection("quickshell_disques", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_disques")
+                }
 
                                     Grid {
                                         id: grilleDisques
@@ -4258,7 +4009,10 @@ Rectangle {
                     title: "Visualiseur audio"
                     icon: "music"
                     expanded: root.sectionOpen("quickshell_visualiseur", false)
-                    onToggled: expanded => root.setPanelSection("quickshell_visualiseur", expanded)
+                    onToggled: expanded => {
+                    root.setPanelSection("quickshell_visualiseur", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_visualiseur")
+                }
 
                     Column {
                         width: parent.width
@@ -4460,7 +4214,10 @@ Rectangle {
                 // État persisté comme les autres tiroirs ; ouvert par défaut,
                 // c'est le premier de l'onglet « Bureau & Lanceur ».
                 expanded: root.sectionOpen("widgets", true)
-                onToggled: expanded => root.setPanelSection("widgets", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("widgets", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets")
+                }
 
                 Column {
                     width: parent.width
@@ -5224,7 +4981,10 @@ Rectangle {
                 title: "Accès API"
                 icon: "lock"
                 expanded: root.sectionOpen("widgets_api", false)
-                onToggled: expanded => root.setPanelSection("widgets_api", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("widgets_api", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets_api")
+                }
 
                 Column {
                     width: parent.width
@@ -5374,7 +5134,10 @@ Rectangle {
                 title: "Localisation"
                 icon: "cloud"
                 expanded: root.sectionOpen("donnees_localisation", true)
-                onToggled: expanded => root.setPanelSection("donnees_localisation", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("donnees_localisation", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("donnees_localisation")
+                }
 
                 Column {
                     width: parent.width
@@ -5616,7 +5379,10 @@ Rectangle {
                 expanded: root.sectionOpen("quickshell_calendrier", false)
                 onToggled: expanded => {
                     root.setPanelSection("quickshell_calendrier", expanded)
-                    if (expanded) ncEtatProc.running = true
+                    if (expanded) {
+                        if (Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_calendrier")
+                        ncEtatProc.running = true
+                    }
                 }
                 Component.onCompleted: ncEtatProc.running = true
 
@@ -5753,7 +5519,10 @@ Rectangle {
                 title: "Homelab (Proxmox)"
                 icon: "cloud-check"
                 expanded: root.sectionOpen("widgets_homelab", false)
-                onToggled: expanded => root.setPanelSection("widgets_homelab", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("widgets_homelab", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets_homelab")
+                }
 
                 Column {
                     width: parent.width
@@ -5980,7 +5749,10 @@ Rectangle {
                 title: "Tâches — fichiers suivis"
                 icon: "check"
                 expanded: root.sectionOpen("taches_fichiers", false)
-                onToggled: expanded => root.setPanelSection("taches_fichiers", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("taches_fichiers", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("taches_fichiers")
+                }
 
                 Column {
                     width: parent.width
@@ -6711,7 +6483,10 @@ Rectangle {
                 title: "Mode nuit"
                 icon: "weather-night"
                 expanded: root.sectionOpen("systeme_nuit", true)
-                onToggled: expanded => root.setPanelSection("systeme_nuit", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("systeme_nuit", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_nuit")
+                }
 
                 Column {
                     width: parent.width
@@ -7207,7 +6982,10 @@ Rectangle {
                 title: "Programmes par défaut des raccourcis"
                 icon: "rocket"
                 expanded: root.sectionOpen("apps_programs", true)
-                onToggled: expanded => root.setPanelSection("apps_programs", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("apps_programs", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_programs")
+                }
 
             // Historique des lancements de la pilule (style_vars.json : launch_history)
             Row {
@@ -7522,7 +7300,10 @@ Rectangle {
                 title: "Notifications"
                 icon: "bell"
                 expanded: root.sectionOpen("quickshell_notifications", false)
-                onToggled: expanded => root.setPanelSection("quickshell_notifications", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_notifications", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_notifications")
+                }
 
                 Column {
                     width: parent.width
@@ -7594,7 +7375,10 @@ Rectangle {
                 title: "Cible du clic sur une notification"
                 icon: "history"
                 expanded: root.sectionOpen("apps_notif_targets", false)
-                onToggled: expanded => root.setPanelSection("apps_notif_targets", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("apps_notif_targets", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_notif_targets")
+                }
 
                 Column {
                     width: parent.width
@@ -7994,7 +7778,10 @@ Rectangle {
                 title: "Programmes lancés au démarrage"
                 icon: "power"
                 expanded: root.sectionOpen("apps_autostart", false)
-                onToggled: expanded => root.setPanelSection("apps_autostart", expanded)
+                onToggled: expanded => {
+                    root.setPanelSection("apps_autostart", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_autostart")
+                }
 
             Text {
                 text: "Autostart Hyprland (effectif au prochain démarrage de session)"
