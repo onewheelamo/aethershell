@@ -1,381 +1,388 @@
 {
-    "version": 1,
-    "_doc": [
-        "Catalogue des applets connus du shell. Un applet est décrit ici une fois",
-        "et une seule : c'est ce qui interdit les doublons — un applet ne peut pas",
-        "être posé deux fois, il a un emplacement, pas des instances.",
-        "L'état de l'utilisateur (actif, îlot, ordre, échelle) vit dans",
-        "bar_applets.json, qui est préservé au déploiement. Absent de ce fichier =",
-        "applet éteint : les applets sont opt-in (décision du 05/11)."
-    ],
-    "applets": [
+  "version": 1,
+  "_doc": [
+    "Catalogue des applets connus du shell. Un applet est décrit ici une fois",
+    "et une seule : c'est ce qui interdit les doublons — un applet ne peut pas",
+    "être posé deux fois, il a un emplacement, pas des instances.",
+    "L'état de l'utilisateur (actif, îlot, ordre, échelle) vit dans",
+    "bar_applets.json, qui est préservé au déploiement. Absent de ce fichier =",
+    "applet éteint : les applets sont opt-in (décision du 05/11)."
+  ],
+  "applets": [
+    {
+      "id": "musique",
+      "nom": "Morceau en cours",
+      "description": "Titre et artiste ; clic pour les contrôles de lecture",
+      "categorie": "Médias & bureaux",
+      "icone": "music",
+      "service": "core/musique_applet.py",
+      "_popup_externe": "panneau autonome : il apporte sa fenêtre et se place selon la barre",
+      "popup_cle": "media",
+      "popup": "MediaPanneau.qml",
+      "ile": "centre",
+      "ordre": 10,
+      "cadence": 1,
+      "text_scale": 100,
+      "cases": [
         {
-            "id": "musique",
-            "nom": "Morceau en cours",
-            "description": "Titre et artiste ; clic pour les contrôles de lecture",
-            "categorie": "Médias & bureaux",
-            "icone": "music",
-            "service": "core/musique_applet.py",
-            "_popup_externe": "panneau autonome : il apporte sa fenêtre et se place selon la barre",
-            "popup_cle": "media",
-            "popup": "MediaPanneau.qml",
-            "ile": "centre",
-            "ordre": 10,
-            "cadence": 1,
-            "text_scale": 100,
-            "cases": [
-                {
-                    "cle": "ignorer_navigateurs",
-                    "libelle": "Ignorer les navigateurs",
-                    "defaut": true
-                }
-            ]
-        },
-        {
-            "id": "visualiseur",
-            "nom": "Visualiseur audio",
-            "description": "Onde ou barres de fréquences dans les espaces entre les îlots ; emplacement fixe, de part et d'autre de l'îlot central",
-            "categorie": "Médias & bureaux",
-            "genre": "qml",
-            "composant": "",
-            "ile": "haut:milieu",
-            "ordre": 5,
-            "text_scale": 100,
-            "fixe": true,
-            "choix": {
-                "cle": "style",
-                "libelle": "Rendu",
-                "valeurs": [
-                    {
-                        "code": "onde",
-                        "nom": "Onde"
-                    },
-                    {
-                        "code": "barres",
-                        "nom": "Barres"
-                    }
-                ]
-            },
-            "cases": [
-                {
-                    "cle": "ignorer_navigateurs",
-                    "libelle": "Ignorer les navigateurs",
-                    "defaut": true
-                }
-            ]
-        },
-        {
-            "id": "calendrier",
-            "nom": "Calendrier",
-            "description": "La date ; clic pour le mois et les événements Nextcloud",
-            "categorie": "Temps & notifications",
-            "icone": "calendar",
-            "service": "core/calendrier_applet.py",
-            "_popup_externe": "panneau autonome : il apporte sa fenêtre et se place selon la barre",
-            "popup_cle": "calendar",
-            "popup": "CalendrierPanneau.qml",
-            "ile": "centre",
-            "ordre": 20,
-            "cadence": 15,
-            "text_scale": 100
-        },
-        {
-            "id": "notifications",
-            "nom": "Notifications",
-            "description": "Cloche et compteur ; clic pour le centre de notifications",
-            "categorie": "Temps & notifications",
-            "genre": "qml",
-            "composant": "NotifsApplet.qml",
-            "ile": "droite",
-            "ordre": 60,
-            "text_scale": 100
-        },
-        {
-            "id": "maj",
-            "nom": "Mises à jour",
-            "description": "Paquets en attente (pacman ou dnf) ; clic pour lancer la mise à jour",
-            "categorie": "Session & énergie",
-            "genre": "qml",
-            "composant": "MajApplet.qml",
-            "ile": "droite",
-            "ordre": 70,
-            "text_scale": 100
-        },
-        {
-            "id": "reseau",
-            "nom": "Réseau",
-            "description": "Wi-Fi : réseau, signal ; clic pour la liste et la connexion",
-            "categorie": "Système & réseau",
-            "genre": "qml",
-            "composant": "ReseauApplet.qml",
-            "ile": "droite",
-            "ordre": 50,
-            "text_scale": 100
-        },
-        {
-            "id": "systray",
-            "nom": "Systray",
-            "description": "Icônes des applications en arrière-plan ; clic droit pour leur menu",
-            "categorie": "Système & réseau",
-            "genre": "qml",
-            "composant": "SystrayApplet.qml",
-            "ile": "droite",
-            "ordre": 40,
-            "text_scale": 100
-        },
-        {
-            "id": "luminosite",
-            "nom": "Luminosité & batterie",
-            "description": "Niveau de batterie et luminosité ; clic pour les réglages d'énergie",
-            "categorie": "Session & énergie",
-            "genre": "qml",
-            "composant": "LuminositeApplet.qml",
-            "ile": "haut:fin",
-            "ordre": 55,
-            "text_scale": 100
-        },
-        {
-            "id": "gestion-energie",
-            "nom": "Gestion de l'énergie",
-            "description": "Batterie, limite de charge 80 % et luminosité ; clic pour les régler",
-            "categorie": "Session & énergie",
-            "genre": "qml",
-            "composant": "GestionEnergieApplet.qml",
-            "ile": "haut:fin",
-            "ordre": 56,
-            "text_scale": 100
-        },
-        {
-            "id": "alimentation",
-            "nom": "Alimentation",
-            "description": "Verrouiller, fermer la session, veiller, redémarrer, éteindre",
-            "categorie": "Session & énergie",
-            "genre": "qml",
-            "composant": "PowerApplet.qml",
-            "ile": "droite",
-            "ordre": 90,
-            "text_scale": 100
-        },
-        {
-            "id": "workspaces",
-            "nom": "Bureaux",
-            "description": "Bureaux Hyprland ; molette pour passer de l'un à l'autre",
-            "categorie": "Médias & bureaux",
-            "genre": "qml",
-            "composant": "WorkspacesApplet.qml",
-            "ile": "gauche",
-            "ordre": 10,
-            "text_scale": 100
-        },
-        {
-            "id": "horloge",
-            "nom": "Horloge",
-            "description": "L'heure ; clic pour ouvrir le calendrier",
-            "categorie": "Temps & notifications",
-            "genre": "qml",
-            "composant": "HorlogeApplet.qml",
-            "ile": "centre",
-            "ordre": 5,
-            "text_scale": 100
-        },
-        {
-            "id": "volume",
-            "nom": "Volume",
-            "description": "Volume du haut-parleur ; molette pour régler, clic droit pour muet",
-            "categorie": "Système & réseau",
-            "genre": "qml",
-            "composant": "VolumeApplet.qml",
-            "ile": "droite",
-            "ordre": 30,
-            "text_scale": 100
-        },
-        {
-            "id": "systeme",
-            "nom": "Système",
-            "description": "CPU, RAM, GPU et température en jauges ; clic pour le détail",
-            "categorie": "Système & réseau",
-            "icone": "monitor",
-            "service": "core/systeme_applet.py",
-            "popup": "SystemePopup.qml",
-            "ile": "droite",
-            "ordre": 20,
-            "cadence": 1,
-            "text_scale": 100,
-            "options": {
-                "mesures": [
-                    "cpu",
-                    "ram",
-                    "gpu",
-                    "temp"
-                ]
-            },
-            "garde": true
-        },
-        {
-            "id": "comptes",
-            "nom": "Comptes LLM",
-            "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",
-            "categorie": "Services & IA",
-            "icone": "wallet",
-            "service": "core/comptes_applet.py",
-            "choix": {
-                "cle": "prefere",
-                "libelle": "Service affiché dans la barre",
-                "valeurs": [
-                    {
-                        "code": "deepseek",
-                        "nom": "DeepSeek"
-                    },
-                    {
-                        "code": "ollama",
-                        "nom": "Ollama"
-                    },
-                    {
-                        "code": "antigravity",
-                        "nom": "Antigravity"
-                    }
-                ]
-            },
-            "popup": "widgets/comptes.qml",
-            "ile": "droite",
-            "ordre": 10,
-            "cadence": 5,
-            "text_scale": 100
-        },
-        {
-            "id": "disques",
-            "nom": "Disques",
-            "description": "Occupation des systèmes de fichiers choisis ; clic pour le détail",
-            "categorie": "Système & réseau",
-            "icone": "disque",
-            "service": "core/disques_applet.py",
-            "popup": "DisquesPopup.qml",
-            "ile": "haut:fin",
-            "ordre": 65,
-            "cadence": 30,
-            "text_scale": 100,
-            "liste": {
-                "cle": "montages",
-                "libelle": "Systèmes de fichiers affichés"
-            }
-        },
-        {
-            "id": "meteo",
-            "nom": "Météo",
-            "description": "Température et condition ; clic pour le ressenti, le min/max et la ville",
-            "categorie": "Temps & notifications",
-            "icone": "cloud",
-            "service": "core/meteo_applet.py",
-            "popup": "MeteoPopup.qml",
-            "ile": "droite",
-            "ordre": 30,
-            "cadence": 10,
-            "text_scale": 100
-        },
-        {
-            "id": "homelab",
-            "nom": "Homelab",
-            "description": "Les invités Proxmox (CT et VM), les services systemd en échec et les hôtes qui répondent ; clic pour le détail et le redémarrage",
-            "categorie": "Services & IA",
-            "icone": "cloud-check",
-            "service": "core/homelab_applet.py",
-            "popup": "HomelabPopup.qml",
-            "ile": "haut:fin",
-            "ordre": 15,
-            "cadence": 60,
-            "text_scale": 100
-        },
-        {
-            "id": "presse-papiers",
-            "nom": "Presse-papiers",
-            "description": "Historique des copies récentes ; clic pour en reprendre une",
-            "categorie": "Médias & bureaux",
-            "icone": "selection",
-            "service": "core/presse_papiers_applet.py",
-            "popup": "PressePapiersPopup.qml",
-            "ile": "haut:fin",
-            "ordre": 25,
-            "cadence": 0.17,
-            "text_scale": 100
-        },
-        {
-            "id": "hermes",
-            "nom": "Hermes",
-            "description": "L'état de l'agent : tâche en cours, file d'attente, dernières exécutions, tâches planifiées",
-            "categorie": "Services & IA",
-            "icone": "rocket",
-            "service": "core/hermes_applet.py",
-            "popup": "HermesPopup.qml",
-            "ile": "haut:fin",
-            "ordre": 15,
-            "cadence": 0.17,
-            "text_scale": 100,
-            "widget": "hermes",
-            "genre": "service",
-            "garde": true
-        },
-        {
-            "id": "flotte",
-            "nom": "Flotte",
-            "genre": "service",
-            "description": "L'état des autres machines : charge, mémoire, barre vivante",
-            "categorie": "Services & IA",
-            "icone": "cloud",
-            "service": "core/flotte_applet.py",
-            "popup": "FlottePopup.qml",
-            "ile": "haut:fin",
-            "ordre": 12,
-            "cadence": 0.5,
-            "garde": true,
-            "text_scale": 100,
-            "options": {}
-        },
-        {
-            "id": "usb",
-            "nom": "Périphériques",
-            "description": "Clés USB, cartes SD et disques optiques : voir, monter, déverrouiller, ouvrir et retirer sans risque",
-            "categorie": "Système & matériel",
-            "icone": "usb",
-            "service": "core/usb_applet.py",
-            "popup": "UsbPopup.qml",
-            "ile": "haut:fin",
-            "ordre": 60,
-            "cadence": 0.5,
-            "text_scale": 100,
-            "genre": "service",
-            "options": {
-                "masquer_vide": true
-            },
-            "widget": "usb",
-            "choix": {
-                "cle": "masquer_vide",
-                "libelle": "Quand rien n'est branché",
-                "valeurs": [
-                    {
-                        "code": "oui",
-                        "nom": "Masquer l'applet"
-                    },
-                    {
-                        "code": "non",
-                        "nom": "Afficher « 0 »"
-                    }
-                ]
-            }
-        },
-        {
-            "id": "todo",
-            "nom": "Tâches",
-            "description": "Les cases à cocher des fichiers Markdown suivis ; cocher une case commande l'étape à l'agent",
-            "categorie": "Productivité",
-            "icone": "check",
-            "service": "core/todo_applet.py",
-            "popup": "TodoPopup.qml",
-            "ile": "haut:debut",
-            "ordre": 35,
-            "cadence": 1,
-            "text_scale": 100,
-            "genre": "service",
-            "widget": "todo"
+          "cle": "ignorer_navigateurs",
+          "libelle": "Ignorer les navigateurs",
+          "defaut": true
         }
-    ]
+      ]
+    },
+    {
+      "id": "visualiseur",
+      "nom": "Visualiseur audio",
+      "description": "Onde ou barres de fréquences dans les espaces entre les îlots ; emplacement fixe, de part et d'autre de l'îlot central",
+      "categorie": "Médias & bureaux",
+      "genre": "qml",
+      "composant": "",
+      "ile": "haut:milieu",
+      "ordre": 5,
+      "text_scale": 100,
+      "fixe": true,
+      "choix": {
+        "cle": "style",
+        "libelle": "Rendu",
+        "valeurs": [
+          {
+            "code": "onde",
+            "nom": "Onde"
+          },
+          {
+            "code": "barres",
+            "nom": "Barres"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "cle": "ignorer_navigateurs",
+          "libelle": "Ignorer les navigateurs",
+          "defaut": true
+        }
+      ]
+    },
+    {
+      "id": "calendrier",
+      "nom": "Calendrier",
+      "description": "La date ; clic pour le mois et les événements Nextcloud",
+      "categorie": "Temps & notifications",
+      "icone": "calendar",
+      "service": "core/calendrier_applet.py",
+      "_popup_externe": "panneau autonome : il apporte sa fenêtre et se place selon la barre",
+      "popup_cle": "calendar",
+      "popup": "CalendrierPanneau.qml",
+      "ile": "centre",
+      "ordre": 20,
+      "cadence": 15,
+      "text_scale": 100
+    },
+    {
+      "id": "notifications",
+      "nom": "Notifications",
+      "description": "Cloche et compteur ; clic pour le centre de notifications",
+      "categorie": "Temps & notifications",
+      "genre": "qml",
+      "composant": "NotifsApplet.qml",
+      "ile": "droite",
+      "ordre": 60,
+      "text_scale": 100
+    },
+    {
+      "id": "maj",
+      "nom": "Mises à jour",
+      "description": "Paquets en attente (pacman ou dnf) ; clic pour lancer la mise à jour",
+      "categorie": "Session & énergie",
+      "genre": "qml",
+      "composant": "MajApplet.qml",
+      "ile": "droite",
+      "ordre": 70,
+      "text_scale": 100
+    },
+    {
+      "id": "reseau",
+      "nom": "Réseau",
+      "description": "Wi-Fi : réseau, signal ; clic pour la liste et la connexion",
+      "categorie": "Système & réseau",
+      "genre": "qml",
+      "composant": "ReseauApplet.qml",
+      "ile": "droite",
+      "ordre": 50,
+      "text_scale": 100
+    },
+    {
+      "id": "systray",
+      "nom": "Systray",
+      "description": "Icônes des applications en arrière-plan ; clic droit pour leur menu",
+      "categorie": "Système & réseau",
+      "genre": "qml",
+      "composant": "SystrayApplet.qml",
+      "ile": "droite",
+      "ordre": 40,
+      "text_scale": 100
+    },
+    {
+      "id": "luminosite",
+      "nom": "Luminosité & batterie",
+      "description": "Niveau de batterie et luminosité ; clic pour les réglages d'énergie",
+      "categorie": "Session & énergie",
+      "genre": "qml",
+      "composant": "LuminositeApplet.qml",
+      "ile": "haut:fin",
+      "ordre": 55,
+      "text_scale": 100
+    },
+    {
+      "id": "gestion-energie",
+      "nom": "Gestion de l'énergie",
+      "description": "Batterie, limite de charge 80 % et luminosité ; clic pour les régler",
+      "categorie": "Session & énergie",
+      "genre": "qml",
+      "composant": "GestionEnergieApplet.qml",
+      "ile": "haut:fin",
+      "ordre": 56,
+      "text_scale": 100
+    },
+    {
+      "id": "alimentation",
+      "nom": "Alimentation",
+      "description": "Verrouiller, fermer la session, veiller, redémarrer, éteindre",
+      "categorie": "Session & énergie",
+      "genre": "qml",
+      "composant": "PowerApplet.qml",
+      "ile": "droite",
+      "ordre": 90,
+      "text_scale": 100
+    },
+    {
+      "id": "workspaces",
+      "nom": "Bureaux",
+      "description": "Bureaux Hyprland ; molette pour passer de l'un à l'autre",
+      "categorie": "Médias & bureaux",
+      "genre": "qml",
+      "composant": "WorkspacesApplet.qml",
+      "ile": "gauche",
+      "ordre": 10,
+      "text_scale": 100
+    },
+    {
+      "id": "horloge",
+      "nom": "Horloge",
+      "description": "L'heure ; clic pour ouvrir le calendrier",
+      "categorie": "Temps & notifications",
+      "genre": "qml",
+      "composant": "HorlogeApplet.qml",
+      "ile": "centre",
+      "ordre": 5,
+      "text_scale": 100
+    },
+    {
+      "id": "volume",
+      "nom": "Volume",
+      "description": "Volume du haut-parleur ; molette pour régler, clic droit pour muet",
+      "categorie": "Système & réseau",
+      "genre": "qml",
+      "composant": "VolumeApplet.qml",
+      "ile": "droite",
+      "ordre": 30,
+      "text_scale": 100
+    },
+    {
+      "id": "systeme",
+      "nom": "Système",
+      "description": "CPU, RAM, GPU et température en jauges ; clic pour le détail",
+      "categorie": "Système & réseau",
+      "icone": "monitor",
+      "service": "core/systeme_applet.py",
+      "popup": "SystemePopup.qml",
+      "ile": "droite",
+      "ordre": 20,
+      "cadence": 1,
+      "text_scale": 100,
+      "options": {
+        "mesures": [
+          "cpu",
+          "ram",
+          "gpu",
+          "temp"
+        ]
+      },
+      "garde": true,
+      "cases": [
+        {
+          "cle": "jauge",
+          "libelle": "Afficher les jauges (widget et popup)",
+          "defaut": true
+        }
+      ]
+    },
+    {
+      "id": "comptes",
+      "nom": "Comptes LLM",
+      "description": "Soldes DeepSeek et Ollama Cloud, quotas Antigravity",
+      "categorie": "Services & IA",
+      "icone": "wallet",
+      "service": "core/comptes_applet.py",
+      "choix": {
+        "cle": "prefere",
+        "libelle": "Service affiché dans la barre",
+        "valeurs": [
+          {
+            "code": "deepseek",
+            "nom": "DeepSeek"
+          },
+          {
+            "code": "ollama",
+            "nom": "Ollama"
+          },
+          {
+            "code": "antigravity",
+            "nom": "Antigravity"
+          }
+        ]
+      },
+      "popup": "widgets/comptes.qml",
+      "ile": "droite",
+      "ordre": 10,
+      "cadence": 5,
+      "text_scale": 100
+    },
+    {
+      "id": "disques",
+      "nom": "Disques",
+      "description": "Occupation des systèmes de fichiers choisis ; clic pour le détail",
+      "categorie": "Système & réseau",
+      "icone": "disque",
+      "service": "core/disques_applet.py",
+      "popup": "DisquesPopup.qml",
+      "ile": "haut:fin",
+      "ordre": 65,
+      "cadence": 30,
+      "text_scale": 100,
+      "liste": {
+        "cle": "montages",
+        "libelle": "Systèmes de fichiers affichés"
+      }
+    },
+    {
+      "id": "meteo",
+      "nom": "Météo",
+      "description": "Température et condition ; clic pour le ressenti, le min/max et la ville",
+      "categorie": "Temps & notifications",
+      "icone": "cloud",
+      "service": "core/meteo_applet.py",
+      "popup": "MeteoPopup.qml",
+      "ile": "droite",
+      "ordre": 30,
+      "cadence": 10,
+      "text_scale": 100
+    },
+    {
+      "id": "homelab",
+      "nom": "Homelab",
+      "description": "Les invités Proxmox (CT et VM), les services systemd en échec et les hôtes qui répondent ; clic pour le détail et le redémarrage",
+      "categorie": "Services & IA",
+      "icone": "cloud-check",
+      "service": "core/homelab_applet.py",
+      "popup": "HomelabPopup.qml",
+      "ile": "haut:fin",
+      "ordre": 15,
+      "cadence": 60,
+      "text_scale": 100
+    },
+    {
+      "id": "presse-papiers",
+      "nom": "Presse-papiers",
+      "description": "Historique des copies récentes ; clic pour en reprendre une",
+      "categorie": "Médias & bureaux",
+      "icone": "selection",
+      "service": "core/presse_papiers_applet.py",
+      "popup": "PressePapiersPopup.qml",
+      "ile": "haut:fin",
+      "ordre": 25,
+      "cadence": 0.17,
+      "text_scale": 100
+    },
+    {
+      "id": "hermes",
+      "nom": "Hermes",
+      "description": "L'état de l'agent : tâche en cours, file d'attente, dernières exécutions, tâches planifiées",
+      "categorie": "Services & IA",
+      "icone": "rocket",
+      "service": "core/hermes_applet.py",
+      "popup": "HermesPopup.qml",
+      "ile": "haut:fin",
+      "ordre": 15,
+      "cadence": 0.17,
+      "text_scale": 100,
+      "widget": "hermes",
+      "genre": "service",
+      "garde": true
+    },
+    {
+      "id": "flotte",
+      "nom": "Flotte",
+      "genre": "service",
+      "description": "L'état des autres machines : charge, mémoire, barre vivante",
+      "categorie": "Services & IA",
+      "icone": "cloud",
+      "service": "core/flotte_applet.py",
+      "popup": "FlottePopup.qml",
+      "ile": "haut:fin",
+      "ordre": 12,
+      "cadence": 0.5,
+      "garde": true,
+      "text_scale": 100,
+      "options": {}
+    },
+    {
+      "id": "usb",
+      "nom": "Périphériques",
+      "description": "Clés USB, cartes SD et disques optiques : voir, monter, déverrouiller, ouvrir et retirer sans risque",
+      "categorie": "Système & matériel",
+      "icone": "usb",
+      "service": "core/usb_applet.py",
+      "popup": "UsbPopup.qml",
+      "ile": "haut:fin",
+      "ordre": 60,
+      "cadence": 0.5,
+      "text_scale": 100,
+      "genre": "service",
+      "options": {
+        "masquer_vide": true
+      },
+      "widget": "usb",
+      "choix": {
+        "cle": "masquer_vide",
+        "libelle": "Quand rien n'est branché",
+        "valeurs": [
+          {
+            "code": "oui",
+            "nom": "Masquer l'applet"
+          },
+          {
+            "code": "non",
+            "nom": "Afficher « 0 »"
+          }
+        ]
+      }
+    },
+    {
+      "id": "todo",
+      "nom": "Tâches",
+      "description": "Les cases à cocher des fichiers Markdown suivis ; cocher une case commande l'étape à l'agent",
+      "categorie": "Productivité",
+      "icone": "check",
+      "service": "core/todo_applet.py",
+      "popup": "TodoPopup.qml",
+      "ile": "haut:debut",
+      "ordre": 35,
+      "cadence": 1,
+      "text_scale": 100,
+      "genre": "service",
+      "widget": "todo"
+    }
+  ]
 }

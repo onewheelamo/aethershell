@@ -35,6 +35,11 @@ Item {
     }
     readonly property var detail: (donnees && donnees.detail) ? donnees.detail : ({})
 
+    // Jauges : option d'applet (case « jauge », vrai par défaut). Éteinte, le
+    // widget garde l'icône et la valeur — utile quand on préfère un chiffre net
+    // sur un fond chargé.
+    readonly property bool jauge: options.jauge === undefined ? true : options.jauge === true
+
     // Les lignes affichées : les mesures du contrat, plus deux jauges dérivées
     // que le service ne renvoie pas sous forme de barres — VRAM utilisée et
     // température du GPU. Une température ou une VRAM absente (pas de NVIDIA)
@@ -165,6 +170,7 @@ Item {
                     // texte passe de 3 % à 100 %.
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
+                        visible: root.jauge
                         width: Math.round(112 * root.echelle)
                         height: Math.round(6 * root.echelle)
                         radius: height / 2

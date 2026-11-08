@@ -620,6 +620,43 @@ Rectangle {
         return false
     }
 
+    // Rendu du visualiseur (« onde » ou « barres »). C'est une option d'applet
+    // du registre `bar_applets.json`, mais on l'expose ici : c'est le seul
+    // réglage de cet applet qui change son allure, et le tiroir parle déjà du
+    // « mode barres ».
+    readonly property string vizStyle: {
+        for (let i = 0; i < root.appletRows.length; ++i) {
+            const a = root.donneeApplet(root.appletRows[i])
+            if (String(a.id) === "visualiseur")
+                return String((a.options || {}).style || "onde")
+        }
+        return "onde"
+    }
+
+    function changerModeVisualiseur(code) {
+        if (String(code) === root.vizStyle) return
+        root.appletCommande(["option", "visualiseur", "style", String(code)])
+        vizRafraichir.restart()
+    }
+
+    // Schémas de couleurs KDE installés : importés dans `palette` au premier
+    // chargement du panneau, puis relus. Sans cette étape, « détecter les thèmes
+    // installés » ne montrerait que les palettes déjà présentes.
+    Process {
+        id: scanThemes
+        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (d && d.ajoutes && d.ajoutes.length > 0)
+                        Theme.relireStyle()
+                } catch (e) { /* rien à importer */ }
+            }
+        }
+    }
+
     // Recentrage différé : la mise en page du tiroir qui se déplie n'est pas
     // encore à jour quand on écrit contentY, d'où le délai d'une frame.
     Timer {
@@ -1837,15 +1874,26 @@ Rectangle {
                 width: parent.width
                 spacing: 8
 
-            Row {
+            Flow {
                 width: parent.width
                 spacing: 8
+                // Les schémas KDE importés portent la liste à plus de soixante
+                // entrées : en Flow elles passent à la ligne au lieu de sortir
+                // du panneau.
 
                 Repeater {
-                    model: ["dynamic", "tokyo-night", "catppuccin"]
+                    // Les palettes viennent de style_vars.json ; les schémas de
+                    // couleurs KDE installés y sont importés au chargement du
+                    // panneau (`themes_scan.py --sync`), donc ils apparaissent ici.
+                    model: Theme.paletteNoms.length > 0 ? Theme.paletteNoms
+                                                        : ["dynamic"]
                     Rectangle {
                         required property string modelData
                         readonly property bool isCurrent: Theme.activeTheme === modelData
+                        // « kde-gruvboxdark » se lit « Gruvboxdark » : le préfixe
+                        // dit d'où vient le thème, pas ce qu'il est.
+                        readonly property string libelle: Theme.paletteEtiquettes[modelData]
+                                                          || modelData.replace(/^kde-/, "")
 
                         width: 100
                         height: 32
@@ -1856,7 +1904,11 @@ Rectangle {
 
                         Text {
                             anchors.centerIn: parent
-                            text: parent.modelData
+                            width: parent.width - 12
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                            text: parent.libelle
+                            font.capitalization: Font.Capitalize
                             color: parent.isCurrent ? Theme.bg : Theme.fg
                             font.pixelSize: Theme.textSm
                             font.bold: parent.isCurrent
@@ -4114,6 +4166,65 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 340
                                 text: "Occupe les espaces entre les îlots, un de chaque côté du centre."
+                                color: Qt.alpha(Theme.fg, 0.5)
+                                font.pixelSize: Theme.text2xs
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        // Rendu : une ligne qui ne défile pas (onde) ou des bandes
+                        // qui montent avec la musique (barres). Option d'applet du
+                        // registre, exposée ici parce que c'est elle qui décide de
+                        // l'allure du visualiseur.
+                        Row {
+                            width: parent.width
+                            spacing: 8
+
+                            Text {
+                                width: 160
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Mode :"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                                elide: Text.ElideRight
+                            }
+
+                            Repeater {
+                                model: [{ code: "onde", nom: "Onde" },
+                                        { code: "barres", nom: "Barres" }]
+
+                                Rectangle {
+                                    required property var modelData
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 92
+                                    height: 26
+                                    radius: Theme.globalRadius
+                                    color: root.vizStyle === modelData.code ? Theme.accent
+                                                                            : Theme.surfaceVariant
+                                    border.color: Theme.accent
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: root.vizStyle === modelData.code
+                                              ? ("✓ " + modelData.nom) : modelData.nom
+                                        color: root.vizStyle === modelData.code ? Theme.bg : Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.changerModeVisualiseur(modelData.code)
+                                    }
+                                }
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 380
+                                text: "L'onde suit le signal, les barres suivent le spectre. "
+                                      + "Les barres s'alignent sur les colonnes : une bande pour quatre."
                                 color: Qt.alpha(Theme.fg, 0.5)
                                 font.pixelSize: Theme.text2xs
                                 wrapMode: Text.WordWrap

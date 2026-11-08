@@ -22,6 +22,16 @@ QtObject {
     // SECTION 1: GLOBAL STYLE & ONBOARDING VARIABLES
     // ────────────────────────────────────────────────────────────────────────
     property string activeTheme: "dynamic"
+    // Clés de `palette` dans style_vars.json, dans l'ordre du fichier, et leur
+    // étiquette lisible quand elle est connue (thèmes importés de KDE).
+    property var paletteNoms: []
+    property var paletteEtiquettes: ({})
+
+    // Relit style_vars.json : après un import de thèmes, ou un réglage écrit
+    // par un service Python.
+    function relireStyle() {
+        styleFile.reload()
+    }
     property int globalRadius: 2
     // Opacité des fenêtres (Hyprland) : decoration.active_opacity / inactive_opacity
     property real globalOpacity: 0.85
@@ -476,6 +486,10 @@ QtObject {
         }
 
         const palettes = data.palette || {}
+        // Noms des palettes disponibles : le panneau les liste au lieu de trois
+        // noms écrits en dur, et les schémas KDE importés apparaissent là.
+        root.paletteNoms = Object.keys(palettes)
+        root.paletteEtiquettes = data.palette_noms || ({})
         const pal = palettes[root.activeTheme] || palettes["dynamic"] || {}
 
         if (pal.bg) root.bg = pal.bg
@@ -646,7 +660,7 @@ QtObject {
             root.showConfigButton = !root.showConfigButton
         }
         function reloadTheme() {
-            styleFile.reload()
+            root.relireStyle()
         }
         function osd(kind: string, value: real) {
             root.showOsd(kind, value)

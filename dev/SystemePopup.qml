@@ -25,6 +25,8 @@ Item {
     readonly property var noms: ({ cpu: "CPU", ram: "RAM", gpu: "GPU", temp: "Temp" })
 
     property var mesures: ["cpu", "ram", "gpu", "temp"]
+    // Jauges : même option d'applet que le widget (case « jauge »).
+    property bool jauge: true
     // Processus : lus seulement pendant que le panneau est ouvert (l'inspiration
     // nvtop garde cette discipline — rien ne tourne en fond pour ça).
     property var processus: []
@@ -175,6 +177,7 @@ Item {
                         if (liste[i].id !== "systeme") continue
                         const m = (liste[i].options || {}).mesures
                         root.mesures = (m && m.length) ? m : root.toutes
+                        root.jauge = ((liste[i].options || {}).jauge !== false)
                         return
                     }
                 } catch (e) { /* registre illisible : on garde les quatre */ }
@@ -300,6 +303,26 @@ Item {
                     text: String(modelData.nom || "")
                     color: Qt.alpha(Theme.fg, 0.7)
                     font.pixelSize: Math.round(Theme.textXs * root.echelle)
+                }
+
+                // Jauge : la même proportion que dans la barre et le widget,
+                // dessinée ici pour ceux qui lisent le popup sans la barre.
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.jauge && modelData.remplissage !== undefined
+                    width: Math.round(72 * root.echelle)
+                    height: Math.round(4 * root.echelle)
+                    radius: height / 2
+                    color: Qt.alpha(Theme.fg, 0.13)
+
+                    Rectangle {
+                        width: Math.max(2, parent.width * Math.min(100, Math.max(0,
+                                   Number(modelData.remplissage) || 0)) / 100)
+                        height: parent.height
+                        radius: parent.radius
+                        color: modelData.niveau === "critique" ? Theme.error
+                               : (modelData.niveau === "attention" ? Theme.warn : Theme.accent)
+                    }
                 }
 
                 Text {
