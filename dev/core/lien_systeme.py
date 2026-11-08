@@ -114,7 +114,21 @@ OPTIONS_DOSSIER = {
     "kgx": "--working-directory={d}",
     "ptyxis": "--working-directory={d}",
 }
-LANGEURS = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "aethershell" / "lanceurs"
+# Les lanceurs vont dans `~/.local/bin` : c'est un dossier du PATH, et exo
+# exécute la valeur de `helpers.rc` comme un programme quand elle n'est pas un
+# identifiant d'aide. Un chemin hors PATH échoue (« Could not find fallback
+# TerminalEmulator application »), mesuré sur cette machine.
+# Terminaux qui réutilisent une instance déjà lancée : la demande de dossier est
+# alors perdue — mesuré sur Ghostty, la fenêtre s'ouvrait dans le dossier du
+# processus appelant. On force une instance neuve pour que le dossier compte.
+SANS_INSTANCE_UNIQUE = {
+    "ghostty": "--gtk-single-instance=false",
+    "ptyxis": "--new-window",
+    "gnome-terminal": "--window",
+    "kgx": "--new-window",
+}
+
+LANGEURS = Path.home() / ".local" / "bin"
 
 
 def ecrire_lanceur(binaire, dossier_lanceurs=None):
@@ -133,22 +147,42 @@ def ecrire_lanceur(binaire, dossier_lanceurs=None):
     dossier = Path(dossier_lanceurs or LANGEURS)
     dossier.mkdir(parents=True, exist_ok=True)
     chemin = dossier / ("terminal-" + binaire)
+    extra = SANS_INSTANCE_UNIQUE.get(binaire, "")
+    # L'option dépend du dossier, connu seulement à l'exécution : on garde un
+    # modèle printf et on l'instancie dans le script.
+    modele = gabarit.replace("{d}", "%s")
     script = """#!/bin/sh
 # Lanceur généré par core/lien_systeme.py — ne pas éditer à la main.
 # exo (clic droit « Ouvrir un terminal ici ») passe le dossier en argument ;
-# %(binaire)s n'a pas la même option pour ça, d'où cette traduction.
+# %(binaire)s n'a pas la même option pour ça, et certaines versions réutilisent
+# une instance déjà ouverte en ignorant le dossier. D'où le double geste :
+# on se place dans le dossier, puis on demande une instance neuve.
+binaire=%(binaire)s
+drapeaux=%(extra)s
+modele='%(modele)s'
+
 if [ -n "$1" ] && [ -d "$1" ]; then
     dossier=$1
     shift
-    set -- %(option)s
+    cd "$dossier" 2>/dev/null || true
+    # `printf --` : le modèle commence par « -- », sinon printf le prend pour
+    # une de ses propres options.
+    option=$(printf -- "$modele" "$dossier")
+    if [ -n "$LIEN_DRY_RUN" ]; then
+        echo "$binaire" $drapeaux $option "$@"
+        pwd
+        exit 0
+    fi
+    exec "$binaire" $drapeaux $option "$@"
 fi
+
 if [ -n "$LIEN_DRY_RUN" ]; then
-    echo %(binaire)s "$@"
+    echo "$binaire" $drapeaux "$@"
     pwd
     exit 0
 fi
-exec %(binaire)s "$@"
-""" % {"binaire": binaire, "option": gabarit.format(d='"$dossier"')}
+exec "$binaire" $drapeaux "$@"
+""" % {"binaire": binaire, "extra": extra, "modele": modele}
     chemin.write_text(script, encoding="utf-8")
     chemin.chmod(0o755)
     return chemin
@@ -250,10 +284,17 @@ def construire(apps, entrees):
             if role == "Terminal":
                 lanceur = ecrire_lanceur(binaire)
                 if lanceur:
-                    # L'aide porte le nom du lanceur ; c'est `X-XFCE-Binaries`
-                    # qui pointe son chemin absolu (exo accepte les deux).
+                    # `helpers.rc` reçoit le **nom** du lanceur, trouvé dans le
+                    # PATH : exo l'exécute alors lui-même, dossier en argument.
                     identifiant = lanceur.name
                     binaire = str(lanceur)
+                    # Pas d'aide .rc pour ce rôle : c'est la valeur de helpers.rc
+                    # qui sert de programme, et une aide du même nom prendrait le
+                    # dessus avec un binaire sans traduction du dossier.
+                    aides.pop(identifiant, None)
+                    binaires[regle["exo"]] = binaire
+                    helpers[regle["exo"]] = identifiant
+                    continue
             # KDE et GNOME attendent une **commande**, pas un identifiant d'aide :
             # ils reçoivent donc le chemin complet du lanceur.
             binaires[regle["exo"]] = binaire
