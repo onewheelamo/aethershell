@@ -2280,6 +2280,51 @@ Rectangle {
                             }
                         }
                     }
+            // Parallaxe : trois calques du fond courant, décalés au changement de
+            // bureau ; le shell les produit lui-même quand ils manquent.
+            // Fond de bureau en profondeur : trois calques du fond courant,
+            // décalés au changement de bureau. Nécessite awww (le fond est
+            // relu auprès de lui).
+            Row {
+                width: parent.width
+                spacing: 8
+
+                Text {
+                    width: 160
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Fond en profondeur :"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    elide: Text.ElideRight
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 160
+                    height: 26
+                    radius: Theme.globalRadius
+                    color: Theme.depthWallpaper ? Theme.accent : Theme.surfaceVariant
+                    border.color: Theme.accent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Theme.depthWallpaper ? "✓ Actif" : "✕ Désactivé"
+                        color: Theme.depthWallpaper ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.runConfigCmd([
+                            "style", "depth_wallpaper", Theme.depthWallpaper ? "false" : "true"
+                        ])
+                    }
+                }
+            }
+
+
             }   // end CollapsibleSection secTheme
 
             // 3. Desktop Aspect: Gaps, Borders, Rounding, Opacity, Blur, Bar (catégorie technique)
@@ -2707,48 +2752,6 @@ Rectangle {
                         onValueModified: newVal => {
                             Theme.shellFlouInterne = newVal / 100
                             root.runConfigCmd(["style", "shell_flou_interne", String(newVal / 100)])
-                        }
-                    }
-                }
-
-                // Fond de bureau en profondeur : trois calques du fond courant,
-                // décalés au changement de bureau. Nécessite awww (le fond est
-                // relu auprès de lui).
-                Row {
-                    width: parent.width
-                    spacing: 8
-
-                    Text {
-                        width: 160
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Fond en profondeur :"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textSm
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 160
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: Theme.depthWallpaper ? Theme.accent : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: Theme.depthWallpaper ? "✓ Actif" : "✕ Désactivé"
-                            color: Theme.depthWallpaper ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfigCmd([
-                                "style", "depth_wallpaper", Theme.depthWallpaper ? "false" : "true"
-                            ])
                         }
                     }
                 }
