@@ -2372,7 +2372,7 @@ Rectangle {
             // 3. Desktop Aspect: Gaps, Borders, Rounding, Opacity, Blur, Bar (catégorie technique)
             CollapsibleSection {
                 id: secAspect
-                title: "Hyprland"
+                title: "Fenêtres Hyprland"
                 icon: "cog"
                 expanded: root.sectionOpen("esthetique_aspect", false)
                 onToggled: expanded => {
@@ -2897,7 +2897,7 @@ Rectangle {
             CollapsibleSection {
                 id: secBarre
                 objectName: "secBarre"
-                title: "Barre & surfaces"
+                title: "Surfaces & Verre du shell"
                 icon: "monitor"
                 expanded: root.sectionOpen("quickshell_barre", false)
                 onToggled: expanded => {
@@ -2905,71 +2905,6 @@ Rectangle {
                     if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barre")
                 }
 
-                Grid {
-                    width: parent.width
-                    columns: 1
-                    columnSpacing: 14
-                    rowSpacing: 12
-
-                    // 5. Arrondis îlots (Quickshell)
-                    Row {
-                        id: roundingIslandRow   // ancre de recherche
-                        objectName: "roundingIslandRow"
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            width: 160
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Arrondis îlots (QS) :"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            elide: Text.ElideRight
-                        }
-
-                        Slider {
-                            anchors.verticalCenter: parent.verticalCenter
-                            value: Theme.globalRadius
-                            minimumValue: 0
-                            maximumValue: 30
-                            stepSize: 1
-                            suffix: " px"
-                            onValueModified: newVal => {
-                                root.runConfigCmd(["style", "global_radius", String(newVal)])
-                            }
-                        }
-                    }
-
-                    // 6. Hauteur de barre
-                    Row {
-                        id: barHeightRow   // ancre de recherche
-                        objectName: "barHeightRow"
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            width: 160
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Hauteur de barre :"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            elide: Text.ElideRight
-                        }
-
-                        Slider {
-                            anchors.verticalCenter: parent.verticalCenter
-                            value: Theme.barHeight
-                            minimumValue: 28
-                            maximumValue: 60
-                            stepSize: 2
-                            suffix: " px"
-                            onValueModified: newVal => {
-                                root.runConfigCmd(["style", "bar_height", String(newVal)])
-                            }
-                        }
-                    }
-
-                }
 
                 Grid {
                     width: parent.width
@@ -3080,95 +3015,11 @@ Rectangle {
                     }
 
                     // 14b. Bordure de la barre du haut (capsule fusionnée et îlots)
-                    Row {
-                        id: barBorderRow   // ancre de recherche
-                        objectName: "barBorderRow"
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            width: 160
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Bordure de la barre :"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            elide: Text.ElideRight
-                        }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 160
-                            height: 26
-                            radius: Theme.globalRadius
-                            color: root.barBorder ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.barBorder ? "✓ Bordure" : "✕ Sans bordure"
-                                color: root.barBorder ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.barBorder = !root.barBorder
-                                    root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
-                                }
-                            }
-                        }
-                    }
 
                     // 14c. Espaces entre les îlots : transparents (et donc sans flou)
                     // ou peints comme le reste de la capsule. En mode transparent,
                     // les deux vides restent des régions de la barre, réservées à
                     // une animation de lecture média.
-                    Row {
-                        id: barGapsRow   // ancre de recherche
-                        objectName: "barGapsRow"
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            width: 160
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "Espaces entre les îlots :"
-                            color: Theme.fg
-                            font.pixelSize: Theme.textSm
-                            elide: Text.ElideRight
-                        }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 160
-                            height: 26
-                            radius: Theme.globalRadius
-                            color: root.barGapsTransparent ? Theme.accent : Theme.surfaceVariant
-                            border.color: Theme.accent
-                            border.width: 1
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.barGapsTransparent ? "✓ Transparents" : "✕ Peints"
-                                color: root.barGapsTransparent ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.barGapsTransparent = !root.barGapsTransparent
-                                    root.runConfigCmd(["style", "bar_gaps_transparent", root.barGapsTransparent ? "true" : "false"])
-                                }
-                            }
-                        }
-                    }
 
                     // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
                     Row {
@@ -3264,7 +3115,7 @@ Rectangle {
                     width: parent.width
                     topPadding: 8
                     text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
-                        + "L'opacité et le flou des fenêtres se règlent dans l'onglet Bureau, section Hyprland. "
+                        + "L'opacité et le flou des fenêtres se règlent ici, section « Fenêtres Hyprland ». "
                         + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
                         + "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
                     color: Theme.fg
@@ -3273,6 +3124,187 @@ Rectangle {
                     wrapMode: Text.WordWrap
                 }
 
+            }   // end CollapsibleSection secShell
+
+    }   // end Column tabEsthetiqueCol
+        // ═════════════════════════════════════════════════════════════════════
+        // TAB 1: GESTION QUICKSHELL — barres annexes, applets et visualiseur.
+        // La barre elle-même (îlots, panneau, popups) est dans l'onglet « Bureau ».
+        // ═════════════════════════════════════════════════════════════════════
+        Column {
+            id: tabQuickshellCol
+            visible: root.currentTab === 1
+            width: mainFlickable.width
+            spacing: 11
+
+
+
+            // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
+            // applet reste invisible : on le dit, sinon le réglage semble cassé.
+            CollapsibleSection {
+                id: secBarres
+                objectName: "secBarres"
+                title: "Barre principale & Barres annexes"
+                icon: "monitor"
+                expanded: root.sectionOpen("quickshell_barres", true)
+                onToggled: expanded => {
+                    root.setPanelSection("quickshell_barres", expanded)
+                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barres")
+                }
+
+                Column {
+                    // Barre principale : géométrie, bordure, espaces entre les
+                    // îlots et bouton central. Ces réglages dessinaient autrefois une
+                    // section « Barre & surfaces » dans l'onglet Apparence.
+                Grid {
+                    width: parent.width
+                    columns: 1
+                    columnSpacing: 14
+                    rowSpacing: 12
+
+                    // 5. Arrondis îlots (Quickshell)
+                    Row {
+                        id: roundingIslandRow   // ancre de recherche
+                        objectName: "roundingIslandRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Arrondis îlots (QS) :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Slider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.globalRadius
+                            minimumValue: 0
+                            maximumValue: 30
+                            stepSize: 1
+                            suffix: " px"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "global_radius", String(newVal)])
+                            }
+                        }
+                    }
+
+                    // 6. Hauteur de barre
+                    Row {
+                        id: barHeightRow   // ancre de recherche
+                        objectName: "barHeightRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Hauteur de barre :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Slider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.barHeight
+                            minimumValue: 28
+                            maximumValue: 60
+                            stepSize: 2
+                            suffix: " px"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "bar_height", String(newVal)])
+                            }
+                        }
+                    }
+
+                }
+                    Row {
+                        id: barBorderRow   // ancre de recherche
+                        objectName: "barBorderRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Bordure de la barre :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.barBorder ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.barBorder ? "✓ Bordure" : "✕ Sans bordure"
+                                color: root.barBorder ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.barBorder = !root.barBorder
+                                    root.runConfigCmd(["style", "bar_border", root.barBorder ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
+                    Row {
+                        id: barGapsRow   // ancre de recherche
+                        objectName: "barGapsRow"
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Espaces entre les îlots :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 160
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.barGapsTransparent ? Theme.accent : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.barGapsTransparent ? "✓ Transparents" : "✕ Peints"
+                                color: root.barGapsTransparent ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.barGapsTransparent = !root.barGapsTransparent
+                                    root.runConfigCmd(["style", "bar_gaps_transparent", root.barGapsTransparent ? "true" : "false"])
+                                }
+                            }
+                        }
+                    }
                 Grid {
                     width: parent.width
                     columns: 1
@@ -3319,35 +3351,6 @@ Rectangle {
                         }
                     }
                 }   // end Grid
-            }   // end CollapsibleSection secShell
-
-    }   // end Column tabEsthetiqueCol
-        // ═════════════════════════════════════════════════════════════════════
-        // TAB 1: GESTION QUICKSHELL — barres annexes, applets et visualiseur.
-        // La barre elle-même (îlots, panneau, popups) est dans l'onglet « Bureau ».
-        // ═════════════════════════════════════════════════════════════════════
-        Column {
-            id: tabQuickshellCol
-            visible: root.currentTab === 1
-            width: mainFlickable.width
-            spacing: 11
-
-
-
-            // Tiroir 3 : les barres optionnelles. Une barre allumée mais sans
-            // applet reste invisible : on le dit, sinon le réglage semble cassé.
-            CollapsibleSection {
-                id: secBarres
-                objectName: "secBarres"
-                title: "Barres supplémentaires"
-                icon: "monitor"
-                expanded: root.sectionOpen("quickshell_barres", true)
-                onToggled: expanded => {
-                    root.setPanelSection("quickshell_barres", expanded)
-                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barres")
-                }
-
-                Column {
                     width: parent.width
                     spacing: 8
 
