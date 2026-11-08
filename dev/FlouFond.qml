@@ -88,8 +88,16 @@ Item {
         id: image
         anchors.fill: parent
         source: racine.fond !== "" ? "file://" + racine.fond : ""
-        sourceClipRect: Qt.rect(racine.positionEcran.x, racine.positionEcran.y, width, height)
         sourceSize.width: Math.max(160, Math.round(width / 4))
+        // `sourceClipRect` s'exprime dans les pixels de l'image **décodée**, pas
+        // ceux de l'écran : sans ce rapport, la fenêtre demandée sortait de
+        // l'image pour les surfaces de droite et Qt servait un coin sombre —
+        // visible dès qu'on montait le flou interne.
+        readonly property real rapport: width > 0 ? sourceSize.width / racine.ecran.width : 0
+        sourceClipRect: Qt.rect(racine.positionEcran.x * rapport,
+                                racine.positionEcran.y * rapport,
+                                width * rapport,
+                                height * rapport)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
