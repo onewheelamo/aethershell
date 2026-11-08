@@ -95,6 +95,65 @@ ROLES = {
 }
 
 
+# Comment demander à chaque terminal de démarrer dans un dossier donné. exo
+# passe le dossier en argument au binaire de l'aide ; sans cette traduction, le
+# terminal l'ignore et s'ouvre là où le bureau a été lancé.
+OPTIONS_DOSSIER = {
+    "ghostty": "--working-directory={d}",
+    "kitty": "--directory={d}",
+    "alacritty": "--working-directory={d}",
+    "foot": "--working-directory={d}",
+    "konsole": "--workdir {d}",
+    "gnome-terminal": "--working-directory={d}",
+    "xfce4-terminal": "--working-directory={d}",
+    "terminator": "--working-directory={d}",
+    "urxvt": "-cd {d}",
+    "xterm": "-e sh -c 'cd \"{d}\" && exec $SHELL'",
+    "wezterm": "start --cwd {d}",
+    "tilix": "--working-directory={d}",
+    "kgx": "--working-directory={d}",
+    "ptyxis": "--working-directory={d}",
+}
+LANGEURS = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))) / "aethershell" / "lanceurs"
+
+
+def ecrire_lanceur(binaire, dossier_lanceurs=None):
+    """Écrit un lanceur qui sait ouvrir le terminal dans un dossier.
+
+    exo appelle le binaire de son aide en lui passant le dossier en argument.
+    Les terminaux ne partagent pas la même option pour cela, et certains
+    l'ignorent complètement : ce petit script traduit un argument en l'option du
+    terminal, et se comporte comme le terminal nu quand il n'y a rien à traduire.
+    Rend le chemin du lanceur, ou None si le terminal est inconnu (on garde alors
+    le binaire d'origine, quitte à perdre le dossier).
+    """
+    gabarit = OPTIONS_DOSSIER.get(binaire)
+    if not gabarit:
+        return None
+    dossier = Path(dossier_lanceurs or LANGEURS)
+    dossier.mkdir(parents=True, exist_ok=True)
+    chemin = dossier / ("terminal-" + binaire)
+    script = """#!/bin/sh
+# Lanceur généré par core/lien_systeme.py — ne pas éditer à la main.
+# exo (clic droit « Ouvrir un terminal ici ») passe le dossier en argument ;
+# %(binaire)s n'a pas la même option pour ça, d'où cette traduction.
+if [ -n "$1" ] && [ -d "$1" ]; then
+    dossier=$1
+    shift
+    set -- %(option)s
+fi
+if [ -n "$LIEN_DRY_RUN" ]; then
+    echo %(binaire)s "$@"
+    pwd
+    exit 0
+fi
+exec %(binaire)s "$@"
+""" % {"binaire": binaire, "option": gabarit.format(d='"$dossier"')}
+    chemin.write_text(script, encoding="utf-8")
+    chemin.chmod(0o755)
+    return chemin
+
+
 def lire_desktop(chemin):
     """Rend (id, nom, exec, categories) d'un fichier .desktop, ou None."""
     try:
@@ -176,7 +235,7 @@ def resoudre(nom, categories, entrees):
 
 def construire(apps, entrees):
     """Rend (lignes helpers.rc, {mime: id desktop}) sans rien écrire."""
-    helpers, mimes, aides = {}, {}, {}
+    helpers, mimes, aides, binaires = {}, {}, {}, {}
     for role, regle in ROLES.items():
         nom = apps.get(role)
         if not nom:
@@ -187,6 +246,17 @@ def construire(apps, entrees):
         if regle.get("exo"):
             binaire = Path(re.split(r"[\s/]", entree["exec"].replace('"', "").strip())[0]).name
             identifiant = binaire or Path(entree["id"]).stem
+            # Terminal : on passe par un lanceur qui sait ouvrir dans un dossier.
+            if role == "Terminal":
+                lanceur = ecrire_lanceur(binaire)
+                if lanceur:
+                    # L'aide porte le nom du lanceur ; c'est `X-XFCE-Binaries`
+                    # qui pointe son chemin absolu (exo accepte les deux).
+                    identifiant = lanceur.name
+                    binaire = str(lanceur)
+            # KDE et GNOME attendent une **commande**, pas un identifiant d'aide :
+            # ils reçoivent donc le chemin complet du lanceur.
+            binaires[regle["exo"]] = binaire
             helpers[regle["exo"]] = identifiant
             aides[identifiant] = {
                 "nom": entree["nom"] or identifiant,
@@ -198,7 +268,7 @@ def construire(apps, entrees):
             # Le premier rôle qui revendique un type gagne : Browser2 ne doit pas
             # écraser le navigateur principal sur http/https.
             mimes.setdefault(mime, entree["id"])
-    return helpers, mimes, aides
+    return helpers, mimes, aides, binaires
 
 
 def ecrire_helpers(helpers):
@@ -265,15 +335,61 @@ def ecrire_mimeapps(mimes):
     MIMEAPPS.write_text("\n".join(sortie).rstrip("\n") + "\n", encoding="utf-8")
 
 
+def couche_bureau(binaires, mimes):
+    """Pose les mêmes choix dans les registres propres à chaque bureau.
+
+    `mimeapps.list` est la couche commune (freedesktop) : tous les bureaux la
+    lisent. Certains gardent en plus leur propre clé — KDE dans `kdeglobals`,
+    GNOME dans gsettings, Xfce dans exo (déjà traité plus haut). On écrit
+    seulement si l'outil existe : rien à installer, rien à casser ailleurs.
+    """
+    faits = {}
+
+    id_browser = None
+    for mime in ("x-scheme-handler/https", "text/html"):
+        if mime in mimes:
+            id_browser = mimes[mime]
+            break
+    if id_browser and shutil.which("xdg-settings"):
+        r = subprocess.run(["xdg-settings", "set", "default-web-browser", id_browser],
+                           capture_output=True, text=True)
+        faits["xdg-settings"] = "navigateur → %s" % id_browser if r.returncode == 0 else "échec"
+
+    if shutil.which("kwriteconfig6"):
+        commandes = []
+        terminal = binaires.get("TerminalEmulator")
+        if terminal:
+            commandes.append(["kwriteconfig6", "--file", "kdeglobals", "--group", "General",
+                              "--key", "TerminalApplication", terminal])
+        if id_browser:
+            commandes.append(["kwriteconfig6", "--file", "kdeglobals", "--group", "General",
+                              "--key", "BrowserApplication", id_browser])
+        faits["kde"] = 0
+        for cmd in commandes:
+            if subprocess.run(cmd, check=False).returncode == 0:
+                faits["kde"] += 1
+
+    if shutil.which("gsettings"):
+        schema = subprocess.run(["gsettings", "get", "org.gnome.desktop.default-applications.terminal",
+                                 "exec"], capture_output=True, text=True)
+        terminal = binaires.get("TerminalEmulator")
+        if schema.returncode == 0 and terminal:
+            subprocess.run(["gsettings", "set", "org.gnome.desktop.default-applications.terminal",
+                            "exec", terminal], check=False)
+            faits["gnome"] = terminal
+    return faits
+
+
 def appliquer(silencieux=False):
     if not APP_VARS.is_file():
         sys.exit("app_vars.json introuvable : %s" % APP_VARS)
     apps = json.loads(APP_VARS.read_text(encoding="utf-8"))
     entrees = tous_desktop()
-    helpers, mimes, aides = construire(apps, entrees)
+    helpers, mimes, aides, binaires = construire(apps, entrees)
     ecrire_aides(aides)
     ecrire_helpers(helpers)
     ecrire_mimeapps(mimes)
+    bureaux = couche_bureau(binaires, mimes)
     # `xdg-open`/GLib gardent un cache : on le rafraîchit pour que le prochain
     # clic droit voie les associations sans attendre une reconnexion.
     if shutil.which("update-desktop-database"):
@@ -282,13 +398,13 @@ def appliquer(silencieux=False):
                        check=False)
     if not silencieux:
         print(json.dumps({"ok": True, "helpers": helpers, "aides": sorted(aides),
-                          "mimes": len(mimes)}, ensure_ascii=False))
+                          "mimes": len(mimes), "bureaux": bureaux}, ensure_ascii=False))
 
 
 def etat():
     apps = json.loads(APP_VARS.read_text(encoding="utf-8")) if APP_VARS.is_file() else {}
     entrees = tous_desktop()
-    helpers, mimes, aides = construire(apps, entrees)
+    helpers, mimes, aides, binaires = construire(apps, entrees)
     manquants = [role for role in ROLES
                  if apps.get(role) and not resoudre(apps[role], ROLES[role]["categories"], entrees)]
     print(json.dumps({"app_vars": apps, "helpers": helpers, "mimes": mimes,
