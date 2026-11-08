@@ -27,7 +27,10 @@ PanelWindow {
     anchors.right: true
     color: "transparent"
     aboveWindows: false
-    visible: Theme.depthMask && masque !== ""
+    // Quand le MultiEffect par widget est actif, chaque widget découpe son propre
+    // contenu : ce calque plein écran ferait double emploi (et redessinerait une
+    // copie du fond, avec le décalage que ça suppose).
+    visible: Theme.depthMask && masque !== "" && !Theme.widgetsMultieffect
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     // Zone exclusive neutre : sans ça, la barre réserve le haut de l'écran et
@@ -116,6 +119,10 @@ PanelWindow {
                               "--feather", String(fenetre.adouci)]
         generateur.running = true
     }
+
+    // Le chemin du masque part au thème : chaque widget le lit pour son
+    // MultiEffect, et n'a donc pas à relancer l'inférence de profondeur.
+    onMasqueChanged: Theme.depthMaskPath = masque
 
     Image {
         anchors.fill: parent
