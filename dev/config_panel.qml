@@ -619,6 +619,39 @@ Rectangle {
         return false
     }
 
+    // Tiroir ouvert de l'onglet courant (l'accordéon n'en laisse qu'un, mais on
+    // ne s'y fie pas : on prend le premier ouvert de l'onglet).
+    readonly property var tiroirOuvertCourant: {
+        for (const nom in root.tiroirs) {
+            if (root.ongletDeSection[nom] !== root.currentTab) continue
+            if (root.sectionOpen(nom, false)) return { nom: nom, item: root.tiroirs[nom] }
+        }
+        return null
+    }
+
+    property string tiroirCollant: ""
+    property string titreCollant: ""
+
+    // Le bandeau n'apparaît que si l'en-tête du tiroir est sorti par le haut et
+    // qu'il reste du contenu sous le bandeau : sinon il doublerait l'en-tête réel.
+    function majEnteteCollant() {
+        const t = root.tiroirOuvertCourant
+        if (!t || !t.item) { root.tiroirCollant = ""; return }
+        const haut = t.item.mapToItem(mainFlickable.contentItem, 0, 0).y
+        const bas = haut + t.item.height
+        const visible = haut < mainFlickable.contentY && bas > mainFlickable.contentY + 34
+        root.tiroirCollant = visible ? t.nom : ""
+        root.titreCollant = visible ? String(t.item.title || "") : ""
+    }
+
+    function replierTiroirCollant() {
+        const nom = root.tiroirCollant
+        const tiroir = root.tiroirs[nom]
+        if (tiroir) tiroir.expanded = false
+        root.setPanelSection(nom, false)
+        root.tiroirCollant = ""
+    }
+
     // La commande écrit bar_applets.json ; on relit la liste juste après.
     Timer {
         id: vizRafraichir
@@ -877,6 +910,7 @@ Rectangle {
         root.panelSections = s
         root.runConfigCmd(["panel_section", name, String(expanded)])
         root.rafraichirTiroirs()
+        majEnteteCollant()
     }
 
     // Accordéon : ouvrir un tiroir referme ceux du même onglet.
@@ -1627,6 +1661,49 @@ Rectangle {
         anchors.bottomMargin: Theme.space4
         clip: true
 
+        // En-tête collant : quand le tiroir ouvert défile hors de vue, son titre
+        // reste en haut du panneau pour qu'on puisse le refermer sans remonter.
+        Rectangle {
+            id: enteteCollant
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 34
+            radius: Theme.globalRadius
+            color: Theme.surfaceVariant
+            border.color: Theme.accentMuted
+            border.width: 1
+            visible: root.tiroirCollant !== ""
+            z: 20
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 44
+                text: root.titreCollant
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                font.bold: true
+                elide: Text.ElideRight
+            }
+
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                text: "▼"
+                color: Theme.accent
+                font.pixelSize: Theme.textSm
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.replierTiroirCollant()
+            }
+        }
+
         Flickable {
             id: mainFlickable
             anchors.fill: parent
@@ -1649,6 +1726,10 @@ Rectangle {
                 if (root.currentTab === 7) return tabHomelabCol.implicitHeight
                 return 0
             }
+
+            onContentYChanged: root.majEnteteCollant()
+            onContentHeightChanged: root.majEnteteCollant()
+            onHeightChanged: root.majEnteteCollant()
 
             Connections {
                 target: root
