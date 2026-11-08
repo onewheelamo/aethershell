@@ -502,6 +502,9 @@ PanelWindow {
                         // Maj + clic gauche (le clic gauche pose des sommets).
                         property point departPan: Qt.point(0, 0)
                         property bool panActif: false
+                        // Un geste de déplacement se termine par un `clicked` :
+                        // sans ce drapeau, il posait un sommet en mode points.
+                        property bool panVientDeFinir: false
                         onPositionChanged: (souris) => {
                             if (zonePeinture.panActif) {
                                 const c = zonePeinture.mapToItem(cadreApercu, souris.x, souris.y)
@@ -523,6 +526,12 @@ PanelWindow {
                             canvasPeinture.requestPaint()
                         }
                         onClicked: (souris) => {
+                            if (zonePeinture.panVientDeFinir) {
+                                zonePeinture.panVientDeFinir = false
+                                return
+                            }
+                            if (souris.modifiers & Qt.ShiftModifier)
+                                return
                             if (fenetre.outil === "points")
                                 fenetre.ajouterSommet(souris.x / width, souris.y / height)
                         }
@@ -533,6 +542,7 @@ PanelWindow {
                                     || (souris.button === Qt.LeftButton
                                         && (souris.modifiers & Qt.ShiftModifier))) {
                                 zonePeinture.panActif = true
+                                zonePeinture.panVientDeFinir = true
                                 zonePeinture.departPan = zonePeinture.mapToItem(
                                     cadreApercu, souris.x, souris.y)
                                 return
