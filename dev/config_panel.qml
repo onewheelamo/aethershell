@@ -139,7 +139,7 @@ Rectangle {
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
           tab: 5, section: "apps_programs", target: "launchHistoryRow" },
         { label: "Cible du clic sur une notification", words: "notification notifications clic titre cible lien fichier video image dossier commande", 
-          tab: 5, section: "apps_notif_targets", target: "secNotifTargets" },
+          tab: 5, section: "quickshell_notifications", target: "secNotifs" },
         { label: "Programmes lancés au démarrage", words: "applications autostart demarrage lancement daemon",
           tab: 5, section: "apps_autostart", target: "secAutostart" }
     ]
@@ -229,8 +229,7 @@ Rectangle {
         "widgets": 2, "widgets_api": 7,
         "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
         "clavier_disposition": 4, "clavier_binds": 4,
-        "apps_programs": 5, "apps_autostart": 5, "apps_notif_targets": 5,
-        "quickshell_notifications": 5,
+        "apps_programs": 5, "apps_autostart": 5, "quickshell_notifications": 5,
         "greeter_theme": 6,
         "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7,
         "donnees_localisation": 7
@@ -924,7 +923,6 @@ Rectangle {
         "systeme_nuit": secNuit,
         "apps_programs": secApps,
         "quickshell_notifications": secNotifs,
-        "apps_notif_targets": secNotifTargets,
         "apps_autostart": secAutostart
     })
 
@@ -7102,7 +7100,7 @@ Rectangle {
             CollapsibleSection {
                 id: secApps
                 objectName: "secApps"
-                title: "Programmes par défaut des raccourcis"
+                title: "Applications par défaut"
                 icon: "rocket"
                 expanded: root.sectionOpen("apps_programs", true)
                 onToggled: expanded => {
@@ -7420,7 +7418,7 @@ Rectangle {
             CollapsibleSection {
                 id: secNotifs
                 objectName: "secNotifs"
-                title: "Notifications"
+                title: "Notifications & Actions au clic"
                 icon: "bell"
                 expanded: root.sectionOpen("quickshell_notifications", false)
                 onToggled: expanded => {
@@ -7486,21 +7484,14 @@ Rectangle {
                         font.pixelSize: Theme.textXs
                     }
                 }
-            }
 
-            // Cible du clic sur le titre d'une notification (core/notif_targets.json).
-            // Aucun programme n'est écrit ici : les alias renvoient au tiroir
-            // « Programmes par défaut » ci-dessus. Le résolveur relit le fichier à
-            // chaque notification, donc une modification est effective tout de suite.
-            CollapsibleSection {
-                id: secNotifTargets
-                objectName: "secNotifTargets"
-                title: "Cible du clic sur une notification"
-                icon: "history"
-                expanded: root.sectionOpen("apps_notif_targets", false)
-                onToggled: expanded => {
-                    root.setPanelSection("apps_notif_targets", expanded)
-                    if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_notif_targets")
+                // Au clic : quoi faire quand on clique une notification.
+                Text {
+                    width: parent.width
+                    text: "Au clic sur une notification"
+                    color: Theme.accent
+                    font.pixelSize: Theme.textSm
+                    font.bold: true
                 }
 
                 Column {
@@ -7893,6 +7884,11 @@ Rectangle {
                     }
                 }
             }
+
+            // Cible du clic sur le titre d'une notification (core/notif_targets.json).
+            // Aucun programme n'est écrit ici : les alias renvoient au tiroir
+            // « Programmes par défaut » ci-dessus. Le résolveur relit le fichier à
+            // chaque notification, donc une modification est effective tout de suite.
 
             // Autostart géré par le panneau (autostart.json -> autostart_managed.lua)
             CollapsibleSection {
