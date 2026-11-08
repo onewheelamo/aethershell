@@ -506,6 +506,17 @@ QtObject {
         root.hyprSyncTimer.restart()
     }
 
+    // Vrai dès qu'une lecture de style_vars.json a réussi : sert à distinguer un
+    // échec passager au démarrage d'un fichier vraiment cassé.
+    property bool styleRelu: false
+
+    // Déclaré en propriété, comme les autres enfants : le type racine est un
+    // Singleton, qui n'a pas de propriété par défaut où poser un enfant nu.
+    property Timer relanceStyle: Timer {
+        interval: 250
+        onTriggered: styleFile.reload()
+    }
+
     property FileView styleFile: FileView {
         path: Quickshell.shellPath("core/style_vars.json")
         watchChanges: true
@@ -515,7 +526,15 @@ QtObject {
             try {
                 const parsed = JSON.parse(text())
                 root.applyPaletteData(parsed)
+                root.styleRelu = true
             } catch (e) {
+                // La lecture tombe parfois au milieu d'une écriture faite par un
+                // service Python (import des thèmes, réglage d'applet) : une
+                // relecture unique suffit, et on ne crie que si elle échoue aussi.
+                if (!root.styleRelu) {
+                    relanceStyle.restart()
+                    return
+                }
                 console.warn("Theme.qml: Failed to parse core/style_vars.json:", e)
             }
         }
