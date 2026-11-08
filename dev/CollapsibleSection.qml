@@ -19,6 +19,10 @@ Item {
     height: implicitHeight
 
     property string title: ""
+    // Résumé d'état affiché à droite du titre, sur le bandeau replié : d'un coup
+    // d'œil on lit les réglages actifs d'un onglet sans rien déplier (point 3 des
+    // maquettes). Vide = rien à dire, le bandeau reste tel quel.
+    property string summary: ""
     property string icon: ""
     property bool expanded: false
     property color headerColor: Theme.surfaceBg
@@ -72,12 +76,29 @@ Item {
             }
 
             Text {
+                id: arrow
                 anchors.right: parent.right
                 anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.expanded ? "▼" : "▶"
                 color: Theme.accent
                 font.pixelSize: Theme.textXs
+            }
+
+            // Le résumé s'arrête avant la flèche et s'élide : il ne prend jamais
+            // la place du titre, même sur un bandeau étroit (barre latérale).
+            Text {
+                id: resume
+                visible: root.summary !== ""
+                anchors.right: arrow.left
+                anchors.rightMargin: Theme.space2 * 2
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, parent.width * 0.48)
+                horizontalAlignment: Text.AlignRight
+                text: root.summary
+                color: Qt.alpha(Theme.fg, 0.45)
+                font.pixelSize: Theme.textXs
+                elide: Text.ElideRight
             }
 
             MouseArea {
