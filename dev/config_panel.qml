@@ -923,9 +923,23 @@ Rectangle {
     // Applique l'état persisté à tous les tiroirs : l'état est la seule source
     // de vérité, donc un tiroir ouvert en referme un autre sans course.
     function rafraichirTiroirs() {
+        // Un seul tiroir ouvert par onglet, et c'est le premier marqué ouvert :
+        // l'invariant est tenu ici plutôt que dans chaque bascule, sinon l'ordre
+        // des écritures peut laisser deux tiroirs ouverts (cas vu avec le
+        // visualiseur sous les applets).
+        const ouvertParOnglet = ({})
+        for (const nom in root.tiroirs) {
+            if (!root.sectionOpen(nom, false)) continue
+            const onglet = root.ongletDeSection[nom]
+            if (ouvertParOnglet[onglet] === undefined) ouvertParOnglet[onglet] = nom
+        }
         for (const nom in root.tiroirs) {
             const tiroir = root.tiroirs[nom]
-            if (tiroir) tiroir.expanded = root.sectionOpen(nom, false)
+            if (!tiroir) continue
+            const voulu = Theme.panelAccordion
+                ? (ouvertParOnglet[root.ongletDeSection[nom]] === nom)
+                : root.sectionOpen(nom, false)
+            if (tiroir.expanded !== voulu) tiroir.expanded = voulu
         }
     }
 
