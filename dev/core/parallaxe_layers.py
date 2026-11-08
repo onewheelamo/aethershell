@@ -138,6 +138,13 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     rgb = Image.open(fond).convert("RGB")
     if ecran:
         rgb = _cover(rgb, int(ecran[0]), int(ecran[1]))
+        # Le fond recadré à la taille de l'écran sert aussi au verre dépoli des
+        # surfaces (FlouFond.qml) : à l'échelle 1, sans réduction ni recadrage,
+        # Qt ne rééchantillonne plus et le verre cesse de tirer une couture au
+        # bord des îlots.
+        sortie = Path(sortie).expanduser()
+        sortie.mkdir(parents=True, exist_ok=True)
+        rgb.save(sortie / "fond-ecran.png", format="PNG", optimize=True)
     # Masque peint : l'alpha porte la sélection (le fond est transparent).
     # Carte du modèle : les niveaux de gris.
     with Image.open(chemin_masque) as _m:

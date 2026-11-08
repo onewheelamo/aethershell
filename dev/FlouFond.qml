@@ -73,6 +73,45 @@ Item {
         return dir !== "" ? dir.replace(/\/?$/, "/") + "wallhaven-zy2doj.png" : ""
     }
 
+    // ── Fond recadré à l'écran, quand il existe ───────────────────────────────
+    // `parallaxe_layers.py` écrit `fond-ecran.png` (1920×1080, même cadrage que
+    // le démon de fond) à côté des calques. À l'échelle 1 il n'y a plus ni
+    // réduction ni recadrage par Qt : le fond redessiné tombe au pixel près sur
+    // celui du compositeur, et la couture de teinte au bord des îlots disparaît.
+    // Sans ce fichier on retombe sur l'ancien chemin (décodage réduit + découpe).
+    readonly property string nomFond: {
+        const p = String(racine.fond)
+        if (p === "") return ""
+        return p.split("/").pop().replace(/\.[^.]+$/, "")
+    }
+    readonly property string racineFonds: {
+        let d = String(Theme.wallpaperDir || "")
+        const home = Quickshell.env("HOME") || ""
+        if (d.startsWith("$HOME")) d = home + d.slice(5)
+        else if (d.startsWith("~")) d = home + d.slice(1)
+        return d.replace(/\/?$/, "/")
+    }
+    readonly property string cheminEcran: racine.nomFond === "" ? ""
+        : racine.racineFonds + "profondeur/" + racine.nomFond + "/fond-ecran.png"
+    property bool ecranPret: false
+
+    Image {
+        id: imageEcran
+        source: racine.cheminEcran !== "" ? "file://" + racine.cheminEcran : ""
+        // Taille de l'écran, décalée pour que le pixel sous la surface soit le
+        // bon : la surface est une fenêtre sur cette image, pas une copie.
+        width: racine.ecran.width
+        height: racine.ecran.height
+        x: -racine.positionEcran.x
+        y: -racine.positionEcran.y
+        fillMode: Image.Pad
+        asynchronous: true
+        cache: true
+        visible: false
+        layer.enabled: true
+        onStatusChanged: racine.ecranPret = (status === Image.Ready)
+    }
+
     // Le fond est décodé une fois, à petite taille : le flou efface la
     // différence et le coût de décodage d'un 1920×1080 par surface serait payé
     // à chaque ouverture.
@@ -107,7 +146,9 @@ Item {
 
     MultiEffect {
         anchors.fill: parent
-        source: image
+        // Le fond à l'échelle 1 d'abord ; le décodage réduit seulement s'il
+        // manque (fond jamais découpé en calques).
+        source: racine.ecranPret ? imageEcran : image
         blurEnabled: true
         blur: racine.flou
         blurMax: racine.flouMax

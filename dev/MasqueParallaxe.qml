@@ -59,7 +59,7 @@ PanelWindow {
     // Chaque trait : { points: [[x, y], …] en 0–1, taille: diamètre en px écran }
     property var traits: []
     property var traitEnCours: null
-    property real pinceau: 90
+    property real pinceau: 40
     property string message: ""
     property bool travail: false
 
@@ -206,7 +206,7 @@ PanelWindow {
                 Text {
                     text: fenetre.nomFond === ""
                           ? "fond courant introuvable"
-                          : (fenetre.nomFond + " — peins ce qui doit passer devant")
+                          : (fenetre.nomFond + " — peins ce qui doit passer devant ; molette = taille du pinceau")
                     color: Qt.alpha(Theme.fg, 0.55)
                     font.pixelSize: Theme.textXs
                 }
@@ -292,10 +292,31 @@ PanelWindow {
                                : fenetre.traits.concat([fenetre.traitEnCours])
                     }
 
+                    // Cercle du pinceau : on voit la taille avant de peindre, et
+                    // la molette la change sur place (10 à 300 px).
+                    Rectangle {
+                        id: curseur
+                        visible: zonePeinture.containsMouse && !fenetre.travail
+                        width: Math.max(4, fenetre.pinceau * (canvasPeinture.width / 1920))
+                        height: width
+                        radius: width / 2
+                        color: Qt.alpha("#ffffff", 0.12)
+                        border.color: Qt.alpha("#ffffff", 0.75)
+                        border.width: 1
+                        x: zonePeinture.mouseX - width / 2
+                        y: zonePeinture.mouseY - height / 2
+                    }
+
                     MouseArea {
+                        id: zonePeinture
                         anchors.fill: parent
                         enabled: !fenetre.travail
                         cursorShape: Qt.CrossCursor
+                        hoverEnabled: true
+                        onWheel: (roue) => {
+                            const pas = roue.angleDelta.y > 0 ? 6 : -6
+                            fenetre.pinceau = Math.max(10, Math.min(300, fenetre.pinceau + pas))
+                        }
                         onPressed: (souris) => {
                             fenetre.traitEnCours = null
                             fenetre.ajouterPoint(souris.x, souris.y)
@@ -330,16 +351,29 @@ PanelWindow {
                 }
 
                 Rectangle {
+                    id: railPinceau
                     width: 150
                     height: 4
                     radius: 2
                     color: Theme.surfaceVariant
 
                     Rectangle {
-                        width: parent.width * (fenetre.pinceau - 20) / 220
+                        width: parent.width * (fenetre.pinceau - 10) / 290
                         height: parent.height
                         radius: 2
                         color: Theme.accent
+                    }
+
+                    Rectangle {
+                        width: 12
+                        height: 12
+                        radius: 6
+                        color: Theme.fg
+                        border.color: Theme.accent
+                        border.width: 1
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: Math.max(0, Math.min(parent.width - width,
+                                                parent.width * (fenetre.pinceau - 10) / 290 - width / 2))
                     }
 
                     MouseArea {
@@ -348,12 +382,12 @@ PanelWindow {
                         enabled: !fenetre.travail
                         onClicked: (souris) => {
                             const f = Math.max(0, Math.min(1, souris.x / width))
-                            fenetre.pinceau = Math.round(20 + f * 220)
+                            fenetre.pinceau = Math.round(10 + f * 290)
                         }
                         onPositionChanged: (souris) => {
                             if (!pressed) return
                             const f = Math.max(0, Math.min(1, souris.x / width))
-                            fenetre.pinceau = Math.round(20 + f * 220)
+                            fenetre.pinceau = Math.round(10 + f * 290)
                         }
                     }
                 }
