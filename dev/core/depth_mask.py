@@ -211,7 +211,7 @@ def affiner_guide(source, profondeur, max_dim=1920, rayon=8, epsilon=0.001):
     return affine
 
 
-def generer(fond: Path, seuil: float, adouci: float) -> None:
+def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None:
     if not fond.is_file():
         raise RuntimeError("fond introuvable : %s" % fond)
     if not modele_valide():
@@ -234,6 +234,11 @@ def generer(fond: Path, seuil: float, adouci: float) -> None:
     chemin_profondeur = DEPTH_DIR / ("%s.npy" % cle)
     cle_masque = "%s-v%d-t%.4f-f%.4f" % (cle, VERSION_MASQUE, seuil, adouci)
     chemin_masque = MASQUE_DIR / ("%s.png" % cle_masque)
+    # Carte continue, sans seuil : c'est elle que lit le découpage en calques.
+    # Le masque binarisé ne porte qu'un contour choisi à l'avance ; sur une carte
+    # binaire, les bandes intermédiaires sont vides et tout le décor tombe d'un
+    # côté ou de l'autre d'un seul cran.
+    chemin_brut = MASQUE_DIR / ("%s-brut-v%d.png" % (cle, VERSION_MASQUE))
 
     # Un verrou entre processus : deux appels concurrents (fond changé pendant
     # une génération) ne doivent pas écrire le même fichier en même temps.
@@ -275,8 +280,18 @@ def generer(fond: Path, seuil: float, adouci: float) -> None:
                     temporaire = Path(f.name)
                 os.replace(temporaire, chemin_profondeur)
 
-            if not chemin_masque.is_file():
+            if brut or not chemin_masque.is_file():
                 pleine = affiner_guide(source, profondeur)
+
+            if brut and not chemin_brut.is_file():
+                import numpy as _np
+                gris = Image.fromarray(_np.rint(_np.clip(pleine, 0.0, 1.0) * 255.0).astype("uint8"))
+                with tempfile.NamedTemporaryFile("wb", dir=MASQUE_DIR, delete=False) as f:
+                    gris.save(f, format="PNG", optimize=True)
+                    temporaire = Path(f.name)
+                os.replace(temporaire, chemin_brut)
+
+            if not brut and not chemin_masque.is_file():
                 demi = adouci * 0.5
                 alpha = np.clip((pleine - (seuil - demi)) / max(1e-6, 2 * demi), 0.0, 1.0) \
                     if demi > 0 else (pleine >= seuil).astype(np.float32)
@@ -298,6 +313,10 @@ def generer(fond: Path, seuil: float, adouci: float) -> None:
     finally:
         verrou.close()
 
+    if brut:
+        print(json.dumps({"ok": True, "brut": str(chemin_brut)}))
+        return
+
     emit({"ok": True, "cache": cache, "duree_ms": round((time.monotonic() - debut) * 1000),
           "largeur": l, "hauteur": h, "masque": str(chemin_masque), "fond": str(fond)})
 
@@ -314,6 +333,8 @@ def main() -> int:
     p.add_argument("--wallpaper", type=Path)
     p.add_argument("--threshold", type=float, default=0.30)
     p.add_argument("--feather", type=float, default=0.08)
+    p.add_argument("--brut", action="store_true",
+                   help="écrire la carte de profondeur continue, sans seuil")
     a = p.parse_args()
     try:
         if a.commande == "generate":
@@ -327,7 +348,7 @@ def main() -> int:
         else:
             if not a.wallpaper:
                 raise RuntimeError("--wallpaper est requis")
-            generer(a.wallpaper.expanduser().resolve(), a.threshold, a.feather)
+            generer(a.wallpaper.expanduser().resolve(), a.threshold, a.feather, a.brut)
         return 0
     except Exception as e:                       # une seule ligne, actionnable
         print(str(e), file=sys.stderr, flush=True)

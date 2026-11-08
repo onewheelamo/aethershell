@@ -568,6 +568,12 @@ Item {
         }
     }
 
+    // Peinture du masque de parallaxe : fenêtre propre, ouverte par le panneau
+    // (Apparence → Thème & Fond d'écran → « Masque à la main… »).
+    MasqueParallaxe {
+        screen: topBarWindow.screen
+    }
+
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
     PanelWindow {
         id: spotlightWindow

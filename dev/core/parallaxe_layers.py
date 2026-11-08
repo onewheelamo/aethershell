@@ -65,12 +65,22 @@ def _numpy():
     return np, Image
 
 
-def masque_pour(fond, seuil_bas, seuil_haut):
-    """Demande son masque à depth_mask.py (cache partagé) et rend son alpha."""
+def masque_pour(fond, peint=None):
+    """Rend la carte qui décide des plans : masque peint s'il existe, sinon profondeur.
+
+    Le masque peint à la main (pinceau du panneau) est une image à fond
+    transparent dont l'alpha vaut 255 là où l'utilisateur a jugé que l'objet est
+    devant : il fait foi, sans passer par le modèle. Sinon on demande à
+    depth_mask.py sa carte **continue** — pas le masque binarisé : le découpage a
+    besoin de la gradation réelle, car sur une carte binaire la bande
+    intermédiaire est vide et tout bascule d'un cran.
+    """
+    if peint:
+        peint = Path(peint).expanduser()
+        if peint.is_file():
+            return peint
     cmd = [sys.executable, str(ICI / "depth_mask.py"), "generate",
-           "--wallpaper", str(fond),
-           "--threshold", str(seuil_haut / 100.0),
-           "--feather", "0.02"]
+           "--wallpaper", str(fond), "--brut"]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit("depth_mask.py a échoué : " + (r.stderr.strip() or r.stdout.strip())[:300])
@@ -79,8 +89,8 @@ def masque_pour(fond, seuil_bas, seuil_haut):
     except json.JSONDecodeError:
         sys.exit("réponse illisible de depth_mask.py : " + r.stdout[:200])
     if not d.get("ok"):
-        sys.exit("masque indisponible : " + str(d.get("error")))
-    return Path(d["masque"])
+        sys.exit("carte de profondeur indisponible : " + str(d.get("error")))
+    return Path(d["brut"])
 
 
 def _lissage(a, bas, haut):
@@ -124,12 +134,17 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     if not fond.exists():
         sys.exit("fond introuvable : " + str(fond))
 
-    chemin_masque = masque_pour(Path(masque_de).expanduser() if masque_de else fond,
-                                seuil_bas, seuil_haut)
+    chemin_masque = masque_pour(fond, masque_de)
     rgb = Image.open(fond).convert("RGB")
     if ecran:
         rgb = _cover(rgb, int(ecran[0]), int(ecran[1]))
-    alpha = Image.open(chemin_masque).getchannel("A")
+    # Masque peint : l'alpha porte la sélection (le fond est transparent).
+    # Carte du modèle : les niveaux de gris.
+    with Image.open(chemin_masque) as _m:
+        if _m.mode in ("RGBA", "LA") or (_m.mode == "P" and "transparency" in _m.info):
+            alpha = _m.convert("RGBA").getchannel("A")
+        else:
+            alpha = _m.convert("L")
     if alpha.size != rgb.size:
         alpha = alpha.resize(rgb.size, Image.LANCZOS)
 

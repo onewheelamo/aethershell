@@ -2282,9 +2282,6 @@ Rectangle {
                     }
             // Parallaxe : trois calques du fond courant, décalés au changement de
             // bureau ; le shell les produit lui-même quand ils manquent.
-            // Fond de bureau en profondeur : trois calques du fond courant,
-            // décalés au changement de bureau. Nécessite awww (le fond est
-            // relu auprès de lui).
             Row {
                 width: parent.width
                 spacing: 8
@@ -2320,6 +2317,50 @@ Rectangle {
                         onClicked: root.runConfigCmd([
                             "style", "depth_wallpaper", Theme.depthWallpaper ? "false" : "true"
                         ])
+                    }
+                }
+            }
+
+            // Le modèle de profondeur ne suit pas toujours l'intention : sur
+            // Fantasy-Landscape1 il range la rive de l'étang à 0,45 et les
+            // bosquets de gauche à 0,19, presque comme l'eau (0,14). Ce bouton
+            // ouvre la peinture du masque, qui fait alors foi sur le modèle.
+            Row {
+                width: parent.width
+                spacing: 8
+
+                Text {
+                    width: 160
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Masque du relief :"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    elide: Text.ElideRight
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 160
+                    height: 26
+                    radius: Theme.globalRadius
+                    color: Theme.surfaceVariant
+                    border.color: Theme.accent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Peindre à la main…"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Theme.masqueParallaxeVisible = true
+                            Theme.configPanelVisible = false
+                        }
                     }
                 }
             }

@@ -232,6 +232,11 @@ QtObject {
     property bool barRightVisible: false
 
     property bool configPanelVisible: false
+    // Fenêtre de peinture du masque de parallaxe (bouton du panneau).
+    property bool masqueParallaxeVisible: false
+    // Incrémenté quand un jeu de calques est regénéré : les surfaces qui les
+    // affichent relisent leurs images au lieu de garder les anciennes.
+    property int calquesVersion: 0
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
     // Barre de capture (SUPER + SHIFT + S) : pastille verticale à gauche.
@@ -625,6 +630,9 @@ QtObject {
         }
         function toggleConfig() {
             root.configPanelVisible = !root.configPanelVisible
+        }
+        function toggleMasqueParallaxe() {
+            root.masqueParallaxeVisible = !root.masqueParallaxeVisible
         }
         // Ouvre le panneau sur une section précise — utilisé par le clic milieu
         // des applets, et par les tests : ipc call shell openConfigSection quickshell_applets

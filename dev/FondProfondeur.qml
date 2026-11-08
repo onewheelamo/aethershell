@@ -128,7 +128,10 @@ PanelWindow {
                                   // n'est pas encore créée (elle attend ses calques), donc
                                   // `width` vaut 100 et la génération sortait en 100×100.
                                   "--ecran", (fenetre.screen ? fenetre.screen.width : Screen.width)
-                                             + "x" + (fenetre.screen ? fenetre.screen.height : Screen.height)]
+                                             + "x" + (fenetre.screen ? fenetre.screen.height : Screen.height),
+                                  // Le masque peint à la main, s'il existe, fait foi ;
+                                  // le script retombe sur le modèle quand il est absent.
+                                  "--masque-de", fenetre.dossierSpecifique + "masque.png"]
             generateur.running = true
             console.log("fond en profondeur : génération des calques pour " + fenetre.fondCourant)
         }
@@ -146,6 +149,16 @@ PanelWindow {
                 const msg = String(text).trim()
                 if (msg !== "") console.warn("fond en profondeur : " + msg)
             }
+        }
+    }
+
+    // Le panneau peut régénérer les calques (masque peint) : on relit alors sans
+    // attendre, la surface étant déjà à l'écran.
+    Connections {
+        target: Theme
+        function onCalquesVersionChanged() {
+            fenetre.repli = false
+            fenetre.rechargerCalques()
         }
     }
 
