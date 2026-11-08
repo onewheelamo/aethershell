@@ -5,6 +5,40 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.2.0] — 2026-11-08
+
+### Ajouté
+
+- **Résumés d'état dans le panneau** : chaque tiroir replié montre, à droite de son titre,
+  l'état des réglages qu'il contient — palette active, chemins des fonds, gaps et flou,
+  opacité du shell, nombre d'applets, de widgets et de raccourcis, fuseau, NTP, mode nuit,
+  disposition du clavier… Un onglet se lit d'un coup d'œil, sans rien déplier.
+- **Sélecteur de dossier dans la surface du panneau** : le choix des dossiers Wallpapers et
+  Screenshots est dessiné par le shell, avec son verre. Un dialogue Qt ouvrait une vraie
+  fenêtre, recouverte par la surface de couche du panneau — donc inatteignable. Navigation,
+  remontée au parent, entrées cachées écartées.
+- **Cadenas de déplacement des widgets** (`widgets_locked`) : posé, le raccourci de
+  placement (SUPER + SHIFT + clic) ne bouge plus rien, et un déplacement en cours est annulé
+  sans écriture.
+- **Bouton « Installer les paquets manquants »** (onglet *Apps & Alertes*) :
+  `core/deps_install.py` lit `dependencies.txt` — désormais déployé avec le shell —, filtre
+  la portée de la distribution, contrôle chaque binaire et élève par `pkexec`. Sans
+  `pkexec`, il affiche la commande au lieu d'échouer en silence.
+
+### Modifié
+
+- Tiroir *Pilule de lancement* : respiration entre le choix de position et la ligne
+  d'historique ; bouton « Vider » ramené à 0,8 de la taille du bouton voisin.
+- `deploy.sh` copie `dependencies.txt` dans `core/` : le panneau n'a plus besoin de savoir
+  où le dépôt a été cloné.
+
+### En attente — présent dans le code, non livré
+
+- Masque de profondeur rendu par un `MultiEffect` par widget : le code est en place
+  (`layer.effect` dans `main.qml`, masque publié par `CalqueProfondeur.qml`, clé
+  `widgets_multieffect` lue par `Theme`), mais le rendu n'est pas juste — alignement du
+  masque et sens de l'inversion à reprendre. Désactivé, et sans bascule dans le panneau.
+
 ## [0.1.0] — 2026-11-08
 
 Première version publiée. Un shell complet pour Hyprland 0.57 (configuration Lua) sous
@@ -75,4 +109,5 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.2.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.2.0
 [0.1.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.0
