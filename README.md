@@ -93,6 +93,10 @@ dev/                le shell (QML) et ses services
   deploy.sh         déploiement et contrôle des dépendances
 ```
 
+## Journal des modifications
+
+Les versions publiées et leur contenu sont dans [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Inspirations
 
 AetherShell a été écrit en regardant d'autres shells, et en reprenant franchement ce qu'ils
