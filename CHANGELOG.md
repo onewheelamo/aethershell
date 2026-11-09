@@ -9,6 +9,15 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Ajouté
 
+- **Gestionnaire de déploiement — Sauvegarde fine granulaire & Moteur de pré-vol ([`dev/deploy.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/deploy.sh))** :
+  - **Moteur de pré-vol (`--diff` / `--dry-run`)** : analyse comparative exhaustive de l'arborescence du dépôt (`dev/`) par rapport à l'environnement vivant (`~/.config/hypr` et `~/.config/quickshell`).
+  - Rapport catégorisé avec métriques claires : fichiers préservés (états locaux protégés : palettes, applets, secrets, binds, etc.), fichiers modifiés (avec comptage précis `+X / -Y` lignes), nouveaux fichiers, fichiers orphelins à élaguer, et fichiers générés post-déploiement.
+  - Robustesse totale sous `set -euo pipefail` : isolation des sorties d'erreurs et des retours unitaires de comparaison.
+  - **Snapshots fins granulaires décompressés** : création systématique à chaque déploiement d'un snapshot miroir navigable dans `~/.config/backups_env/snapshots/<horodatage>/` avec métadonnées (`manifest.json` : horodatage, distro, origine, commit git, nombre de fichiers) et table d'empreintes sha256 (`checksums.sha256`).
+  - Rotation automatique synchronisée (`HQ_RETENTION=5`) assurant un historique maîtrisé.
+  - **Restauration granulaire par fichier (`--restore-file <chemin> [snapshot]`)** : permet de restaurer un fichier unique précis depuis un snapshot vers le vivant, avec copie de sauvegarde préalable de la version écrasée.
+  - **Commandes CLI directes et menu enrichi** : options `--diff`, `--dry-run`, `--backup`, `--snapshots`, `--restore-file` et menu interactif enrichi (options 2 et 5) pour lister, comparer et restaurer sans risque.
+
 - **Hermes — Surveillance et contrôle de la passerelle (Gateway & Daemon)** :
   - Intégration de la surveillance du service systemd utilisateur `hermes-gateway.service`, de l'état du démon (`~/.hermes/gateway_state.json`) et de la vivacité du PID.
   - Visualisation en direct du statut (actif/inactif, PID, profils desservis, version, âge du battement ticker).

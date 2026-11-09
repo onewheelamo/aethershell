@@ -11,12 +11,33 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CURRENT_HYPR="$HOME/.config/hypr"
 BACKUP_DIR="$HOME/.config/backups_env"
+SNAPSHOT_DIR="$BACKUP_DIR/snapshots"
 DEV_DIR="$SCRIPT_DIR"
 QS_DIR="$HOME/.config/quickshell"
 CORE_DIR="$QS_DIR/core"
 DEPS_FILE="$DEV_DIR/dependencies.txt"
 
-mkdir -p "$BACKUP_DIR"
+mkdir -p "$BACKUP_DIR" "$SNAPSHOT_DIR"
+
+if [ -t 1 ]; then
+    C_RESET="\033[0m"
+    C_BOLD="\033[1m"
+    C_GREEN="\033[0;32m"
+    C_YELLOW="\033[0;33m"
+    C_BLUE="\033[0;34m"
+    C_RED="\033[0;31m"
+    C_CYAN="\033[0;36m"
+    C_DIM="\033[0;2m"
+else
+    C_RESET=""
+    C_BOLD=""
+    C_GREEN=""
+    C_YELLOW=""
+    C_BLUE=""
+    C_RED=""
+    C_CYAN=""
+    C_DIM=""
+fi
 
 # Dépendances applicables à une cible, d'après les portées du fichier :
 #   #: commun          → les deux familles
@@ -42,7 +63,7 @@ deps_pour_cible() {
     done < "$DEPS_FILE"
 }
 
-# 1. Détection de la distribution (argument > /etc/os-release)
+# 1. Détection de la distribution (argument > /etc/os-release > historique)
 #    `arch` couvre Arch et ses dérivés, `fedora` Fedora et ses rebuilds.
 DISTRO=""
 IDENT=""
@@ -54,29 +75,82 @@ case "$IDENT" in
     fedora|nobara|bazzite) DISTRO="fedora" ;;
 esac
 
-for arg in "$@"; do
-    case "$arg" in
-        --arch|arch) DISTRO="arch" ;;
-        --fedora|fedora) DISTRO="fedora" ;;
+PRINT_DEPS=0
+DIFF_ONLY=0
+DRY_RUN=0
+AUTO_DEPLOY=0
+DO_BACKUP=0
+SNAPSHOTS_ACTION=""
+RESTORE_FILE=""
+RESTORE_SNAP=""
+HQ_ACTION=""
+HQ_ARG1=""
+HQ_ARG2=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --arch|arch) DISTRO="arch"; shift ;;
+        --fedora|fedora) DISTRO="fedora"; shift ;;
         --target=*)
-            case "${arg#*=}" in
-                arch|fedora) DISTRO="${arg#*=}" ;;
-                *) echo "❌ Cible inconnue : ${arg#*=} (attendu : arch | fedora)" >&2; exit 2 ;;
+            case "${1#*=}" in
+                arch|fedora) DISTRO="${1#*=}"; shift ;;
+                *) echo "❌ Cible inconnue : ${1#*=} (attendu : arch | fedora)" >&2; exit 2 ;;
             esac
             ;;
         --target)
             shift
             case "${1:-}" in
-                arch|fedora) DISTRO="${1:-}" ;;
+                arch|fedora) DISTRO="${1:-}"; shift ;;
                 *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora)" >&2; exit 2 ;;
             esac
             ;;
-        --deps) PRINT_DEPS=1 ;;
-        --hq-list) HQ_ACTION="list"; shift || true; HQ_ARG1="${1:-}" ;;
-        --hq-diff) HQ_ACTION="diff"; shift || true; HQ_ARG1="${1:-}" ;;
-        --hq-get)  HQ_ACTION="get";  shift || true; HQ_ARG1="${1:-}"; HQ_ARG2="${2:-}" ;;
+        --deps) PRINT_DEPS=1; shift ;;
+        --diff) DIFF_ONLY=1; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        --backup) DO_BACKUP=1; shift ;;
+        --deploy|-y|--yes) AUTO_DEPLOY=1; shift ;;
+        --snapshots) SNAPSHOTS_ACTION="list"; shift ;;
+        --restore-file)
+            shift
+            RESTORE_FILE="${1:-}"
+            [ -n "$RESTORE_FILE" ] && shift
+            RESTORE_SNAP="${1:-}"
+            [ -n "$RESTORE_SNAP" ] && shift
+            SNAPSHOTS_ACTION="restore_file"
+            ;;
+        --hq-list)
+            shift
+            HQ_ACTION="list"
+            HQ_ARG1="${1:-}"
+            [ -n "$HQ_ARG1" ] && [[ ! "$HQ_ARG1" =~ ^-- ]] && shift
+            ;;
+        --hq-diff)
+            shift
+            HQ_ACTION="diff"
+            HQ_ARG1="${1:-}"
+            [ -n "$HQ_ARG1" ] && [[ ! "$HQ_ARG1" =~ ^-- ]] && shift
+            ;;
+        --hq-get)
+            shift
+            HQ_ACTION="get"
+            HQ_ARG1="${1:-}"
+            [ -n "$HQ_ARG1" ] && shift
+            HQ_ARG2="${1:-}"
+            [ -n "$HQ_ARG2" ] && shift
+            ;;
+        *)
+            shift
+            ;;
     esac
 done
+
+if [ -z "$DISTRO" ]; then
+    if [ -f "$BACKUP_DIR/backup_fedora_hq.tar.gz" ]; then
+        DISTRO="fedora"
+    elif [ -f "$BACKUP_DIR/backup_arch_hq.tar.gz" ]; then
+        DISTRO="arch"
+    fi
+fi
 
 if [ -z "$DISTRO" ]; then
     echo "❌ Distribution non reconnue (ID='${IDENT:-absent}')." >&2
@@ -281,7 +355,7 @@ check_dependencies() {
     # paraît manquante à chaque déploiement et se réinstalle.
     if ! fc-list : family 2>/dev/null | grep -i "0xproto" >/dev/null; then
         echo "⚠️ Police d'icônes manquante : 0xProto Nerd Font"
-        if [ -x "$DEV_DIR/core/install_fonts.sh" ]; then
+        if [ "${DRY_RUN:-0}" != "1" ] && [ -x "$DEV_DIR/core/install_fonts.sh" ]; then
             bash "$DEV_DIR/core/install_fonts.sh" || echo "⚠️ Échec de l'installation automatique de la police."
         fi
     fi
@@ -291,6 +365,9 @@ check_dependencies() {
         return 0
     else
         echo "⚠️ Missing binaries: ${missing[*]} ($PKG_MGR packages: ${missing_pkgs[*]})"
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            return 0
+        fi
         read -p "Do you want to try installing them now with $PKG_MGR? (y/n): " choice
         if [ "$choice" == "y" ]; then
             if [ "$PKG_MGR" = "dnf" ]; then
@@ -304,6 +381,414 @@ check_dependencies() {
             [ "$cont" == "y" ] && return 0 || return 1
         fi
     fi
+}
+
+# ── Snapshot fin granulaire ──────────────────────────────────────────────────
+# Au lieu d'une archive monolithique opaque, le snapshot fin conserve l'arborescence
+# décompressée sous ~/.config/backups_env/snapshots/<horodatage>/ avec manifest.json
+# et index sha256. Permet d'inspecter ou de restaurer un seul fichier en un instant.
+
+detect_origin_type() {
+    if [ -f "$MARKER" ]; then
+        echo "quickshell_managed"
+    elif [ -f "$CURRENT_HYPR/hyprland.conf" ] || [ -f "$CURRENT_HYPR/hyprland.lua" ]; then
+        echo "foreign_hyprland"
+    elif [ -d "$CURRENT_HYPR" ] || [ -d "$QS_DIR" ]; then
+        echo "existing_partial"
+    else
+        echo "fresh_install"
+    fi
+}
+
+rotate_snapshots() {
+    local old_snaps
+    mapfile -t old_snaps < <(find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "latest" -printf "%T@ %p\n" 2>/dev/null | sort -nr | tail -n +$((HQ_RETENTION + 1)) | awk '{print $2}')
+    for s in "${old_snaps[@]}"; do
+        if [ -n "$s" ] && [ -d "$s" ]; then
+            rm -rf "$s"
+        fi
+    done
+}
+
+create_fine_snapshot() {
+    local stamp="${1:-$(date +%Y%m%d_%H%M%S)}" snap_dest origin git_rev count_hypr=0 count_qs=0
+    snap_dest="$SNAPSHOT_DIR/$stamp"
+    mkdir -p "$snap_dest/hypr" "$snap_dest/quickshell"
+
+    origin="$(detect_origin_type)"
+    git_rev="$(git -C "$DEV_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+
+    if [ -d "$CURRENT_HYPR" ]; then
+        cp -a "$CURRENT_HYPR/." "$snap_dest/hypr/" 2>/dev/null || true
+        count_hypr=$(find "$snap_dest/hypr" -type f 2>/dev/null | wc -l)
+    fi
+    if [ -d "$QS_DIR" ]; then
+        cp -a "$QS_DIR/." "$snap_dest/quickshell/" 2>/dev/null || true
+        count_qs=$(find "$snap_dest/quickshell" -type f 2>/dev/null | wc -l)
+    fi
+
+    cat > "$snap_dest/manifest.json" <<EOF
+{
+  "timestamp": "$stamp",
+  "distro": "$DISTRO",
+  "origin": "$origin",
+  "git_commit": "$git_rev",
+  "files_hypr": $count_hypr,
+  "files_quickshell": $count_qs,
+  "created_at": "$(date --iso-8601=seconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S')"
+}
+EOF
+
+    (
+        cd "$snap_dest" && find hypr quickshell -type f -print0 2>/dev/null \
+            | sort -z | xargs -0 sha256sum 2>/dev/null
+    ) > "$snap_dest/checksums.sha256" 2>/dev/null || true
+
+    ln -sfn "$stamp" "$SNAPSHOT_DIR/latest"
+    rotate_snapshots
+    echo "✅ Snapshot fin créé : $(basename "$snap_dest") ($((count_hypr + count_qs)) fichiers, origine: $origin)"
+}
+
+snapshots_lister() {
+    local snaps=()
+    mapfile -t snaps < <(find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "latest" -printf "%T@ %p\n" 2>/dev/null | sort -nr | awk '{print $2}')
+    if [ "${#snaps[@]}" -eq 0 ]; then
+        echo "ℹ️ Aucun snapshot fin dans $SNAPSHOT_DIR"
+        return 0
+    fi
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}Snapshots fins disponibles ($SNAPSHOT_DIR) :${C_RESET}"
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
+    local i snap nom origin distro files_count files_h files_q human_date
+    for i in "${!snaps[@]}"; do
+        snap="${snaps[$i]}"
+        nom="$(basename "$snap")"
+        if [ -f "$snap/manifest.json" ]; then
+            origin=$(grep -oE '"origin": "[^"]+"' "$snap/manifest.json" | cut -d'"' -f4)
+            distro=$(grep -oE '"distro": "[^"]+"' "$snap/manifest.json" | cut -d'"' -f4)
+            files_h=$(grep -oE '"files_hypr": [0-9]+' "$snap/manifest.json" | cut -d' ' -f2)
+            files_q=$(grep -oE '"files_quickshell": [0-9]+' "$snap/manifest.json" | cut -d' ' -f2)
+            files_count=$(( ${files_h:-0} + ${files_q:-0} ))
+            human_date=$(grep -oE '"created_at": "[^"]+"' "$snap/manifest.json" | cut -d'"' -f4)
+        else
+            origin="inconnu"
+            distro="inconnu"
+            files_count=$(find "$snap" -type f 2>/dev/null | wc -l)
+            human_date="$nom"
+        fi
+        printf ' %2d > %-18s | %-8s | %-18s | %3d fichiers | %s\n' \
+            "$((i+1))" "$nom" "${distro:-inconnu}" "${origin:-inconnu}" "$files_count" "${human_date:-$nom}"
+    done
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
+}
+
+restore_snapshot_file() {
+    local file_input="${1:-}" snap_choice="${2:-latest}"
+    if [ -z "$file_input" ]; then
+        echo "❌ Usage : restore_snapshot_file <chemin_fichier> [snapshot_timestamp|latest]" >&2
+        return 1
+    fi
+
+    local snap_dir=""
+    if [ "$snap_choice" = "latest" ]; then
+        if [ -L "$SNAPSHOT_DIR/latest" ] || [ -d "$SNAPSHOT_DIR/latest" ]; then
+            snap_dir="$(cd -P "$SNAPSHOT_DIR/latest" 2>/dev/null && pwd)"
+        else
+            snap_dir=$(find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "latest" -printf "%T@ %p\n" 2>/dev/null | sort -nr | head -1 | awk '{print $2}')
+        fi
+    elif [ -d "$SNAPSHOT_DIR/$snap_choice" ]; then
+        snap_dir="$SNAPSHOT_DIR/$snap_choice"
+    else
+        echo "❌ Snapshot introuvable : $snap_choice" >&2
+        return 1
+    fi
+
+    [ -d "$snap_dir" ] || { echo "❌ Aucun snapshot valide trouvé." >&2; return 1; }
+
+    local clean_path="${file_input#$HOME/.config/}"
+    clean_path="${clean_path#/}"
+
+    local src_file="" dst_file=""
+    if [ -f "$snap_dir/$clean_path" ]; then
+        src_file="$snap_dir/$clean_path"
+        dst_file="$HOME/.config/$clean_path"
+    elif [ -f "$snap_dir/quickshell/$clean_path" ]; then
+        src_file="$snap_dir/quickshell/$clean_path"
+        dst_file="$QS_DIR/$clean_path"
+    elif [ -f "$snap_dir/hypr/$clean_path" ]; then
+        src_file="$snap_dir/hypr/$clean_path"
+        dst_file="$CURRENT_HYPR/$clean_path"
+    elif [ -f "$snap_dir/quickshell/core/$clean_path" ]; then
+        src_file="$snap_dir/quickshell/core/$clean_path"
+        dst_file="$CORE_DIR/$clean_path"
+    else
+        local found
+        found=$(find "$snap_dir" -type f -name "$(basename "$clean_path")" | head -1)
+        if [ -n "$found" ]; then
+            local rel="${found#$snap_dir/}"
+            src_file="$found"
+            dst_file="$HOME/.config/$rel"
+        fi
+    fi
+
+    if [ -z "$src_file" ] || [ ! -f "$src_file" ]; then
+        echo "❌ Fichier '$file_input' introuvable dans le snapshot $(basename "$snap_dir")" >&2
+        return 1
+    fi
+
+    local safety_dir="$BACKUP_DIR/restores_replaced_$(date +%Y%m%d_%H%M%S)"
+    if [ -f "$dst_file" ]; then
+        mkdir -p "$safety_dir"
+        cp -a "$dst_file" "$safety_dir/"
+        echo "  ℹ️ Copie de sécurité de l'existant : $safety_dir/$(basename "$dst_file")"
+    fi
+
+    mkdir -p "$(dirname "$dst_file")"
+    cp -a "$src_file" "$dst_file"
+    echo "✅ Fichier restauré avec succès : $dst_file"
+    echo "   Source : $src_file"
+    return 0
+}
+
+compute_diff_stats() {
+    local src="$1" dst="$2"
+    (diff -u "$src" "$dst" 2>/dev/null || true) | awk '/^\+[^+]/ {add++} /^-[^-]/ {del++} END {printf "+%d / -%d", add, del}'
+}
+
+# ── Pré-vol : Analyse comparative (Dépôt ➜ Vivant) ──────────────────────────
+preflight_diff() {
+    local git_rev origin
+    git_rev="$(git -C "$DEV_DIR" rev-parse --short HEAD 2>/dev/null || echo "inconnu")"
+    origin="$(detect_origin_type)"
+
+    local -a list_preserved=()
+    local -a list_modified=()
+    local -a list_added=()
+    local -a list_pruned=()
+    local -a list_regen=()
+    local count_ident=0
+
+    # 1. Hypr modular
+    local f name dst stats
+    for f in "$DEV_DIR/hypr_modular"/*; do
+        [ -f "$f" ] || continue
+        name="$(basename "$f")"
+        dst="$CURRENT_HYPR/$name"
+        if [ -f "$dst" ]; then
+            if is_preserved "$name" "$PRESERVE_HYPR"; then
+                if cmp -s "$f" "$dst"; then
+                    list_preserved+=("hypr/$name (protégé, identique)")
+                else
+                    list_preserved+=("hypr/$name (protégé localement, non écrasé)")
+                fi
+            elif cmp -s "$f" "$dst"; then
+                count_ident=$((count_ident + 1))
+            else
+                case "$name" in
+                    colors.lua|programs.lua|autostart_cmds.txt)
+                        list_regen+=("hypr/$name (régénéré après déploiement)")
+                        ;;
+                    *)
+                        stats=$(compute_diff_stats "$dst" "$f")
+                        list_modified+=("hypr/$name ($stats)")
+                        ;;
+                esac
+            fi
+        else
+            list_added+=("hypr/$name")
+        fi
+    done
+
+    # Élagage potentiel dans Hyprland
+    if [ -d "$CURRENT_HYPR" ]; then
+        for f in "$CURRENT_HYPR"/*; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            [ -f "$DEV_DIR/hypr_modular/$name" ] && continue
+            is_preserved "$name" "$PRESERVE_HYPR" && continue
+            case "$name" in
+                *.upstream|hypridle.conf|hyprlock.conf|hyprlock-colors.conf|autostart_cmds.txt|.quickshell_managed|secrets.json|*_cache.json) continue ;;
+            esac
+            list_pruned+=("hypr/$name")
+        done
+    fi
+
+    # 2. Core
+    for f in "$DEV_DIR/core"/*; do
+        [ -f "$f" ] || continue
+        name="$(basename "$f")"
+        dst="$CORE_DIR/$name"
+        if [ -f "$dst" ]; then
+            if [[ "$name" == *.json ]] && [[ " $JSON_DEPLOYES " != *" $name "* ]]; then
+                list_preserved+=("quickshell/core/$name (état local protégé)")
+            elif is_preserved "$name" "$PRESERVE_CORE"; then
+                list_preserved+=("quickshell/core/$name (état protégé)")
+            elif cmp -s "$f" "$dst"; then
+                count_ident=$((count_ident + 1))
+            else
+                stats=$(compute_diff_stats "$dst" "$f")
+                list_modified+=("quickshell/core/$name ($stats)")
+            fi
+        else
+            list_added+=("quickshell/core/$name")
+        fi
+    done
+
+    # Élagage potentiel dans Core
+    if [ -d "$CORE_DIR" ]; then
+        for f in "$CORE_DIR"/*; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            [ -f "$DEV_DIR/core/$name" ] && continue
+            is_preserved "$name" "$PRESERVE_CORE" && continue
+            case "$name" in
+                *.upstream|secrets.json|*_cache.json|flotte.json|app_index.json) continue ;;
+            esac
+            list_pruned+=("quickshell/core/$name")
+        done
+    fi
+
+    # 3. Root QML & qmldir
+    for f in "$DEV_DIR"/*.qml "$DEV_DIR"/qmldir; do
+        [ -f "$f" ] || continue
+        name="$(basename "$f")"
+        dst="$QS_DIR/$name"
+        if [ -f "$dst" ]; then
+            if cmp -s "$f" "$dst"; then
+                count_ident=$((count_ident + 1))
+            else
+                stats=$(compute_diff_stats "$dst" "$f")
+                list_modified+=("quickshell/$name ($stats)")
+            fi
+        else
+            list_added+=("quickshell/$name")
+        fi
+    done
+
+    # Élagage potentiel dans racine quickshell
+    if [ -d "$QS_DIR" ]; then
+        for f in "$QS_DIR"/*.qml "$QS_DIR"/qmldir; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            [ -f "$DEV_DIR/$name" ] && continue
+            list_pruned+=("quickshell/$name")
+        done
+    fi
+
+    # 4. Widgets
+    if [ -d "$DEV_DIR/widgets" ]; then
+        for f in "$DEV_DIR/widgets"/*.qml; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            dst="$QS_DIR/widgets/$name"
+            if [ -f "$dst" ]; then
+                if cmp -s "$f" "$dst"; then
+                    count_ident=$((count_ident + 1))
+                else
+                    stats=$(compute_diff_stats "$dst" "$f")
+                    list_modified+=("quickshell/widgets/$name ($stats)")
+                fi
+            else
+                list_added+=("quickshell/widgets/$name")
+            fi
+        done
+        if [ -d "$QS_DIR/widgets" ]; then
+            for f in "$QS_DIR/widgets"/*.qml; do
+                [ -f "$f" ] || continue
+                name="$(basename "$f")"
+                [ -f "$DEV_DIR/widgets/$name" ] && continue
+                list_pruned+=("quickshell/widgets/$name")
+            done
+        fi
+    fi
+
+    # 5. Hyprquickpaper
+    if [ -d "$DEV_DIR/hyprquickpaper" ]; then
+        for f in "$DEV_DIR/hyprquickpaper"/*; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            dst="$QS_DIR/hyprquickpaper/$name"
+            if [ -f "$dst" ]; then
+                if [ "$name" = "config.json" ] && [ -f "$MARKER" ] && [ "${DEPLOY_OVERWRITE:-0}" != "1" ]; then
+                    list_preserved+=("quickshell/hyprquickpaper/config.json (config utilisateur protégée)")
+                elif cmp -s "$f" "$dst"; then
+                    count_ident=$((count_ident + 1))
+                else
+                    stats=$(compute_diff_stats "$dst" "$f")
+                    list_modified+=("quickshell/hyprquickpaper/$name ($stats)")
+                fi
+            else
+                list_added+=("quickshell/hyprquickpaper/$name")
+            fi
+        done
+    fi
+
+    # 6. Systemd services
+    if [ -d "$DEV_DIR/systemd" ]; then
+        for f in "$DEV_DIR/systemd"/*.service; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            dst="$HOME/.config/systemd/user/$name"
+            if [ -f "$dst" ]; then
+                if cmp -s "$f" "$dst"; then
+                    count_ident=$((count_ident + 1))
+                else
+                    stats=$(compute_diff_stats "$dst" "$f")
+                    list_modified+=("systemd/user/$name ($stats)")
+                fi
+            else
+                list_added+=("systemd/user/$name")
+            fi
+        done
+    fi
+
+    # ── AFFICHAGE DU RAPPORT ────────────────────────────────────────────────
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}PRÉ-VOL : ANALYSE DES MODIFICATIONS (Dépôt ➜ Vivant)${C_RESET}"
+    echo -e "  Cible : ${DISTRO_TITLE} | Origine : ${origin} | Git : ${git_rev}"
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
+
+    if [ ${#list_preserved[@]} -gt 0 ]; then
+        echo -e "${C_GREEN}${C_BOLD}  🟢 Fichiers préservés (états locaux protégés, non écrasés) :${C_RESET}"
+        for item in "${list_preserved[@]}"; do
+            echo -e "     ${C_GREEN}✓${C_RESET} $item"
+        done
+    fi
+
+    if [ ${#list_modified[@]} -gt 0 ]; then
+        echo -e "${C_YELLOW}${C_BOLD}  🟡 Fichiers modifiés (seront mis à jour) :${C_RESET}"
+        for item in "${list_modified[@]}"; do
+            echo -e "     ${C_YELLOW}⤾${C_RESET} $item"
+        done
+    fi
+
+    if [ ${#list_added[@]} -gt 0 ]; then
+        echo -e "${C_BLUE}${C_BOLD}  🔵 Nouveaux fichiers (seront créés/installés) :${C_RESET}"
+        for item in "${list_added[@]}"; do
+            echo -e "     ${C_BLUE}+${C_RESET} $item"
+        done
+    fi
+
+    if [ ${#list_regen[@]} -gt 0 ]; then
+        echo -e "${C_CYAN}${C_BOLD}  ⚙️  Fichiers régénérés automatiquement (post-déploiement) :${C_RESET}"
+        for item in "${list_regen[@]}"; do
+            echo -e "     ${C_CYAN}⚙${C_RESET} $item"
+        done
+    fi
+
+    if [ ${#list_pruned[@]} -gt 0 ]; then
+        echo -e "${C_RED}${C_BOLD}  🔴 Fichiers orphelins (seront archivés dans backups_env/pruned_*) :${C_RESET}"
+        for item in "${list_pruned[@]}"; do
+            echo -e "     ${C_RED}✗${C_RESET} $item"
+        done
+    else
+        echo -e "${C_DIM}  ⚪ Aucun fichier orphelin à élaguer.${C_RESET}"
+    fi
+
+    echo -e "${C_BOLD}──────────────────────────────────────────────────────────────────────────────${C_RESET}"
+    printf "  ${C_BOLD}Bilan :${C_RESET} %d identiques | ${C_YELLOW}%d modifiés${C_RESET} | ${C_BLUE}%d nouveaux${C_RESET} | ${C_GREEN}%d préservés${C_RESET} | ${C_RED}%d à élaguer${C_RESET}\n" \
+        "$count_ident" "${#list_modified[@]}" "${#list_added[@]}" "${#list_preserved[@]}" "${#list_pruned[@]}"
+    echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
 }
 
 BACKUP_OK=0
@@ -336,6 +821,10 @@ backup_env() {
     cp -f "$archive" "$HQ_ALIAS"
     echo "✅ HQ saved: $(basename "$archive") ($(du -h "$archive" | cut -f1))"
     rotate_backups
+
+    # Création simultanée du snapshot fin décompressé
+    create_fine_snapshot "$stamp"
+
     BACKUP_OK=1
 }
 
@@ -734,6 +1223,99 @@ deploy_new_env() {
     fi
 }
 
+# Entrée de menu : gestion des snapshots fins
+gerer_snapshots_menu() {
+    while true; do
+        echo ""
+        snapshots_lister
+        echo "Actions sur les snapshots fins :"
+        echo " 1 > Lister les fichiers d'un snapshot"
+        echo " 2 > Diff d'un fichier (Snapshot ➜ Vivant)"
+        echo " 3 > Restaurer un fichier unique"
+        echo " s > Retour au menu principal"
+        read -p "Choix : " s_choice
+        case "$s_choice" in
+            1)
+                read -p "Nom du snapshot (ex: 20261109_162000 ou 'latest') [latest] : " s_target
+                s_target="${s_target:-latest}"
+                local s_path="$SNAPSHOT_DIR/$s_target"
+                [ -e "$s_path" ] || { echo "❌ Snapshot introuvable."; continue; }
+                echo "Fichiers dans le snapshot $s_target :"
+                find -L "$s_path" -type f ! -name "manifest.json" ! -name "checksums.sha256" | sed "s#^$s_path/##" | sort
+                ;;
+            2)
+                read -p "Chemin du fichier (ex: quickshell/Theme.qml) : " f_path
+                [ -n "$f_path" ] || continue
+                read -p "Depuis le snapshot [latest] : " s_target
+                s_target="${s_target:-latest}"
+                local s_path="$SNAPSHOT_DIR/$s_target"
+                local clean_p="${f_path#$HOME/.config/}"
+                clean_p="${clean_p#/}"
+                local sf=""
+                for cand in "$s_path/$clean_p" "$s_path/quickshell/$clean_p" "$s_path/hypr/$clean_p"; do
+                    if [ -f "$cand" ]; then sf="$cand"; break; fi
+                done
+                if [ -z "$sf" ]; then
+                    echo "❌ Fichier introuvable dans le snapshot $s_target."
+                    continue
+                fi
+                local live="$HOME/.config/$clean_p"
+                [ -f "$live" ] || { echo "ℹ️ Fichier absent du vivant ($live)."; continue; }
+                echo "Diff : Snapshot ➜ Vivant :"
+                diff -u "$sf" "$live" || true
+                ;;
+            3)
+                read -p "Fichier à restaurer (ex: quickshell/core/style_vars.json) : " f_path
+                [ -n "$f_path" ] || continue
+                read -p "Depuis le snapshot [latest] : " s_target
+                restore_snapshot_file "$f_path" "${s_target:-latest}"
+                ;;
+            s|S|q|Q|"")
+                return 0
+                ;;
+            *)
+                echo "Choix invalide."
+                ;;
+        esac
+    done
+}
+
+if [ "${DIFF_ONLY:-0}" = "1" ]; then
+    preflight_diff
+    exit 0
+fi
+
+if [ "${DRY_RUN:-0}" = "1" ]; then
+    echo "🔍 Mode Dry-Run (aucune modification ne sera effectuée)."
+    check_dependencies
+    preflight_diff
+    exit 0
+fi
+
+if [ "${SNAPSHOTS_ACTION:-}" = "list" ]; then
+    snapshots_lister
+    exit 0
+elif [ "${SNAPSHOTS_ACTION:-}" = "restore_file" ]; then
+    restore_snapshot_file "$RESTORE_FILE" "$RESTORE_SNAP"
+    exit $?
+fi
+
+if [ "${AUTO_DEPLOY:-0}" = "1" ]; then
+    if check_dependencies; then
+        preflight_diff
+        [ "${BACKUP_OK:-0}" = "1" ] || backup_env
+        deploy_new_env
+        exit 0
+    else
+        exit 1
+    fi
+fi
+
+if [ "${DO_BACKUP:-0}" = "1" ]; then
+    backup_env
+    exit 0
+fi
+
 if [ -n "${HQ_ACTION:-}" ]; then
     case "$HQ_ACTION" in
         list) hq_lister "${HQ_ARG1:-}" ;;
@@ -761,9 +1343,11 @@ while true; do
     echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
     echo "------------------------------------------"
     echo "1 > Deploy & Switch to Quickshell ($DISTRO)"
-    echo "2 > Backup HQ (Hyprland + Quickshell)"
-    echo "3 > Restore HQ from an older version"
-    echo "4 > Inspecter une sauvegarde (diff + extraire un fichier)"
+    echo "2 > Pré-vol : Diff avant déploiement (Dépôt ➜ Vivant)"
+    echo "3 > Sauvegarder l'environnement (Tarball + Snapshot fin)"
+    echo "4 > Restaurer l'environnement complet (Archive HQ)"
+    echo "5 > Snapshots fins : lister, inspecter ou restaurer un fichier"
+    echo "6 > Inspecter une archive tarball (diff + extraire)"
     echo "q > Quit"
     echo "------------------------------------------"
     read -p "Choice: " choice
@@ -771,14 +1355,28 @@ while true; do
     case $choice in
         1)
             if check_dependencies; then
-                [ "${BACKUP_OK:-0}" = "1" ] || backup_env
-                deploy_new_env
-                exit 0
+                echo ""
+                preflight_diff
+                echo ""
+                read -p "Confirmer le déploiement ? (o/n) [o] : " conf_dep
+                case "${conf_dep:-o}" in
+                    o|O|y|Y|"")
+                        [ "${BACKUP_OK:-0}" = "1" ] || backup_env
+                        deploy_new_env
+                        exit 0
+                        ;;
+                    *) echo "⏭️ Déploiement annulé." ;;
+                esac
             fi
             ;;
-        2) backup_env ;;
-        3) restore_hq && exit 0 ;;
-        4) inspecter_hq ;;
+        2)
+            preflight_diff
+            read -p "Appuyer sur Entrée pour revenir au menu..." _
+            ;;
+        3) backup_env ;;
+        4) restore_hq && exit 0 ;;
+        5) gerer_snapshots_menu ;;
+        6) inspecter_hq ;;
         q|Q) exit 0 ;;
         *) echo "Invalid choice." ;;
     esac
