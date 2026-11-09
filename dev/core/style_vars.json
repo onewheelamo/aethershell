@@ -1,5 +1,6 @@
 {
     "active_theme": "dynamic",
+    "idle_suspend_timeout": 3600,
     "global_radius": 18,
     "global_opacity": 0.7,
     "bar_height": 36,

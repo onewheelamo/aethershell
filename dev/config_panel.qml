@@ -130,6 +130,8 @@ Rectangle {
           tab: 3, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
           tab: 3, section: "", target: "timezoneRow" },
+        { label: "Mise en veille automatique", words: "mise en veille veille inactivité suspend sleep ecran timer energie heure",
+          tab: 3, section: "systeme_horloge", target: "idleTimeoutRow" },
         { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",
           tab: 4, section: "", target: "kbdRow" },
         { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
@@ -195,6 +197,7 @@ Rectangle {
         "shellBlurRow": shellBlurRow,
         "monitorsRow": monitorsRow,
         "timezoneRow": timezoneRow,
+        "idleTimeoutRow": idleTimeoutRow,
         "kbdRow": kbdRow,
         "bindsCol": bindsCol,
         "secApps": secApps,
@@ -380,6 +383,19 @@ Rectangle {
     property string selectedMonitorName: "HDMI-A-1"
     property string timezoneStr: "Europe/Paris"
     property bool ntpSynced: true
+    property int idleSuspendTimeout: 3600
+    readonly property string idleSuspendLabel: {
+        const s = root.idleSuspendTimeout
+        if (s === 900) return "15 min"
+        if (s === 1800) return "30 min"
+        if (s === 3600) return "1 heure"
+        if (s === 7200) return "2 heures"
+        if (s === 10800) return "3 heures"
+        if (s === 0) return "Désactivée"
+        if (s > 0 && s < 3600) return Math.round(s / 60) + " min"
+        if (s >= 3600) return (s / 3600).toFixed(s % 3600 === 0 ? 0 : 1) + " h"
+        return "1 heure"
+    }
     property var bindsList: []
     // Widgets de bureau (core/widgets.json) et position de la capsule du lanceur.
     property var widgetsList: []
@@ -1210,6 +1226,7 @@ Rectangle {
             if (data.display.timezone) root.timezoneStr = data.display.timezone
             if (typeof data.display.ntp === "boolean") root.ntpSynced = data.display.ntp
         }
+        if (typeof data.idle_suspend_timeout === "number") root.idleSuspendTimeout = data.idle_suspend_timeout
         if (Array.isArray(data.widgets)) root.widgetsList = data.widgets
         if (typeof data.launcher_position === "string") root.launcherPosition = data.launcher_position
         if (Array.isArray(data.binds)) {
@@ -6908,13 +6925,13 @@ Rectangle {
             // System Time, Network Shortcut (& Battery 80% Limiter if Laptop)
             }
 
-            // Tiroir : fuseau horaire, donc l'heure affichée par la barre.
+            // Tiroir : Alimentation, Veille, Fuseau horaire et Batterie
             CollapsibleSection {
                 id: secHorloge
                 objectName: "secHorloge"
-                title: "Horloge, Réseau & Batterie"
-                summary: root.ntpSynced ? "NTP synchronisé" : "NTP manuel"
-                icon: "clock"
+                title: "Alimentation, Veille & Horloge"
+                summary: "Veille : " + root.idleSuspendLabel + " · " + (root.ntpSynced ? "NTP synchronisé" : "NTP manuel")
+                icon: "power"
                 expanded: root.sectionOpen("systeme_horloge", false)
                 onToggled: expanded => {
                     root.setPanelSection("systeme_horloge", expanded)
@@ -6922,12 +6939,113 @@ Rectangle {
                 }
 
             Column {
-                id: timezoneRow   // ancre de recherche
-                objectName: "timezoneRow"
                 width: parent.width
-                spacing: 8
+                spacing: 12
 
+                // ── Mise en veille du système (inactivité) ────────────────────
+                Column {
+                    id: idleTimeoutRow
+                    objectName: "idleTimeoutRow"
+                    width: parent.width
+                    spacing: 6
+
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            text: "Mise en veille automatique :"
+                            color: Theme.accent
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "inactivité avant suspension (hypridle)"
+                            color: Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: Theme.textXs
+                        }
+                    }
+
+                    Flow {
+                        width: parent.width
+                        spacing: 6
+
+                        Repeater {
+                            model: [
+                                { label: "15 min", value: 900 },
+                                { label: "30 min", value: 1800 },
+                                { label: "1 heure (défaut)", value: 3600 },
+                                { label: "2 heures", value: 7200 },
+                                { label: "3 heures", value: 10800 },
+                                { label: "Jamais", value: 0 }
+                            ]
+
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool actif: root.idleSuspendTimeout === modelData.value
+                                width: idlePillText.implicitWidth + 18
+                                height: 28
+                                radius: Theme.globalRadius
+                                color: actif ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                Text {
+                                    id: idlePillText
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    color: actif ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: actif
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        root.idleSuspendTimeout = modelData.value
+                                        root.runConfigCmd(["idle_timeout", String(modelData.value)])
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Limite batterie 80% (portable) ─────────────────────────────
                 Rectangle {
+                    visible: root.isLaptop
+                    width: parent.width
+                    height: 44
+                    radius: Theme.globalRadius
+                    color: root.batLimit80 ? Theme.success : Theme.surfaceVariant
+                    border.color: Theme.success
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.batLimit80 ? "Limite 80% : active" : "Activer la limite 80%"
+                        color: root.batLimit80 ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.batLimit80 = !root.batLimit80
+                            root.runConfigCmd(["battery", root.batLimit80 ? "80" : "100"])
+                        }
+                    }
+                }
+
+                // ── Fuseau & NTP ──────────────────────────────────────────────
+                Rectangle {
+                    id: timezoneRow
+                    objectName: "timezoneRow"
                     width: parent.width
                     height: 46
                     radius: Theme.globalRadius
@@ -6950,9 +7068,10 @@ Rectangle {
                     }
                 }
 
+                // ── WiFi ──────────────────────────────────────────────────────
                 Rectangle {
                     width: parent.width
-                    height: 46
+                    height: 44
                     radius: Theme.globalRadius
                     color: openWifiMa.containsMouse ? Theme.accent : Theme.surfaceVariant
                     border.color: Theme.accent
@@ -6974,33 +7093,6 @@ Rectangle {
                         onClicked: {
                             Theme.configPanelVisible = false
                             Theme.activePopup = "wifi"
-                        }
-                    }
-                }
-
-                Rectangle {
-                    visible: root.isLaptop
-                    width: parent.width
-                    height: 46
-                    radius: Theme.globalRadius
-                    color: root.batLimit80 ? Theme.success : Theme.surfaceVariant
-                    border.color: Theme.success
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.batLimit80 ? "Limite 80% : active" : "Activer la limite 80%"
-                        color: root.batLimit80 ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            root.batLimit80 = !root.batLimit80
-                            root.runConfigCmd(["battery", root.batLimit80 ? "80" : "100"])
                         }
                     }
                 }

@@ -559,6 +559,91 @@ def set_panel_section(name, expanded):
     save_json(STYLE_FILE, data)
 
 
+def get_idle_suspend_timeout():
+    """Lit le délai d'inactivité avant mise en veille du système (en secondes).
+    Par défaut 3600 (1H).
+    """
+    style_data = load_json(STYLE_FILE)
+    if "idle_suspend_timeout" in style_data:
+        try:
+            return int(style_data["idle_suspend_timeout"])
+        except (ValueError, TypeError):
+            pass
+
+    candidats = [
+        os.path.join(os.path.expanduser("~/.config/hypr"), "hypridle.conf"),
+        os.path.join(HYPR_DIR, "hypridle.conf"),
+    ]
+    for c in candidats:
+        if os.path.isfile(c):
+            try:
+                with open(c, "r", encoding="utf-8") as f:
+                    txt = f.read()
+                m = re.search(r"listener\s*\{\s*timeout\s*=\s*(\d+)\s*[^}]*systemctl\s+suspend", txt)
+                if m:
+                    return int(m.group(1))
+            except Exception:
+                pass
+    return 3600
+
+
+def set_idle_suspend_timeout(seconds):
+    """Met à jour le délai d'inactivité avant mise en veille.
+    0 = désactivé (jamais).
+    Met à jour style_vars.json et hypridle.conf (live et dev si présent),
+    puis relance hypridle.
+    """
+    try:
+        val = int(seconds)
+    except (ValueError, TypeError):
+        val = 3600
+
+    # 1. Sauvegarde dans style_vars.json
+    style_data = load_json(STYLE_FILE)
+    style_data["idle_suspend_timeout"] = val
+    save_json(STYLE_FILE, style_data)
+
+    # 2. Mise à jour de hypridle.conf
+    cibles = {
+        os.path.join(os.path.expanduser("~/.config/hypr"), "hypridle.conf"),
+        os.path.join(DEV_ROOT, "hypr_modular", "hypridle.conf") if os.path.isdir(DEV_ROOT) else "",
+        os.path.join(HYPR_DIR, "hypridle.conf"),
+    }
+    for cible in cibles:
+        if cible and os.path.isfile(cible):
+            try:
+                with open(cible, "r", encoding="utf-8") as f:
+                    txt = f.read()
+                if val == 0:
+                    active_pattern = r"listener\s*\{\s*timeout\s*=\s*\d+\s*[^}]*systemctl\s+suspend[^}]*\}"
+                    def comment_block(m):
+                        return "\n".join("# " + l for l in m.group(0).splitlines())
+                    nouveau = re.sub(active_pattern, comment_block, txt)
+                else:
+                    active_pattern = r"(listener\s*\{\s*timeout\s*=\s*)\d+(\s*[^}]*systemctl\s+suspend[^}]*\})"
+                    if re.search(active_pattern, txt):
+                        nouveau = re.sub(active_pattern, rf"\g<1>{val}\2", txt)
+                    else:
+                        commented_regex = r"#\s*listener\s*\{\s*\n(?:#\s*[^\n]*\n)*?#\s*\}"
+                        remplacement = f"listener {{\n    timeout = {val}\n    on-timeout = systemctl suspend          # Met le système en veille\n}}"
+                        if re.search(commented_regex, txt):
+                            nouveau = re.sub(commented_regex, remplacement, txt, count=1)
+                        else:
+                            nouveau = txt.rstrip() + f"\n\n# 2. MISE EN VEILLE DU SYSTÈME\n{remplacement}\n"
+                with open(cible, "w", encoding="utf-8") as f:
+                    f.write(nouveau)
+            except Exception:
+                pass
+
+    # 3. Redémarrage de hypridle
+    try:
+        subprocess.run(["systemctl", "--user", "restart", "hypridle"], capture_output=True, timeout=3)
+    except Exception:
+        pass
+
+    return val
+
+
 def inscrire_variante_general(variant):
     """Inscrit la variante de flou choisie dans le `general.lua` vivant.
 
@@ -1870,6 +1955,7 @@ def get_full_config_state():
             "to": str(style_data.get("night_to") or ""),
         },
         "do_not_disturb": bool(style_data.get("do_not_disturb", False)),
+        "idle_suspend_timeout": get_idle_suspend_timeout(),
     }
 
 
@@ -1908,6 +1994,9 @@ if __name__ == "__main__":
     elif action == "todo_list":
         print(json.dumps({"fichiers": lire_todo(), "focus": lire_todo_focus()},
                          ensure_ascii=False))
+    elif action == "idle_timeout" and len(sys.argv) > 2:
+        set_idle_suspend_timeout(sys.argv[2])
+        print(json.dumps(get_full_config_state()))
     elif action == "homelab_set" and len(sys.argv) > 3:
         homelab_set(sys.argv[2], sys.argv[3])
         print(json.dumps(get_full_config_state()))

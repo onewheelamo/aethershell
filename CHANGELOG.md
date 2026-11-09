@@ -23,6 +23,13 @@ montée de mineure peut demander une adaptation des réglages.
   - Barre d'actions rapides : ouverture immédiate d'un terminal Ghostty dédié (`hermes`), relance de passerelle, tick cron et diagnostic doctor.
   - Journal en direct (tail sur les dernières lignes de `~/.hermes/logs/agent.log`) avec coloration contextuelle des statuts, avertissements et erreurs.
 
+- **Minuterie de mise en veille automatique (Système & Écrans)** :
+  - Ajout d'un réglage interactif par pilules dans l'onglet *Système & Écrans* (tiroir *Alimentation, Veille & Horloge*) de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
+  - Délais configurables : 15 min, 30 min, **1 heure (par défaut)**, 2 heures, 3 heures, ou Jamais (désactivé).
+  - Synchronisation immédiate avec la règle de suspension de [`dev/hypr_modular/hypridle.conf`](file:///home/<utilisateur>/dev/quickshell_todo/dev/hypr_modular/hypridle.conf) et `~/.config/hypr/hypridle.conf`.
+  - Redémarrage à chaud automatique du démon utilisateur `hypridle.service` lors du clic.
+  - Indexation dans le moteur de recherche interne du panneau (`searchIndex`) sous les termes « veille », « suspend », « inactivité », « sleep », « timer ».
+
 - **Pont Todo ↔ Hermes & Interrupteur de surveillance des cases (Étape 1)** :
   - Ajout d'un interrupteur de surveillance dans le popup Tâches ([`dev/TodoPopup.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/TodoPopup.qml)) et dans le panneau de configuration ([`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml)).
   - Persistance de l'option dans `core/todo.json` (`"surveillance": true/false`) et contrôle CLI via `todo_applet.py surveillance [on|off|toggle]`.
