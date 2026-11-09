@@ -80,6 +80,7 @@ DIFF_ONLY=0
 DRY_RUN=0
 AUTO_DEPLOY=0
 DO_BACKUP=0
+NO_BACKUP=0
 SNAPSHOTS_ACTION=""
 RESTORE_FILE=""
 RESTORE_SNAP=""
@@ -108,6 +109,8 @@ while [ $# -gt 0 ]; do
         --diff) DIFF_ONLY=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         --backup) DO_BACKUP=1; shift ;;
+        --no-backup|--skip-backup) NO_BACKUP=1; shift ;;
+        --deploy-only) AUTO_DEPLOY=1; NO_BACKUP=1; shift ;;
         --deploy|-y|--yes) AUTO_DEPLOY=1; shift ;;
         --snapshots) SNAPSHOTS_ACTION="list"; shift ;;
         --restore-file)
@@ -1300,10 +1303,20 @@ elif [ "${SNAPSHOTS_ACTION:-}" = "restore_file" ]; then
     exit $?
 fi
 
+# Déploiement direct sans sauvegarde préalable
+deploy_only() {
+    echo "⚡ Déploiement direct sans nouvelle sauvegarde..."
+    deploy_new_env
+}
+
 if [ "${AUTO_DEPLOY:-0}" = "1" ]; then
     if check_dependencies; then
         preflight_diff
-        [ "${BACKUP_OK:-0}" = "1" ] || backup_env
+        if [ "${NO_BACKUP:-0}" = "1" ]; then
+            echo "⚡ Déploiement sans sauvegarde (--no-backup demandée)..."
+        else
+            [ "${BACKUP_OK:-0}" = "1" ] || backup_env
+        fi
         deploy_new_env
         exit 0
     else
@@ -1342,12 +1355,13 @@ while true; do
     echo "------------------------------------------"
     echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
     echo "------------------------------------------"
-    echo "1 > Deploy & Switch to Quickshell ($DISTRO)"
-    echo "2 > Pré-vol : Diff avant déploiement (Dépôt ➜ Vivant)"
-    echo "3 > Sauvegarder l'environnement (Tarball + Snapshot fin)"
-    echo "4 > Restaurer l'environnement complet (Archive HQ)"
-    echo "5 > Snapshots fins : lister, inspecter ou restaurer un fichier"
-    echo "6 > Inspecter une archive tarball (diff + extraire)"
+    echo "1 > Déployer avec sauvegarde automatique ($DISTRO)"
+    echo "2 > Déployer sans sauvegarde (rapide / vivant déjà sauvegardé)"
+    echo "3 > Pré-vol : Diff avant déploiement (Dépôt ➜ Vivant)"
+    echo "4 > Sauvegarder l'environnement (Tarball + Snapshot fin)"
+    echo "5 > Restaurer l'environnement complet (Archive HQ)"
+    echo "6 > Snapshots fins : lister, inspecter ou restaurer un fichier"
+    echo "7 > Inspecter une archive tarball (diff + extraire)"
     echo "q > Quit"
     echo "------------------------------------------"
     read -p "Choice: " choice
@@ -1358,7 +1372,7 @@ while true; do
                 echo ""
                 preflight_diff
                 echo ""
-                read -p "Confirmer le déploiement ? (o/n) [o] : " conf_dep
+                read -p "Confirmer le déploiement avec sauvegarde ? (o/n) [o] : " conf_dep
                 case "${conf_dep:-o}" in
                     o|O|y|Y|"")
                         [ "${BACKUP_OK:-0}" = "1" ] || backup_env
@@ -1370,13 +1384,28 @@ while true; do
             fi
             ;;
         2)
+            if check_dependencies; then
+                echo ""
+                preflight_diff
+                echo ""
+                read -p "Confirmer le déploiement direct SANS sauvegarde ? (o/n) [o] : " conf_dep
+                case "${conf_dep:-o}" in
+                    o|O|y|Y|"")
+                        deploy_only
+                        exit 0
+                        ;;
+                    *) echo "⏭️ Déploiement annulé." ;;
+                esac
+            fi
+            ;;
+        3)
             preflight_diff
             read -p "Appuyer sur Entrée pour revenir au menu..." _
             ;;
-        3) backup_env ;;
-        4) restore_hq && exit 0 ;;
-        5) gerer_snapshots_menu ;;
-        6) inspecter_hq ;;
+        4) backup_env ;;
+        5) restore_hq && exit 0 ;;
+        6) gerer_snapshots_menu ;;
+        7) inspecter_hq ;;
         q|Q) exit 0 ;;
         *) echo "Invalid choice." ;;
     esac
