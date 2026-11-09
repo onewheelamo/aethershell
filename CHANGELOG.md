@@ -26,6 +26,14 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Corrigé
 
+- **Visibilité et focus des invites Polkit au-dessus du panneau de configuration** :
+  - Le panneau de configuration (`configOverlayWindow` dans [`dev/main.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/main.qml))
+    passe de la couche `WlrLayer.Overlay` avec `aboveWindows: true` à la couche `WlrLayer.Top`,
+    permettant aux fenêtres modales flottantes du compositeur (notamment l'invite Polkit
+    `polkit-kde-authentication-agent-1`) d'apparaître naturellement au premier plan au centre de l'écran.
+  - Ajout de la propriété réactive `Theme.configPanelYieldFocus` permettant au panneau de libérer
+    temporairement la capture du clavier (`WlrKeyboardFocus.None`) lors d'une action demandant
+    une élévation (installation ou désinstallation de thème), donnant un focus immédiat à l'invite Polkit.
 - **Appel IPC Quickshell (`quickshell ipc -n`)** : les raccourcis (`SUPER + H` pour le panneau,
   `SUPER + R` pour le spotlight, `SUPER + K`, notifications) et scripts OSD/capture passent
   désormais le drapeau `-n` à l'IPC pour cibler l'instance active la plus récente, évitant de

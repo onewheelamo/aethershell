@@ -259,6 +259,12 @@ QtObject {
     property bool barRightVisible: false
 
     property bool configPanelVisible: false
+    // Vrai quand une action privilégiée (polkit) ou un dialogue externe est actif :
+    // le panneau cède la saisie clavier pour que l'invite polkit reçoive directement le focus.
+    property bool configPanelYieldFocus: false
+    onConfigPanelVisibleChanged: {
+        if (!configPanelVisible) configPanelYieldFocus = false
+    }
     // Fenêtre de peinture du masque de parallaxe (bouton du panneau).
     property bool masqueParallaxeVisible: false
     // Incrémenté quand un jeu de calques est regénéré : les surfaces qui les
