@@ -58,8 +58,16 @@ for row in "${rows[@]}"; do
     sleep 4.5
 
     shot="$tmp/shot.png"
-    if grim "$shot" 2>/dev/null; then
-        magick "$shot" -resize "$SIZE" -quality 88 "$OUT/$id.png" 2>/dev/null
+    # Sur configuration multi-écrans, grim sans option capture l'ensemble du bureau
+    # (ex: 3840×1080), produisant des miniatures écrasées et coupées en deux.
+    # On cible explicitement l'écran focalisé où s'ouvre la fenêtre de test.
+    OUT_MON="$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused) | .name' 2>/dev/null || true)"
+    [ -z "$OUT_MON" ] && OUT_MON="$(hyprctl monitors -j 2>/dev/null | jq -r '.[0].name' 2>/dev/null || true)"
+    GRIM_ARGS=()
+    [ -n "$OUT_MON" ] && GRIM_ARGS=(-o "$OUT_MON")
+
+    if grim "${GRIM_ARGS[@]}" "$shot" 2>/dev/null; then
+        magick "$shot" -resize "$SIZE^" -gravity center -extent "$SIZE" -quality 88 "$OUT/$id.png" 2>/dev/null
         echo "miniature : $id → $OUT/$id.png"
     else
         echo "échec de capture pour $id" >&2
