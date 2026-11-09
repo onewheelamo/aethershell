@@ -108,6 +108,7 @@ Item {
         action.command = ["python3", Quickshell.shellPath("core/system_service.py"),
                           "limit", String(cible)]
         action.running = true
+        Theme.activePopup = ""
     }
 
     // ── bouton de barre ─────────────────────────────────────────────────────

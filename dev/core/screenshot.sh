@@ -33,7 +33,7 @@ log() {
 }
 
 if [ "$MODE" = "menu" ]; then
-    quickshell ipc call shell toggleScreenshotPicker 2>/dev/null || true
+    quickshell ipc -n call shell toggleScreenshotPicker 2>/dev/null || true
     exit 0
 fi
 

@@ -674,6 +674,14 @@ deploy_new_env() {
 
         if command -v systemctl >/dev/null 2>&1 \
            && systemctl --user cat quickshell.service >/dev/null 2>&1; then
+            # Tuer toute instance lancée hors de l'unité systemd (autostart
+            # Hyprland ou terminal) avant le restart : sinon `quickshell -n`
+            # voit le processus existant, quitte aussitôt (« An instance of this
+            # configuration is already running ») et laisse tourner l'ancien
+            # processus ou crée une double instance dont la plus ancienne capte
+            # les appels `quickshell ipc` en silence.
+            pkill -x quickshell 2>/dev/null || true
+            sleep 0.4
             if systemctl --user restart quickshell.service; then
                 echo "  ↪ quickshell relancé (unité systemd)"
             else

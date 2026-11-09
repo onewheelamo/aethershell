@@ -21,7 +21,7 @@
     },
     {
         "name": "Agent Polkit",
-        "cmd": "sh -c '/usr/bin/pgrep -x polkit-kde-authentication-agent-1 >/dev/null && exit 0; for agent in /usr/lib/polkit-kde-authentication-agent-1 /usr/libexec/lxqt-policykit-agent /usr/lib/hyprpolkitagent/hyprpolkitagent; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done'",
+        "cmd": "sh -c '/usr/bin/pgrep -f \"(polkit-kde-authentication-agent-1|hyprpolkitagent|lxqt-policykit-agent)\" >/dev/null && exit 0; for agent in /usr/libexec/kf6/polkit-kde-authentication-agent-1 /usr/lib/polkit-kde-authentication-agent-1 /usr/libexec/polkit-kde-authentication-agent-1 /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/libexec/lxqt-policykit-agent /usr/lib/lxqt-policykit-agent; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done'",
         "enabled": true
     },
     {

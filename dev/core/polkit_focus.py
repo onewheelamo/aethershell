@@ -24,7 +24,7 @@ import time
 # Classes dont l'ouverture doit amener le clavier. L'invite polkit d'abord ; le
 # gestionnaire de disques ensuite, car il est lancé depuis un popup de la barre
 # qui garde un attrapeur de clavier : sa fenêtre s'ouvre parfois derrière.
-MOTIFS = ("polkit", "partitionmanager", "gparted")
+MOTIFS = ("polkit", "policykit", "partitionmanager", "gparted")
 
 
 def _base_hypr():

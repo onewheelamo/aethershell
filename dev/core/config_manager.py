@@ -1538,7 +1538,7 @@ DEFAULT_AUTOSTART = [
     # La garde est dans le script (pidfile) : un `pgrep -f` sur le nom du script se
     # trouverait lui-même dans le `sh -c` qui le porte.
     {"name": "Presse-papiers (veilleurs cliphist)", "cmd": "sh -c '$HOME/.config/quickshell/core/cliphist_watch.sh' &", "enabled": True},
-    {"name": "Agent Polkit", "cmd": "sh -c '/usr/bin/pgrep -x hyprpolkitagent >/dev/null && exit 0; for agent in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/lib/lxqt-policykit-agent /usr/libexec/lxqt-policykit-agent /usr/lib/polkit-kde-authentication-agent-1; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done' &", "enabled": True},
+    {"name": "Agent Polkit", "cmd": "sh -c '/usr/bin/pgrep -f \"(polkit-kde-authentication-agent-1|hyprpolkitagent|lxqt-policykit-agent)\" >/dev/null && exit 0; for agent in /usr/libexec/kf6/polkit-kde-authentication-agent-1 /usr/lib/polkit-kde-authentication-agent-1 /usr/libexec/polkit-kde-authentication-agent-1 /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/libexec/lxqt-policykit-agent /usr/lib/lxqt-policykit-agent; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done'", "enabled": True},
 ]
 
 

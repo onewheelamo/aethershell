@@ -107,12 +107,15 @@ Item {
     // horizontal, aucun ancrage : wlr-layer-shell centre la surface toute seule.
     PanelWindow {
         id: menu
+        screen: (root.QsWindow && root.QsWindow.window)
+            ? root.QsWindow.window.screen
+            : ((Quickshell.screens && Quickshell.screens.length > 0) ? Quickshell.screens[0] : null)
         visible: root.ouvert
         color: "transparent"
         implicitWidth: root.largeurCarte
         implicitHeight: carte.implicitHeight
 
-        readonly property int hauteurEcran: root.screen ? root.screen.height : 1080
+        readonly property int hauteurEcran: menu.screen ? menu.screen.height : 1080
         readonly property int yTiersBas: Math.round(hauteurEcran * 2 / 3)
         // Décalage réglé à l'œil (demandes d'Amo, 07/11) : le menu se pose
         // 300 px plus haut que le centre strict du tiers inférieur, par pas de

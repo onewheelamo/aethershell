@@ -43,8 +43,7 @@ def has_backlight_device():
 
 def get_battery_limit_state():
     """Detect whether 80% battery charge limit (or Lenovo conservation_mode) is active."""
-    threshold_path = "/sys/class/power_supply/BAT0/charge_control_end_threshold"
-    if os.path.exists(threshold_path):
+    for threshold_path in glob.glob("/sys/class/power_supply/BAT*/charge_control_end_threshold"):
         try:
             with open(threshold_path, "r") as f:
                 val = f.read().strip()
@@ -285,18 +284,43 @@ def set_battery_limit(limit=80):
     target_pct = 80 if enable_limit else 100
     cons_val = 1 if enable_limit else 0
 
-    cmds = []
-    if os.path.exists("/sys/class/power_supply/BAT0/charge_control_end_threshold"):
-        cmds.append(
-            f"echo {target_pct} | sudo -n tee /sys/class/power_supply/BAT0/charge_control_end_threshold >/dev/null 2>&1"
-        )
+    # (valeur, chemin) : les fichiers sysfs appartiennent à root. La batterie
+    # n'est pas toujours BAT0 (BAT1 sur le Yoga sous Fedora) : on les cherche tous.
+    writes = []
+    for path in glob.glob("/sys/class/power_supply/BAT*/charge_control_end_threshold"):
+        writes.append((target_pct, path))
     for path in glob.glob("/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"):
-        cmds.append(f"echo {cons_val} | sudo -n tee {path} >/dev/null 2>&1")
+        writes.append((cons_val, path))
 
-    for c in cmds:
-        subprocess.run(c, shell=True, check=False)
+    pending = []
+    for val, path in writes:
+        try:
+            with open(path, "w") as f:
+                f.write(str(val))
+        except OSError:
+            pending.append((val, path))
 
-    return {"status": "ok", "limit_80": get_battery_limit_state(), "requested": target_pct}
+    error = ""
+    if pending:
+        # Pas de sudo sans mot de passe sur cette machine : pkexec demande
+        # l'autorisation à l'agent polkit de la session, en une seule invite.
+        script = "; ".join(f"echo {v} > {p}" for v, p in pending)
+        try:
+            res = subprocess.run(["pkexec", "sh", "-c", script],
+                                 capture_output=True, text=True, timeout=60)
+            if res.returncode != 0:
+                error = (res.stderr or "autorisation refusée").strip()
+        except FileNotFoundError:
+            error = "pkexec introuvable"
+        except subprocess.TimeoutExpired:
+            error = "autorisation non donnée à temps"
+
+    state = get_battery_limit_state()
+    out = {"status": "ok" if state == enable_limit else "error",
+           "limit_80": state, "requested": target_pct}
+    if error:
+        out["error"] = error
+    return out
 
 
 def set_volume(pct):

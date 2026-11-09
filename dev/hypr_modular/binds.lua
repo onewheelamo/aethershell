@@ -102,16 +102,16 @@ hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer), { description = "fich
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(music_player), { description = "musique" })
 
 --: Shell
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc call shell toggleSpotlight"), { description = "lanceur" })  -- essentiel
-hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
+hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleSpotlight"), { description = "lanceur" })  -- essentiel
+hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
-hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc call shell toggleCheatsheet"), { description = "raccourcis" })  -- essentiel
-hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("quickshell ipc call shell showNotifHistory"), { description = "historique des notifications" })
+hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleCheatsheet"), { description = "raccourcis" })  -- essentiel
+hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("quickshell ipc -n call shell showNotifHistory"), { description = "historique des notifications" })
 -- Placement d'un widget de bureau : le shell lit la position du curseur, trouve le
 -- widget dessous et affiche une surface plein écran qui le fait suivre la souris.
 -- SUPER + clic ne peut pas servir (déjà pris par le glisser de fenêtre) et
 -- `mouse.modifiers` vaut 0 côté surface : c'est donc Hyprland qui porte le geste.
-hl.bind(mainMod .. " + SHIFT + mouse:272", hl.dsp.exec_cmd("quickshell ipc call shell placeWidget"), { mouse = true, description = "déplacer un widget" })
+hl.bind(mainMod .. " + SHIFT + mouse:272", hl.dsp.exec_cmd("quickshell ipc -n call shell placeWidget"), { mouse = true, description = "déplacer un widget" })
 -- Sortie de l'aperçu plein écran du greeter (fenêtre de test SDDM). Le mode
 -- test n'a aucun socket d'authentification et n'obéit pas à Qt.quit() : la
 -- fenêtre est plein écran et avale le clavier, donc Échap est traité par le

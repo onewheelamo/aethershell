@@ -5,6 +5,41 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.1.2] — 2026-11-09
+
+### Corrigé
+
+- **Appel IPC Quickshell (`quickshell ipc -n`)** : les raccourcis (`SUPER + H` pour le panneau,
+  `SUPER + R` pour le spotlight, `SUPER + K`, notifications) et scripts OSD/capture passent
+  désormais le drapeau `-n` à l'IPC pour cibler l'instance active la plus récente, évitant de
+  dialoguer avec une instance zombie ou en cours de fermeture.
+- **Déploiement et redémarrage de session** : `deploy.sh` s'assure de tuer les processus
+  Quickshell résiduels (`pkill -x quickshell`) avant de redémarrer le service systemd
+  utilisateur, évitant l'accumulation d'instances concurrentes.
+- **Panneau d'énergie & Luminosité sur portable** : l'applet `LuminositeApplet.qml` embarque
+  directement son panneau complet (batterie, état, bascule du seuil de charge à 80 %,
+  luminosité et identification de la machine hôte), réparant l'ouverture au clic sur les
+  environnements où l'applet séparée `gestion-energie` n'est pas instanciée.
+- **Limitation de charge batterie (80 %)** :
+  - `system_service.py` détecte désormais dynamiquement toutes les batteries (`BAT*`, ex. `BAT1`
+    sur Lenovo Yoga sous Fedora) au lieu du seul `BAT0`.
+  - Prise en charge conjointe de `charge_control_end_threshold` et de `conservation_mode`
+    (`ideapad_acpi`).
+  - Élévation par `pkexec` pour l'écriture sysfs lorsque `sudo` sans mot de passe n'est pas
+    disponible.
+  - Fermeture automatique du popup (`Theme.activePopup = ""`) au clic pour libérer immédiatement
+    l'écran lors de la demande d'authentification.
+- **Agent Polkit sous Fedora & compatibilité Arch** :
+  - Autostart mis à jour avec le chemin KDE 6 Fedora (`/usr/libexec/kf6/polkit-kde-authentication-agent-1`)
+    en tête de recherche, assurant l'utilisation de l'agent KDE thémé (Breeze / `kdeglobals`) sur
+    Fedora au lieu de l'agent brut LXQt.
+  - Règle de fenêtre Hyprland élargie (`(?i).*(polkit|policykit).*`), fenêtre définie en
+    flottante, centrée, épinglée (`pin = true`), avec focus forcé (`stay_focused = true`) et fond
+    tamisé (`dim_around = true`).
+  - Veilleur de focus `core/polkit_focus.py` étendu au motif `policykit`.
+- **Flou de surface du panneau** : ajout du namespace `shell-config` dans `general.lua`
+  pour garantir le flou d'arrière-plan sous le panneau de configuration.
+
 ## [0.1.1] — 2026-11-08
 
 ### Ajouté
@@ -55,10 +90,26 @@ notifications, capture, et les services Python qui les alimentent.
 - **Panneau de configuration unique** : huit onglets, vingt-cinq tiroirs, index de recherche,
   réglages appliqués à chaud. Ouverture par la barre, par clic milieu sur un applet, ou par
   `quickshell ipc call shell toggleConfig`.
-- **Pilule de lancement** (applications, presse-papiers, fichiers, commandes, historique).
+- **Pilule de lancement multi-modes** : index d'applications, alias, commandes shell (`>`),
+  calculatrice locale (`=`), conversions d'unités (`~`), devises au taux BCE (`$`), émojis français (`;`),
+  tueur de processus (`%`), presse-papiers (`"`), recherche de fichiers (`/`) et recherche de contenu
+  (`:`, extraction PDF/DOCX/ODT avec cache RAM tmpfs déchiffré), avec volet d'aperçu latéral dynamique
+  de 400 px.
+- **Barres annexes et mode vertical complet** : ancrage directionnel des popups (`ancrePopupX/Y`),
+  rendu vertical adapté sans texte tronqué (icônes agrandies ×1,45, date courte `06/11`, systray en grille
+  verticale), flou Hyprland (`layer_rule`) appliqué aux barres du bas et latérales, et panneaux
+  autonomes (`CalendrierPanneau.qml`, `MediaPanneau.qml`) rattachés à leur applet.
+- **Composant `Defilement.qml`** : animation fluide en aller-retour avec temporisation aux extrémités
+  pour les textes longs dans les applets (titres musicaux, etc.) sans coupure arbitraire.
 - **Notifications** : centre, historique, et action au clic — la cible est figée à la
   réception, puis résolue par cascade (indication de l'émetteur → table par application →
-  action native → chemin ou URL présent dans le texte → application émettrice).
+  action native → chemin ou URL présent dans le texte → application émettrice). Fermeture par Échap
+  et clic extérieur fiabilisé.
+- **Services système & Confort** :
+  - Applet `MajApplet.qml` multi-distribution (`pacman`/`yay` sur Arch, `dnf` sur Fedora).
+  - Applet et widget Homelab (conteneurs Docker, unités systemd, pings parallèles, API Proxmox).
+  - Mode nuit piloté par `hyprsunset` avec timer persistant dans `main.qml`.
+  - Service Bluetooth non interactif via `bluetoothctl` avec bascule confirmée.
 - **Systray maison** : menu rendu aux couleurs du shell depuis le DBusMenu (sous-menus
   compris) au lieu de la fenêtre interne de Quickshell ; double clic sur une icône met la
   fenêtre de l'application au premier plan, ou la lance si elle n'en a pas.
@@ -76,10 +127,15 @@ notifications, capture, et les services Python qui les alimentent.
 - **Disques via udisks2**, y compris le cycle LUKS verrouiller / déverrouiller, avec la
   phrase passée par fichier temporaire et jamais en argument de commande.
 - **Greeter SDDM** thémé depuis les réglages du shell, et **assistant de premier lancement**.
-- **Déploiement** `dev/deploy.sh --arch | --fedora | --deps` : sauvegarde préalable, et
-  fichiers d'état (`style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`,
-  `secrets.json`) ou modules Hyprland édités à la main (`input.lua`, `binds.lua`,
-  `general.lua`) jamais écrasés.
+- **Déploiement et Sauvegardes HQ** (`dev/deploy.sh --arch | --fedora | --deps`) : menu interactif
+  avec sauvegardes horodatées complètes (`hypr/` et `quickshell/`), rotation sur 5 versions,
+  restauration sécurisée avec sauvegarde préalable automatique, et préservation des fichiers d'état
+  (`style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`, `secrets.json`,
+  `homelab.json`, `launch_history.json`) et modules Hyprland locaux (`input.lua`, `binds.lua`,
+  `general.lua`).
+- **Confidentialité structurelle du dépôt** : neutralisation totale des noms d'hôtes et chemins locaux
+  dans le dépôt partagé (`hardware-arch.lua`, `hardware-fedora.lua`, détection par `/etc/os-release`
+  et batterie).
 
 ### Modifié
 
@@ -92,6 +148,16 @@ notifications, capture, et les services Python qui les alimentent.
 
 ### Corrigé
 
+- **Isolation du singleton Theme (moteurs QML multiples)** : les `Loader` d'applets et de popups
+  utilisent des chemins relatifs plutôt que des URL absolues `file://`, évitant la recompilation
+  dans un second moteur QML et la scission du singleton `Theme`.
+- **Alignement et positionnement des widgets** : cellules de texte vides remplacées par une espace
+  dans `widgets/llm.qml` pour préserver le calcul de hauteur, et largeur dynamique liée à
+  `implicitWidthChanged` dans `widgets/comptes.qml`.
+- **Veilleur de focus Polkit & Disques** : `core/polkit_focus.py` lit le socket Hyprland actif
+  le plus récent (`.socket2.sock`) à chaque tour pour survivre aux rechargements du compositeur.
+- **Boucle de recherche du lanceur** : élimination du ré-appel cyclique de `build()` dans
+  `spotlight.qml` lors de la réception des résultats asynchrones, stabilisant la capsule.
 - Cache partiel de l'applet Système : toutes les mesures sont mises en cache, le filtre
   s'applique à la lecture (un appel filtré ne laissait auparavant que la mesure demandée).
 - Compteur de tâches de la barre non rafraîchi après une coche.
@@ -109,5 +175,6 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.1.2]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.2
 [0.1.1]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.1
 [0.1.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.0
