@@ -134,6 +134,7 @@ def presets():
             "thumb": str(thumb) if thumb.exists() else "",
             "active": cur == THEME.name and ident == active_id(),
             "kind": "astronaut",
+            "installed": True,
         })
     # Thèmes complets (qylock) : ceux installés, puis ceux seulement récupérés.
     merged = qylock_cached()

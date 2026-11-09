@@ -26,6 +26,47 @@ Item {
     property bool busy: false
     property string lastThumbStamp: ""
     property var selectedRemoveList: []
+    property string themeFilter: "installed" // "installed" | "uninstalled" | "all"
+
+    readonly property int installedCount: {
+        let c = 0
+        for (let i = 0; i < presets.length; i++)
+            if (presets[i].installed !== false) c++
+        return c
+    }
+
+    readonly property int uninstalledCount: {
+        let c = 0
+        for (let i = 0; i < presets.length; i++)
+            if (presets[i].installed === false) c++
+        return c
+    }
+
+    readonly property var filteredPresets: {
+        if (themeFilter === "installed") {
+            return presets.filter(function(p) { return p.installed !== false })
+        } else if (themeFilter === "uninstalled") {
+            return presets.filter(function(p) { return p.installed === false })
+        }
+        return presets
+    }
+
+    onThemeFilterChanged: ensureSelectionValid()
+
+    function ensureSelectionValid() {
+        const fp = filteredPresets
+        if (!fp || fp.length === 0) return
+        for (let i = 0; i < fp.length; i++) {
+            if (fp[i].id === selectedId) return
+        }
+        for (let i = 0; i < fp.length; i++) {
+            if (fp[i].id === activeId) {
+                selectedId = activeId
+                return
+            }
+        }
+        selectedId = fp[0].id
+    }
 
     function isRemoveSelected(id) {
         return selectedRemoveList.indexOf(id) !== -1
@@ -151,6 +192,7 @@ Item {
                     for (let i = 0; i < greeterTab.presets.length; i++)
                         if (greeterTab.presets[i].id === greeterTab.selectedId) known = true
                     if (!known) greeterTab.selectedId = d.active || ""
+                    greeterTab.ensureSelectionValid()
                     if (greeterTab.pendingId !== "") {
                         const ok = d.active === greeterTab.pendingId
                         greeterTab.status = ok
@@ -268,13 +310,58 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
+                // Barre de filtres pour afficher/masquer les thèmes
+                Row {
+                    width: parent.width
+                    spacing: Theme.space2
+
+                    Repeater {
+                        model: [
+                            { key: "installed", label: "Installés (" + greeterTab.installedCount + ")" },
+                            { key: "uninstalled", label: "Non installés (" + greeterTab.uninstalledCount + ")" },
+                            { key: "all", label: "Tous (" + greeterTab.presets.length + ")" }
+                        ]
+
+                        Rectangle {
+                            id: filterPill
+                            required property var modelData
+                            readonly property bool active: greeterTab.themeFilter === modelData.key
+                            width: pillText.implicitWidth + 24
+                            height: 28
+                            radius: Theme.globalRadius
+                            color: active
+                                ? Theme.accent
+                                : (pillMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.45))
+                            border.width: 1
+                            border.color: active ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
+
+                            Text {
+                                id: pillText
+                                anchors.centerIn: parent
+                                text: filterPill.modelData.label
+                                color: filterPill.active ? Theme.bg : (pillMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.70))
+                                font.pixelSize: Theme.textXs
+                                font.bold: filterPill.active
+                            }
+
+                            MouseArea {
+                                id: pillMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: greeterTab.themeFilter = filterPill.modelData.key
+                            }
+                        }
+                    }
+                }
+
                 Grid {
                     width: parent.width
                     columns: 3
                     spacing: Theme.space3
 
                     Repeater {
-                        model: greeterTab.presets
+                        model: greeterTab.filteredPresets
 
                         Item {
                             id: cell
@@ -401,6 +488,19 @@ Item {
                             }
                         }
                     }
+                }
+
+                Text {
+                    width: parent.width
+                    visible: greeterTab.filteredPresets.length === 0
+                    text: greeterTab.themeFilter === "uninstalled"
+                        ? "Tous les thèmes sont actuellement installés."
+                        : "Aucun thème ne correspond au filtre sélectionné."
+                    color: Qt.alpha(Theme.fg, 0.50)
+                    font.pixelSize: Theme.textSm
+                    horizontalAlignment: Text.AlignHCenter
+                    topPadding: 20
+                    bottomPadding: 20
                 }
 
                 Row {

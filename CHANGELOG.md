@@ -9,6 +9,10 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Ajouté
 
+- **Filtres de thèmes dans l'onglet Connexion (Installés / Non installés / Tous)** : ajout d'une barre
+  de sélection par pilules au-dessus de la grille des miniatures permettant de filtrer la vue. Par défaut,
+  seuls les thèmes installés sont affichés, masquant les thèmes désinstallés (qui restent dans le cache local) ;
+  un clic sur « Non installés » ou « Tous » permet de les réafficher pour inspection ou réinstallation.
 - **Désinstallation multi-thèmes SDDM dans le panneau (onglet Connexion)** : ajout de cases à cocher
   sur les vignettes des thèmes installés non-actifs (`qylock`), permettant une multi-sélection rapide
   avec bouton d'action contextuel « Désinstaller (N) » et bouton « Annuler ».
