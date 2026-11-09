@@ -9,6 +9,15 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Ajouté
 
+- **Désinstallation multi-thèmes SDDM dans le panneau (onglet Connexion)** : ajout de cases à cocher
+  sur les vignettes des thèmes installés non-actifs (`qylock`), permettant une multi-sélection rapide
+  avec bouton d'action contextuel « Désinstaller (N) » et bouton « Annuler ».
+- **Action de désinstallation sécurisée (`greeter_manager.py uninstall`)** :
+  - Support de la désinstallation par lot dans `dev/core/greeter_manager.py` et dans le helper
+    privilégié `dev/sddm/greeter-palette`.
+  - Protection absolue : interdiction stricte de désinstaller le thème de base Astronaut
+    (`sddm-astronaut-theme`) ainsi que le thème SDDM actuellement actif.
+  - Gestion de l'élévation Polkit avec mise à niveau automatique du helper pour les suppressions futures.
 - **Bouton « Installer » pour les thèmes SDDM qylock dans le panneau** : lorsqu'un thème complet
   récupéré dans le cache local n'a pas encore été posé dans `/usr/share/sddm/themes`, l'onglet
   *Connexion* affiche désormais un bouton d'action dédié qui déclenche directement l'élévation

@@ -83,6 +83,30 @@ set-palette)
     echo "palette installée"
     ;;
 
+uninstall)
+    shift
+    [ "$#" -gt 0 ] || die "aucun thème à désinstaller"
+    cur=""
+    if [ -f "$SDDM_CONF" ]; then
+        cur="$(grep '^Current=' "$SDDM_CONF" | cut -d= -f2 | tr -d ' ')"
+    fi
+    for id in "$@"; do
+        [[ "$id" =~ ^[A-Za-z0-9_.-]+$ ]] && [[ "$id" != "." && "$id" != ".." ]] \
+            || die "identifiant invalide : $id"
+        [ "$id" != "sddm-astronaut-theme" ] || die "le thème astronaut ne peut pas être désinstallé"
+        [ "$id" != "$cur" ] || die "impossible de désinstaller le thème actif : $id"
+        target="/usr/share/sddm/themes/$id"
+        if [ -d "$target" ] && [ -f "$target/metadata.desktop" ]; then
+            if grep -q "Author=Darkkal44" "$target/metadata.desktop"; then
+                rm -rf "$target"
+                echo "désinstallé : $id"
+            else
+                die "refus de supprimer un thème système non-qylock : $id"
+            fi
+        fi
+    done
+    ;;
+
 *)
     die "commande inconnue : ${cmd:-<vide>}"
     ;;
