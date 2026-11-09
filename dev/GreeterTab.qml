@@ -100,10 +100,21 @@ Item {
         applyTimer.restart()
     }
 
+    Timer {
+        id: yieldFocusTimer
+        interval: 180
+        repeat: false
+        onTriggered: {
+            if (greeterTab.busy) {
+                Theme.configPanelYieldFocus = true
+            }
+        }
+    }
+
     function installSelected() {
         if (!selectedId || busy) return
         busy = true
-        Theme.configPanelYieldFocus = true
+        yieldFocusTimer.start()
         status = "Installation de " + nameOf(selectedId) + " (autorisation requise)…"
         installProc.running = true
     }
@@ -111,8 +122,8 @@ Item {
     function uninstallSelected() {
         if (selectedRemoveList.length === 0 || busy) return
         busy = true
-        Theme.configPanelYieldFocus = true
-        status = "Désinstallation de " + selectedRemoveList.length + " thème(s) (autorisation requise)…"
+        yieldFocusTimer.start()
+        status = "Désinstallation de " + selectedRemoveList.length + " thème(s)…"
         uninstallProc.command = ["python3", Quickshell.shellPath("core/greeter_manager.py"), "uninstall"].concat(selectedRemoveList)
         uninstallProc.running = true
     }
@@ -194,6 +205,7 @@ Item {
             }
         }
         onExited: (exitCode, exitStatus) => {
+            yieldFocusTimer.stop()
             Theme.configPanelYieldFocus = false
             greeterTab.busy = false
             if (exitCode !== 0 && greeterTab.status.indexOf("installé") === -1) {
@@ -222,6 +234,7 @@ Item {
             }
         }
         onExited: (exitCode, exitStatus) => {
+            yieldFocusTimer.stop()
             Theme.configPanelYieldFocus = false
             greeterTab.busy = false
             if (exitCode !== 0 && greeterTab.status.indexOf("désinstallé") === -1) {

@@ -554,7 +554,7 @@ Item {
     PanelWindow {
         id: configOverlayWindow
         screen: topBarWindow.screen
-        visible: Theme.configPanelVisible
+        visible: Theme.configPanelVisible && !Theme.configPanelYieldFocus
         anchors {
             top: true
             bottom: true
