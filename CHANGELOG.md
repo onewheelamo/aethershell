@@ -7,6 +7,14 @@ montée de mineure peut demander une adaptation des réglages.
 
 ## [0.1.2] — 2026-11-09
 
+### Ajouté
+
+- **Bouton « Installer » pour les thèmes SDDM qylock dans le panneau** : lorsqu'un thème complet
+  récupéré dans le cache local n'a pas encore été posé dans `/usr/share/sddm/themes`, l'onglet
+  *Connexion* affiche désormais un bouton d'action dédié qui déclenche directement l'élévation
+  `pkexec` via `greeter_manager.py install <id>` et bascule automatiquement sur « Appliquer » dès
+  la pose terminée, sans devoir passer par le terminal.
+
 ### Corrigé
 
 - **Appel IPC Quickshell (`quickshell ipc -n`)** : les raccourcis (`SUPER + H` pour le panneau,

@@ -51,7 +51,9 @@ Item {
         if (selectedId === id && status !== "")
             return
         selectedId = id
-        status = "Sélectionné : " + nameOf(id) + " — « Aperçu » ou « Appliquer »"
+        const p = selectedPreset
+        const needsInstall = p && p.installed === false
+        status = "Sélectionné : " + nameOf(id) + " — « " + (needsInstall ? "Installer" : "Appliquer") + " » ou « Aperçu »"
     }
 
     // Aperçu plein écran : on ferme le panneau pour laisser voir le greeter.
@@ -76,6 +78,13 @@ Item {
                                  "apply", selectedId])
         // La sélection est écrite sur disque : on relit l'état réel ensuite.
         applyTimer.restart()
+    }
+
+    function installSelected() {
+        if (!selectedId || busy) return
+        busy = true
+        status = "Installation de " + nameOf(selectedId) + " (autorisation requise)…"
+        installProc.running = true
     }
 
     function regenerateThumbs() {
@@ -134,6 +143,32 @@ Item {
                 greeterTab.status = "Aperçus régénérés"
                 greeterTab.reload()
             }
+        }
+    }
+
+    Process {
+        id: installProc
+        command: ["python3", Quickshell.shellPath("core/greeter_manager.py"), "install", greeterTab.selectedId]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const res = JSON.parse(text.trim())
+                    if (res.ok) {
+                        greeterTab.status = "Thème " + greeterTab.nameOf(greeterTab.selectedId) + " installé ! Vous pouvez maintenant l'appliquer."
+                    } else {
+                        greeterTab.status = "Échec : " + (res.message || "erreur d'installation")
+                    }
+                } catch (e) {
+                    if (text.trim().length > 0) greeterTab.status = text.trim()
+                }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            greeterTab.busy = false
+            if (exitCode !== 0 && greeterTab.status.indexOf("installé") === -1) {
+                greeterTab.status = "Installation annulée ou refusée"
+            }
+            greeterTab.reload()
         }
     }
 
@@ -261,9 +296,41 @@ Item {
                     width: parent.width
                     spacing: Theme.space2
 
+                    // Bouton « Installer » : visible si le thème sélectionné est à installer
+                    Rectangle {
+                        id: installBtn
+                        visible: greeterTab.selectedPreset && greeterTab.selectedPreset.installed === false
+                        width: visible ? installText.implicitWidth + 28 : 0
+                        height: 32
+                        radius: Theme.globalRadius
+                        color: greeterTab.busy
+                            ? Qt.alpha(Theme.accent, 0.25)
+                            : (installMa.containsMouse ? Qt.lighter(Theme.accent, 1.15) : Theme.accent)
+
+                        Text {
+                            id: installText
+                            anchors.centerIn: parent
+                            text: "Installer"
+                            color: Theme.bg
+                            font.pixelSize: Theme.textSm
+                            font.bold: true
+                        }
+
+                        MouseArea {
+                            id: installMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: !greeterTab.busy
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: greeterTab.installSelected()
+                        }
+                    }
+
+                    // Bouton « Appliquer » : visible si le thème est déjà installé (ou astronaut)
                     Rectangle {
                         id: applyBtn
-                        width: applyText.implicitWidth + 28
+                        visible: !greeterTab.selectedPreset || greeterTab.selectedPreset.installed !== false
+                        width: visible ? applyText.implicitWidth + 28 : 0
                         height: 32
                         radius: Theme.globalRadius
                         color: greeterTab.busy
@@ -318,9 +385,10 @@ Item {
                         }
                     }
 
-                    // Pousse « Aperçus » à droite (4 enfants, donc 3 espacements).
+                    // Pousse « Aperçus » à droite
                     Item {
-                        width: Math.max(0, parent.width - applyBtn.width - previewBtn.width
+                        readonly property real actionWidth: installBtn.visible ? installBtn.width : applyBtn.width
+                        width: Math.max(0, parent.width - actionWidth - previewBtn.width
                                         - regenBtn.width - parent.spacing * 3)
                         height: 1
                     }
