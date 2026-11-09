@@ -23,10 +23,12 @@ montée de mineure peut demander une adaptation des réglages.
   - Barre d'actions rapides : ouverture immédiate d'un terminal Ghostty dédié (`hermes`), relance de passerelle, tick cron et diagnostic doctor.
   - Journal en direct (tail sur les dernières lignes de `~/.hermes/logs/agent.log`) avec coloration contextuelle des statuts, avertissements et erreurs.
 
-### Modifié
-
-- **Hermes — Découplage du module Todo** :
-  - Abandon du pont Todo ↔ Hermes dans [`RESTE_A_FAIRE.md`](file:///home/<utilisateur>/dev/quickshell_todo/RESTE_A_FAIRE.md), le widget et l'applet Todo demeurant exclusivement dédiés au suivi des cases Markdown locales.
+- **Pont Todo ↔ Hermes & Interrupteur de surveillance des cases (Étape 1)** :
+  - Ajout d'un interrupteur de surveillance dans le popup Tâches ([`dev/TodoPopup.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/TodoPopup.qml)) et dans le panneau de configuration ([`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml)).
+  - Persistance de l'option dans `core/todo.json` (`"surveillance": true/false`) et contrôle CLI via `todo_applet.py surveillance [on|off|toggle]`.
+  - Conditionnement de la file d'attente : cocher une case alimente `todo-demandes.json` uniquement si la surveillance est activée. En mode désactivé, la coche reste une manipulation Markdown locale classique sans solliciter l'agent.
+  - Implémentation du worker d'exécution [`dev/core/todo_worker.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/todo_worker.py) : prise en charge des demandes en attente, exécution automatique par Hermes (`hermes -z`), notifications bureau de début et fin, réécriture du Markdown en `✓ fait le <date>` en cas de succès ou alerte `⚠` en cas d'échec.
+  - Indicateur visuel `⚡ hermes` dans le widget de bureau ([`dev/widgets/todo.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/widgets/todo.qml)) signalant quand la surveillance est active.
 
 ## [0.1.2] — 2026-11-09
 

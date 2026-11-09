@@ -110,6 +110,17 @@ Item {
         onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 
+    Process {
+        id: survProc
+        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "surveillance", "toggle"]
+        onExited: { root.charger(); if (root.notifier) root.notifier() }
+    }
+
+    function basculerSurveillance() {
+        survProc.running = false
+        survProc.running = true
+    }
+
     implicitWidth: Math.round(336 * echelle)
     implicitHeight: colonne.implicitHeight
 
@@ -154,6 +165,73 @@ Item {
                       : ""
                 color: Qt.alpha(Theme.fg, 0.5)
                 font.pixelSize: Math.round(root.corps * 0.8 * echelle)
+            }
+        }
+
+        // ── Interrupteur surveillance Hermes ──────────────────────────────────
+        Rectangle {
+            width: parent.width
+            height: Math.round(32 * echelle)
+            radius: Theme.globalRadius
+            color: root.etat.surveillance ? Qt.alpha(Theme.accent, 0.12) : Qt.alpha(Theme.fg, 0.04)
+            border.width: 1
+            border.color: root.etat.surveillance ? Qt.alpha(Theme.accent, 0.35) : Qt.alpha(Theme.fg, 0.08)
+
+            Row {
+                anchors.fill: parent
+                anchors.leftMargin: Math.round(8 * echelle)
+                anchors.rightMargin: Math.round(8 * echelle)
+                spacing: Math.round(6 * echelle)
+
+                Column {
+                    width: parent.width - Math.round(44 * echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 1
+
+                    Text {
+                        width: parent.width
+                        text: "Surveillance par Hermes"
+                        color: root.etat.surveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                        font.pixelSize: Math.round(root.corps * 0.85 * echelle)
+                        font.bold: true
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: root.etat.surveillance
+                            ? "Active · Cocher confie la tâche à Hermes"
+                            : "Désactivée · Cases locales (Markdown pur)"
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.pixelSize: Math.round(root.corps * 0.72 * echelle)
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Rectangle {
+                    width: Math.round(34 * echelle)
+                    height: Math.round(18 * echelle)
+                    radius: height / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: root.etat.surveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.16)
+
+                    Rectangle {
+                        width: Math.round(14 * echelle)
+                        height: width
+                        radius: width / 2
+                        y: Math.round(2 * echelle)
+                        x: root.etat.surveillance
+                            ? parent.width - width - Math.round(2 * echelle)
+                            : Math.round(2 * echelle)
+                        color: root.etat.surveillance ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                        Behavior on x { NumberAnimation { duration: 130 } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.basculerSurveillance()
+                    }
+                }
             }
         }
 

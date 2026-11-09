@@ -1,4 +1,5 @@
 {
+    "surveillance": false,
     "fichiers": [
         {
             "chemin": "~/Documents/homelab/todo.md",

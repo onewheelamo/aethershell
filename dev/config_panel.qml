@@ -340,6 +340,7 @@ Rectangle {
     property var todoFichiers: []
     property string todoFocus: ""
     property string todoErreur: ""
+    property bool todoSurveillance: false
 
     function rechargerTodo() {
         todoListProc.running = false
@@ -1180,6 +1181,7 @@ Rectangle {
         if (data.todo && typeof data.todo === "object") {
             root.todoFichiers = Array.isArray(data.todo.fichiers) ? data.todo.fichiers : []
             root.todoFocus = String(data.todo.focus || "")
+            root.todoSurveillance = Boolean(data.todo.surveillance)
             if (typeof data.todo.erreur === "string") {
                 root.todoErreur = data.todo.erreur
                 if (data.todo.erreur === "") {
@@ -1366,6 +1368,7 @@ Rectangle {
                     const d = JSON.parse(text.trim())
                     root.todoFichiers = d.fichiers || []
                     root.todoFocus = String(d.focus || "")
+                    root.todoSurveillance = Boolean(d.surveillance)
                 } catch (e) { }
             }
         }
@@ -6409,6 +6412,57 @@ Rectangle {
                                         root.todoFocus = String(modelData.nom || "")
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    // ── Surveillance des tâches par Hermes ──────────────────
+                    Row {
+                        width: parent.width
+                        spacing: 12
+
+                        Column {
+                            width: parent.width - 50
+                            spacing: 2
+
+                            Text {
+                                width: parent.width
+                                text: "Surveillance des tâches par Hermes"
+                                color: root.todoSurveillance ? Theme.accent : Theme.fg
+                                font.pixelSize: Theme.textSm
+                                font.bold: true
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "Lorsque cette option est active, cocher une case confie l'exécution de la tâche à Hermes via la file d'attente. Désactivé : simple gestionnaire de cases Markdown locales."
+                                color: Qt.alpha(Theme.fg, 0.5)
+                                font.pixelSize: Theme.textXs
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            width: 38
+                            height: 20
+                            radius: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: root.todoSurveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                            Rectangle {
+                                width: 16
+                                height: 16
+                                radius: 8
+                                y: 2
+                                x: root.todoSurveillance ? parent.width - width - 2 : 2
+                                color: root.todoSurveillance ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                Behavior on x { NumberAnimation { duration: 130 } }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["todo_surveillance"])
                             }
                         }
                     }

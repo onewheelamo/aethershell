@@ -1327,11 +1327,39 @@ def lire_todo():
     return sortie
 
 
+def lire_todo_surveillance():
+    try:
+        with open(TODO_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return bool(d.get("surveillance", False)) if isinstance(d, dict) else False
+    except (OSError, ValueError):
+        return False
+
+
+def todo_surveillance(actif=None):
+    try:
+        with open(TODO_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        if not isinstance(d, dict):
+            d = {"fichiers": d}
+    except (OSError, ValueError):
+        d = {"fichiers": []}
+    current = bool(d.get("surveillance", False))
+    nouvel_etat = not current if actif is None else bool(actif)
+    d["surveillance"] = nouvel_etat
+    tmp = TODO_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=4)
+    os.replace(tmp, TODO_FILE)
+    return nouvel_etat
+
+
 def ecrire_todo(liste):
     tmp = TODO_FILE + ".tmp"
     os.makedirs(os.path.dirname(TODO_FILE), exist_ok=True)
+    surv = lire_todo_surveillance()
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"fichiers": liste}, f, ensure_ascii=False, indent=4)
+        json.dump({"surveillance": surv, "fichiers": liste}, f, ensure_ascii=False, indent=4)
     os.replace(tmp, TODO_FILE)
     return True
 
@@ -1833,7 +1861,7 @@ def get_full_config_state():
         "apps": load_json(APP_VARS_FILE),
         "autostart": get_autostart(),
         "homelab": lire_homelab(),
-        "todo": {"fichiers": lire_todo(), "focus": lire_todo_focus()},
+        "todo": {"fichiers": lire_todo(), "focus": lire_todo_focus(), "surveillance": lire_todo_surveillance()},
         # Mode nuit : état et plage, pour l'onglet « Système & Écrans ».
         "night": {
             "mode": bool(style_data.get("night_mode", False)),
@@ -1866,6 +1894,16 @@ if __name__ == "__main__":
         todo_focus(sys.argv[2])
         etat = get_full_config_state()
         etat["todo"]["erreur"] = ""
+        print(json.dumps(etat))
+    elif action == "todo_surveillance":
+        sous_cmd = sys.argv[2] if len(sys.argv) > 2 else ""
+        if sous_cmd in ("on", "1", "true"):
+            todo_surveillance(True)
+        elif sous_cmd in ("off", "0", "false"):
+            todo_surveillance(False)
+        else:
+            todo_surveillance(None)
+        etat = get_full_config_state()
         print(json.dumps(etat))
     elif action == "todo_list":
         print(json.dumps({"fichiers": lire_todo(), "focus": lire_todo_focus()},

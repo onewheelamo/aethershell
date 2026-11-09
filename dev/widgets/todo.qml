@@ -141,9 +141,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 horizontalAlignment: Text.AlignRight
                 text: (root.etat.demandes || []).length > 0
-                      ? root.etat.demandes.length + " att." : ""
-                color: Qt.alpha(Theme.accent, 0.9)
-                font.pixelSize: Math.round(9 * echelle)
+                      ? root.etat.demandes.length + " att."
+                      : (root.etat.surveillance ? "⚡ hermes" : "")
+                color: root.etat.demandes && root.etat.demandes.length > 0
+                       ? Qt.alpha(Theme.accent, 0.9)
+                       : Qt.alpha(Theme.accent, 0.55)
+                font.pixelSize: Math.round(8.5 * echelle)
             }
         }
 

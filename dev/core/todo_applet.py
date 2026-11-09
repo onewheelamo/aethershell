@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -90,6 +91,54 @@ def fichiers():
             sortie.append({"chemin": chemin,
                            "nom": str(entree.get("nom") or os.path.basename(chemin))})
     return sortie
+
+
+def est_surveillance_active():
+    """Indique si la surveillance active des cases par l'agent est allumée."""
+    try:
+        with open(CONFIG, "r", encoding="utf-8") as f:
+            donnees = json.load(f)
+        if isinstance(donnees, dict):
+            return bool(donnees.get("surveillance", False))
+    except (OSError, ValueError):
+        pass
+    return False
+
+
+def basculer_surveillance(actif=None):
+    """Active, désactive ou bascule l'état de surveillance dans todo.json."""
+    donnees = {}
+    if os.path.isfile(CONFIG):
+        try:
+            with open(CONFIG, "r", encoding="utf-8") as f:
+                donnees = json.load(f)
+            if not isinstance(donnees, dict):
+                donnees = {"fichiers": donnees}
+        except (OSError, ValueError):
+            donnees = {}
+    else:
+        donnees = dict(DEFAUT)
+
+    nouvel_etat = not est_surveillance_active() if actif is None else bool(actif)
+    donnees["surveillance"] = nouvel_etat
+    tmp = CONFIG + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(donnees, f, ensure_ascii=False, indent=4)
+    os.replace(tmp, CONFIG)
+    return True, nouvel_etat
+
+
+def _declencher_worker(identifiant=None):
+    """Lance le worker Todo ↔ Hermes en tâche détachée si disponible."""
+    worker_script = os.path.join(BASE, "todo_worker.py")
+    if os.path.isfile(worker_script):
+        try:
+            args = [sys.executable, worker_script, "declencher"]
+            if identifiant:
+                args.append(str(identifiant))
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
 
 
 # ── analyse d'un fichier ──────────────────────────────────────────────────────
@@ -324,10 +373,10 @@ def _retirer_alerte(lignes, numero):
 def cocher(identifiant, fait=True):
     """Coche ou décoche une case.
 
-    Depuis le 2026-11-07 une coche n'est plus un ordre : elle n'écrit rien dans
-    la file des demandes (l'applet est un lecteur, l'agent coche lui-même à la
-    demande de l'utilisateur). On retire en revanche toute demande qui
-    traînerait encore pour cet item, pour ne pas laisser d'alerte orpheline.
+    Si la surveillance est active, cocher dépose une demande dans la file
+    pour l'agent Hermes (`todo-demandes.json`) et réveille le worker.
+    Si la surveillance est désactivée, c'est une simple coche locale Markdown.
+    Décocher retire dans tous les cas la demande associée.
     """
     item = _trouver(identifiant)
     if not item:
@@ -341,7 +390,23 @@ def cocher(identifiant, fait=True):
 
     if not _reecrire(item["fichier"], identifiant, transformation):
         return False, "ligne introuvable"
-    _ecrire_file([d for d in _lire_file() if d.get("id") != identifiant])
+
+    demandes = [d for d in _lire_file() if d.get("id") != identifiant]
+    if fait and est_surveillance_active():
+        demandes.append({
+            "id": identifiant,
+            "fichier": item["fichier"],
+            "nom_fichier": item["nom_fichier"],
+            "titre": item["titre"],
+            "section": item["section"],
+            "quand": datetime.datetime.now().isoformat(),
+            "etat": "attente",
+        })
+        _ecrire_file(demandes)
+        _declencher_worker(identifiant)
+    else:
+        _ecrire_file(demandes)
+
     return True, "coché" if fait else "décoché"
 
 
@@ -408,10 +473,12 @@ def analyser(options=None):
         # l'en-tête doit continuer à dire lequel).
         if not fichiers():
             return {"ok": True, "compact": compact("", "aucun fichier lisible"),
-                    "items": [], "fichiers": [], "focus": "", "demandes": []}
+                    "items": [], "fichiers": [], "focus": "", "demandes": [],
+                    "surveillance": est_surveillance_active()}
         return {"ok": True, "compact": compact("0", "aucune case ouverte"),
                 "items": [], "fichiers": fichiers(), "focus": choisi,
-                "ouverts": 0, "demandes": attente}
+                "ouverts": 0, "demandes": attente,
+                "surveillance": est_surveillance_active()}
     valeur = str(len(ouverts))
     libelle = "%d tâche%s" % (len(ouverts), "s" if len(ouverts) > 1 else "")
     if attente:
@@ -427,6 +494,7 @@ def analyser(options=None):
         "fichiers": fichiers(),
         "focus": choisi,
         "demandes": attente,
+        "surveillance": est_surveillance_active(),
     }
 
 
@@ -469,6 +537,18 @@ def main(argv):
         return 0 if ok else 1
     if action == "demandes":
         print(json.dumps({"demandes": _lire_file()}, ensure_ascii=False, indent=1))
+        return 0
+    if action == "surveillance":
+        sous_cmd = argv[2] if len(argv) > 2 else ""
+        if sous_cmd in ("on", "1", "activer", "true"):
+            _, nouvel_etat = basculer_surveillance(True)
+        elif sous_cmd in ("off", "0", "desactiver", "false"):
+            _, nouvel_etat = basculer_surveillance(False)
+        elif sous_cmd in ("toggle", "basculer"):
+            _, nouvel_etat = basculer_surveillance(None)
+        else:
+            nouvel_etat = est_surveillance_active()
+        print(json.dumps({"ok": True, "surveillance": nouvel_etat}, ensure_ascii=False))
         return 0
 
     donnees = analyser(_options_cli(argv))
