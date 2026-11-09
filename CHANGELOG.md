@@ -23,6 +23,12 @@ montée de mineure peut demander une adaptation des réglages.
   - Barre d'actions rapides : ouverture immédiate d'un terminal Ghostty dédié (`hermes`), relance de passerelle, tick cron et diagnostic doctor.
   - Journal en direct (tail sur les dernières lignes de `~/.hermes/logs/agent.log`) avec coloration contextuelle des statuts, avertissements et erreurs.
 
+- **Aperçus du greeter SDDM isolés sur un bureau dédié (`workspace 99`)** :
+  - Modification de [`dev/core/greeter_preview.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/greeter_preview.sh) : mémorisation du bureau actif et bascule automatique sur le workspace 99 avant de lancer `sddm-greeter-qt6 --test-mode`.
+  - Règle de fenêtre Hyprland dédiée dans [`dev/hypr_modular/windows.lua`](file:///home/<utilisateur>/dev/quickshell_todo/dev/hypr_modular/windows.lua) contraignant la fenêtre du greeter sur le workspace 99.
+  - Restauration automatique du bureau de travail d'origine lors de la fermeture (appui sur `Échap`, expiration du délai de sécurité ou fermeture normale).
+  - Protection absolue : en cas de blocage ou d'erreur dans un thème testé, le bureau de travail courant n'est jamais masqué ni immobilisé.
+
 - **Minuterie de mise en veille automatique (Système & Écrans)** :
   - Ajout d'un réglage interactif par pilules dans l'onglet *Système & Écrans* (tiroir *Alimentation, Veille & Horloge*) de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
   - Délais configurables : 15 min, 30 min, **1 heure (par défaut)**, 2 heures, 3 heures, ou Jamais (désactivé).

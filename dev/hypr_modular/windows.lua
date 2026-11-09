@@ -40,6 +40,14 @@ hl.window_rule({
     dim_around   = true,
 })
 
+-- Aperçu du greeter SDDM : toujours sur le workspace dédié 99
+-- pour ne jamais masquer ni immobiliser le workspace de travail courant.
+hl.window_rule({
+    name      = "greeter-preview-ws",
+    match     = { class = "(?i).*sddm-greeter.*" },
+    workspace = 99,
+})
+
 -- Exceptions d'opacité (1.0) et inhibition de mise en veille (Firefox, OnlyOffice, Vidéo)
 -- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` met
 -- active/inactive/fullscreen_opacity à 1 pour la fenêtre, `opacity = "1.0 override"`
