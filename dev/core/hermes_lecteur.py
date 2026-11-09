@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -326,6 +327,88 @@ def _secondes(session):
     return 0.0
 
 
+def etat_gateway():
+    """État du démon/gateway Hermes et de son ticker cron."""
+    gw_file = RACINE / "gateway_state.json"
+    pid_file = RACINE / "gateway.pid"
+    ticker_file = RACINE / "cron" / "ticker_heartbeat"
+
+    gw = {}
+    if gw_file.is_file():
+        try:
+            gw = json.loads(gw_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            gw = {}
+
+    pid = gw.get("pid")
+    if not pid and pid_file.is_file():
+        try:
+            content = json.loads(pid_file.read_text(encoding="utf-8"))
+            pid = content.get("pid")
+        except Exception:
+            pass
+
+    # Vérification vivacité du PID sous /proc
+    vivant = False
+    if pid:
+        try:
+            vivant = os.path.exists(f"/proc/{pid}")
+        except OSError:
+            pass
+
+    # Âge du battement de cœur du ticker cron
+    ticker_age = None
+    if ticker_file.is_file():
+        try:
+            parts = ticker_file.read_text(encoding="utf-8").strip().split()
+            if parts:
+                ts = float(parts[0])
+                ticker_age = max(0, int(time.time() - ts))
+        except Exception:
+            pass
+
+    # État systemd utilisateur si disponible
+    etat_service = ""
+    try:
+        res = subprocess.run(["systemctl", "--user", "is-active", "hermes-gateway.service"],
+                             capture_output=True, text=True, timeout=2)
+        etat_service = res.stdout.strip()
+    except Exception:
+        pass
+
+    actif = vivant or (etat_service == "active")
+
+    return {
+        "actif": bool(actif),
+        "pid": pid if vivant else None,
+        "etat": "running" if actif else ("stopped" if etat_service == "inactive" else "unknown"),
+        "service": "hermes-gateway.service",
+        "service_etat": etat_service or ("active" if vivant else "inactive"),
+        "profils": gw.get("served_profiles") or ["default"],
+        "active_agents": int(gw.get("active_agents") or 0),
+        "version": str(gw.get("code_version") or ""),
+        "ticker_age_s": ticker_age,
+        "ticker_actif": ticker_age is not None and ticker_age < 180,
+    }
+
+
+def derniers_logs(limite=12):
+    """Dernières lignes du journal de Hermes (~/.hermes/logs/agent.log)."""
+    journal = RACINE / "logs" / "agent.log"
+    if not journal.is_file():
+        return []
+    try:
+        taille = journal.stat().st_size
+        offset = max(0, taille - 8192)
+        with journal.open("r", encoding="utf-8", errors="replace") as f:
+            f.seek(offset)
+            texte = f.read()
+        lignes = [l.strip() for l in texte.splitlines() if l.strip()]
+        return lignes[-limite:]
+    except OSError:
+        return []
+
+
 def etat():
     """Le contrat que `hermes_applet.py` sait déjà présenter.
 
@@ -385,7 +468,9 @@ def etat():
         "depuis": depuis,
         "file": len(attente),
         "executions": executions[:5],
-        "cron": taches_planifiees(),
+        "cron": taches_planifiees(6),
+        "gateway": etat_gateway(),
+        "logs": derniers_logs(12),
         "jetons": jetons_du_jour(),
         "age_s": age,
         "perime": False,

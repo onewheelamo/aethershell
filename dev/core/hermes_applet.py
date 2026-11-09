@@ -43,6 +43,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -151,7 +152,9 @@ def analyser():
         "depuis": d.get("depuis"),
         "file": int(d.get("file") or 0),
         "executions": executions[:5],
-        "cron": cron[:4],
+        "cron": cron[:6],
+        "gateway": d.get("gateway") or {},
+        "logs": d.get("logs") or [],
         "jetons": jetons,
         "approbations": attente[:3],
         "attention": int(d.get("attention") or len(attente)),
@@ -227,13 +230,36 @@ EXEMPLE = {
 
 
 def main(argv):
-    if "--exemple" in argv:
-        fichier = chemin_etat()
-        fichier.parent.mkdir(parents=True, exist_ok=True)
-        fichier.write_text(json.dumps(EXEMPLE, ensure_ascii=False, indent=2),
-                           encoding="utf-8")
-        print(str(fichier))
-        return 0
+    if len(argv) > 1:
+        cmd = argv[1]
+        if cmd == "--exemple":
+            fichier = chemin_etat()
+            fichier.parent.mkdir(parents=True, exist_ok=True)
+            fichier.write_text(json.dumps(EXEMPLE, ensure_ascii=False, indent=2),
+                               encoding="utf-8")
+            print(str(fichier))
+            return 0
+        elif cmd in ("gateway-restart", "gateway-start", "gateway-stop"):
+            action = cmd.split("-")[1]
+            res = subprocess.run(["systemctl", "--user", action, "hermes-gateway.service"],
+                                 capture_output=True, text=True)
+            print(json.dumps({"ok": res.returncode == 0, "action": action, "output": (res.stdout + res.stderr).strip()}))
+            return res.returncode
+        elif cmd == "cron-tick":
+            res = subprocess.run(["hermes", "cron", "tick"], capture_output=True, text=True)
+            print(json.dumps({"ok": res.returncode == 0, "action": "cron-tick", "output": (res.stdout + res.stderr).strip()}))
+            return res.returncode
+        elif cmd == "doctor":
+            res = subprocess.run(["hermes", "cron", "doctor"], capture_output=True, text=True)
+            print(json.dumps({"ok": res.returncode == 0, "action": "doctor", "output": (res.stdout + res.stderr).strip()}))
+            return res.returncode
+        elif cmd == "quick-prompt" and len(argv) > 2:
+            prompt = argv[2]
+            # Lancement détaché en arrière-plan
+            subprocess.Popen(["hermes", "-z", prompt], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(json.dumps({"ok": True, "action": "quick-prompt", "prompt": prompt}))
+            return 0
+
     a = analyser()
     print(json.dumps(presenter(a), ensure_ascii=False))
     return 0

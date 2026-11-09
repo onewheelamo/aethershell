@@ -5,6 +5,29 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.1.3] — 2026-11-09
+
+### Ajouté
+
+- **Hermes — Surveillance et contrôle de la passerelle (Gateway & Daemon)** :
+  - Intégration de la surveillance du service systemd utilisateur `hermes-gateway.service`, de l'état du démon (`~/.hermes/gateway_state.json`) et de la vivacité du PID.
+  - Visualisation en direct du statut (actif/inactif, PID, profils desservis, version, âge du battement ticker).
+  - Contrôle et relance rapide en 1-clic (`systemctl --user restart hermes-gateway.service`) depuis le popup de la barre supérieure ([`dev/HermesPopup.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/HermesPopup.qml)) et le widget de bureau.
+- **Hermes — Planifications et moteur Cron** :
+  - Lecture et affichage des tâches cron planifiées (`~/.hermes/cron/jobs.json`) et du battement de cœur (`ticker_heartbeat`).
+  - Actions rapides intégrées : déclenchement d'un passage manuel (`⚡ Tick` via `hermes cron tick`) et diagnostic d'intégrité (`🔍 Doctor` via `hermes cron doctor`).
+- **Hermes — Widget de bureau enrichi, dépliable et scrollable ([`dev/widgets/hermes.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/widgets/hermes.qml))** :
+  - Vue compacte par défaut préservant l'espace du bureau (sessions récentes, jetons du jour, état global).
+  - Bouton interactif « Détails & Actions ▾ » / « Replier ▴ » pour afficher à la demande le volet d'administration et de diagnostic.
+  - Zone scrollable (`Flickable`) bornée à hauteur maximale avec ascenseur discret : le widget s'adapte sans jamais déborder du bureau et reste navigable à la molette.
+  - Barre d'actions rapides : ouverture immédiate d'un terminal Ghostty dédié (`hermes`), relance de passerelle, tick cron et diagnostic doctor.
+  - Journal en direct (tail sur les dernières lignes de `~/.hermes/logs/agent.log`) avec coloration contextuelle des statuts, avertissements et erreurs.
+
+### Modifié
+
+- **Hermes — Découplage du module Todo** :
+  - Abandon du pont Todo ↔ Hermes dans [`RESTE_A_FAIRE.md`](file:///home/<utilisateur>/dev/quickshell_todo/RESTE_A_FAIRE.md), le widget et l'applet Todo demeurant exclusivement dédiés au suivi des cases Markdown locales.
+
 ## [0.1.2] — 2026-11-09
 
 ### Ajouté

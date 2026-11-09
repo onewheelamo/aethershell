@@ -100,6 +100,19 @@ Item {
         onExited: root.charger()
     }
 
+    Process {
+        id: gwProc
+        property string actionCmd: "gateway-restart"
+        command: ["python3", Quickshell.shellPath("core/hermes_applet.py"), gwProc.actionCmd]
+        onExited: root.charger()
+    }
+
+    function actionGateway(act) {
+        gwProc.actionCmd = act
+        gwProc.running = false
+        gwProc.running = true
+    }
+
     implicitWidth: Math.round(324 * echelle)
     implicitHeight: colonne.implicitHeight
 
@@ -158,6 +171,57 @@ Item {
                        ? root.teinte : Theme.fg
                 font.pixelSize: Math.round(root.corps * echelle)
                 elide: Text.ElideRight
+            }
+        }
+
+        // ── statut gateway & contrôle ─────────────────────────────────────────
+        Row {
+            width: parent.width
+            spacing: Math.round(6 * echelle)
+            visible: Boolean(root.etat.gateway && root.etat.gateway.service)
+
+            Rectangle {
+                width: Math.round(5 * echelle)
+                height: width
+                radius: width / 2
+                anchors.verticalCenter: parent.verticalCenter
+                color: root.etat.gateway && root.etat.gateway.actif ? Theme.success : Theme.error
+            }
+
+            Text {
+                width: parent.width - Math.round(86 * echelle)
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Gateway : " + (root.etat.gateway && root.etat.gateway.actif
+                    ? "actif (PID " + (root.etat.gateway.pid || "—") + ")"
+                    : "arrêté")
+                color: Qt.alpha(Theme.fg, 0.65)
+                font.pixelSize: Math.round(root.corps * 0.82 * echelle)
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                width: Math.round(74 * echelle)
+                height: Math.round(20 * echelle)
+                radius: Theme.globalRadius
+                color: gwMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.50)
+                border.width: 1
+                border.color: Qt.alpha(Theme.fg, 0.12)
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "↺ Relancer"
+                    color: Theme.accent
+                    font.pixelSize: Math.round(root.corps * 0.75 * echelle)
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: gwMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.actionGateway("gateway-restart")
+                }
             }
         }
 
