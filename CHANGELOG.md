@@ -5,9 +5,16 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
-## [0.1.3] — 2026-11-09
+## [0.1.3] — 2026-11-10
 
 ### Ajouté
+
+- **Sélecteur de fichier graphique pour les fichiers Markdown suivis (onglet Données & Comptes)** :
+  - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
+  - **Feuille modale dédiée ([`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** : surface intégrée au panneau avec fond en verre et flou interne (`FlouFond`), navigation par dossier (`↑`), filtre automatique sur les extensions `.md` et `.markdown`, sélection par simple clic et validation par double-clic ou bouton « Choisir ».
+  - **Script de lecture arborescente ([`dev/core/lister_fichiers.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/lister_fichiers.py))** : listing JSON rapide des dossiers et fichiers filtrés, ignorant les entrées cachées et gérant les erreurs d'accès de manière robuste.
+  - **Remplissage automatique intelligent** : la sélection insère le chemin sous forme abrégée `~/...` et pré-remplit automatiquement le nom suggéré du fichier si le champ nom est vide.
+  - **Glyphes dédiés dans [`dev/Icon.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Icon.qml)** : ajout des icônes `markdown` (`\u{F0354}`) et `file-document` (`\u{F0214}`).
 
 - **Gestionnaire de déploiement — Sauvegarde fine granulaire & Moteur de pré-vol ([`dev/deploy.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/deploy.sh))** :
   - **Moteur de pré-vol (`--diff` / `--dry-run`)** : analyse comparative exhaustive de l'arborescence du dépôt (`dev/`) par rapport à l'environnement vivant (`~/.config/hypr` et `~/.config/quickshell`).

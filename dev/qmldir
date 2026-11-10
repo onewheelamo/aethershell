@@ -41,3 +41,5 @@ FondProfondeur 1.0 FondProfondeur.qml
 MeteoPopup 1.0 MeteoPopup.qml
 CalqueProfondeur 1.0 CalqueProfondeur.qml
 MasqueParallaxe 1.0 MasqueParallaxe.qml
+SelecteurDossier 1.0 SelecteurDossier.qml
+SelecteurFichier 1.0 SelecteurFichier.qml

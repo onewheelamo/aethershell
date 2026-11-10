@@ -1068,17 +1068,27 @@ Rectangle {
     }
 
     // Chemins des réglages → chemin absolu. Les valeurs du thème commencent par
-    // `$HOME` ; le sélecteur de dossier, lui, ne travaille qu'en absolu.
+    // `$HOME` ou `~` ; les sélecteurs de dossier/fichier travaillent en absolu.
     function cheminAbsolu(chemin) {
         let s = String(chemin || "")
         if (s.indexOf("$HOME") === 0) s = Quickshell.env("HOME") + s.substring(5)
+        else if (s.indexOf("~") === 0) s = Quickshell.env("HOME") + s.substring(1)
         return s.replace(/\/$/, "")
     }
 
-    // Sélecteur de dossier des deux chemins de *Fonds d'écran & Captures* :
-    // une feuille du panneau (SelecteurDossier.qml), pas un dialogue Qt — une
-    // vraie fenêtre s'ouvrirait sous la surface de couche du panneau.
+    function abregerHome(chemin) {
+        const home = Quickshell.env("HOME")
+        const s = String(chemin || "")
+        if (home && s.indexOf(home) === 0) {
+            return "~" + s.substring(home.length)
+        }
+        return s
+    }
+
+    // Sélecteurs de dossier et de fichier : feuilles modales du panneau
+    // (SelecteurDossier.qml / SelecteurFichier.qml), pas des dialogues Qt.
     property string selecteurCible: ""
+    property string selecteurFichierCible: ""
 
     // Installation des paquets manquants (onglet « Apps & Alertes »). Le script
     // lit dependencies.txt, filtre sur la distribution et élève par pkexec —
@@ -6287,12 +6297,13 @@ Rectangle {
 
                     // Ajouter un fichier : le nom est libre, le chemin est étendu
                     // par l'applet (`~` reste `~`, c'est elle qui l'interprète).
+                    // Bouton "Choisir" graphique pour sélectionner un fichier .md.
                     Row {
                         width: parent.width
                         spacing: 8
 
                         Rectangle {
-                            width: 140
+                            width: 130
                             height: 30
                             radius: 6
                             color: Qt.alpha(Theme.fg, 0.06)
@@ -6322,7 +6333,7 @@ Rectangle {
                         }
 
                         Rectangle {
-                            width: parent.width - 140 - 96 - 16
+                            width: parent.width - 130 - 70 - 90 - 24
                             height: 30
                             radius: 6
                             color: Qt.alpha(Theme.fg, 0.06)
@@ -6352,8 +6363,46 @@ Rectangle {
                             }
                         }
 
+                        // Bouton "Choisir" graphique (comme pour les fonds d'écran et captures)
                         Rectangle {
-                            width: 96
+                            width: 70
+                            height: 30
+                            radius: 6
+                            color: todoPickMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+                            border.color: Theme.accentMuted
+                            border.width: 1
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 4
+
+                                Icon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    glyph: "folder"
+                                    size: Math.round(Theme.iconSm * 0.78)
+                                    color: todoPickMa.containsMouse ? Theme.bg : Theme.accent
+                                    opacityLevel: 1
+                                }
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Choisir"
+                                    color: todoPickMa.containsMouse ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                }
+                            }
+
+                            MouseArea {
+                                id: todoPickMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.ouvrirSelecteurFichier("todo_md", "Choisir un fichier Markdown", nouveauTodoChemin.text, ["md", "markdown"])
+                            }
+                        }
+
+                        Rectangle {
+                            width: 90
                             height: 30
                             radius: 6
                             color: survolTodoAjout.containsMouse
@@ -8705,5 +8754,43 @@ Rectangle {
             return
         root.runConfigCmd(["style", root.selecteurCible, String(chemin) + "/"])
         root.selecteurCible = ""
+    }
+
+    // Feuille modale du sélecteur de fichier (ex: Markdown pour les tâches)
+    Loader {
+        id: selecteurFichierLoader
+        anchors.fill: parent
+        z: 1000
+        source: "SelecteurFichier.qml"
+        onLoaded: {
+            item.accepte.connect(chemin => root.validerSelecteurFichier(chemin))
+            item.annule.connect(() => { root.selecteurFichierCible = "" })
+        }
+    }
+
+    function ouvrirSelecteurFichier(cible, titre, chemin, extensions) {
+        root.selecteurFichierCible = String(cible)
+        if (!selecteurFichierLoader.item)
+            return
+        selecteurFichierLoader.item.titre = String(titre)
+        if (extensions && extensions.length > 0)
+            selecteurFichierLoader.item.extensions = extensions
+        let chem = String(chemin || "")
+        if (chem === "") chem = "~"
+        selecteurFichierLoader.item.chemin = root.cheminAbsolu(chem)
+        selecteurFichierLoader.item.fichierSelectionne = (chem.endsWith(".md") || chem.endsWith(".markdown")) ? root.cheminAbsolu(chem) : ""
+        selecteurFichierLoader.item.ouvert = true
+    }
+
+    function validerSelecteurFichier(chemin) {
+        if (root.selecteurFichierCible === "todo_md") {
+            nouveauTodoChemin.text = root.abregerHome(chemin)
+            if (nouveauTodoNom.text.trim() === "") {
+                const base = String(chemin).split("/").pop().replace(/\.md$/i, "").replace(/\.markdown$/i, "")
+                if (base)
+                    nouveauTodoNom.text = base
+            }
+        }
+        root.selecteurFichierCible = ""
     }
 }

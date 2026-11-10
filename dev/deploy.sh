@@ -368,7 +368,8 @@ check_dependencies() {
         return 0
     else
         echo "⚠️ Missing binaries: ${missing[*]} ($PKG_MGR packages: ${missing_pkgs[*]})"
-        if [ "${DRY_RUN:-0}" = "1" ]; then
+        if [ "${DRY_RUN:-0}" = "1" ] || [ ! -t 0 ] || [ "${AUTO_DEPLOY:-0}" = "1" ]; then
+            echo "ℹ️ Déploiement non interactif : continuation malgré les binaires signalés."
             return 0
         fi
         read -p "Do you want to try installing them now with $PKG_MGR? (y/n): " choice
@@ -1149,7 +1150,7 @@ deploy_new_env() {
     # lancement direct ne sert que si elle n'existe pas encore (première install).
     recharger_session() {
         local sig
-        sig=$(ls "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr" 2>/dev/null | head -1)
+        sig=$( (ls "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr" 2>/dev/null || true) | head -1)
         if [ -z "$sig" ]; then
             echo "  ↪ session Hyprland introuvable : rechargement sauté"
             return 0
