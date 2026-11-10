@@ -11,6 +11,7 @@ montée de mineure peut demander une adaptation des réglages.
 
 - **Sélecteur de fichier graphique pour les fichiers Markdown suivis (onglet Données & Comptes)** :
   - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
+  - **Harmonisation visuelle des sélecteurs de dossiers** : ajout du glyphe `folder` sur les deux boutons « Choisir » du tiroir *Fonds d'écran & Captures* (onglet Apparence) pour une cohérence graphique parfaite dans tout le panneau.
   - **Feuille modale dédiée ([`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** : surface intégrée au panneau avec fond en verre et flou interne (`FlouFond`), navigation par dossier (`↑`), filtre automatique sur les extensions `.md` et `.markdown`, sélection par simple clic et validation par double-clic ou bouton « Choisir ».
   - **Script de lecture arborescente ([`dev/core/lister_fichiers.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/lister_fichiers.py))** : listing JSON rapide des dossiers et fichiers filtrés, ignorant les entrées cachées et gérant les erreurs d'accès de manière robuste.
   - **Remplissage automatique intelligent** : la sélection insère le chemin sous forme abrégée `~/...` et pré-remplit automatiquement le nom suggéré du fichier si le champ nom est vide.

@@ -2335,11 +2335,24 @@ Rectangle {
                     border.color: Theme.accentMuted
                     border.width: 1
 
-                    Text {
+                    Row {
                         anchors.centerIn: parent
-                        text: "Choisir"
-                        color: wpPickMa2.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
+                        spacing: 4
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "folder"
+                            size: Math.round(Theme.iconSm * 0.78)
+                            color: wpPickMa2.containsMouse ? Theme.bg : Theme.accent
+                            opacityLevel: 1
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Choisir"
+                            color: wpPickMa2.containsMouse ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
                     }
 
                     MouseArea {
@@ -2429,11 +2442,24 @@ Rectangle {
                     border.color: Theme.accentMuted
                     border.width: 1
 
-                    Text {
+                    Row {
                         anchors.centerIn: parent
-                        text: "Choisir"
-                        color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
+                        spacing: 4
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "folder"
+                            size: Math.round(Theme.iconSm * 0.78)
+                            color: shotsPickMa2.containsMouse ? Theme.bg : Theme.accent
+                            opacityLevel: 1
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Choisir"
+                            color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
                     }
 
                     MouseArea {
