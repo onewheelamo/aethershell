@@ -981,18 +981,19 @@ deploy_ghostty_overrides() {
         echo "  ↪ ghostty : user.conf créé (flou derrière la fenêtre)"
         return 0
     fi
-    grep -qE '^[[:space:]]*background-blur[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cible" && return 0
-    if grep -qE '^[[:space:]]*background-blur' "$cible"; then
-        sed -i -E 's/^[[:space:]]*background-blur.*/background-blur = true/' "$cible"
-        echo "  ↪ ghostty : background-blur remis à true"
-    else
-        cat >> "$cible" <<'EOF'
+    grep -qE '^[[:space:]]*background-blur[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cible" || {
+        if grep -qE '^[[:space:]]*background-blur' "$cible"; then
+            sed -i -E 's/^[[:space:]]*background-blur.*/background-blur = true/' "$cible"
+            echo "  ↪ ghostty : background-blur remis à true"
+        else
+            echo "background-blur = true" >> "$cible"
+            echo "  ↪ ghostty : background-blur ajouté à user.conf"
+        fi
+    }
 
-# Flou derrière la fenêtre : sans cette ligne Ghostty ne demande pas l'effet au
-# compositeur (ext-background-effect-v1) et seule l'opacité s'applique.
-background-blur = true
-EOF
-        echo "  ↪ ghostty : background-blur ajouté à user.conf"
+    if ! grep -qE '^[[:space:]]*theme[[:space:]]*=' "$cible"; then
+        echo "theme = aethershell" >> "$cible"
+        echo "  ↪ ghostty : theme = aethershell ajouté à user.conf"
     fi
 }
 

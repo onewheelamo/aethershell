@@ -49,6 +49,26 @@ Rectangle {
     border.color: Theme.accent
     border.width: 1
 
+    focus: true
+    Keys.onEscapePressed: event => {
+        if (selecteurLoader.item && selecteurLoader.item.ouvert) {
+            selecteurLoader.item.annulerEtFermer()
+            event.accepted = true
+            return
+        }
+        if (selecteurFichierLoader.item && selecteurFichierLoader.item.ouvert) {
+            selecteurFichierLoader.item.annulerEtFermer()
+            event.accepted = true
+            return
+        }
+        Theme.configPanelVisible = false
+        event.accepted = true
+    }
+
+    function restaurerFocus() {
+        searchInput.forceActiveFocus()
+    }
+
     // Verre dépoli autonome : inactif tant que Theme.shellFlouInterne vaut 0.
     FlouFond {
         anchors.fill: parent
@@ -672,6 +692,43 @@ Rectangle {
                 } catch (e) { /* rien à importer */ }
             }
         }
+    }
+
+    // Installation d'un schéma de couleurs (.colors ou archive zip/tar)
+    property string themeInstallStatus: ""
+    property bool themeInstallBusy: false
+
+    Process {
+        id: installThemeProc
+        command: ["python3", Quickshell.shellPath("core/installer_theme_couleur.py"), ""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const res = JSON.parse(text.trim())
+                    if (res.ok) {
+                        root.themeInstallStatus = res.message || "Thème installé !"
+                        Theme.relireStyle()
+                    } else {
+                        root.themeInstallStatus = "Échec : " + (res.erreur || "erreur d'installation")
+                    }
+                } catch (e) {
+                    if (text.trim().length > 0) root.themeInstallStatus = text.trim()
+                }
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            root.themeInstallBusy = false
+            scanThemes.running = false
+            scanThemes.running = true
+        }
+    }
+
+    function installerThemeCouleur(chemin) {
+        if (!chemin || root.themeInstallBusy) return
+        root.themeInstallBusy = true
+        root.themeInstallStatus = "Installation du thème..."
+        installThemeProc.command = ["python3", Quickshell.shellPath("core/installer_theme_couleur.py"), String(chemin), "--activate"]
+        installThemeProc.running = true
     }
 
     // Recentrage différé : la mise en page du tiroir qui se déplie n'est pas
@@ -1952,6 +2009,84 @@ Rectangle {
             Column {
                 width: parent.width
                 spacing: 8
+
+                Row {
+                    width: parent.width
+                    spacing: 10
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Palettes disponibles :"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                    }
+
+                    Item {
+                        width: Math.max(0, parent.width - 150 - btnInstallTheme.width - parent.spacing * 2)
+                        height: 1
+                    }
+
+                    // Bouton « Installer un thème » (.colors / archive)
+                    Rectangle {
+                        id: btnInstallTheme
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: rowInstallTheme.implicitWidth + 20
+                        height: 28
+                        radius: Theme.globalRadius
+                        color: root.themeInstallBusy
+                               ? Qt.alpha(Theme.accent, 0.25)
+                               : (maInstallTheme.containsMouse ? Theme.accentMuted : Theme.accent)
+
+                        Row {
+                            id: rowInstallTheme
+                            anchors.centerIn: parent
+                            spacing: 6
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                glyph: "download"
+                                size: Math.round(Theme.iconSm * 0.8)
+                                color: Theme.bg
+                                opacityLevel: 1
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.themeInstallBusy ? "Installation..." : "Installer un thème"
+                                color: Theme.bg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+                        }
+
+                        MouseArea {
+                            id: maInstallTheme
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: !root.themeInstallBusy
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                root.ouvrirSelecteurFichier(
+                                    "install_theme_colors",
+                                    "Installer un thème (.colors)",
+                                    "~/Téléchargements",
+                                    ["colors"],
+                                    "palette"
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Message d'état de l'installation
+                Text {
+                    visible: root.themeInstallStatus !== ""
+                    text: root.themeInstallStatus
+                    color: root.themeInstallStatus.indexOf("Échec") !== -1 ? Theme.error : Theme.accent
+                    font.pixelSize: Theme.textXs
+                    width: parent.width
+                    elide: Text.ElideRight
+                }
 
             Flow {
                 width: parent.width
@@ -3407,6 +3542,33 @@ Rectangle {
                             suffix: " px"
                             onValueModified: newVal => {
                                 root.runConfigCmd(["style", "global_radius", String(newVal)])
+                            }
+                        }
+                    }
+
+                    // 5b. Arrondis des fenêtres de sélecteurs (fichiers/dossiers) : 0 = suit la règle générale
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Text {
+                            width: 160
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Arrondis sélecteurs :"
+                            color: Theme.fg
+                            font.pixelSize: Theme.textSm
+                            elide: Text.ElideRight
+                        }
+
+                        Slider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            value: Theme.selecteurRadius
+                            minimumValue: 0
+                            maximumValue: 30
+                            stepSize: 1
+                            suffix: value === 0 ? " (auto)" : " px"
+                            onValueModified: newVal => {
+                                root.runConfigCmd(["style", "selecteur_radius", String(newVal)])
                             }
                         }
                     }
@@ -8761,8 +8923,14 @@ Rectangle {
         z: 1000
         source: "SelecteurDossier.qml"
         onLoaded: {
-            item.accepte.connect(chemin => root.validerSelecteur(chemin))
-            item.annule.connect(() => { root.selecteurCible = "" })
+            item.accepte.connect(chemin => {
+                root.validerSelecteur(chemin)
+                root.restaurerFocus()
+            })
+            item.annule.connect(() => {
+                root.selecteurCible = ""
+                root.restaurerFocus()
+            })
         }
     }
 
@@ -8789,22 +8957,30 @@ Rectangle {
         z: 1000
         source: "SelecteurFichier.qml"
         onLoaded: {
-            item.accepte.connect(chemin => root.validerSelecteurFichier(chemin))
-            item.annule.connect(() => { root.selecteurFichierCible = "" })
+            item.accepte.connect(chemin => {
+                root.validerSelecteurFichier(chemin)
+                root.restaurerFocus()
+            })
+            item.annule.connect(() => {
+                root.selecteurFichierCible = ""
+                root.restaurerFocus()
+            })
         }
     }
 
-    function ouvrirSelecteurFichier(cible, titre, chemin, extensions) {
+    function ouvrirSelecteurFichier(cible, titre, chemin, extensions, icone) {
         root.selecteurFichierCible = String(cible)
         if (!selecteurFichierLoader.item)
             return
         selecteurFichierLoader.item.titre = String(titre)
         if (extensions && extensions.length > 0)
             selecteurFichierLoader.item.extensions = extensions
+        selecteurFichierLoader.item.filtrerExtensions = true
+        selecteurFichierLoader.item.icone = icone ? String(icone) : "file-document"
         let chem = String(chemin || "")
         if (chem === "") chem = "~"
         selecteurFichierLoader.item.chemin = root.cheminAbsolu(chem)
-        selecteurFichierLoader.item.fichierSelectionne = (chem.endsWith(".md") || chem.endsWith(".markdown")) ? root.cheminAbsolu(chem) : ""
+        selecteurFichierLoader.item.fichierSelectionne = ""
         selecteurFichierLoader.item.ouvert = true
     }
 
@@ -8816,6 +8992,8 @@ Rectangle {
                 if (base)
                     nouveauTodoNom.text = base
             }
+        } else if (root.selecteurFichierCible === "install_theme_colors") {
+            root.installerThemeCouleur(chemin)
         }
         root.selecteurFichierCible = ""
     }

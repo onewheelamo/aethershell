@@ -33,6 +33,8 @@ QtObject {
         styleFile.reload()
     }
     property int globalRadius: 2
+    // Arrondis des sélecteurs de fichiers/dossiers : 0 = suit globalRadius
+    property int selecteurRadius: 0
     // Opacité des fenêtres (Hyprland) : decoration.active_opacity / inactive_opacity
     property real globalOpacity: 0.85
     // Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
@@ -455,6 +457,7 @@ QtObject {
         if (!data) return
         if (typeof data.active_theme === "string") root.activeTheme = data.active_theme
         if (typeof data.global_radius === "number") root.globalRadius = data.global_radius
+        if (typeof data.selecteur_radius === "number") root.selecteurRadius = data.selecteur_radius
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))

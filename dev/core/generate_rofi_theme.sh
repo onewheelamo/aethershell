@@ -279,3 +279,8 @@ if [ -d "$HYPRLOCK_DIR" ]; then
 \$warn = rgb(${WARN_NH})
 EOF
 fi
+
+# 5. Synchronise la palette des terminaux (OSC universel + Ghostty, Kitty, Alacritty, Foot)
+if [ -f "$SCRIPT_DIR/generate_terminal_theme.py" ]; then
+    python3 "$SCRIPT_DIR/generate_terminal_theme.py" >/dev/null 2>&1 || true
+fi

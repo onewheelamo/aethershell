@@ -9,6 +9,29 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Ajouté
 
+- **Intégration universelle des couleurs du thème dans le terminal (`generate_terminal_theme.py`)** :
+  - **Diffusion dynamique universelle par séquences d'échappement OSC** : émission directe sur tous les pseudo-terminaux actifs (`/dev/pts/*`) des séquences OSC 10 (texte), OSC 11 (arrière-plan avec respect du fond sombre/clair), OSC 12 (curseur), OSC 17/19 (sélection) et OSC 4 (palette complète des 16 couleurs ANSI dérivée du thème actif).
+  - **Script d'initialisation shell persistant** : génération automatique de `~/.config/aethershell/terminal-colors.sh` sourcé à l'ouverture des nouveaux shells (`~/.bashrc.d/10-aethershell-theme.sh`).
+  - **Profils natifs multi-terminaux synchronisés** : génération automatique des fichiers de configuration dédiés avec respect du flou et de l'opacité :
+    - **Ghostty** : `~/.config/ghostty/themes/aethershell` et activation de `theme = aethershell` dans `user.conf`.
+    - **Kitty** : `~/.config/kitty/aethershell-theme.conf` avec inclusion automatique dans `kitty.conf`.
+    - **Alacritty** : `~/.config/alacritty/aethershell-theme.toml` avec import dynamique dans `alacritty.toml`.
+    - **Foot** : `~/.config/foot/themes/aethershell.ini`.
+  - Intégration dans [`dev/core/generate_rofi_theme.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/generate_rofi_theme.sh) pour une mise à jour immédiate à chaque changement de fond d'écran ou sélection de palette.
+
+- **Bouton d'installation de thèmes de couleurs téléchargés ([`dev/core/installer_theme_couleur.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/installer_theme_couleur.py))** :
+  - **Bouton « Installer un thème »** dans le tiroir *Palettes & Thèmes* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
+  - Ouvre [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml) configuré avec l'icône `palette` et filtre actif par défaut sur les extensions `.colors`.
+  - **Bouton filtre débrayable** dans le sélecteur permettant de basculer en 1 clic entre le filtre `.colors` et l'affichage de tous les fichiers (archives `.zip`, `.tar.gz`, etc.).
+  - Extraction et copie sécurisée dans `~/.local/share/color-schemes/` puis synchronisation immédiate du catalogue de thèmes via `themes_scan.py --sync`.
+
+- **Harmonisation et flou des sélecteurs modaux ([`dev/SelecteurDossier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurDossier.qml), [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** :
+  - **Alignement des arrondis** : la courbure des fenêtres de sélecteurs suit désormais `Theme.globalRadius` par défaut.
+  - **Curseur de réglage dédié** : ajout de la propriété `selecteurRadius` dans `Theme.qml` (`selecteur_radius` dans `style_vars.json` et `config_manager.py`) avec un curseur « Arrondis sélecteurs » dans l'onglet Quickshell / Barre.
+  - **Flou de verre dépoli autonome (`FlouFond`)** : chaque carte modale bénéficie du flou interne du fond d'écran à courbure exacte avec calque teinté `Theme.surfaceBg`.
+  - **Stabilité et correction de crash (SIGSEGV)** : suppression de toute capture directe de composant ancêtre par `ShaderEffectSource`, éliminant les boucles d'invalidation dans le scene graph de Qt 6.
+  - **Gestion fiable de la touche Échap et restauration du focus** : fermeture systématique du sélecteur ouvert sur Échap / Annuler, avec retour propre du focus clavier sur le champ de recherche du panneau (`searchInput`) et fermeture fluide du panneau de configuration sur l'Échap suivant.
+
 - **Sélecteur de fichier graphique pour les fichiers Markdown suivis (onglet Données & Comptes)** :
   - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
   - **Harmonisation visuelle des sélecteurs de dossiers** : ajout du glyphe `folder` sur les deux boutons « Choisir » du tiroir *Fonds d'écran & Captures* (onglet Apparence) pour une cohérence graphique parfaite dans tout le panneau.

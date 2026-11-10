@@ -64,6 +64,7 @@ Item {
         "plus": "\u{F0415}",
         "minus": "\u{F0374}",
         "search": "\u{F0349}",
+        "filter": "\u{F0232}",
         "monitor": "\u{F0379}",
         "laptop": "\u{F0322}",
         "television": "\u{F07F4}",

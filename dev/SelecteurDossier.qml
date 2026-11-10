@@ -47,47 +47,65 @@ Item {
         root.ouvert = false
     }
 
+    function annulerEtFermer() {
+        root.ouvert = false
+        root.annule()
+    }
+
     onOuvertChanged: {
         if (ouvert) {
             forceurActif.forceActiveFocus()
             listerProc.running = false
             listerProc.running = true
+        } else {
+            if (root.parent && root.parent.parent && typeof root.parent.parent.restaurerFocus === "function") {
+                root.parent.parent.restaurerFocus()
+            }
         }
     }
 
-    // Voile : assombrit le panneau, et un clic dessus referme.
+    // Voile assombrissant le panneau
     Rectangle {
         anchors.fill: parent
-        color: Qt.alpha(Theme.bg, 0.45)
-        // Le parent est le Loader qui porte la feuille : il n'a pas de rayon.
-        radius: (root.parent && root.parent.radius !== undefined) ? root.parent.radius : 0
+        color: Qt.alpha(Theme.bg, 0.65)
+        radius: (root.parent && root.parent.parent && root.parent.parent.radius !== undefined)
+                ? root.parent.parent.radius : 0
 
         MouseArea {
             anchors.fill: parent
-            onClicked: root.annule()
+            onClicked: root.annulerEtFermer()
         }
     }
 
     Item {
         id: forceurActif
         focus: root.ouvert
-        Keys.onEscapePressed: root.annule()
+        Keys.onEscapePressed: root.annulerEtFermer()
     }
+
+    readonly property real rayonCarte: (Theme.selecteurRadius !== undefined && Theme.selecteurRadius > 0)
+                                      ? Theme.selecteurRadius : Theme.globalRadius
 
     Rectangle {
         id: carte
         anchors.centerIn: parent
         width: Math.min(560, parent.width - 60)
         height: Math.min(430, parent.height - 60)
-        radius: Theme.globalRadius * 3
-        color: Theme.surfaceBg
+        radius: root.rayonCarte
+        color: "transparent"
         border.color: Qt.alpha(Theme.accent, 0.35)
         border.width: 1
 
         FlouFond {
             anchors.fill: parent
             rayon: carte.radius
-            intensite: Theme.shellFlouInterne
+            intensite: Math.max(Theme.shellFlouInterne, 0.85)
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: carte.radius
+            color: Theme.surfaceBg
         }
 
         // Le clic dans la carte ne doit pas la refermer.
@@ -297,7 +315,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.annule()
+                        onClicked: root.annulerEtFermer()
                     }
                 }
 

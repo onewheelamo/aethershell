@@ -22,8 +22,11 @@ Item {
     property string chemin: ""
     // Fichier actuellement sélectionné dans la liste
     property string fichierSelectionne: ""
-    // Liste des extensions autorisées (ex: ["md", "markdown"])
+    // Liste des extensions autorisées (ex: ["md", "markdown"] ou ["colors"])
     property var extensions: ["md", "markdown"]
+    // Filtre actif par défaut, mais débrayable par l'utilisateur
+    property bool filtrerExtensions: true
+    property string icone: "file-document"
     property string erreur: ""
 
     signal accepte(string chemin)
@@ -63,52 +66,65 @@ Item {
         root.ouvert = false
     }
 
+    function annulerEtFermer() {
+        root.ouvert = false
+        root.annule()
+    }
+
     onOuvertChanged: {
         if (ouvert) {
             forceurActif.forceActiveFocus()
             listerProc.running = false
             listerProc.running = true
+        } else {
+            if (root.parent && root.parent.parent && typeof root.parent.parent.restaurerFocus === "function") {
+                root.parent.parent.restaurerFocus()
+            }
         }
     }
 
     // Voile assombrissant le panneau
     Rectangle {
         anchors.fill: parent
-        color: Qt.alpha(Theme.bg, 0.45)
-        radius: (root.parent && root.parent.radius !== undefined) ? root.parent.radius : 0
+        color: Qt.alpha(Theme.bg, 0.65)
+        radius: (root.parent && root.parent.parent && root.parent.parent.radius !== undefined)
+                ? root.parent.parent.radius : 0
 
         MouseArea {
             anchors.fill: parent
-            onClicked: {
-                root.annule()
-                root.ouvert = false
-            }
+            onClicked: root.annulerEtFermer()
         }
     }
 
     Item {
         id: forceurActif
         focus: root.ouvert
-        Keys.onEscapePressed: {
-            root.annule()
-            root.ouvert = false
-        }
+        Keys.onEscapePressed: root.annulerEtFermer()
     }
+
+    readonly property real rayonCarte: (Theme.selecteurRadius !== undefined && Theme.selecteurRadius > 0)
+                                      ? Theme.selecteurRadius : Theme.globalRadius
 
     Rectangle {
         id: carte
         anchors.centerIn: parent
         width: Math.min(580, parent.width - 60)
         height: Math.min(460, parent.height - 60)
-        radius: Theme.globalRadius * 3
-        color: Theme.surfaceBg
+        radius: root.rayonCarte
+        color: "transparent"
         border.color: Qt.alpha(Theme.accent, 0.35)
         border.width: 1
 
         FlouFond {
             anchors.fill: parent
             rayon: carte.radius
-            intensite: Theme.shellFlouInterne
+            intensite: Math.max(Theme.shellFlouInterne, 0.85)
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: carte.radius
+            color: Theme.surfaceBg
         }
 
         MouseArea {
@@ -120,14 +136,14 @@ Item {
             anchors.margins: Theme.padH
             spacing: Theme.space2
 
-            // Titre avec icône
+            // Titre avec icône et filtre débrayable
             Row {
                 width: parent.width
                 spacing: Theme.space2
 
                 Icon {
                     anchors.verticalCenter: parent.verticalCenter
-                    glyph: "markdown"
+                    glyph: root.icone
                     size: Theme.iconSm
                     color: Theme.accent
                     opacityLevel: 1
@@ -135,12 +151,58 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - Theme.iconSm - Theme.space2
+                    width: parent.width - Theme.iconSm - (filtreToggleBtn.visible ? filtreToggleBtn.width + Theme.space2 * 2 : Theme.space2)
                     text: root.titre
                     color: Theme.fg
                     font.pixelSize: Theme.textMd
                     font.bold: true
                     elide: Text.ElideRight
+                }
+
+                // Bouton filtre : activé par défaut, désactivable pour tout afficher
+                Rectangle {
+                    id: filtreToggleBtn
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: (root.extensions || []).length > 0
+                    height: 24
+                    width: filtreRow.implicitWidth + 16
+                    radius: Theme.globalRadius
+                    color: root.filtrerExtensions ? Qt.alpha(Theme.accent, 0.22) : Theme.surfaceVariant
+                    border.color: root.filtrerExtensions ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+                    border.width: 1
+
+                    Row {
+                        id: filtreRow
+                        anchors.centerIn: parent
+                        spacing: 5
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: "filter"
+                            size: Math.round(Theme.iconSm * 0.7)
+                            color: root.filtrerExtensions ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                            opacityLevel: 1
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.filtrerExtensions
+                                  ? ("." + (root.extensions || []).join(", ."))
+                                  : "Tous fichiers"
+                            color: root.filtrerExtensions ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                            font.bold: root.filtrerExtensions
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.filtrerExtensions = !root.filtrerExtensions
+                            listerProc.running = false
+                            listerProc.running = true
+                        }
+                    }
                 }
             }
 
@@ -212,8 +274,10 @@ Item {
                     id: listerProc
                     command: {
                         let cmd = ["python3", Quickshell.shellPath("core/lister_fichiers.py"), root.chemin]
-                        for (let i = 0; i < (root.extensions || []).length; ++i) {
-                            cmd.push(String(root.extensions[i]))
+                        if (root.filtrerExtensions) {
+                            for (let i = 0; i < (root.extensions || []).length; ++i) {
+                                cmd.push(String(root.extensions[i]))
+                            }
                         }
                         return cmd
                     }
@@ -269,7 +333,7 @@ Item {
 
                             Icon {
                                 anchors.verticalCenter: parent.verticalCenter
-                                glyph: est_dossier ? "folder" : "markdown"
+                                glyph: est_dossier ? "folder" : root.icone
                                 size: Theme.iconSm
                                 color: est_dossier
                                        ? Qt.alpha(Theme.accent, 0.85)
@@ -368,7 +432,7 @@ Item {
                         width: parent.width - 24
                         text: root.fichierSelectionne !== ""
                               ? root.nomFichier(root.fichierSelectionne)
-                              : "Sélectionnez un fichier .md"
+                              : ("Sélectionnez un fichier" + (root.filtrerExtensions && (root.extensions || []).length > 0 ? " (." + root.extensions.join(", .") + ")" : ""))
                         color: root.fichierSelectionne !== "" ? Theme.fg : Qt.alpha(Theme.fg, 0.4)
                         font.pixelSize: Theme.textXs
                         font.bold: root.fichierSelectionne !== ""
@@ -397,10 +461,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            root.annule()
-                            root.ouvert = false
-                        }
+                        onClicked: root.annulerEtFermer()
                     }
                 }
 

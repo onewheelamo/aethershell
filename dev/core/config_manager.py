@@ -701,6 +701,8 @@ def update_style_var(key, value):
     shell_blur_changed = False
     if key == "global_radius":
         data[key] = max(0, min(30, int(float(value))))
+    elif key == "selecteur_radius":
+        data[key] = max(0, min(30, int(float(value))))
     elif key == "hypr_rounding":
         ival = max(0, min(35, int(float(value))))
         data[key] = ival
