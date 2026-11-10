@@ -1,120 +1,95 @@
 # AetherShell
 
-Un environnement de bureau pour Hyprland : une barre, des panneaux, des widgets de bureau
-et un visualiseur audio, écrits en QML et exécutés par [Quickshell](https://quickshell.org).
+Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une barre en îlots, de panneaux modulaires, de widgets de bureau et d'outils du quotidien, écrit en QML/Qt et animé par [Quickshell](https://quickshell.org).
 
-AetherShell n'est pas un thème. C'est un shell complet — il remplace la barre par défaut de
-Hyprland et regroupe ce qu'on consulte en permanence : bureaux, horloge, réseau, volume,
-batterie, disques, services, presse-papiers, agent Hermes, homelab. Le tout se règle depuis
-un panneau unique, et les réglages s'appliquent à chaud.
+> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.1.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
 
-## Le shell
+---
 
-### Une barre en trois îlots, dans une seule capsule
+## 1. Vue d'ensemble
 
-Les applets sont répartis en trois îlots — gauche, centre, droite — peints dans une capsule
-continue. Les deux espaces qui les séparent peuvent être rendus **transparents, sans flou** :
-le fond d'écran reste net entre les îlots. Ce n'est pas un retour à trois pilules
-indépendantes : la découpe est une option de peinture, les espaces restent des objets à part
-entière, et c'est là que s'affiche le visualiseur audio.
+Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuels et utilitaires de la session graphique :
 
-### Des barres annexes
+* **Barre principale & capsule modulaire** : une disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune. Les séparations entre les îlots peuvent être rendues transparentes pour laisser transparaître le fond d'écran net tout en maintenant un conteneur unifié.
+* **Barres annexes optionnelles** : support d'une barre basse et de barres latérales verticales suivant la même logique de composants.
+* **Panneau de configuration unifié** : accessible en un raccourci (`SUPER + H`) ou par clic milieu sur n'importe quel applet. Il permet d'ajuster l'apparence (palettes, flous, rayons, opacité), les applications préférées, les écrans, la minuterie de veille (`hypridle`), le démarrage automatique et les secrets locaux, avec application à chaud sans redémarrer la session.
+* **Widgets de bureau ancrables** : des blocs déplaçables (tâches, surveillance système, météo, musique, horloge, agent...) configurables et filtrables par bureau virtuel (clic milieu pour restreindre un widget à un ou plusieurs workspaces).
+* **Visualiseur audio réactif** : intégration discrète d'une onde PipeWire native (`pwscope`) ou de barres spectrales (`cava`), avec extinction automatique après dix secondes de silence pour préserver les ressources GPU/CPU.
+* **Suivi de tâches & intégration Hermes** : gestion locale de checklists Markdown (`- [ ]`) avec sélecteur de fichiers graphique et interrupteur de surveillance optionnel confiant l'exécution des tâches cochées à l'agent Hermes via un worker d'arrière-plan.
+* **Sélecteurs graphiques intégrés** : feuilles modales dessinées directement dans la surface du shell ([`SelecteurDossier.qml`](dev/SelecteurDossier.qml), [`SelecteurFichier.qml`](dev/SelecteurFichier.qml)), contournant la limitation des dialogues Wayland traditionnels qui s'ouvriraient sous la surface de couche (`Overlay`).
+* **Gestionnaire d'écran de connexion (SDDM)** : réglage du thème Astronaut et de variantes Qylock depuis le panneau, avec un lanceur de prévisualisation sécurisé isolant le test sur un bureau dédié (`workspace 99`) pour ne jamais bloquer la session active.
 
-La même découpe s'applique à une barre du bas et à deux barres latérales, chacune avec ses
-applets, ses zones et ses espaces transparents. Sur les côtés, les applets s'empilent du bord
-extérieur vers l'intérieur.
+---
 
-### Vingt applets, treize widgets
+## 2. Déploiement & Mises à jour
 
-Un applet vit dans une barre ; un widget vit sur le bureau, posé où on veut, et peut être
-restreint à certains bureaux (un seul, plusieurs, ou tous) par un menu au clic milieu.
-L'applet Hermes et son widget lisent tous deux la base de l'agent pour dire ce qu'il fait,
-dans quel profil, avec quelle consommation.
-
-Panneaux, launcher, notifications, OSD, sélecteur de capture et aide-mémoire des raccourcis
-complètent l'ensemble, tous soumis au même réglage de flou.
-
-### Un visualiseur audio
-
-Deux modes : une onde (moteur `pwscope`, capture PipeWire) ou des barres de spectre (cava).
-Il s'éteint après dix secondes de silence et se réveille à la première source audio, plutôt
-que de capturer en permanence.
-
-## Prérequis
-
-- [Quickshell](https://quickshell.org) 0.3.2 ou plus récent ;
-- Hyprland 0.57, configuration en Lua (les modules sont dans `dev/hypr_modular/`) ;
-- les binaires listés dans [`dev/dependencies.txt`](dev/dependencies.txt), avec leurs
-  portées : `#: commun`, `#: arch`, `#: fedora`.
-
-## Installation
+Le déploiement est piloté par le script [`dev/deploy.sh`](dev/deploy.sh), compatible avec **Arch Linux** et **Fedora** (détection automatique par `/etc/os-release`) :
 
 ```sh
 cd dev
-./deploy.sh --deps      # liste résolue des dépendances, sans rien installer
-./deploy.sh --arch      # ou --fedora
+
+# Inspecter les dépendances nécessaires sans rien installer
+./deploy.sh --deps
+
+# Analyse comparative pré-vol (Dépôt ➜ Vivant) sans modification
+./deploy.sh --diff
+
+# Déploiement complet avec sauvegarde préalable (tarball + snapshot fin)
+./deploy.sh --arch    # ou ./deploy.sh --fedora
+
+# Déploiement rapide sans nouvelle sauvegarde (quand l'état est déjà archivé)
+./deploy.sh --deploy-only
 ```
 
-La cible se déduit de `/etc/os-release` ; le drapeau ne sert qu'à la forcer. Le déploiement
-copie le shell vers `~/.config/quickshell` et la configuration Hyprland vers `~/.config/hypr`,
-après une sauvegarde dans `~/.config/backups_env`.
+### Protection stricte des données locales
+Le déploiement ne remplace jamais aveuglément les fichiers vivants :
+* **États locaux protégés** : `style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`, `todo.json`, `secrets.json`, etc. ne sont jamais écrasés s'ils existent déjà sur la machine cible.
+* **Configuration Hyprland personnalisée** : `binds.lua`, `input.lua`, `general.lua` et les profils matériels restent maîtres. En cas de différence avec le dépôt, une copie comparative `.upstream` est générée sans toucher au fichier actif.
+* **Filet de sécurité granulaire** : chaque déploiement crée une archive `.tar.gz` de secours et un snapshot décompressé miroir sous `~/.config/backups_env/snapshots/<horodatage>/` avec table d'empreintes sha256 (`manifest.json`), permettant de restaurer un seul fichier en cas de besoin (`./deploy.sh --restore-file <chemin>`).
 
-Deux familles de fichiers ne sont **jamais** écrasées : les réglages et les données
-(`style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`, `secrets.json`…) et
-les modules Hyprland qu'on édite à la main (`input.lua`, `binds.lua`, `general.lua`). Le
-fichier vivant fait foi ; le dépôt propose une version de départ.
+---
 
-## Configuration
+## 3. Prérequis
 
-Le panneau s'ouvre par la barre ou par IPC :
+* **Compositeur** : [Hyprland](https://hyprland.org) 0.57 ou plus récent (configuration modulaire en Lua) ;
+* **Moteur d'interface** : [Quickshell](https://quickshell.org) 0.3.2 ou supérieur ;
+* **Police d'icônes** : `0xProto Nerd Font` (installeur fourni dans `dev/core/install_fonts.sh`) ;
+* **Dépendances système** : répertoriées par distribution dans [`dev/dependencies.txt`](dev/dependencies.txt) (`rofi`, `matugen`, `wireplumber`, `NetworkManager`, `cava`, etc.).
 
-```sh
-quickshell ipc call shell toggleConfig
-```
+---
 
-Un clic milieu sur un applet ouvre directement sa section. Les réglages sont écrits dans
-`~/.config/quickshell/core/` :
-
-| Fichier | Ce qu'il porte |
-|---|---|
-| `style_vars.json` | couleurs, rayons, opacité et flou, transparence des espaces |
-| `bar_applets.json` | quels applets, dans quelle barre, à quelle place |
-| `widgets.json` | widgets de bureau : position, taille, bureaux |
-| `applets_catalogue.json` | le catalogue : ce qui existe, et dans quelles îles c'est permis |
-
-## Structure du dépôt
+## 4. Organisation du projet
 
 ```
-dev/                le shell (QML) et ses services
-  core/             services Python : réseau, disques, énergie, Hermes, visualiseur…
-  widgets/          les widgets de bureau
-  hypr_modular/     la configuration Hyprland, en modules Lua
-  sddm/             le greeter
-  deploy.sh         déploiement et contrôle des dépendances
+dev/
+├── core/             # Services Python (réseau, disques, tâches, Hermes, lister_fichiers...)
+├── widgets/          # Composants de bureau (horloge, todo, système, météo...)
+├── hypr_modular/     # Configuration Hyprland modulaire en Lua
+├── hyprquickpaper/   # Moteur de fond d'écran et gestion de palette
+├── sddm/             # Scripts et helpers pour l'écran de connexion SDDM
+├── systemd/          # Définitions des unités utilisateur (quickshell.service...)
+├── deploy.sh         # Gestionnaire de déploiement, pré-vol et sauvegardes
+└── *.qml             # Surfaces Quickshell (barre, panneau, popups, sélecteurs...)
 ```
 
-## Journal des modifications
+---
 
-Les versions publiées et leur contenu sont dans [`CHANGELOG.md`](CHANGELOG.md).
+## 5. Remerciements & Emprunts de code
 
-## Inspirations
+AetherShell n'est pas né dans le vide : il emprunte des briques, des concepts et des portions de code à d'autres projets open source dont les approches étaient pertinentes. Un grand merci aux auteurs suivants pour leur travail partagé sous licence libre (notamment la collection [Noctalia Community Plugins](https://github.com/noctalia-dev/community-plugins), sous licence MIT) :
 
-AetherShell a été écrit en regardant d'autres shells, et en reprenant franchement ce qu'ils
-faisaient mieux. Les plugins ci-dessous viennent de la collection communautaire de
-[Noctalia](https://github.com/noctalia-dev/community-plugins) ; ils sont tous sous licence
-MIT, et tout code repris garde son en-tête de provenance d'origine.
-
-| Plugin | Auteur | Ce qui en vient |
+| Composant / Idée | Auteur d'origine | Description du partage |
 |---|---|---|
-| [Visualizer+](https://github.com/noctalia-dev/community-plugins/tree/main/visualizerp) | al3x | le moteur de capture `pwscope.c`, **repris tel quel** (compilé localement) ; le rendu QML est réécrit |
-| [Agentik](https://github.com/noctalia-dev/community-plugins/tree/main/agentik) | notfinaldev | la lecture de la base de l'agent en lecture seule, l'appariement processus ↔ session, la règle « statut inconnu plutôt qu'inventé » |
-| [USB Manager](https://github.com/noctalia-dev/community-plugins/tree/main/usb-manager) | Marco Ziliani | le duo applet/widget qui lit l'état dans sysfs et udev, sans processus de fond |
-| [To Do](https://github.com/noctalia-dev/community-plugins/tree/main/todo) | nightwatch75 | le duo applet/widget pour une liste de tâches priorisée |
-| [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | tordex | les idées du duo de surveillance système : tri par colonne, outil lancé seulement quand le panneau est ouvert |
-| [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | noctalia | l'idée du masque de premier plan tiré d'une carte de profondeur (Depth Anything V2 Small, Apache-2.0), pour faire passer les widgets derrière le décor proche ; le service et le calque sont réécrits pour AetherShell |
+| [Visualizer+](https://github.com/noctalia-dev/community-plugins/tree/main/visualizerp) | **al3x** | Moteur de capture PipeWire en C (`pwscope.c`), compilé localement pour alimenter l'onde audio. |
+| [Agentik](https://github.com/noctalia-dev/community-plugins/tree/main/agentik) | **notfinaldev** | Principes de lecture non bloquante de l'état de l'agent, appariement processus/session et gestion du statut. |
+| [USB Manager](https://github.com/noctalia-dev/community-plugins/tree/main/usb-manager) | **Marco Ziliani** | Architecture de lecture matérielle directe dans `sysfs` et `udev` sans nécessiter de démon résident lourd. |
+| [To Do](https://github.com/noctalia-dev/community-plugins/tree/main/todo) | **nightwatch75** | Inspiration initiale pour le découplage entre l'applet de barre et le widget de bureau pour les listes de tâches. |
+| [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | **tordex** | Principe de surveillance système à la demande (processus lancé uniquement lorsque la vue est ouverte). |
+| [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | **noctalia** | Concept d'immersion visuelle des îlots via masques de profondeur (Depth Anything V2). |
+| **Quickshell & Hyprland** | **outfoxxed & vaxerski** | Pour ces deux projets majeurs qui rendent possible la construction d'un shell Wayland moderne et performant. |
 
-Les idées, les dispositions et les protocoles ne s'héritent pas ; les remerciements, si.
+---
 
-## Licence
+## 6. Licence
 
-AetherShell est distribué sous licence MIT — voir [`LICENSE`](LICENSE).
+AetherShell est distribué sous licence MIT — voir le fichier [`LICENSE`](LICENSE) pour plus de détails.
