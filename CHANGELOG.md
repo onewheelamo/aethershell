@@ -5,7 +5,7 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
-## [0.1.3] — 2026-11-10
+## [0.1.4] — 2026-11-10
 
 ### Ajouté
 
@@ -24,13 +24,31 @@ montée de mineure peut demander une adaptation des réglages.
   - Ouvre [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml) configuré avec l'icône `palette` et filtre actif par défaut sur les extensions `.colors`.
   - **Bouton filtre débrayable** dans le sélecteur permettant de basculer en 1 clic entre le filtre `.colors` et l'affichage de tous les fichiers (archives `.zip`, `.tar.gz`, etc.).
   - Extraction et copie sécurisée dans `~/.local/share/color-schemes/` puis synchronisation immédiate du catalogue de thèmes via `themes_scan.py --sync`.
+  - Ajout du glyphe `filter` (`\u{F0232}`) dans [`dev/Icon.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Icon.qml).
 
-- **Harmonisation et flou des sélecteurs modaux ([`dev/SelecteurDossier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurDossier.qml), [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** :
-  - **Alignement des arrondis** : la courbure des fenêtres de sélecteurs suit désormais `Theme.globalRadius` par défaut.
-  - **Curseur de réglage dédié** : ajout de la propriété `selecteurRadius` dans `Theme.qml` (`selecteur_radius` dans `style_vars.json` et `config_manager.py`) avec un curseur « Arrondis sélecteurs » dans l'onglet Quickshell / Barre.
-  - **Flou de verre dépoli autonome (`FlouFond`)** : chaque carte modale bénéficie du flou interne du fond d'écran à courbure exacte avec calque teinté `Theme.surfaceBg`.
-  - **Stabilité et correction de crash (SIGSEGV)** : suppression de toute capture directe de composant ancêtre par `ShaderEffectSource`, éliminant les boucles d'invalidation dans le scene graph de Qt 6.
-  - **Gestion fiable de la touche Échap et restauration du focus** : fermeture systématique du sélecteur ouvert sur Échap / Annuler, avec retour propre du focus clavier sur le champ de recherche du panneau (`searchInput`) et fermeture fluide du panneau de configuration sur l'Échap suivant.
+- **Réglage dédié des arrondis des sélecteurs modaux (`selecteur_radius`)** :
+  - Ajout de la propriété réactive `selecteurRadius` dans [`dev/Theme.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Theme.qml) (0 = suit automatiquement `globalRadius`).
+  - Prise en charge dans [`dev/core/config_manager.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/config_manager.py) et persistance dans `style_vars.json`.
+  - Curseur « Arrondis sélecteurs » ajouté dans l'onglet *Gestion Quickshell* (tiroir *Barre et surfaces du shell*) de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
+
+### Modifié
+
+- **Harmonisation visuelle et flou des sélecteurs modaux ([`dev/SelecteurDossier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurDossier.qml), [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** :
+  - **Alignement des arrondis** : la courbure des fenêtres de sélecteurs suit désormais `Theme.globalRadius` par défaut au lieu d'une valeur fixe exagérée (`Theme.globalRadius * 3`).
+  - **Flou de verre dépoli autonome (`FlouFond`)** : chaque carte modale bénéficie du flou interne du fond d'écran à courbure exacte (`FlouFond` avec intensité garantie ≥ 85 %), superposé avec un calque teinté `Theme.surfaceBg` et bordure contrastée.
+  - Voile de fond sombre semi-transparent (`Qt.alpha(Theme.bg, 0.65)`) pour détacher la feuille modale du panneau hôte.
+
+### Corrigé
+
+- **Stabilité Qt Quick & Correction de crash (SIGSEGV)** :
+  - Suppression du composant `ShaderEffectSource` ciblant un item ancêtre (`root.parent.parent`) dans `SelecteurFichier.qml` et `SelecteurDossier.qml`, éliminant les cycles d'invalidation dans le scene graph Qt 6 (`QQuickItemPrivate::addToDirtyList()`) survenus lors de la fermeture ou du changement d'état.
+- **Gestion de la touche Échap et restauration du focus clavier** :
+  - Ajout d'une méthode `annulerEtFermer()` fermant proprement le sélecteur, émettant `annule()` et rétablissant le focus clavier sur le champ de recherche `searchInput`.
+  - Ajout d'un écouteur racine `Keys.onEscapePressed` dans [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml) fermant en priorité le sélecteur actif s'il est ouvert, ou refermant le panneau de configuration en l'absence de modal.
+
+## [0.1.3] — 2026-11-10
+
+### Ajouté
 
 - **Sélecteur de fichier graphique pour les fichiers Markdown suivis (onglet Données & Comptes)** :
   - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
@@ -284,6 +302,7 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.1.4]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.4
 [0.1.3]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.3
 [0.1.2]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.2
 [0.1.1]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.1
