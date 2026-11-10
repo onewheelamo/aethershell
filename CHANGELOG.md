@@ -261,6 +261,7 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.1.3]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.3
 [0.1.2]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.2
 [0.1.1]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.1
 [0.1.0]: https://github.com/onewheelamo/quickshell_todo/releases/tag/v0.1.0
