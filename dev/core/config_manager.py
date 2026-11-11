@@ -790,6 +790,11 @@ def update_style_var(key, value):
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
         data[key] = max(28, min(60, int(float(value))))
+    elif key == "bar_gaps_out":
+        # Marge extérieure des quatre barres (`Theme.gutter`) : l'écart entre la
+        # surface de la barre et le bord de l'écran. 0 colle la barre au bord ;
+        # au-delà de 32, la barre ne tient plus dans la surface qui la réserve.
+        data[key] = max(0, min(32, int(float(value))))
     elif key == "resize_step":
         data[key] = max(1, min(200, int(float(value))))
         save_json(STYLE_FILE, data)
@@ -1918,6 +1923,7 @@ def get_full_config_state():
         "first_run_completed": bool(style_data.get("first_run_completed", False)),
         "show_config_button": bool(style_data.get("show_config_button", True)),
         "bar_height": int(style_data.get("bar_height", 40)),
+        "bar_gaps_out": int(style_data.get("bar_gaps_out", 8)),
         "launcher_position": style_data.get("launcher_position", "bas-centre"),
         "widgets": load_widgets(),
         "global_radius": int(style_data.get("global_radius", 2)),

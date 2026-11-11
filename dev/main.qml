@@ -274,9 +274,13 @@ Item {
             left: true
             right: true
         }
-        implicitHeight: barContainer.height + 14
+        // La surface doit contenir la barre **et** sa marge extérieure, sinon la
+        // pilule est rognée par le bas de la surface dès que la marge dépasse.
+        // Les deux constantes valaient pour une marge de 8 px (8 + 6 et 8 + 2) :
+        // elles suivent maintenant `Theme.gutter` (réglage `bar_gaps_out`).
+        implicitHeight: barContainer.height + Theme.gutter + 6
         exclusionMode: ExclusionMode.Auto
-        exclusiveZone: barContainer.height + 10
+        exclusiveZone: barContainer.height + Theme.gutter + 2
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Top
         // Le panneau réseau est celui de l'applet « reseau » depuis la mise en
