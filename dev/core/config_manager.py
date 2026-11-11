@@ -1946,6 +1946,10 @@ def get_full_config_state():
         "display": get_monitors_info(),
         "binds": get_binds_list(),
         "apps": load_json(APP_VARS_FILE),
+        # Les cibles de notification viennent d'ici plutôt que d'un FileView du
+        # panneau : `state` est déjà appelé à l'ouverture et après chaque
+        # commande, donc une seule source au lieu de deux qui peuvent diverger.
+        "notif_targets": load_notif_targets(),
         "autostart": get_autostart(),
         "homelab": lire_homelab(),
         "todo": {"fichiers": lire_todo(), "focus": lire_todo_focus(), "surveillance": lire_todo_surveillance()},

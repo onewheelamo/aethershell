@@ -1306,6 +1306,16 @@ Rectangle {
         if (Array.isArray(data.binds)) {
             root.bindsList = data.binds
         }
+        // Les cibles de notification viennent de `state` (une seule source) :
+        // auparavant un FileView du panneau les relisait de son cote.
+        if (data.notif_targets && typeof data.notif_targets === "object") {
+            const nt = data.notif_targets
+            root.notifTargets = {
+                "apps": (nt.apps && typeof nt.apps === "object") ? nt.apps : ({}),
+                "types": (nt.types && typeof nt.types === "object") ? nt.types : ({}),
+                "url": (typeof nt.url === "string") ? nt.url : "Browser"
+            }
+        }
         if (data.apps) {
             const arr = []
             for (const k in data.apps) {
@@ -1552,41 +1562,7 @@ Rectangle {
         }
     }
 
-    FileView {
-        id: notifTargetsFile
-        path: Quickshell.shellPath("core/notif_targets.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const obj = JSON.parse(text())
-                root.notifTargets = {
-                    "apps": (obj && typeof obj.apps === "object") ? obj.apps : ({}),
-                    "types": (obj && typeof obj.types === "object") ? obj.types : ({}),
-                    "url": (obj && typeof obj.url === "string") ? obj.url : "Browser"
-                }
-            } catch (e) {}
-        }
-    }
 
-    FileView {
-        id: appVarsFile
-        path: Quickshell.shellPath("core/app_vars.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const obj = JSON.parse(text())
-                const arr = []
-                for (const k in obj) {
-                    arr.push({ alias: k, cmd: obj[k] })
-                }
-                root.appVarsModel = arr
-            } catch (e) {}
-        }
-    }
 
     Connections {
         target: Theme
