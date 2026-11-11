@@ -473,10 +473,14 @@ Item {
                                 height: histCol.implicitHeight + 16
                                 radius: Theme.globalRadius
                                 readonly property bool selectionne: rowLoader.index === root.selectedRow
+                                // `surfaceVariantBg` (et non `surfaceVariant`) : la carte
+                                // laisse passer le verre du tiroir, comme les cartes du
+                                // panneau. `Qt.lighter` garde l'alpha, donc survol et
+                                // sélection restent translucides.
                                 color: selectionne
-                                    ? Qt.lighter(Theme.surfaceVariant, 1.32)
-                                    : (histMa.containsMouse ? Qt.lighter(Theme.surfaceVariant, 1.12)
-                                                            : Theme.surfaceVariant)
+                                    ? Qt.lighter(Theme.surfaceVariantBg, 1.32)
+                                    : (histMa.containsMouse ? Qt.lighter(Theme.surfaceVariantBg, 1.12)
+                                                            : Theme.surfaceVariantBg)
                                 border.width: selectionne ? 1 : 0
                                 border.color: Theme.accent
                                 Behavior on color { ColorAnimation { duration: 120 } }
