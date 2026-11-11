@@ -45,7 +45,7 @@ Item {
         && (barre === "" || VisualiseurAudio.barre === barre)
 
     // Rien à montrer : applet éteint, barre non concernée, ou silence (les
-    // espaces restent, l'animation s'efface — décision d'Amo).
+    // espaces restent, l'animation s'efface — choix assumé).
     opacity: (enService && !VisualiseurAudio.silence) ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutQuad } }
 

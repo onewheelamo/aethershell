@@ -1,10 +1,12 @@
-// Autorise l'utilisateur amo à lancer le helper du greeter sans mot de passe.
+// Autorise l'utilisateur local actif à lancer le helper du greeter sans mot de
+// passe. Aucun nom n'est écrit ici : le dépôt doit s'installer chez quelqu'un
+// d'autre, et une règle qui nomme quelqu'un ne servirait à personne ailleurs.
 // Portée volontairement étroite : un seul programme, root, non modifiable par
 // l'utilisateur. Tout le reste passe toujours par une authentification.
 polkit.addRule(function (action, subject) {
     if (action.id == "org.freedesktop.policykit.exec" &&
         action.lookup("program") == "/usr/local/bin/greeter-palette" &&
-        subject.user == "amo") {
+        subject.local && subject.active) {
         return polkit.Result.YES;
     }
 });

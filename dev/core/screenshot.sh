@@ -98,7 +98,7 @@ notify_capture() {
     local summary="$1" body="$2" path="${3:-}"
     local -a args=(-a "Captures")
     if [ -n "$path" ]; then
-        args+=(-h "string:x-amo-open:file://${path}" -i "$path")
+        args+=(-h "string:x-aethershell-open:file://${path}" -i "$path")
     else
         args+=(-i "camera-photo")
     fi

@@ -616,8 +616,25 @@ compute_diff_stats() {
     (diff -u "$src" "$dst" 2>/dev/null || true) | awk '/^\+[^+]/ {add++} /^-[^-]/ {del++} END {printf "+%d / -%d", add, del}'
 }
 
+# ── Neutralité : ni nom d'utilisateur ni nom de machine en dur ──────────────
+# Le dépôt doit s'installer chez quelqu'un d'autre. `core/neutralite.py` lit les
+# fichiers suivis et cherche le nom de la personne qui lance le déploiement, son
+# nom d'hôte, et tout `/home/<nom>` qui n'est pas un espace réservé. Avertissement
+# seulement : un déploiement ne doit pas être bloqué par une ligne de commentaire.
+verifier_neutralite() {
+    local sortie
+    if ! sortie="$(python3 "$DEV_DIR/core/neutralite.py" 2>&1)"; then
+        echo
+        echo "⚠️  Neutralité du dépôt — à corriger avant de publier :"
+        echo "$sortie" | sed 's/^/    /'
+        echo
+    fi
+}
+
 # ── Pré-vol : Analyse comparative (Dépôt ➜ Vivant) ──────────────────────────
 preflight_diff() {
+    verifier_neutralite
+
     local git_rev origin
     git_rev="$(git -C "$DEV_DIR" rev-parse --short HEAD 2>/dev/null || echo "inconnu")"
     origin="$(detect_origin_type)"

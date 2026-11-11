@@ -117,7 +117,7 @@ Item {
 
         readonly property int hauteurEcran: menu.screen ? menu.screen.height : 1080
         readonly property int yTiersBas: Math.round(hauteurEcran * 2 / 3)
-        // Décalage réglé à l'œil (demandes d'Amo, 07/11) : le menu se pose
+        // Décalage réglé à l'œil : le menu se pose
         // 300 px plus haut que le centre strict du tiers inférieur, par pas de
         // 100 puis 200. Le tiers reste la référence, le décalage n'est qu'une
         // correction de lecture.

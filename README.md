@@ -49,6 +49,29 @@ Le déploiement ne remplace jamais aveuglément les fichiers vivants :
 
 ---
 
+### Installer chez quelqu'un d'autre
+
+Rien dans le dépôt ne nomme un utilisateur, un dossier personnel ou une machine :
+AetherShell s'installe sous n'importe quel compte, et `./deploy.sh` écrit toujours
+dans le `$HOME` de la personne qui le lance.
+
+Les chemins se composent donc avec une variable, jamais en dur :
+
+| Contexte | À utiliser |
+|---|---|
+| shell | `"$HOME"`, `"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"` |
+| Python | `Path.home()`, `os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"` |
+| QML | `Quickshell.env("HOME")`, `Quickshell.env("XDG_RUNTIME_DIR")` |
+| unité systemd | `%h` (directive d'unité) |
+
+`python3 dev/core/neutralite.py` vérifie les fichiers **suivis** : il signale tout
+`/home/<nom>` qui n'est pas un espace réservé, ainsi que le nom de la personne et
+celui de sa machine. Le pré-vol du déploiement l'exécute et affiche un
+avertissement. Une ligne peut porter une dérogation explicite — `neutralite:ok —
+<raison>` — pour une compatibilité assumée.
+
+---
+
 ## 3. Prérequis
 
 * **Compositeur** : [Hyprland](https://hyprland.org) 0.57 ou plus récent (configuration modulaire en Lua) ;

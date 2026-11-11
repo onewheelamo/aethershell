@@ -7,7 +7,7 @@ Ce programme ne lance rien : il décide, et il journalise sa décision pour qu'o
 puisse la relire sans cliquer.
 
 Cascade, on s'arrête à la première règle qui répond :
-  1. hint explicite      x-amo-open:file:///…   (posé par nos scripts)
+  1. hint explicite      x-aethershell-open:file:///…   (posé par nos scripts)
   2. table par application  core/notif_targets.json : appName ou desktopEntry
   3. action par défaut      la notification fournit une action « default »
   4. chemin / URL           repéré dans le texte, classé par nature
@@ -33,6 +33,10 @@ from urllib.parse import unquote, urlparse
 # qui voit chaque notification avec sa cible déjà décidée. Les essais en `--once`
 # n'écrivent rien, pour ne pas polluer l'historique réel.
 RECORD_HISTORY = False
+# Hint de notification qui désigne la cible d'un clic. L'ancien nom (x-amo-open)  # neutralite:ok
+# portait celui de l'utilisateur : il reste lu tant qu'une machine n'a pas été
+# redéployée, mais on écrit toujours le nom neutre.
+HINTS_OUVERTURE = ("x-aethershell-open", "x-amo-open")  # neutralite:ok — ancien nom lu
 CORE_DIR = Path(__file__).resolve().parent
 CACHE_LOG = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "notifications.log"
 
@@ -159,9 +163,12 @@ def resolve(req):
                 "display": (cmd + " " + shlex.quote(target)) if target else cmd,
                 "label": target}
 
+    # Le hint qui désigne la cible porte un nom neutre. L'ancien (x-amo-open)  # neutralite:ok
+    # nommait l'utilisateur : il reste lu pour les notifications déjà en vol et
+    # pour les scripts d'une machine pas encore redéployée.
     # 1. hint explicite (nos propres scripts)
     for key, value in hints.items():
-        if str(key).lower().endswith("x-amo-open") and isinstance(value, str) and value:
+        if str(key).lower().endswith(HINTS_OUVERTURE) and isinstance(value, str) and value:
             path = value[len("file://"):] if value.startswith("file://") else value
             path = unquote(path)
             res = open_with_alias((targets.get("types") or {}).get(path_kind(path)) or "",
