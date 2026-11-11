@@ -20,6 +20,12 @@ dev/core/launch_history.json
 # Sorties générées du greeter (conf + fond issus de style_vars.json)
 dev/sddm/out/
 
+# Maquettes et rendus d'écran : ils servent à concevoir, ils n'ont pas à peser
+# dans le dépôt ni à partir sur GitHub. Le 2026-11-11 ils en sont sortis, et
+# l'historique a été purgé pour qu'il n'en reste aucune trace.
+dev/mockups/
+dev/sddm/preview/
+
 # Sensitive information
 dev/core/secrets.json
 secrets.json
