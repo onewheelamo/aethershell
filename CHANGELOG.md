@@ -20,6 +20,8 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Modifié
 
+- **Taille du flou des surfaces : de 1 à 96 px, pas de 1** ([`dev/OngletApparence.qml`](dev/OngletApparence.qml), [`dev/Theme.qml`](dev/Theme.qml), [`dev/core/config_manager.py`](dev/core/config_manager.py)) : la borne basse était à 8 px et le pas à 4, ce qui interdisait les petits rayons. Vérifié : 2 px est conservé, 0 est ramené au plancher de 1.
+
 - **`style_vars.json` ne porte plus le catalogue** ([`dev/core/style_vars.json`](dev/core/style_vars.json)) : 99 palettes → 3. Le fichier suivi perd 1 250 lignes ; la migration est automatique au premier démarrage (le scan purge les palettes importées et n'en garde aucune, sauf l'active).
 - **Une seule palette importée vit dans la configuration, et seulement à l'activation** : [`dev/core/themes_scan.py`](dev/core/themes_scan.py) (`activer`) recopie ses couleurs dans `palette[active_theme]`, ce qui laisse rofi, le terminal, SDDM et `Theme` inchangés.
 - [`dev/core/theme_manager.py`](dev/core/theme_manager.py) délègue à `themes_scan.activer` — il testait `theme_name in palette` et aurait refusé tous les thèmes du disque.
