@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Refuse un push qui enverrait ce que le dépôt ne doit pas porter.
+#
+# `pre-commit` protège le commit, mais `git commit --no-verify` le contourne — et
+# rien alors ne rattrape ce qui part. Ce crochet regarde ce qui **part vraiment**,
+# entre le dernier commit connu du distant et HEAD, et il le refuse.
+#
+# Il tourne sur toute machine où `core.hooksPath` vaut `dev/hooks` ; `deploy.sh`
+# le pose, et vérifie que le crochet est bien là.
+#
+# Ce qui est refusé :
+#   dev/mockups/, dev/sddm/preview/   images de conception, purgées de l'historique
+#   dev/core/secrets.json, secrets.json   identifiants en clair
+#   *.upstream, sync.sh               états et outils locaux
+#   puis `core/neutralite.py` : nom d'utilisateur, dossier personnel, nom de machine
+#
+# Contournement volontaire : `git push --no-verify`.
+set -euo pipefail
+
+# La branche de comparaison : celle que le push suit, sinon le master distant.
+base="origin/master"
+if ! git rev-parse --verify "$base" >/dev/null 2>&1; then
+    exit 0   # dépôt sans distant configuré : rien à comparer, on laisse passer
+fi
+
+fichiers=$(git diff --name-only "$base"..HEAD 2>/dev/null || true)
+[ -n "$fichiers" ] || exit 0
+
+interdits=$(printf '%s\n' "$fichiers" \
+    | grep -E '^(dev/mockups/|dev/sddm/preview/|dev/core/secrets\.json$|secrets\.json$|.*\.upstream$|(^|/)sync\.sh$)' \
+    || true)
+
+if [ -n "$interdits" ]; then
+    echo "⛔ Push refusé : ces fichiers ne doivent pas partir sur le distant." >&2
+    printf '%s\n' "$interdits" | sed 's/^/   /' >&2
+    echo "   Ils sont dans un commit : réécris-le (git reset, git commit --amend)." >&2
+    exit 1
+fi
+
+racine=$(git rev-parse --show-toplevel)
+for chemin in "$racine/dev/core/neutralite.py" "$racine/core/neutralite.py"; do
+    if [ -f "$chemin" ]; then
+        if ! sortie=$(cd "$racine" && python3 "$chemin" 2>&1); then
+            echo "⛔ Push refusé : le dépôt doit rester neutre." >&2
+            printf '%s\n' "$sortie" | sed 's/^/   /' >&2
+            exit 1
+        fi
+        break
+    fi
+done
+
+exit 0
