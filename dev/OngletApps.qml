@@ -290,7 +290,7 @@ Row {
 CollapsibleSection {
     id: secNotifs
     objectName: "secNotifs"
-    title: "Notifications & Actions au clic"
+    title: "Notifications"
     summary: root.dndActif ? "ne pas déranger" : "alertes actives"
     icon: "bell"
     expanded: root.sectionOpen("quickshell_notifications", false)
@@ -767,7 +767,7 @@ CollapsibleSection {
 CollapsibleSection {
     id: secAutostart
     objectName: "secAutostart"
-    title: "Programmes lancés au démarrage"
+    title: "Démarrage automatique"
     summary: root.autostartModel.length + " programmes"
     icon: "power"
     expanded: root.sectionOpen("apps_autostart", false)

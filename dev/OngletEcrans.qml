@@ -26,13 +26,15 @@ Column {
         "ecrans_moniteurs": secEcrans,
         "ecrans_profils": secProfils,
         "systeme_horloge": secHorloge,
-        "systeme_nuit": secNuit
+        "systeme_nuit": secNuit,
+        "ecrans_captures": secCaptures
     })
 
     readonly property var cibles: ({
         "monitorsRow": monitorsRow,
         "timezoneRow": timezoneRow,
-        "idleTimeoutRow": idleTimeoutRow
+        "idleTimeoutRow": idleTimeoutRow,
+        "screenshotsDirRow": screenshotsDirRow
     })
 spacing: 12
 
@@ -41,7 +43,7 @@ spacing: 12
 CollapsibleSection {
     id: secEcrans
     objectName: "secEcrans"
-    title: "Moniteurs & Résolution"
+    title: "Moniteurs & résolution"
     summary: root.selectedMonitorName + " · " + root.monitorsList.length + " écran(s)"
     icon: "monitor"
     expanded: root.sectionOpen("ecrans_moniteurs", false)
@@ -324,7 +326,7 @@ Column {
 CollapsibleSection {
     id: secProfils
     objectName: "secProfils"
-    title: "Profils & Rotation"
+    title: "Profils & rotation"
     summary: root.isLaptop ? "portable" : "fixe"
     icon: "tablet"
     expanded: root.sectionOpen("ecrans_profils", false)
@@ -464,11 +466,11 @@ Rectangle {
 // System Time, Network Shortcut (& Battery 80% Limiter if Laptop)
 }
 
-// Tiroir : Alimentation, Veille, Fuseau horaire et Batterie
+// Tiroir : énergie, veille, fuseau horaire et batterie
 CollapsibleSection {
     id: secHorloge
     objectName: "secHorloge"
-    title: "Alimentation, Veille & Horloge"
+    title: "Énergie & horloge"
     summary: "Veille : " + root.idleSuspendLabel + " · " + (root.ntpSynced ? "NTP synchronisé" : "NTP manuel")
     icon: "power"
     expanded: root.sectionOpen("systeme_horloge", false)
@@ -837,4 +839,124 @@ CollapsibleSection {
     }
 }
 
+
+// Captures d'écran : dossier d'enregistrement, lu par core/screenshot.sh.
+CollapsibleSection {
+    id: secCaptures
+    objectName: "secCaptures"
+    title: "Captures d'écran"
+    summary: root.resumeChemin(root.screenshotsDir)
+    icon: "screen-shot"
+    expanded: root.sectionOpen("ecrans_captures", false)
+    onToggled: expanded => {
+        root.setPanelSection("ecrans_captures", expanded)
+        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("ecrans_captures")
+    }
+
+// Dossier des captures d'écran (lu par core/screenshot.sh)
+Row {
+    id: screenshotsDirRow   // ancre de recherche
+    objectName: "screenshotsDirRow"
+    spacing: 8
+    width: parent.width
+
+    Text {
+        width: 145
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Screenshots"
+        color: Theme.fg
+        font.pixelSize: Theme.textSm
+        font.bold: true
+    }
+
+    Rectangle {
+        width: parent.width - 145 - 85 - 70 - 3 * 8
+        height: 28
+        color: Theme.bg
+        radius: Theme.globalRadius
+        border.color: shotsDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
+        border.width: 1
+        clip: true
+
+        TextInput {
+id: shotsDirInput
+anchors.fill: parent
+anchors.margins: 6
+verticalAlignment: TextInput.AlignVCenter
+text: Theme.screenshotsDir || root.screenshotsDir
+color: Theme.fg
+font.pixelSize: Theme.textXs
+onAccepted: {
+    if (shotsDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+    }
+}
+        }
+    }
+
+    Rectangle {
+        width: 70
+        height: 28
+        radius: Theme.globalRadius
+        color: shotsPickMa2.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+        border.color: Theme.accentMuted
+        border.width: 1
+
+        Row {
+anchors.centerIn: parent
+spacing: 4
+
+Icon {
+    anchors.verticalCenter: parent.verticalCenter
+    glyph: "folder"
+    size: Math.round(Theme.iconSm * 0.78)
+    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.accent
+    opacityLevel: 1
+}
+
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Choisir"
+    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textXs
+}
+        }
+
+        MouseArea {
+id: shotsPickMa2
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: root.ouvrirSelecteur("screenshots_dir", "Dossier des captures d'écran", shotsDirInput.text)
+        }
+    }
+
+    Rectangle {
+        width: 85
+        height: 28
+        radius: Theme.globalRadius
+        color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+        Text {
+anchors.centerIn: parent
+text: "Appliquer"
+color: Theme.bg
+font.pixelSize: Theme.textXs
+font.bold: true
+        }
+
+        MouseArea {
+id: shotsDirSaveMa
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: {
+    if (shotsDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+    }
+}
+        }
+    }
+}
+}
 }

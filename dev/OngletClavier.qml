@@ -38,7 +38,7 @@ spacing: 10
 CollapsibleSection {
     id: secClavier
     objectName: "secClavier"
-    title: "Disposition du clavier"
+    title: "Disposition clavier"
     summary: root.kbLayout
     icon: "keyboard"
     expanded: root.sectionOpen("clavier_disposition", false)

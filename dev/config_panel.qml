@@ -142,9 +142,11 @@ Rectangle {
         { label: "Palette hexadécimale", words: "hex couleur personnalisee accent",
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Dossier des fonds d'écran", words: "dossier wallpaper repertoire images",
-          tab: 0, section: "esthetique_theme", target: "wallpaperDirRow" },
+          tab: 0, section: "esthetique_fonds", target: "wallpaperDirRow" },
+        { label: "Masque de profondeur du fond", words: "masque profondeur relief parallaxe wallpaper widgets seuil adouci",
+          tab: 0, section: "esthetique_fonds", target: "masqueProfondeurRow" },
         { label: "Dossier des captures d'écran", words: "capture ecran screenshot dossier chemin enregistrement image",
-          tab: 0, section: "esthetique_theme", target: "screenshotsDirRow" },
+          tab: 3, section: "ecrans_captures", target: "screenshotsDirRow" },
         { label: "Gaps internes et externes", words: "gaps espacement interieur exterieur marge",
           tab: 0, section: "esthetique_aspect", target: "gapsRow" },
         { label: "Bordures des fenêtres", words: "bordure border epaisseur",
@@ -237,7 +239,8 @@ Rectangle {
         "quickshell_disques": "secDisques",
         "widgets": "secWidgets",
         "apps_programs": "secApps",
-        "donnees_localisation": "secLocalisation"
+        "donnees_localisation": "secLocalisation",
+        "ecrans_captures": "secCaptures"
     })
 
     // Un nom de section ne dit pas dans quel onglet il vit : sans ça, le clic
@@ -252,6 +255,7 @@ Rectangle {
         "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_pilule": 2, "widgets_api": 7,
         "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
+        "ecrans_captures": 3,
         "clavier_disposition": 4, "clavier_binds": 4,
         "apps_programs": 5, "apps_autostart": 5, "quickshell_notifications": 5,
         "greeter_theme": 6,

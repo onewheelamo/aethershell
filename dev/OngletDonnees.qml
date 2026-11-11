@@ -569,7 +569,7 @@ CollapsibleSection {
 CollapsibleSection {
     id: secHomelab
     objectName: "secHomelab"
-    title: "Homelab (Proxmox)"
+    title: "Homelab Proxmox"
     summary: root.homelabUrl !== "" ? root.resumeChemin(root.homelabUrl) : "non configuré"
     icon: "cloud-check"
     expanded: root.sectionOpen("widgets_homelab", false)
@@ -800,7 +800,7 @@ CollapsibleSection {
 CollapsibleSection {
     id: secTaches
     objectName: "secTaches"
-    title: "Tâches — fichiers suivis"
+    title: "Tâches suivies"
     summary: root.todoFichiers.length + " fichiers"
     icon: "check"
     expanded: root.sectionOpen("taches_fichiers", false)

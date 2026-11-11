@@ -749,7 +749,7 @@ CollapsibleSection {
 CollapsibleSection {
     id: secPilule
     objectName: "secPilule"
-    title: "Pilule de lancement (Spotlight)"
+    title: "Lanceur Spotlight"
     summary: root.launcherPosition
     icon: "rocket"
     expanded: root.sectionOpen("widgets_pilule", false)

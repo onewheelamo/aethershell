@@ -32,7 +32,7 @@ Column {
     CollapsibleSection {
         id: secGreeter
         objectName: "secGreeter"
-        title: "Thème de l'écran de connexion (SDDM)"
+        title: "Écran de connexion"
         summary: root.greeterSelected !== "" ? root.greeterSelected : "thème par défaut"
         icon: "lock"
         expanded: root.sectionOpen("greeter_theme", false)

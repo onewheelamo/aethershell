@@ -69,7 +69,7 @@ spacing: 11
 CollapsibleSection {
     id: secBarres
     objectName: "secBarres"
-    title: "Barre principale & Barres annexes"
+    title: "Barres du shell"
     summary: "Hauteur " + Theme.barHeight + " · " + (root.barGapsTransparent ? "îlots transparents" : "capsule continue")
     icon: "monitor"
     expanded: root.sectionOpen("quickshell_barres", false)

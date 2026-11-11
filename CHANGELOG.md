@@ -13,6 +13,10 @@ montée de mineure peut demander une adaptation des réglages.
 
 - **Le dépôt ne nomme plus personne** ([`dev/core/neutralite.py`](dev/core/neutralite.py), [`dev/core/notif_target.py`](dev/core/notif_target.py), [`dev/core/screenshot.sh`](dev/core/screenshot.sh), [`dev/sddm/50-greeter-palette.rules`](dev/sddm/50-greeter-palette.rules)) : AetherShell doit s'installer sous n'importe quel compte. `neutralite.py` lit les fichiers suivis et signale tout `/home/<nom>` qui n'est pas un espace réservé, le nom de la personne qui lance le contrôle et celui de sa machine (avec une liste de noms trop banals pour être cherchés : « portable », « localhost »). Le pré-vol du déploiement l'exécute et avertit sans bloquer ; une ligne peut porter `neutralite:ok — <raison>`. Corrigé au passage : la règle polkit du greeter nommait l'utilisateur en dur — elle accepte maintenant tout utilisateur local actif, sur ce seul programme ; la clé de hint `x-amo-open` devient `x-aethershell-open` (l'ancienne reste lue). Éprouvé : contrôle propre sous l'identité réelle, et un `/home/<nom>` injecté dans un fichier suivi est bien signalé par le pré-vol.
 
+### Modifié
+
+- **Le masque du fond et les captures retrouvent leur tiroir** ([`dev/OngletApparence.qml`](dev/OngletApparence.qml), [`dev/OngletEcrans.qml`](dev/OngletEcrans.qml), [`dev/config_panel.qml`](dev/config_panel.qml)) : la bascule du **masque de profondeur** (`depth_mask`, avec seuil et adouci) quitte le tiroir des fenêtres pour celui du fond d'écran, où elle se lit à côté de « Fond en profondeur » ; elle est aussi atteignable par la recherche du panneau. Le **dossier des captures** quitte le même tiroir pour un tiroir propre dans l'onglet « Écrans & Système » (clé `ecrans_captures`), et l'entrée de recherche pointe désormais sur le bon onglet — elle ouvrait auparavant « Apparence » sur un tiroir qui n'avait pas la ligne. Les titres des 26 tiroirs suivent un même schéma : phrase (seul le premier mot en capitale), « & » pour apparier deux termes, ni parenthèse ni tiret (`Barres du shell`, `Lanceur Spotlight`, `Énergie & horloge`, `Écran de connexion`, `Tâches suivies`…).
+
 ## [0.1.5] — 2026-11-11
 
 ### Ajouté

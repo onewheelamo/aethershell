@@ -37,7 +37,7 @@ Column {
         "secTheme": secTheme,
         "matugenRow": matugenRow,
         "wallpaperDirRow": wallpaperDirRow,
-        "screenshotsDirRow": screenshotsDirRow,
+        "masqueProfondeurRow": masqueProfondeurRow,
         "gapsRow": gapsRow,
         "borderRow": borderRow,
         "roundingWinRow": roundingWinRow,
@@ -56,7 +56,7 @@ Column {
 CollapsibleSection {
     id: secTheme
     objectName: "secTheme"
-    title: "Thème & Palette"
+    title: "Thème & palette"
     summary: String(Theme.paletteEtiquettes[Theme.activeTheme] || Theme.activeTheme)
     icon: "palette"
     expanded: root.sectionOpen("esthetique_theme", false)
@@ -430,12 +430,12 @@ Row {
         }
 }
 
-// 2. Fonds d'écran & Captures : choix du fond, dossiers, parallaxe et
-// masque du relief. Réglages de fichiers, distincts de la palette.
+// 2. Fond d'écran : choix du fond, dossier, parallaxe et masque de
+// profondeur. Réglages de fichiers, distincts de la palette.
 CollapsibleSection {
     id: secFonds
     objectName: "secFonds"
-    title: "Fonds d'écran & Captures"
+    title: "Fond d'écran"
     summary: root.resumeChemin(root.wallpaperDir)
     icon: "image"
     expanded: root.sectionOpen("esthetique_fonds", false)
@@ -593,111 +593,6 @@ onClicked: {
     }
 }
 
-// Dossier des captures d'écran (lu par core/screenshot.sh)
-Row {
-    id: screenshotsDirRow   // ancre de recherche
-    objectName: "screenshotsDirRow"
-    spacing: 8
-    width: parent.width
-
-    Text {
-        width: 145
-        anchors.verticalCenter: parent.verticalCenter
-        text: "Screenshots"
-        color: Theme.fg
-        font.pixelSize: Theme.textSm
-        font.bold: true
-    }
-
-    Rectangle {
-        width: parent.width - 145 - 85 - 70 - 3 * 8
-        height: 28
-        color: Theme.bg
-        radius: Theme.globalRadius
-        border.color: shotsDirInput.activeFocus ? Theme.accent : Theme.surfaceVariant
-        border.width: 1
-        clip: true
-
-        TextInput {
-id: shotsDirInput
-anchors.fill: parent
-anchors.margins: 6
-verticalAlignment: TextInput.AlignVCenter
-text: Theme.screenshotsDir || root.screenshotsDir
-color: Theme.fg
-font.pixelSize: Theme.textXs
-onAccepted: {
-    if (shotsDirInput.text.trim() !== "") {
-        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-    }
-}
-        }
-    }
-
-    Rectangle {
-        width: 70
-        height: 28
-        radius: Theme.globalRadius
-        color: shotsPickMa2.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
-        border.color: Theme.accentMuted
-        border.width: 1
-
-        Row {
-anchors.centerIn: parent
-spacing: 4
-
-Icon {
-    anchors.verticalCenter: parent.verticalCenter
-    glyph: "folder"
-    size: Math.round(Theme.iconSm * 0.78)
-    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.accent
-    opacityLevel: 1
-}
-
-Text {
-    anchors.verticalCenter: parent.verticalCenter
-    text: "Choisir"
-    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
-    font.pixelSize: Theme.textXs
-}
-        }
-
-        MouseArea {
-id: shotsPickMa2
-anchors.fill: parent
-hoverEnabled: true
-cursorShape: Qt.PointingHandCursor
-onClicked: root.ouvrirSelecteur("screenshots_dir", "Dossier des captures d'écran", shotsDirInput.text)
-        }
-    }
-
-    Rectangle {
-        width: 85
-        height: 28
-        radius: Theme.globalRadius
-        color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
-
-        Text {
-anchors.centerIn: parent
-text: "Appliquer"
-color: Theme.bg
-font.pixelSize: Theme.textXs
-font.bold: true
-        }
-
-        MouseArea {
-id: shotsDirSaveMa
-anchors.fill: parent
-hoverEnabled: true
-cursorShape: Qt.PointingHandCursor
-onClicked: {
-    if (shotsDirInput.text.trim() !== "") {
-        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-    }
-}
-        }
-    }
-}
 Row {
     width: parent.width
     spacing: 8
@@ -778,6 +673,102 @@ onClicked: {
     Theme.configPanelVisible = false
 }
         }
+    }
+}
+
+// Masque de premier plan (idée du plugin Noctalia wallpaper_depth) :
+// une carte de profondeur du fond décide ce qui passe devant les
+// widgets de bureau. Sur deux lignes : à cinq contrôles sur une
+// seule, le dernier stepper sortait du panneau et se lisait tronqué.
+Column {
+    width: parent.width
+    spacing: 6
+
+    Row {
+id: masqueProfondeurRow   // ancre de recherche
+objectName: "masqueProfondeurRow"
+width: parent.width
+spacing: 8
+
+Text {
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Masque de profondeur :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
+}
+
+Rectangle {
+anchors.verticalCenter: parent.verticalCenter
+width: 160
+height: 26
+radius: Theme.globalRadius
+color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
+border.color: Theme.accent
+border.width: 1
+
+Text {
+    anchors.centerIn: parent
+    text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
+    color: Theme.depthMask ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textXs
+}
+
+MouseArea {
+    anchors.fill: parent
+    cursorShape: Qt.PointingHandCursor
+    onClicked: root.runConfigCmd([
+        "style", "depth_mask", Theme.depthMask ? "false" : "true"
+    ])
+}
+}
+    }
+
+    // Rendu du masque : un calque plein écran (copie du fond) ou un
+    // MultiEffect par widget, qui découpe la carte elle-même. Le
+    // second est plus juste — rien ne se décale — mais rend chaque
+    // widget hors écran à chaque changement.
+    Row {
+width: parent.width
+spacing: 8
+
+// Aligne « seuil » sous le libellé, pas sous le bouton.
+Item { width: 160; height: 1 }
+Text {
+anchors.verticalCenter: parent.verticalCenter
+text: "seuil"
+color: Qt.alpha(Theme.fg, 0.6)
+font.pixelSize: Theme.text2xs
+}
+Stepper {
+anchors.verticalCenter: parent.verticalCenter
+width: 84
+value: Theme.depthMaskSeuil
+minimumValue: 0
+maximumValue: 100
+stepSize: 5
+onValueModified: newVal => root.runConfigCmd([
+    "style", "depth_mask_seuil", String(newVal)
+])
+}
+Text {
+anchors.verticalCenter: parent.verticalCenter
+text: "adouci"
+color: Qt.alpha(Theme.fg, 0.6)
+font.pixelSize: Theme.text2xs
+}
+Stepper {
+anchors.verticalCenter: parent.verticalCenter
+width: 84
+value: Theme.depthMaskAdouci
+minimumValue: 0
+maximumValue: 50
+stepSize: 1
+onValueModified: newVal => root.runConfigCmd([
+    "style", "depth_mask_adouci", String(newVal)
+])
+}
     }
 }
 }
@@ -1183,99 +1174,6 @@ MouseArea {
     }
 
 
-    // Masque de premier plan (idée du plugin Noctalia wallpaper_depth) :
-    // une carte de profondeur du fond décide ce qui passe devant les
-    // widgets de bureau. Sur deux lignes : à cinq contrôles sur une
-    // seule, le dernier stepper sortait du panneau et se lisait tronqué.
-    Column {
-        width: parent.width
-        spacing: 6
-
-        Row {
-width: parent.width
-spacing: 8
-
-Text {
-    width: 160
-    anchors.verticalCenter: parent.verticalCenter
-    text: "Masque de profondeur :"
-    color: Theme.fg
-    font.pixelSize: Theme.textSm
-    elide: Text.ElideRight
-}
-
-Rectangle {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 160
-    height: 26
-    radius: Theme.globalRadius
-    color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
-    border.color: Theme.accent
-    border.width: 1
-
-    Text {
-        anchors.centerIn: parent
-        text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
-        color: Theme.depthMask ? Theme.bg : Theme.fg
-        font.pixelSize: Theme.textXs
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.runConfigCmd([
-            "style", "depth_mask", Theme.depthMask ? "false" : "true"
-        ])
-    }
-}
-        }
-
-        // Rendu du masque : un calque plein écran (copie du fond) ou un
-        // MultiEffect par widget, qui découpe la carte elle-même. Le
-        // second est plus juste — rien ne se décale — mais rend chaque
-        // widget hors écran à chaque changement.
-        Row {
-width: parent.width
-spacing: 8
-
-// Aligne « seuil » sous le libellé, pas sous le bouton.
-Item { width: 160; height: 1 }
-Text {
-    anchors.verticalCenter: parent.verticalCenter
-    text: "seuil"
-    color: Qt.alpha(Theme.fg, 0.6)
-    font.pixelSize: Theme.text2xs
-}
-Stepper {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 84
-    value: Theme.depthMaskSeuil
-    minimumValue: 0
-    maximumValue: 100
-    stepSize: 5
-    onValueModified: newVal => root.runConfigCmd([
-        "style", "depth_mask_seuil", String(newVal)
-    ])
-}
-Text {
-    anchors.verticalCenter: parent.verticalCenter
-    text: "adouci"
-    color: Qt.alpha(Theme.fg, 0.6)
-    font.pixelSize: Theme.text2xs
-}
-Stepper {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 84
-    value: Theme.depthMaskAdouci
-    minimumValue: 0
-    maximumValue: 50
-    stepSize: 1
-    onValueModified: newVal => root.runConfigCmd([
-        "style", "depth_mask_adouci", String(newVal)
-    ])
-}
-        }
-    }
 
 }   // fin Grid fenêtres
 
@@ -1286,7 +1184,7 @@ Stepper {
 CollapsibleSection {
     id: secBarre
     objectName: "secBarre"
-    title: "Surfaces & Verre du shell"
+    title: "Surfaces du shell"
     summary: "Opacité " + Math.round(Theme.shellOpacity * 100) + " % · Rayon " + Theme.globalRadius
     icon: "monitor"
     expanded: root.sectionOpen("quickshell_barre", false)
