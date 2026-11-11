@@ -9,6 +9,8 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Ajouté
 
+- **Les maquettes et les aperçus du greeter sortent du dépôt** ([`.gitignore`](.gitignore)) : `dev/mockups/` (18 rendus PNG, 24 Mo, et les pages HTML de conception) et `dev/sddm/preview/` étaient versionnés alors que ce sont des images, pas du code. Ils sont ignorés, retirés de l'index et **purgés de l'historique** (`git filter-repo`) — un clone neuf du dépôt pèse 4,9 Mo au lieu de 29. Les fichiers restent sur la machine. Deux textes qui y renvoyaient (proposition du greeter, commentaire de `screenshot_bar.qml`) ne pointent plus vers un dossier absent.
+
 - **Le dépôt ne nomme plus personne** ([`dev/core/neutralite.py`](dev/core/neutralite.py), [`dev/core/notif_target.py`](dev/core/notif_target.py), [`dev/core/screenshot.sh`](dev/core/screenshot.sh), [`dev/sddm/50-greeter-palette.rules`](dev/sddm/50-greeter-palette.rules)) : AetherShell doit s'installer sous n'importe quel compte. `neutralite.py` lit les fichiers suivis et signale tout `/home/<nom>` qui n'est pas un espace réservé, le nom de la personne qui lance le contrôle et celui de sa machine (avec une liste de noms trop banals pour être cherchés : « portable », « localhost »). Le pré-vol du déploiement l'exécute et avertit sans bloquer ; une ligne peut porter `neutralite:ok — <raison>`. Corrigé au passage : la règle polkit du greeter nommait l'utilisateur en dur — elle accepte maintenant tout utilisateur local actif, sur ce seul programme ; la clé de hint `x-amo-open` devient `x-aethershell-open` (l'ancienne reste lue). Éprouvé : contrôle propre sous l'identité réelle, et un `/home/<nom>` injecté dans un fichier suivi est bien signalé par le pré-vol.
 
 ## [0.1.5] — 2026-11-11
