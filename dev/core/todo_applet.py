@@ -29,6 +29,7 @@ Format reconnu, tel que ses fichiers l'écrivent déjà :
 """
 from __future__ import annotations
 
+import contextlib
 import datetime
 import fcntl
 import hashlib
@@ -274,6 +275,38 @@ def _appliquer_bail(demandes):
     return reprises
 
 
+@contextlib.contextmanager
+def _verrou_file():
+    """Sérialise les modifications de la file de demandes.
+
+    Cron et clic peuvent tomber en même temps : sans verrou, deux processus
+    lisent la même demande, la prennent tous les deux et lancent deux fois
+    Hermes pour une seule tâche. Le verrou porte sur un fichier voisin, jamais
+    sur `todo-demandes.json` lui-même (qu'on remplace par `os.replace`).
+    """
+    os.makedirs(os.path.dirname(FILE), exist_ok=True)
+    with open(FILE + ".verrou", "w", encoding="utf-8") as verrou:
+        fcntl.flock(verrou, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(verrou, fcntl.LOCK_UN)
+
+
+def _maj_file(transformation):
+    """Applique `transformation` à la file sous verrou, puis l'écrit.
+
+    `transformation` reçoit la liste et la modifie sur place ; sa valeur de
+    retour est rendue. Lecture, décision et écriture se font dans la même
+    section critique — c'est là que se jouait la course.
+    """
+    with _verrou_file():
+        demandes = _lire_file()
+        resultat = transformation(demandes)
+        _ecrire_file(demandes)
+        return resultat
+
+
 def _lire_file():
     try:
         with open(FILE, "r", encoding="utf-8") as f:
@@ -424,7 +457,7 @@ def fait(identifiant, date=None):
 
     if not _reecrire(item["fichier"], identifiant, transformation):
         return False, "ligne introuvable"
-    _ecrire_file([d for d in _lire_file() if d.get("id") != identifiant])
+    _maj_file(lambda ds: [d for d in ds if d.get("id") != identifiant])
     return True, "fait le %s" % le_jour
 
 
@@ -443,19 +476,32 @@ def bloquer(identifiant, raison):
 
     if not _reecrire(item["fichier"], identifiant, transformation):
         return False, "ligne introuvable"
-    _ecrire_file([d for d in _lire_file() if d.get("id") != identifiant])
+    _maj_file(lambda ds: [d for d in ds if d.get("id") != identifiant])
     return True, "bloqué"
 
 
 def prendre(identifiant):
-    demandes = _lire_file()
-    for d in demandes:
-        if d.get("id") == identifiant:
+    """Réserve une demande si elle est **encore** en attente.
+
+    Le verrou seul ne suffisait pas : il empêche deux écritures de se perdre,
+    pas deux exécutions de la même tâche. Sans le test d'état, douze processus
+    concurrents repartaient tous avec « prise » (mesuré) et lançaient douze
+    agents sur une seule tâche.
+    """
+
+    def appliquer(demandes):
+        for d in demandes:
+            if d.get("id") != identifiant:
+                continue
+            if d.get("etat") != "attente":
+                return "déjà prise"
             d["etat"] = "en_cours"
             d["pris_le"] = datetime.datetime.now().isoformat(timespec="seconds")
-            _ecrire_file(demandes)
-            return True, "prise"
-    return False, "aucune demande"
+            return "prise"
+        return "aucune demande"
+
+    etat = _maj_file(appliquer)
+    return etat == "prise", etat
 
 
 # ── état pour la barre ────────────────────────────────────────────────────────

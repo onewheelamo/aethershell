@@ -31,35 +31,105 @@ def notifier(titre, corps):
             pass
 
 
+# ── Bornes d'extraction ──────────────────────────────────────────────────────
+# Une archive piégée ne doit pas remplir le home : on refuse au-delà de ces
+# seuils, et on dit ce qu'on a refusé au lieu de filtrer en silence.
+TAILLE_MAX_FICHIER = 256 * 1024        # un schéma .colors fait quelques Kio
+TAILLE_MAX_TOTAL = 4 * 1024 * 1024     # pour toute l'archive
+NB_MAX_SCHEMAS = 64
+
+REFUSES = []   # (nom, raison) de la dernière extraction
+
+
+def _valider_contenu(cible):
+    """Un .colors sans section de couleurs ne sera listé par personne.
+
+    Le dire est le seul moyen de ne pas annoncer « installé » pour un fichier
+    que le catalogue ne verra jamais.
+    """
+    try:
+        contenu = cible.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        return "illisible : %s" % e
+    if "[Colors:Window]" in contenu or "[General]" in contenu:
+        return None
+    return "aucune section [Colors:Window] ni [General]"
+
+
+def _ecrire_borne(src, cible, reste_global):
+    """Copie par blocs, en s'arrêtant net si le flux dépasse l'annonce.
+
+    Les tailles d'en-tête d'une archive peuvent mentir : c'est le compteur réel
+    qui borne l'écriture, pas `member.size`.
+    """
+    ecrit = 0
+    with open(cible, "wb") as dst:
+        while True:
+            bloc = src.read(64 * 1024)
+            if not bloc:
+                break
+            ecrit += len(bloc)
+            if ecrit > TAILLE_MAX_FICHIER or ecrit > reste_global:
+                raise ValueError("dépasse la taille permise")
+            dst.write(bloc)
+    return ecrit
+
+
 def extraire_archive(chemin_archive, dest_dir):
     fichiers_installes = []
     chemin = Path(chemin_archive)
+    candidats = []      # (nom, taille annoncée, fabrique de flux)
 
-    # 1. Archive ZIP
     if zipfile.is_zipfile(chemin):
-        with zipfile.ZipFile(chemin, "r") as zf:
-            for member in zf.namelist():
-                if member.endswith(".colors") and not member.startswith("__MACOSX"):
-                    nom_fichier = Path(member).name
-                    cible = dest_dir / nom_fichier
-                    with zf.open(member) as src, open(cible, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
-                    fichiers_installes.append(cible)
+        zf = zipfile.ZipFile(chemin, "r")
+        for info in zf.infolist():
+            if info.filename.endswith(".colors") and not info.filename.startswith("__MACOSX"):
+                candidats.append((Path(info.filename).name, info.file_size,
+                                  (lambda i=info, z=zf: z.open(i))))
+    elif tarfile.is_tarfile(chemin):
+        tf = tarfile.open(chemin, "r:*")
+        for membre in tf.getmembers():
+            if membre.name.endswith(".colors") and not Path(membre.name).name.startswith("."):
+                candidats.append((Path(membre.name).name, membre.size,
+                                  (lambda m=membre, a=tf: a.extractfile(m))))
+    else:
         return fichiers_installes
 
-    # 2. Archive TAR (tar.gz, tar.xz, tar.bz2)
-    if tarfile.is_tarfile(chemin):
-        with tarfile.open(chemin, "r:*") as tf:
-            for member in tf.getmembers():
-                if member.name.endswith(".colors") and not Path(member.name).name.startswith("."):
-                    nom_fichier = Path(member.name).name
-                    cible = dest_dir / nom_fichier
-                    f = tf.extractfile(member)
-                    if f:
-                        with open(cible, "wb") as dst:
-                            shutil.copyfileobj(f, dst)
-                        fichiers_installes.append(cible)
-        return fichiers_installes
+    if len(candidats) > NB_MAX_SCHEMAS:
+        for nom, _, _ in candidats[NB_MAX_SCHEMAS:]:
+            REFUSES.append((nom, f"au-delà de {NB_MAX_SCHEMAS} schémas"))
+        candidats = candidats[:NB_MAX_SCHEMAS]
+
+    total = 0
+    for nom, annoncee, ouvrir in candidats:
+        if total >= TAILLE_MAX_TOTAL:
+            REFUSES.append((nom, "archive au-delà de la taille totale permise"))
+            continue
+        if annoncee and annoncee > TAILLE_MAX_FICHIER:
+            REFUSES.append((nom, f"annonce {annoncee} octets, plafond {TAILLE_MAX_FICHIER}"))
+            continue
+        cible = dest_dir / nom
+        try:
+            src = ouvrir()
+            if src is None:
+                REFUSES.append((nom, "membre illisible"))
+                continue
+            ecrit = _ecrire_borne(src, cible, TAILLE_MAX_TOTAL - total)
+        except ValueError as e:
+            REFUSES.append((nom, str(e)))
+            cible.unlink(missing_ok=True)
+            continue
+        except Exception as e:
+            REFUSES.append((nom, "erreur d'extraction : %s" % e))
+            cible.unlink(missing_ok=True)
+            continue
+        total += ecrit
+        raison = _valider_contenu(cible)
+        if raison:
+            REFUSES.append((nom, raison))
+            cible.unlink(missing_ok=True)
+            continue
+        fichiers_installes.append(cible)
 
     return fichiers_installes
 
@@ -151,6 +221,7 @@ def installer(chemin_str, activer=False):
         "noms": noms,
         "actif": slug_a_activer,
         "avertissements": avertissements,
+        "ignores": [f"{n} : {r}" for n, r in REFUSES],
         "message": (
             f"{len(noms)} thème(s) installé(s) avec succès !" if not avertissements
             else f"{len(noms)} thème(s) copié(s), avec réserve : " + " ; ".join(avertissements)

@@ -14,6 +14,8 @@ tout ce qui est calcul ou aperçu reste sans privilège.
 
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -366,8 +368,28 @@ def install_qylock(ident):
     print(json.dumps({"ok": True, "installed": ident, "pkg": pkg, "message": res.stdout.strip()[-300:]}))
 
 
+# Nom de thème acceptable : c'est ce qui passe dans un script lancé en root.
+IDENT_VALIDE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def valider_identifiants(ids):
+    """Refuse **la liste entière** si un nom sort du gabarit.
+
+    Les noms finissent entre apostrophes dans un script exécuté par
+    `pkexec bash` : une apostrophe dans un nom suffit à sortir des quotes et à
+    faire exécuter autre chose, en root. On ne filtre pas en silence — un nom
+    refusé doit être visible, sinon l'appelant croit avoir tout supprimé.
+    """
+    mauvais = [i for i in ids if not isinstance(i, str) or not IDENT_VALIDE.match(i)]
+    if mauvais:
+        fail("nom(s) de thème refusé(s) — attendu : lettres, chiffres, point, "
+             "tiret, souligné : " + ", ".join(repr(str(m)) for m in mauvais[:8]))
+    return list(ids)
+
+
 def uninstall_themes(ids):
     """Désinstalle des thèmes qylock de /usr/share/sddm/themes/."""
+    ids = valider_identifiants(list(ids))
     cur = current_theme()
     installed = qylock_installed()
     to_remove = []
@@ -391,10 +413,11 @@ def uninstall_themes(ids):
     helper_src = sddm_dir / "greeter-palette"
     script_lines = ["#!/bin/bash", "set -euo pipefail"]
     if helper_src.exists():
-        script_lines.append(f"install -Dm755 '{helper_src}' /usr/local/bin/greeter-palette")
+        script_lines.append("install -Dm755 " + shlex.quote(str(helper_src))
+                           + " /usr/local/bin/greeter-palette")
     for ident in to_remove:
         t = THEMES_SYS / ident
-        script_lines.append(f"rm -rf '{t}'")
+        script_lines.append("rm -rf " + shlex.quote(str(t)))
 
     with tempfile.NamedTemporaryFile("w", prefix="sddm-uninstall-", delete=False) as tf:
         tf.write("\n".join(script_lines) + "\n")
