@@ -977,7 +977,7 @@ Rectangle {
     property real blurVibrancy: 0.17
     // Variante du flou (decoration:blur:variant) : le panneau gagne, la valeur
     // est rangée dans style_vars.json et Theme.qml l'applique à chaud.
-    property string blurVariant: "acrylic"
+    property string blurVariant: "kawase"
     // Les onze variantes que Hyprland 0.57 accepte en clair ; l'ordre suit le
     // binaire (kawase 0 … haze 10). Les libellés sont mis en forme, la clé
     // reste le nom brut que `hl.config` attend.

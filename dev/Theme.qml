@@ -181,7 +181,7 @@ QtObject {
     // drops, water, fluid_jar, prism, heat_shimmer, acrylic, aurora, haze.
     // style_vars.json fait foi ; general.lua ne porte que le défaut d'une
     // machine neuve.
-    property string blurVariant: "acrylic"
+    property string blurVariant: "kawase"
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 3: PALETTE COLORS & TRANSLUCENT SURFACES

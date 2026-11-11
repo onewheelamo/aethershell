@@ -660,7 +660,7 @@ def inscrire_variante_general(variant):
     """Inscrit la variante de flou choisie dans le `general.lua` vivant.
 
     `hyprctl reload` relit le fichier : sans cette écriture, le défaut qu'il
-    porte (`acrylic`) reprend le pas sur le choix du panneau jusqu'au prochain
+    porte (`kawase` par défaut) reprend le pas sur le choix du panneau jusqu'au prochain
     démarrage du shell. Le fichier du dépôt garde son propre défaut, seule la
     copie vivante est réécrite — comme pour les gaps et l'arrondi.
     """
@@ -1946,7 +1946,7 @@ def get_full_config_state():
         "blur_size": int(style_data.get("blur_size", 3)),
         "blur_passes": int(style_data.get("blur_passes", 3)),
         "blur_vibrancy": float(style_data.get("blur_vibrancy", 0.1696)),
-        "blur_variant": str(style_data.get("blur_variant", "acrylic")),
+        "blur_variant": str(style_data.get("blur_variant", "kawase")),
         "shell_blur_enabled": bool(style_data.get("shell_blur_enabled", True)),
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.4)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),

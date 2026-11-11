@@ -29,12 +29,12 @@ hl.config({
         },
         blur = {
             enabled   = true,
-            -- Variante du flou (défaut de la machine neuve ; kawase si la ligne
-            -- manque). Le panneau « Bureau » fait foi : il réécrit cette ligne
-            -- depuis style_vars.json, sinon un `hyprctl reload` reprendrait ce
-            -- défaut. Coût mesuré de l'acrylic : 1,5× le Kawase sous une charge
-            -- de flou continue (+2,3 W), négligeable au repos.
-            variant   = "acrylic",
+            -- Variante du flou. Défaut de la machine neuve : kawase — l'acrylic,
+            -- essayé, coûte 1,5× sous une charge de flou continue (+2,3 W) et
+            -- n'apporte rien au repos. Le panneau « Réglages » fait foi : il
+            -- réécrit cette ligne depuis style_vars.json, sinon un `hyprctl
+            -- reload` reprendrait ce défaut.
+            variant   = "kawase",
             size      = 3,
             passes    = 3,
             vibrancy  = 0.1696,
