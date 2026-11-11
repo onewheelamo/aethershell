@@ -307,13 +307,18 @@ Item {
                 visible: Theme.barMerged && !Theme.barGapsTransparent
                 anchors.fill: parent
                 radius: Theme.pillRadius
-                color: Theme.barBg
-                // Verre dépoli autonome : ne dessine rien tant que
-                // Theme.shellFlouInterne vaut 0 (voir FlouFond.qml).
+                // Teinte au-dessus du verre : peinte sous le FlouFond, elle laissait
+                // le fond d'écran traverser à mesure qu'on montait le flou interne.
+                color: "transparent"
                 FlouFond {
                     anchors.fill: parent
                     rayon: Theme.pillRadius
                     intensite: Theme.shellFlouInterne
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.pillRadius
+                    color: Theme.barBg
                 }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
@@ -347,11 +352,18 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
                 radius: Theme.pillRadius
-                color: Theme.barBg
+                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
+                // surface que le FlouFond, elle laissait le fond d'écran traverser.
+                color: "transparent"
                 FlouFond {
                     anchors.fill: parent
                     rayon: Theme.pillRadius
                     intensite: Theme.shellFlouInterne
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.pillRadius
+                    color: Theme.barBg
                 }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
@@ -368,11 +380,18 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
                 radius: Theme.pillRadius
-                color: Theme.barBg
+                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
+                // surface que le FlouFond, elle laissait le fond d'écran traverser.
+                color: "transparent"
                 FlouFond {
                     anchors.fill: parent
                     rayon: Theme.pillRadius
                     intensite: Theme.shellFlouInterne
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.pillRadius
+                    color: Theme.barBg
                 }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0
@@ -389,11 +408,18 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
                 radius: Theme.pillRadius
-                color: Theme.barBg
+                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
+                // surface que le FlouFond, elle laissait le fond d'écran traverser.
+                color: "transparent"
                 FlouFond {
                     anchors.fill: parent
                     rayon: Theme.pillRadius
                     intensite: Theme.shellFlouInterne
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.pillRadius
+                    color: Theme.barBg
                 }
                 border.color: Theme.accent
                 border.width: Theme.barBorder ? 1 : 0

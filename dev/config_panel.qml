@@ -58,7 +58,11 @@ Rectangle {
     id: root
     width: 740
     height: parent ? parent.height : 600
-    color: Theme.surfaceBg
+    // La couleur passe dans une couche **au-dessus** du verre (voir plus bas) :
+    // peinte ici, elle passait sous le `FlouFond`, et monter le flou interne
+    // faisait ressortir le fond d'écran à travers la teinte — couleurs saturées
+    // dès 70 %.
+    color: "transparent"
     radius: Theme.globalRadius
     border.color: Theme.accent
     border.width: 1
@@ -88,6 +92,14 @@ Rectangle {
         anchors.fill: parent
         rayon: root.radius
         intensite: Theme.shellFlouInterne
+    }
+
+    // Teinte par-dessus le verre : c'est elle qui donne sa couleur à la surface.
+    // Ordre voulu : fond d'écran flouté (FlouFond) → teinte du thème → contenu.
+    Rectangle {
+        anchors.fill: parent
+        radius: root.radius
+        color: Theme.surfaceBg
     }
 
     // Thème du greeter sélectionné dans l'onglet Connexion. Porté ici parce que
