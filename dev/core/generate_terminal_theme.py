@@ -156,6 +156,36 @@ def build_osc_sequences(theme_info):
     return "".join(seqs)
 
 
+def garantir_source_bashrc(home):
+    """Fait que `~/.bashrc` source le hook, une seule fois.
+
+    Écrire `~/.bashrc.d/10-aethershell-theme.sh` ne suffit pas : Arch ne source
+    pas `~/.bashrc.d` par défaut. Mesuré sur la machine — le hook existait,
+    `.bashrc` ne le nommait pas, et les nouveaux shells n'avaient donc aucune
+    couleur. On ajoute une ligne gardée par un marqueur, sans toucher au reste.
+    """
+    bashrc = home / ".bashrc"
+    if not bashrc.is_file():
+        return False
+    marqueur = "# AetherShell : couleurs du terminal (généré)"
+    try:
+        texte = bashrc.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    if marqueur in texte:
+        return True
+    ajout = (f"\n{marqueur}\n"
+             "[ -f \"$HOME/.config/aethershell/terminal-colors.sh\" ] && "
+             ". \"$HOME/.config/aethershell/terminal-colors.sh\"\n")
+    temporaire = bashrc.with_name(".bashrc.aethershell.tmp")
+    try:
+        temporaire.write_text(texte.rstrip("\n") + "\n" + ajout, encoding="utf-8")
+        os.replace(temporaire, bashrc)
+    except OSError:
+        return False
+    return True
+
+
 def write_universal_scripts(theme_info, osc_seq):
     home = Path.home()
 
@@ -184,10 +214,10 @@ if [ -t 1 ] && [ -n "${{TERM:-}}" ] && [ "$TERM" != "dumb" ]; then
     fi
 fi
 """
-    aether_script.write_text(content, encoding="utf-8")
+    _ecrire_atomique(aether_script, content)
     aether_script.chmod(0o755)
 
-    # 2. ~/.bashrc.d/10-aethershell-theme.sh (sourcé automatiquement par .bashrc)
+    # 2. ~/.bashrc.d/10-aethershell-theme.sh, et la ligne qui le source
     bashrc_d = home / ".bashrc.d"
     bashrc_d.mkdir(parents=True, exist_ok=True)
     bashrc_hook = bashrc_d / "10-aethershell-theme.sh"
@@ -198,26 +228,75 @@ fi
 """
     bashrc_hook.write_text(hook_content, encoding="utf-8")
 
+    # Le hook ne sert à rien si personne ne le source : on s'en assure ici.
+    # `.bashrc.d` n'est pas lu par défaut sur Arch.
+    garantir_source_bashrc(home)
+
+
+SHELLS = {"sh", "bash", "zsh", "fish", "dash", "ksh", "mksh", "yash"}
+
+
+def pty_au_repos(entree):
+    """Vrai si ce pty attend sur un shell, faux si un programme y tourne.
+
+    Écrire des séquences dans un pty dont le premier plan est un programme plein
+    écran (vim, less, une invite de mot de passe) peut corrompre son affichage.
+    On ne touche donc qu'aux terminaux dont le processus de premier plan est un
+    shell : c'est là que la diffusion est à la fois utile et sans risque.
+    """
+    try:
+        fd = os.open(entree, os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK)
+    except OSError:
+        return False
+    try:
+        pgid = os.tcgetpgrp(fd)
+        if pgid <= 0:
+            return False
+        nom = Path(f"/proc/{pgid}/comm").read_text(encoding="utf-8").strip()
+        return nom in SHELLS
+    except (OSError, ValueError):
+        return False
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
 
 def broadcast_to_pts(osc_seq):
-    """Diffuse la séquence OSC à tous les pseudoterminaux de l'utilisateur."""
+    """Diffuse la séquence OSC aux pseudoterminaux au repos.
+
+    Rend (mis à jour, ignorés). Un pty est ignoré quand son premier plan n'est
+    pas un shell — et un nœud mort de `/dev/pts` répond « pas un tty », donc il
+    tombe du même côté. Le compte est publié : sans lui, un filtre trop strict se
+    lirait comme « la diffusion ne marche plus », sans rien pour le dire.
+    """
     pts_dir = Path("/dev/pts")
     if not pts_dir.is_dir():
-        return 0
+        return 0, 0
     uid = os.getuid()
     touchés = 0
+    ignorés = 0
     raw_bytes = osc_seq.encode("utf-8")
     for entry in pts_dir.iterdir():
-        if entry.name.isdigit():
-            try:
-                st = entry.stat()
-                if st.st_uid == uid:
-                    with open(entry, "wb", buffering=0) as f:
-                        f.write(raw_bytes)
-                    touchés += 1
-            except Exception:
-                pass
-    return touchés
+        if not entry.name.isdigit():
+            continue
+        try:
+            st = entry.stat()
+        except OSError:
+            continue
+        if st.st_uid != uid:
+            continue
+        if not pty_au_repos(entry):
+            ignorés += 1
+            continue
+        try:
+            with open(entry, "wb", buffering=0) as f:
+                f.write(raw_bytes)
+            touchés += 1
+        except OSError:
+            ignorés += 1
+    return touchés, ignorés
 
 
 def update_ghostty(theme_info):
@@ -241,7 +320,7 @@ def update_ghostty(theme_info):
     for idx, col in enumerate(theme_info["ansi"]):
         lines.append(f"palette = {idx}={col}")
 
-    theme_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _ecrire_atomique(theme_file, "\n".join(lines) + "\n")
 
     # Mise à jour de user.conf (theme, background-opacity et background-blur)
     user_conf = ghostty_dir / "user.conf"
@@ -274,7 +353,7 @@ def update_ghostty(theme_info):
     if not has_opacity:
         new_lines.append(f"background-opacity = {theme_info['opacity']}")
 
-    user_conf.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _ecrire_atomique(user_conf, "\n".join(new_lines) + "\n")
 
     # S'assurer que le fichier de config principal (config.ghostty ou config) inclut user.conf
     included = False
@@ -283,10 +362,10 @@ def update_ghostty(theme_info):
         if cfg_file.is_file():
             txt = cfg_file.read_text(encoding="utf-8")
             if "user.conf" not in txt:
-                cfg_file.write_text(txt.rstrip() + "\n\n# Configuration utilisateur AetherShell\nconfig-file = ?user.conf\n", encoding="utf-8")
+                _ecrire_atomique(cfg_file, txt.rstrip() + "\n\n# Configuration utilisateur AetherShell\nconfig-file = ?user.conf\n")
             included = True
     if not included:
-        (ghostty_dir / "config").write_text("# Configuration Ghostty AetherShell\nconfig-file = ?user.conf\n", encoding="utf-8")
+        _ecrire_atomique(ghostty_dir / "config", "# Configuration Ghostty AetherShell\nconfig-file = ?user.conf\n")
 
 
 def update_kitty(theme_info):
@@ -308,17 +387,70 @@ def update_kitty(theme_info):
     for idx, col in enumerate(theme_info["ansi"]):
         lines.append(f"color{idx:<2} {col}")
 
-    theme_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _ecrire_atomique(theme_file, "\n".join(lines) + "\n")
 
     # Inscription dans kitty.conf si présent
     kitty_conf = kitty_dir / "kitty.conf"
     if kitty_conf.is_file():
         txt = kitty_conf.read_text(encoding="utf-8")
         if "aethershell-theme.conf" not in txt:
-            kitty_conf.write_text(txt.rstrip() + "\ninclude aethershell-theme.conf\n", encoding="utf-8")
+            _ecrire_atomique(kitty_conf, txt.rstrip() + "\ninclude aethershell-theme.conf\n")
 
     # Signal SIGUSR1 à tous les processus kitty pour rechargement à chaud
     subprocess.run(["pkill", "-USR1", "-x", "kitty"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _ecrire_atomique(chemin, contenu):
+    """Écrit un fichier de configuration sans jamais en laisser un à moitié écrit.
+
+    Ces fichiers sont lus au démarrage d'un terminal : un fichier tronqué par un
+    arrêt au mauvais moment casse le terminal, pas la couleur.
+    """
+    temporaire = chemin.with_name("." + chemin.name + ".aethershell.tmp")
+    temporaire.write_text(contenu, encoding="utf-8")
+    os.replace(temporaire, chemin)
+
+
+def importer_dans_alacritty(txt):
+    """Ajoute l'import du thème au tableau `import` de [general], sans doublon.
+
+    L'ancienne version insérait `import = [...]` juste après `[general]` : quand
+    la section en portait déjà un, le fichier avait deux clés `import`, ce que
+    TOML refuse — Alacritty ne démarrait plus. On complète le tableau existant.
+
+    Rend (texte, modifié). Un import écrit sur plusieurs lignes n'est pas réécrit :
+    on préfère perdre la couleur automatique que la mise en forme du fichier.
+    """
+    nom = "aethershell-theme.toml"
+    lignes = txt.splitlines()
+    debut = None
+    for i, ligne in enumerate(lignes):
+        if ligne.strip() == "[general]":
+            debut = i
+            break
+    if debut is None:
+        return '[general]\nimport = ["%s"]\n\n' % nom + txt, True
+
+    fin = len(lignes)
+    for j in range(debut + 1, len(lignes)):
+        if lignes[j].lstrip().startswith("["):
+            fin = j
+            break
+    for j in range(debut + 1, fin):
+        m = re.match(r"^(\s*)import\s*=\s*\[(.*)\]\s*$", lignes[j])
+        if m:
+            dedans = m.group(2)
+            if nom in dedans:
+                return txt, False
+            gardes = [x for x in re.findall(r"\"([^\"]+)\"", dedans) if x != nom]
+            gardes.append(nom)
+            lignes[j] = '%simport = [%s]' % (m.group(1),
+                                             ", ".join('"%s"' % x for x in gardes))
+            return "\n".join(lignes) + "\n", True
+        if re.match(r"^\s*import\s*=", lignes[j]):
+            return txt, False
+    lignes.insert(debut + 1, 'import = ["%s"]' % nom)
+    return "\n".join(lignes) + "\n", True
 
 
 def update_alacritty(theme_info):
@@ -365,19 +497,33 @@ white   = "{a[15]}"
 [window]
 opacity = {theme_info['opacity']}
 """
-    theme_file.write_text(content, encoding="utf-8")
+    _ecrire_atomique(theme_file, content)
 
     # Import dans alacritty.toml si présent
     alacritty_conf = alacritty_dir / "alacritty.toml"
     if alacritty_conf.is_file():
-        txt = alacritty_conf.read_text(encoding="utf-8")
-        if "aethershell-theme.toml" not in txt:
-            # Ajout sous [general] import
-            if "[general]" in txt:
-                txt = txt.replace("[general]", '[general]\nimport = ["aethershell-theme.toml"]')
-            else:
-                txt = '[general]\nimport = ["aethershell-theme.toml"]\n\n' + txt
-            alacritty_conf.write_text(txt, encoding="utf-8")
+        try:
+            txt = alacritty_conf.read_text(encoding="utf-8")
+        except OSError:
+            return
+        nouveau, change = importer_dans_alacritty(txt)
+        if not change:
+            return
+        # Le fichier de l'utilisateur n'est réécrit que si le résultat est du TOML
+        # valide : une couleur vaut moins qu'un terminal qui démarre.
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            tomllib = None
+        if tomllib is not None:
+            try:
+                tomllib.loads(nouveau)
+            except Exception:
+                return
+        try:
+            _ecrire_atomique(alacritty_conf, nouveau)
+        except OSError:
+            pass
 
 
 def update_foot(theme_info):
@@ -416,7 +562,7 @@ bright5={a[13]}
 bright6={a[14]}
 bright7={a[15]}
 """
-    theme_file.write_text(content, encoding="utf-8")
+    _ecrire_atomique(theme_file, content)
 
 
 def main():
@@ -438,10 +584,10 @@ def main():
     osc_seq = build_osc_sequences(palette_info)
 
     # 1. Diffusion directe aux pts actifs
-    pts_count = broadcast_to_pts(osc_seq)
+    pts_count, pts_ignores = broadcast_to_pts(osc_seq)
 
     if args.broadcast_only:
-        print(f"OSC diffusé à {pts_count} pseudoterminaux.")
+        print(f"OSC diffusé à {pts_count} pseudoterminaux ({pts_ignores} ignorés : programme au premier plan ou nœud mort).")
         return
 
     # 2. Scripts universels pour nouveaux shells

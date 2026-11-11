@@ -95,24 +95,29 @@ ROLES = {
 }
 
 
-# Comment demander à chaque terminal de démarrer dans un dossier donné. exo
-# passe le dossier en argument au binaire de l'aide ; sans cette traduction, le
-# terminal l'ignore et s'ouvre là où le bureau a été lancé.
+# Comment demander à chaque terminal de démarrer dans un dossier donné. La valeur
+# est insérée telle quelle dans le script généré, avec `"$PWD"` en clair : c'est
+# le shell qui la découpe, donc pas de modèle printf à réinstancier, et un dossier
+# contenant une espace reste un seul argument.
+#
+# `xterm` n'y figure pas : il n'a pas d'option de dossier et hérite du répertoire
+# courant, que le lanceur pose déjà par `cd`. L'ancien gabarit
+# `-e sh -c 'cd "{d}" && exec $SHELL'` était cassé par son apostrophe interne —
+# la variable finissait vide et le binaire ne recevait aucun argument.
 OPTIONS_DOSSIER = {
-    "ghostty": "--working-directory={d}",
-    "kitty": "--directory={d}",
-    "alacritty": "--working-directory={d}",
-    "foot": "--working-directory={d}",
-    "konsole": "--workdir {d}",
-    "gnome-terminal": "--working-directory={d}",
-    "xfce4-terminal": "--working-directory={d}",
-    "terminator": "--working-directory={d}",
-    "urxvt": "-cd {d}",
-    "xterm": "-e sh -c 'cd \"{d}\" && exec $SHELL'",
-    "wezterm": "start --cwd {d}",
-    "tilix": "--working-directory={d}",
-    "kgx": "--working-directory={d}",
-    "ptyxis": "--working-directory={d}",
+    "ghostty": '--working-directory="$PWD"',
+    "kitty": '--directory="$PWD"',
+    "alacritty": '--working-directory="$PWD"',
+    "foot": '--working-directory="$PWD"',
+    "konsole": '--workdir "$PWD"',
+    "gnome-terminal": '--working-directory="$PWD"',
+    "xfce4-terminal": '--working-directory="$PWD"',
+    "terminator": '--working-directory="$PWD"',
+    "urxvt": '-cd "$PWD"',
+    "wezterm": 'start --cwd "$PWD"',
+    "tilix": '--working-directory="$PWD"',
+    "kgx": '--working-directory="$PWD"',
+    "ptyxis": '--working-directory="$PWD"',
 }
 # Les lanceurs vont dans `~/.local/bin` : c'est un dossier du PATH, et exo
 # exécute la valeur de `helpers.rc` comme un programme quand elle n'est pas un
@@ -128,61 +133,52 @@ SANS_INSTANCE_UNIQUE = {
     "kgx": "--new-window",
 }
 
-LANGEURS = Path.home() / ".local" / "bin"
+LANCEURS = Path.home() / ".local" / "bin"
 
 
 def ecrire_lanceur(binaire, dossier_lanceurs=None):
     """Écrit un lanceur qui sait ouvrir le terminal dans un dossier.
 
-    exo appelle le binaire de son aide en lui passant le dossier en argument.
-    Les terminaux ne partagent pas la même option pour cela, et certains
-    l'ignorent complètement : ce petit script traduit un argument en l'option du
-    terminal, et se comporte comme le terminal nu quand il n'y a rien à traduire.
-    Rend le chemin du lanceur, ou None si le terminal est inconnu (on garde alors
-    le binaire d'origine, quitte à perdre le dossier).
+    exo appelle le binaire de son aide en lui passant le dossier en argument. Les
+    terminaux ne partagent pas la même option pour cela, et certains réutilisent
+    une instance en ignorant le dossier : ce script se place dans le dossier, puis
+    demande une instance neuve. Rend le chemin du lanceur, ou None si le terminal
+    est inconnu (on garde alors le binaire d'origine, quitte à perdre le dossier).
     """
-    gabarit = OPTIONS_DOSSIER.get(binaire)
-    if not gabarit:
+    arguments = OPTIONS_DOSSIER.get(binaire)
+    if arguments is None:
         return None
-    dossier = Path(dossier_lanceurs or LANGEURS)
+    dossier = Path(dossier_lanceurs or LANCEURS)
     dossier.mkdir(parents=True, exist_ok=True)
     chemin = dossier / ("terminal-" + binaire)
     extra = SANS_INSTANCE_UNIQUE.get(binaire, "")
-    # L'option dépend du dossier, connu seulement à l'exécution : on garde un
-    # modèle printf et on l'instancie dans le script.
-    modele = gabarit.replace("{d}", "%s")
     script = """#!/bin/sh
 # Lanceur généré par core/lien_systeme.py — ne pas éditer à la main.
-# exo (clic droit « Ouvrir un terminal ici ») passe le dossier en argument ;
-# %(binaire)s n'a pas la même option pour ça, et certaines versions réutilisent
-# une instance déjà ouverte en ignorant le dossier. D'où le double geste :
-# on se place dans le dossier, puis on demande une instance neuve.
-binaire=%(binaire)s
-drapeaux=%(extra)s
-modele='%(modele)s'
+# exo (clic droit « Ouvrir un terminal ici ») passe le dossier en argument. On
+# s'y place, puis on demande une instance neuve quand le terminal en réutilise
+# une : sans ça la fenêtre s'ouvre dans le dossier du processus appelant (mesuré
+# sur Ghostty). Le dossier est passé entre guillemets, donc une espace dans son
+# nom ne le coupe pas en deux arguments.
+binaire=%s
+drapeaux='%s'
 
-if [ -n "$1" ] && [ -d "$1" ]; then
-    dossier=$1
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    cd "$1" || true
     shift
-    cd "$dossier" 2>/dev/null || true
-    # `printf --` : le modèle commence par « -- », sinon printf le prend pour
-    # une de ses propres options.
-    option=$(printf -- "$modele" "$dossier")
     if [ -n "$LIEN_DRY_RUN" ]; then
-        echo "$binaire" $drapeaux $option "$@"
+        echo "$binaire" $drapeaux %s "$@"
         pwd
         exit 0
     fi
-    exec "$binaire" $drapeaux $option "$@"
+    exec "$binaire" $drapeaux %s "$@"
 fi
 
 if [ -n "$LIEN_DRY_RUN" ]; then
     echo "$binaire" $drapeaux "$@"
-    pwd
     exit 0
 fi
 exec "$binaire" $drapeaux "$@"
-""" % {"binaire": binaire, "extra": extra, "modele": modele}
+""" % (binaire, extra, arguments, arguments)
     chemin.write_text(script, encoding="utf-8")
     chemin.chmod(0o755)
     return chemin
@@ -312,6 +308,18 @@ def construire(apps, entrees):
     return helpers, mimes, aides, binaires
 
 
+def ecrire_atomique(chemin, contenu):
+    """Écrit un registre système sans jamais le laisser tronqué.
+
+    `mimeapps.list` et `helpers.rc` sont lus par tous les lanceurs du bureau : un
+    arrêt au mauvais moment laissait la session sans association par défaut, et
+    rien ne le signale.
+    """
+    temporaire = chemin.with_name("." + chemin.name + ".aethershell.tmp")
+    temporaire.write_text(contenu, encoding="utf-8")
+    os.replace(temporaire, chemin)
+
+
 def ecrire_helpers(helpers):
     lignes = []
     if HELPERS.is_file():
@@ -320,7 +328,7 @@ def ecrire_helpers(helpers):
     for cle, valeur in helpers.items():
         lignes.append("%s=%s" % (cle, valeur))
     HELPERS.parent.mkdir(parents=True, exist_ok=True)
-    HELPERS.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+    ecrire_atomique(HELPERS, "\n".join(lignes) + "\n")
 
 
 def ecrire_aides(aides):
@@ -342,13 +350,19 @@ def ecrire_aides(aides):
             "X-XFCE-Binaries=%s;" % aide["binaire"],
             "",
         ]
-        (AIDES / ("%s.rc" % identifiant)).write_text("\n".join(contenu), encoding="utf-8")
+        ecrire_atomique(AIDES / ("%s.rc" % identifiant), "\n".join(contenu))
 
 
 def ecrire_mimeapps(mimes):
-    """Met à jour [Default Applications] sans toucher aux autres sections."""
+    """Met à jour [Default Applications] sans toucher aux autres sections.
+
+    Le préambule (commentaires placés avant la première section) est recopié tel
+    quel : il appartient à l'utilisateur, et le perdre à chaque démarrage du shell
+    est une écriture qu'on ne remarque qu'en cherchant ce qu'on avait noté.
+    """
     sections = {}
     ordre = []
+    preambule = []
     courant = None
     if MIMEAPPS.is_file():
         for ligne in MIMEAPPS.read_text(encoding="utf-8").split("\n"):
@@ -356,7 +370,9 @@ def ecrire_mimeapps(mimes):
                 courant = ligne.strip()[1:-1]
                 ordre.append(courant)
                 sections.setdefault(courant, [])
-            elif courant is not None and ligne.strip():
+            elif courant is None:
+                preambule.append(ligne)
+            elif ligne.strip():
                 sections[courant].append(ligne)
     cible = "Default Applications"
     if cible not in sections:
@@ -368,12 +384,14 @@ def ecrire_mimeapps(mimes):
         restantes.append("%s=%s" % (mime, identifiant))
     sections[cible] = restantes
 
-    sortie = []
+    sortie = list(preambule)
     for nom in ordre:
         sortie.append("[%s]" % nom)
         sortie.extend(sections[nom])
         sortie.append("")
-    MIMEAPPS.write_text("\n".join(sortie).rstrip("\n") + "\n", encoding="utf-8")
+    MIMEAPPS.parent.mkdir(parents=True, exist_ok=True)
+    ecrire_atomique(MIMEAPPS, "\n".join(sortie).rstrip("\n") + "\n")
+
 
 
 def couche_bureau(binaires, mimes):
