@@ -23,6 +23,22 @@ hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd("hyprctl eval 'hl.monitor({ out
 -- Bascule manuelle du Dock
 hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd("~/.config/hypr/toggle_dock.sh"))
 
+-- Navigation entre workspaces au trackpad : SUPER + glissement 3 doigts
+-- (droite -> n+1, gauche -> n-1 sur l'écran actif).
+for _, geste in ipairs({
+    { direction = "right", workspace = "r+1" },
+    { direction = "left",  workspace = "r-1" },
+}) do
+    hl.gesture({
+        fingers   = 3,
+        direction = geste.direction,
+        mods      = "SUPER",
+        action    = function()
+            hl.dispatch(hl.dsp.focus({ workspace = geste.workspace }))
+        end,
+    })
+end
+
 -- Mode tablette : daemon d'orientation (iio-sensor-proxy / monitor-sensor), portable uniquement.
 -- Lancé uniquement au démarrage de Hyprland (pas à chaque reload) et jamais en double.
 hl.on("hyprland.start", function ()
