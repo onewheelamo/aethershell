@@ -40,6 +40,9 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 STYLE_FILE = BASE_DIR / "style_vars.json"
+
+sys.path.insert(0, str(BASE_DIR))
+import verrou_etat  # noqa: E402  (verrou des ecritures de style_vars.json)
 CACHE_FILE = BASE_DIR / "palette_cache.json"
 ROFI_GEN = BASE_DIR / "generate_rofi_theme.sh"
 
@@ -194,7 +197,24 @@ def ecrire_json(chemin, donnees):
     os.replace(temporaire, chemin)
 
 
+# ── Verrou ───────────────────────────────────────────────────────────────────
+# Deux écrivains de `style_vars.json` pouvaient se croiser : le panneau et
+# l'activation d'une palette. Chacun relisait le fichier, décidait, écrivait —
+# le second écrasait la modification du premier. Les deux entrées publiques
+# prennent le verrou pour tout le travail ; le corps reste dans la fonction
+# privée, qui ne le reprend pas (pas de re-entrance : deux `flock` sur le même
+# fichier depuis le même processus se bloqueraient).
 def synchroniser(silencieux=False):
+    with verrou_etat.verrou(STYLE_FILE):
+        return _synchroniser(silencieux)
+
+
+def activer(cle, silencieux=False):
+    with verrou_etat.verrou(STYLE_FILE):
+        return _activer(cle, silencieux)
+
+
+def _synchroniser(silencieux=False):
     """Relit le disque : tient le catalogue à jour, retire les schémas disparus.
 
     Idempotent et bon marché : un appel sans changement n'écrit rien. C'est ce qui
@@ -245,7 +265,7 @@ def synchroniser(silencieux=False):
     return ajoutes
 
 
-def activer(cle, silencieux=False):
+def _activer(cle, silencieux=False):
     """Rend `cle` active, en recopiant sa palette dans style_vars.json au besoin."""
     donnees = lire_json(STYLE_FILE, {})
     palette = donnees.setdefault("palette", {})
