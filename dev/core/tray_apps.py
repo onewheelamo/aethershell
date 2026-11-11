@@ -19,28 +19,16 @@ Usage :
     tray_apps.py <id-item> [<titre-item>] [--dry-run]
 """
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
 
+# La règle de rapprochement classe ↔ .desktop vit dans `app_classes.py` : elle
+# sert aussi à l'applet des fenêtres minimisées, et deux copies divergeraient au
+# premier correctif.
+from app_classes import couvre, jetons
+
 INDEX = Path(__file__).resolve().parent / "app_index.json"
-
-# Mots qui ne distinguent rien : ils figurent dans presque tous les identifiants
-# d'items SNI et dans presque tous les noms de .desktop.
-BRUIT = {
-    "status", "icon", "indicator", "item", "app", "gtk", "qt", "desktop",
-    "tray", "menu", "main", "the", "and",
-}
-
-
-
-def jetons(texte):
-    """Ensemble de mots signifiants d'un identifiant, d'un titre ou d'une classe."""
-    if not texte:
-        return set()
-    nu = re.sub(r"[^a-z0-9]+", " ", str(texte).lower())
-    return {j for j in nu.split() if len(j) > 1 and j not in BRUIT}
 
 
 def fenetres():
@@ -51,24 +39,6 @@ def fenetres():
         return json.loads(sortie)
     except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
         return []
-
-
-def couvre(recherche, candidat):
-    """Tous les jetons cherchés se retrouvent-ils dans le candidat ?
-
-    Égalité de jeton, ou l'un contenu dans l'autre : `vpn` doit reconnaître la
-    classe `protonvpn` (pas de séparateur), et `kate` la classe `org.kde.kate`.
-    Le test est « tous les jetons », pas un score : `Proton Pass` ne doit pas
-    tomber sur la fenêtre de Proton VPN sous prétexte qu'ils partagent
-    `proton`.
-    """
-    if not recherche or not candidat:
-        return False
-    for j in recherche:
-        if not any(j == c or (min(len(j), len(c)) >= 3 and (j in c or c in j))
-                   for c in candidat):
-            return False
-    return True
 
 
 def choisir_fenetre(recherche, clients):

@@ -65,6 +65,19 @@
       ]
     },
     {
+      "id": "minimise",
+      "nom": "Fenêtres minimisées",
+      "description": "Une icône par fenêtre mise de côté (SUPER + D) ; clic pour la rappeler sur le bureau courant",
+      "categorie": "Médias & bureaux",
+      "genre": "qml",
+      "composant": "MinimiseApplet.qml",
+      "icone": "monitor",
+      "ile": "haut:debut",
+      "ordre": 15,
+      "text_scale": 100,
+      "efface_vide": true
+    },
+    {
       "id": "calendrier",
       "nom": "Calendrier",
       "description": "La date ; clic pour le mois et les événements Nextcloud",

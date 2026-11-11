@@ -699,6 +699,142 @@ QtObject {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // SECTION 7bis: FENÊTRES MINIMISÉES
+    // ────────────────────────────────────────────────────────────────────────
+    // Hyprland 0.57 n'a pas de « minimiser » : la fenêtre au focus part sur un
+    // workspace spécial, invisible, et le rappel la renvoie sur le bureau
+    // **courant**. Aucun bureau d'origine n'est mémorisé — c'est ce qui évite
+    // un cache à nettoyer et les entrées fantômes d'une fenêtre fermée : la
+    // liste des fenêtres est lue vivante sur les toplevels, seul l'ordre des
+    // minimisations de la session est tenu (il ne sert qu'au raccourci
+    // « rappeler la dernière »).
+    readonly property string workspaceMinimise: "special:minimized"
+    property var ordreMinimisees: []
+
+    // Les adresses de fenêtre n'ont pas la même forme selon la source :
+    // `hyprctl` écrit `0x559d…`, `Hyprland.activeToplevel.address` écrit
+    // `559d…`. Une seule forme pour comparer (`cleAdresse`), une seule pour le
+    // sélecteur de dispatch (`0x…`, sans quoi le dispatch répond « ok » sans
+    // rien déplacer — mesuré : fenêtre immobile et aucune erreur).
+    function cleAdresse(adresse) {
+        let a = String(adresse || "").toLowerCase()
+        if (a.indexOf("0x") === 0) a = a.substring(2)
+        return a
+    }
+
+    function selecteurAdresse(adresse) {
+        const a = root.cleAdresse(adresse)
+        return a === "" ? "" : "address:0x" + a
+    }
+
+    // Une fenêtre est-elle « de côté » ? La source qui fait foi est l'objet
+    // `workspace` du toplevel : sur le workspace spécial, Quickshell le publie
+    // avec le nom complet et un identifiant négatif (mesuré : -1).
+    //
+    // **Pas `lastIpcObject` en premier** : cette carte brute retarde sur l'objet
+    // — une fenêtre rappelée y restait sur `special:minimized` et l'icône ne
+    // quittait jamais la barre (mesuré, rafraîchissement forcé compris). Elle ne
+    // sert que de repli quand l'objet manque.
+    function estMinimisee(fenetre) {
+        if (!fenetre) return false
+        const espace = fenetre.workspace
+        if (espace) {
+            const nom = String(espace.name || "")
+            if (nom === root.workspaceMinimise || nom === "minimized") return true
+            if (Number(espace.id) > 0) return false
+        }
+        const brut = fenetre.lastIpcObject
+        const bws = brut ? brut.workspace : null
+        return Boolean(bws) && String(bws.name || "") === root.workspaceMinimise
+    }
+
+    // Fenêtres actuellement mises de côté, de la plus ancienne à la plus
+    // récente. Ce qui est arrivé là par un autre chemin que ce geste se range à
+    // la fin.
+    function fenetresMinimisees() {
+        const out = []
+        const tops = Hyprland.toplevels ? Hyprland.toplevels.values : []
+        for (let i = 0; i < tops.length; i++) {
+            const t = tops[i]
+            if (t && t.address && root.estMinimisee(t)) out.push(t)
+        }
+        const rang = function (adresse) {
+            const i = root.ordreMinimisees.indexOf(root.cleAdresse(adresse))
+            return i < 0 ? 1000 : i
+        }
+        out.sort(function (a, b) { return rang(a.address) - rang(b.address) })
+        return out
+    }
+
+    // Bureau normal visible : celui du moniteur au focus. Un workspace spécial
+    // affiché ne peut pas recevoir de fenêtre rappelée.
+    function bureauCourant() {
+        const ws = Hyprland.focusedWorkspace
+        if (ws && Number(ws.id) > 0) return Number(ws.id)
+        const m = Hyprland.focusedMonitor
+        const actif = m ? m.activeWorkspace : null
+        if (actif && Number(actif.id) > 0) return Number(actif.id)
+        const liste = Hyprland.workspaces ? Hyprland.workspaces.values : []
+        for (let i = 0; i < liste.length; i++) {
+            if (liste[i] && Number(liste[i].id) > 0 && liste[i].active) return Number(liste[i].id)
+        }
+        return 0
+    }
+
+    // Le geste : la fenêtre au focus (ou l'adresse donnée) part sur le workspace
+    // spécial, sans suivre. L'adresse est retenue dans l'ordre des minimisations.
+    function minimiserFenetre(adresse) {
+        let cible = root.cleAdresse(adresse)
+        if (cible === "" && Hyprland.activeToplevel)
+            cible = root.cleAdresse(Hyprland.activeToplevel.address)
+        if (Hyprland.usingLua) {
+            const sel = cible !== "" ? ', window = "' + root.selecteurAdresse(cible) + '"' : ""
+            Hyprland.dispatch('hl.dsp.window.move({ workspace = "' + root.workspaceMinimise + '"'
+                             + sel + ', follow = false })')
+        } else {
+            Hyprland.dispatch("movetoworkspacesilent " + root.workspaceMinimise
+                              + (cible !== "" ? "," + root.selecteurAdresse(cible) : ""))
+        }
+        if (cible !== "" && root.ordreMinimisees.indexOf(cible) < 0) {
+            const suite = root.ordreMinimisees.slice()
+            suite.push(cible)
+            root.ordreMinimisees = suite
+        }
+        return cible !== ""
+    }
+
+    // Le rappel : la fenêtre revient sur le bureau courant, sans que la vue ne
+    // change de bureau, puis prend le focus.
+    function rappelerFenetre(adresse) {
+        const cible = root.cleAdresse(adresse)
+        const bureau = root.bureauCourant()
+        if (cible === "" || bureau <= 0) return false
+        const sel = root.selecteurAdresse(cible)
+        if (Hyprland.usingLua) {
+            Hyprland.dispatch('hl.dsp.window.move({ workspace = ' + bureau
+                             + ', window = "' + sel + '", follow = false })')
+            Hyprland.dispatch('hl.dsp.focus({ window = "' + sel + '" })')
+        } else {
+            Hyprland.dispatch("movetoworkspacesilent " + bureau + "," + sel)
+            Hyprland.dispatch("focuswindow " + sel)
+        }
+        const i = root.ordreMinimisees.indexOf(cible)
+        if (i >= 0) {
+            const suite = root.ordreMinimisees.slice()
+            suite.splice(i, 1)
+            root.ordreMinimisees = suite
+        }
+        return true
+    }
+
+    // La plus récemment minimisée encore présente.
+    function rappelerDerniere() {
+        const liste = root.fenetresMinimisees()
+        if (liste.length === 0) return false
+        return root.rappelerFenetre(String(liste[liste.length - 1].address))
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // SECTION 8: IPC HANDLER ("shell")
     // ────────────────────────────────────────────────────────────────────────
     // Allows scripts, keybindings and sub-processes to control Quickshell:
@@ -841,6 +977,27 @@ QtObject {
         }
         function notifHistoryState(): bool {
             return root.notifHistoryVisible
+        }
+        // Fenêtres mises de côté (SUPER + D, SUPER + MAJ + D) :
+        //   quickshell ipc -n call shell minimiser
+        //   quickshell ipc -n call shell rappelerDerniere
+        // `minimisees` rend l'état lisible par un script de vérification.
+        function minimiser(): bool {
+            return root.minimiserFenetre("")
+        }
+        function rappelerDerniere(): bool {
+            return root.rappelerDerniere()
+        }
+        function rappelerFenetreAdresse(adresse: string) {
+            return root.rappelerFenetre(adresse)
+        }
+        function minimisees(): string {
+            const liste = root.fenetresMinimisees()
+            const out = []
+            for (let i = 0; i < liste.length; i++)
+                out.push({ adresse: String(liste[i].address),
+                           titre: String(liste[i].title || "") })
+            return JSON.stringify(out)
         }
     }
 }

@@ -135,7 +135,14 @@ Item {
     // valeur ils disparaîtraient, alors que leur popup est le seul endroit où
     // rallumer cette mesure. Le catalogue les marque `garde` pour les garder.
     readonly property bool garde: applet.garde === true
-    visible: !sansValeur || garde
+    // Un applet « qml » peut n'avoir rien à montrer — la rangée des fenêtres
+    // minimisées est vide la plupart du temps. Le catalogue le marque
+    // `efface_vide` pour que l'îlot referme la place : sans ça, la rangée
+    // garderait son `spacing` et la barre montrerait un trou de la largeur d'un
+    // espace. Le test porte sur la largeur chargée, pas sur un état interne.
+    readonly property bool effaceVide: estQml && applet.efface_vide === true
+    readonly property bool vide: effaceVide && chargeurQml.implicitWidth <= 0
+    visible: (!sansValeur || garde) && !vide
 
     // Un seul popup ouvert à la fois, et il est identifié par son applet : deux
     // applets ne peuvent donc pas s'ouvrir l'un sur l'autre.
