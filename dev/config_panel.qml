@@ -1653,6 +1653,7 @@ Rectangle {
     // et les champs en cours de saisie sont conservés. Le prix est la mémoire des
     // onglets ouverts ; elle est rendue à la fermeture (`libererOnglets`).
     property var ongletsVisites: ({})
+    onOngletsVisitesChanged: console.log("SONDE onglet=" + root.currentTab + " " + root.etatOnglets())
 
     function majOnglets() {
         const defs = root.defsOnglets()
@@ -1682,6 +1683,17 @@ Rectangle {
         root.ongletsVisites = ({})
     }
 
+    // SONDE
+    function etatOnglets() {
+        const noms = ["Apparence", "Barres", "Bureau", "Ecrans", "Clavier", "Apps", "Connexion", "Donnees"]
+        const defs = root.defsOnglets()
+        const etats = []
+        for (let i = 0; i < defs.length; ++i) {
+            const it = defs[i][1].item
+            etats.push(noms[i] + "=" + (it ? (it.visible ? "VISIBLE" : "cache") : "-"))
+        }
+        return etats.join(" ")
+    }
     onCurrentTabChanged: root.majOnglets()
 
     Connections {

@@ -16,6 +16,10 @@ Column {
     property var root
     property var mainFlickable
 
+    // Plusieurs onglets restent montés depuis qu'on ne les décharge plus en
+    // quittant : sans ce masque, ils s'empilaient les uns sur les autres
+    // (le `visible:` du panneau avait été retiré à la découpe).
+    visible: root ? root.currentTab === 7 : false
     width: mainFlickable ? mainFlickable.width : 0
     property var ncEtatProc
 

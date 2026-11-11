@@ -244,18 +244,60 @@ def pty_au_repos(entree):
     On ne touche donc qu'aux terminaux dont le processus de premier plan est un
     shell : c'est là que la diffusion est à la fois utile et sans risque.
     """
+    pgid = premier_plan(entree)
+    if pgid <= 0:
+        return False
+    try:
+        nom = Path(f"/proc/{pgid}/comm").read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    return nom in SHELLS
+
+
+def premier_plan(entree):
+    """pgrp au premier plan d'un pty, sans `tcgetpgrp()`.
+
+    `tcgetpgrp()` est refusé ici — `ENOTTY` sur **tous** les ptys, y compris
+    depuis un service utilisateur — alors que `tcgetattr()` passe : c'est
+    l'ioctl TIOCGPGRP qui ne l'est pas. Le filtre répondait donc toujours
+    « programme au premier plan », et la diffusion n'atteignait aucun terminal.
+
+    `/proc/<pid>/stat` porte la même information : champ 7 = terminal, champ 8 =
+    pgrp au premier plan. On renvoie le premier trouvé. Repli sur `tcgetpgrp()`
+    si `/proc` est restreint.
+    """
+    try:
+        cible = os.stat(entree).st_rdev
+    except OSError:
+        return -1
+    try:
+        for entree_proc in os.listdir("/proc"):
+            if not entree_proc.isdigit():
+                continue
+            try:
+                with open(f"/proc/{entree_proc}/stat", "rb") as f:
+                    champs = f.read().rsplit(b")", 1)[1].split()
+            except (OSError, IndexError):
+                continue
+            # après « ) » : etat ppid pgrp session tty_nr tpgid …
+            try:
+                tty_nr = int(champs[4])
+                tpgid = int(champs[5])
+            except (IndexError, ValueError):
+                continue
+            if tty_nr == cible and tpgid > 0:
+                return tpgid
+    except OSError:
+        pass
+    # Repli : l'ioctl, s'il est permis sur cette machine.
     try:
         fd = os.open(entree, os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK)
     except OSError:
-        return False
+        return -1
     try:
-        pgid = os.tcgetpgrp(fd)
-        if pgid <= 0:
-            return False
-        nom = Path(f"/proc/{pgid}/comm").read_text(encoding="utf-8").strip()
-        return nom in SHELLS
+        return os.tcgetpgrp(fd)
     except (OSError, ValueError):
-        return False
+        return -1
     finally:
         try:
             os.close(fd)
