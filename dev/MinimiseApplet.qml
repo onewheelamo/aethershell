@@ -121,7 +121,7 @@ Item {
                 root.infos = suite
             }
         }
-        onExited: {
+        onExited: function (code) {
             // Un échec ne doit pas boucler : les classes demandées sont
             // inscrites vides, donc plus jamais redemandées, et la rangée
             // retombe sur sa classe puis sur l'icône générique.
