@@ -424,8 +424,11 @@ Item {
 
     // Retirer de la liste **et** du serveur : sans `tracked = false`, keepOnReload
     // ressuscite la notification au prochain rechargement du shell.
+    // Rend true si l'entrée était dans la liste vive. false = elle vient du repli
+    // sur l'historique, que le serveur ne connaît pas : c'est à l'appelant de la
+    // retirer du fichier (sinon la croix du centre ne fait rien).
     function forgetNotif(entry) {
-        if (!entry) return
+        if (!entry) return false
         if (entry.raw) {
             try { entry.raw.tracked = false } catch (e) {}
         }
@@ -438,9 +441,15 @@ Item {
             const copy = list.slice()
             copy.splice(i, 1)
             islandRight.notificationsList = copy
-            return
+            return true
         }
-        console.warn("notification " + entry.id + " absente de la liste au retrait")
+        // Une entrée sans `raw` vient du repli sur l'historique : son absence de la
+        // liste vive est normale, et l'appelant la retire du fichier. On ne crie
+        // donc que pour une notification vive qu'on ne retrouve pas.
+        if (entry.raw) {
+            console.warn("notification " + entry.id + " absente de la liste vive")
+        }
+        return false
     }
 
     // Actions affichables : tout sauf « default », qui est déjà le clic sur le

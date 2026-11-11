@@ -39,11 +39,42 @@ Item {
     // casserait tout le panneau. Ces enveloppes rendent le pont facultatif.
     function actionsDe(e) { return (Theme.notifOps && Theme.notifOps.actions) ? Theme.notifOps.actions(e) : [] }
     function aCible(e) { return (Theme.notifOps && Theme.notifOps.hasTarget) ? Theme.notifOps.hasTarget(e) : false }
-    function oublier(e) { if (Theme.notifOps && Theme.notifOps.forget) Theme.notifOps.forget(e) }
+    function oublier(e) {
+        if (!e) return
+        if (Theme.notifOps && Theme.notifOps.forget) Theme.notifOps.forget(e)
+        // Et dans l'historique : sinon le centre la ressert par son repli dès que
+        // la liste vive se vide — ce qui est justement le cas après une relance du
+        // shell. Mesuré : quatre clics sans effet, « absente de la liste vive ».
+        historiqueCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"),
+                                 "delete", String(e.id)]
+        historiqueCmd.running = true
+        const garde = function (x) { return String(x.id) !== String(e.id) }
+        root.archive = root.archive.filter(garde)
+        root.notifications = root.notifications.filter(garde)
+    }
     function ouvrir(e, fermer) { if (Theme.notifOps && Theme.notifOps.open) Theme.notifOps.open(e, fermer) }
     function invoquer(e, ident) { if (Theme.notifOps && Theme.notifOps.invoke) Theme.notifOps.invoke(e, ident) }
-    function toutEffacer() { if (Theme.notifOps && Theme.notifOps.clear) Theme.notifOps.clear() }
+    function toutEffacer() {
+        if (Theme.notifOps && Theme.notifOps.clear) Theme.notifOps.clear()
+        // « Tout effacer » vide aussi le fichier : sans ça, les cartes reviennent
+        // par le repli dès que la liste vive est vide, et le bouton semble n'avoir
+        // rien fait.
+        historiqueCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"), "clear"]
+        historiqueCmd.running = true
+        root.archive = []
+        root.notifications = []
+    }
     function rendreMuet(nom, muet) { if (Theme.notifOps && Theme.notifOps.setQuiet) Theme.notifOps.setQuiet(nom, muet) }
+
+    // Retrait d'une entrée de l'historique (fichier). Le centre affiche ce fichier
+    // en repli quand la liste vive est vide — après une relance du shell — et ces
+    // entrées ne sont connues d'aucun serveur : sans cette écriture, la croix ne
+    // peut rien retirer.
+    Process {
+        id: historiqueCmd
+        command: ["python3", Quickshell.shellPath("core/notif_history.py")]
+        onExited: historiqueFile.reload()
+    }
 
     function majListe() {
         const vive = Theme.notifList || []
