@@ -37,7 +37,7 @@ CollapsibleSection {
     title: "Applications par défaut"
     summary: root.appVarsModel.length + " programmes"
     icon: "rocket"
-    expanded: root.sectionOpen("apps_programs", true)
+    expanded: root.sectionOpen("apps_programs", false)
     onToggled: expanded => {
         root.setPanelSection("apps_programs", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("apps_programs")

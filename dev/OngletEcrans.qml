@@ -40,7 +40,7 @@ CollapsibleSection {
     title: "Moniteurs & Résolution"
     summary: root.selectedMonitorName + " · " + root.monitorsList.length + " écran(s)"
     icon: "monitor"
-    expanded: root.sectionOpen("ecrans_moniteurs", true)
+    expanded: root.sectionOpen("ecrans_moniteurs", false)
     onToggled: expanded => {
         root.setPanelSection("ecrans_moniteurs", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("ecrans_moniteurs")
@@ -643,7 +643,7 @@ CollapsibleSection {
     title: "Mode nuit"
     summary: root.nuitAllumee ? ("allumé · " + root.nuitTemp + " K") : "éteint"
     icon: "weather-night"
-    expanded: root.sectionOpen("systeme_nuit", true)
+    expanded: root.sectionOpen("systeme_nuit", false)
     onToggled: expanded => {
         root.setPanelSection("systeme_nuit", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_nuit")

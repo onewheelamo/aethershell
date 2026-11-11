@@ -750,9 +750,11 @@ Rectangle {
     // Tiroir ouvert de l'onglet courant (l'accordéon n'en laisse qu'un, mais on
     // ne s'y fie pas : on prend le premier ouvert de l'onglet).
     readonly property var tiroirOuvertCourant: {
-        for (const nom in root.tiroirs) {
-            if (root.ongletDeSection[nom] !== root.currentTab) continue
-            if (root.sectionOpen(nom, false)) return { nom: nom, item: root.tiroirDe(nom) }
+        const noms = root.nomsTiroirs()
+        for (let i = 0; i < noms.length; ++i) {
+            if (root.ongletDeSection[noms[i]] !== root.currentTab) continue
+            if (root.sectionOpen(noms[i], false))
+                return { nom: noms[i], item: root.tiroirDe(noms[i]) }
         }
         return null
     }
@@ -1044,18 +1046,42 @@ Rectangle {
 
     // Applique l'état persisté à tous les tiroirs : l'état est la seule source
     // de vérité, donc un tiroir ouvert en referme un autre sans course.
+    // Noms de tiroirs connus. La table `tiroirs` du panneau est vide depuis le
+    // découpage : les sections vivent dans les composants d'onglet. Seul l'onglet
+    // affiché est instancié, et cela suffit — l'accordéon ne referme que des
+    // tiroirs du **même** onglet. Sans cette liste, `for (const nom in
+    // root.tiroirs)` ne parcourait rien : plus d'accordéon, et les tiroirs à
+    // défaut ouvert restaient tous ouverts.
+    function nomsTiroirs() {
+        const noms = []
+        for (const k in root.tiroirs)
+            noms.push(k)
+        for (let i = 0; i < root.ongletsDeportes.length; ++i) {
+            const it = root.ongletsDeportes[i] ? root.ongletsDeportes[i].item : null
+            if (!it || !it.sections)
+                continue
+            for (const k in it.sections)
+                if (noms.indexOf(k) < 0)
+                    noms.push(k)
+        }
+        return noms
+    }
+
     function rafraichirTiroirs() {
         // Un seul tiroir ouvert par onglet, et c'est le premier marqué ouvert :
         // l'invariant est tenu ici plutôt que dans chaque bascule, sinon l'ordre
         // des écritures peut laisser deux tiroirs ouverts (cas vu avec le
         // visualiseur sous les applets).
         const ouvertParOnglet = ({})
-        for (const nom in root.tiroirs) {
+        const noms = root.nomsTiroirs()
+        for (let i = 0; i < noms.length; ++i) {
+            const nom = noms[i]
             if (!root.sectionOpen(nom, false)) continue
             const onglet = root.ongletDeSection[nom]
             if (ouvertParOnglet[onglet] === undefined) ouvertParOnglet[onglet] = nom
         }
-        for (const nom in root.tiroirs) {
+        for (let i = 0; i < noms.length; ++i) {
+            const nom = noms[i]
             const tiroir = root.tiroirDe(nom)
             if (!tiroir) continue
             const voulu = Theme.panelAccordion
@@ -1074,7 +1100,9 @@ Rectangle {
         const fermes = []
         if (expanded && Theme.panelAccordion) {
             const onglet = root.ongletDeSection[name]
-            for (const autre in root.tiroirs) {
+            const noms = root.nomsTiroirs()
+            for (let i = 0; i < noms.length; ++i) {
+                const autre = noms[i]
                 if (autre === name) continue
                 if (root.ongletDeSection[autre] !== onglet) continue
                 if (s[autre] === false) continue
@@ -1096,7 +1124,9 @@ Rectangle {
     function fermerAutresTiroirs(cle) {
         const onglet = root.ongletDeSection[cle]
         if (onglet === undefined) return
-        for (const autre in root.tiroirs) {
+        const noms = root.nomsTiroirs()
+        for (let i = 0; i < noms.length; ++i) {
+            const autre = noms[i]
             if (autre === cle) continue
             if (root.ongletDeSection[autre] !== onglet) continue
             if (root.sectionOpen(autre, false) === false) continue

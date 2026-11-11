@@ -37,7 +37,7 @@ CollapsibleSection {
     icon: "widgets"
     // État persisté comme les autres tiroirs ; ouvert par défaut,
     // c'est le premier de l'onglet « Bureau & Lanceur ».
-    expanded: root.sectionOpen("widgets", true)
+    expanded: root.sectionOpen("widgets", false)
     onToggled: expanded => {
         root.setPanelSection("widgets", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("widgets")

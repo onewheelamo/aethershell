@@ -31,7 +31,7 @@ Column {
         title: "Thème de l'écran de connexion (SDDM)"
         summary: root.greeterSelected !== "" ? root.greeterSelected : "thème par défaut"
         icon: "lock"
-        expanded: root.sectionOpen("greeter_theme", true)
+        expanded: root.sectionOpen("greeter_theme", false)
         onToggled: expanded => {
             root.setPanelSection("greeter_theme", expanded)
             if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("greeter_theme")

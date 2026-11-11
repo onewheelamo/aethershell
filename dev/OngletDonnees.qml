@@ -181,7 +181,7 @@ CollapsibleSection {
     title: "Localisation"
     summary: root.timezoneStr
     icon: "cloud"
-    expanded: root.sectionOpen("donnees_localisation", true)
+    expanded: root.sectionOpen("donnees_localisation", false)
     onToggled: expanded => {
         root.setPanelSection("donnees_localisation", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("donnees_localisation")

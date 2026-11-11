@@ -37,7 +37,7 @@ CollapsibleSection {
     title: "Disposition du clavier"
     summary: root.kbLayout
     icon: "keyboard"
-    expanded: root.sectionOpen("clavier_disposition", true)
+    expanded: root.sectionOpen("clavier_disposition", false)
     onToggled: expanded => {
         root.setPanelSection("clavier_disposition", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("clavier_disposition")

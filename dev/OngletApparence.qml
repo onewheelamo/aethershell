@@ -52,7 +52,7 @@ CollapsibleSection {
     title: "Thème & Palette"
     summary: String(Theme.paletteEtiquettes[Theme.activeTheme] || Theme.activeTheme)
     icon: "palette"
-    expanded: root.sectionOpen("esthetique_theme", true)
+    expanded: root.sectionOpen("esthetique_theme", false)
     onToggled: expanded => {
         root.setPanelSection("esthetique_theme", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_theme")

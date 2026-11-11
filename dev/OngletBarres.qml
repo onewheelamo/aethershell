@@ -45,7 +45,7 @@ CollapsibleSection {
     title: "Barre principale & Barres annexes"
     summary: "Hauteur " + Theme.barHeight + " · " + (root.barGapsTransparent ? "îlots transparents" : "capsule continue")
     icon: "monitor"
-    expanded: root.sectionOpen("quickshell_barres", true)
+    expanded: root.sectionOpen("quickshell_barres", false)
     onToggled: expanded => {
         root.setPanelSection("quickshell_barres", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_barres")
