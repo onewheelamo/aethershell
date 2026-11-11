@@ -1,0 +1,24 @@
+/* Flou derrière les fenêtres GTK4 — AetherShell.
+ *
+ * Depuis GTK 4.24, GTK crée l'objet Wayland `ext-background-effect-v1` pour
+ * **chaque** surface dès que le compositeur annonce le manager, et laisse la
+ * région de flou **vide**. Or une région vide veut dire « ne me floute pas » :
+ * Hyprland (≥ 0.56, Renderer.cpp) obéit, et plus aucune fenêtre GTK4 n'est
+ * floutée — Bazaar, ProtonVPN, Nautilus… — pendant que les autres le restent.
+ * Rien ne le signale : ni le journal, ni `decoration:blur`, et aucun
+ * `window_rule` ne peut forcer le flou d'une fenêtre qui l'a refusé.
+ *
+ * `backdrop-filter` fait déclarer une région non vide. L'intensité reste celle
+ * du compositeur (`decoration:blur:size` et `passes`) : ce fichier dit
+ * seulement *quelle* région flouter.
+ *
+ * Lu au **démarrage** d'une application : une fenêtre déjà ouverte garde son
+ * comportement. Amont : GTK #8344 (objet créé sans condition), correctif !10225
+ * (création paresseuse) — d'ici là, c'est le seul levier côté machine.
+ *
+ * `deploy.sh` copie ce fichier dans ~/.config/gtk-4.0/aethershell-flou.css et
+ * accroche l'`@import` au gtk.css de la session s'il n'y est pas déjà.
+ */
+window {
+  backdrop-filter: blur(20px);
+}

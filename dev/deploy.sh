@@ -1123,6 +1123,30 @@ deploy_ghostty_overrides() {
     fi
 }
 
+# Flou des fenêtres GTK4 → ~/.config/gtk-4.0/aethershell-flou.css.
+#
+# Depuis GTK 4.24, GTK déclare une région de flou **vide** pour chaque surface
+# (ext-background-effect-v1) : Hyprland lit cela comme « ne me floute pas » et
+# cesse de flouter toutes les fenêtres GTK4. Le fichier livré ne fait que
+# déclarer la région (`backdrop-filter`) ; l'intensité reste celle du
+# compositeur. Détail complet dans core/gtk4-flou.css.
+#
+# Le gtk.css de la session n'est **jamais réécrit** : on y ajoute un `@import`
+# s'il manque, une seule fois. Un fichier absent est créé vide.
+poser_flou_gtk4() {
+    local source="$DEV_DIR/core/gtk4-flou.css"
+    local dossier="$HOME/.config/gtk-4.0"
+    local css="$dossier/gtk.css"
+    [ -f "$source" ] || return 0
+    mkdir -p "$dossier"
+    cp -f "$source" "$dossier/aethershell-flou.css" || return 0
+    [ -f "$css" ] || : > "$css"
+    if ! grep -qF "aethershell-flou.css" "$css"; then
+        printf "\n@import 'aethershell-flou.css';\n" >> "$css"
+        echo "  ↪ flou GTK4 : @import ajouté à ~/.config/gtk-4.0/gtk.css"
+    fi
+}
+
 # Version déployée → $CORE_DIR/version.json.
 #
 # Le dossier cible n'est pas un dépôt git : déployé, le shell ne peut pas
@@ -1194,6 +1218,8 @@ deploy_new_env() {
     # Quelle version vient d'être posée : le dossier déployé n'est pas un dépôt
     # git, le panneau et core/maj_shell.py n'ont que ce fichier pour le savoir.
     ecrire_version_deployee
+    # Flou des fenêtres GTK4 (région `backdrop-filter` demandée au compositeur).
+    poser_flou_gtk4
     # Index des applications de la pilule spotlight : données de la machine,
     # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
     if [ -f "$CORE_DIR/app_index.py" ]; then
