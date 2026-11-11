@@ -18,17 +18,14 @@ Column {
     property var mainFlickable
 
     width: mainFlickable ? mainFlickable.width : 0
-    spacing: 11
 
-    // Tables que le panneau interroge (`tiroirDe` / `cibleDe`) : depuis le
-    // découpage il n'a plus ces ids à portée de main, et un id absent lève
-    // « ReferenceError: secTheme is not defined ».
     readonly property var sections: ({
         "esthetique_theme": secTheme,
         "esthetique_fonds": secFonds,
         "esthetique_aspect": secAspect,
         "quickshell_barre": secBarre
     })
+
     readonly property var cibles: ({
         "secTheme": secTheme,
         "matugenRow": matugenRow,
@@ -42,7 +39,8 @@ Column {
         "shellOpacityRow": shellOpacityRow,
         "blurRow": blurRow,
         "blurVariantRow": blurVariantRow,
-        "shellBlurRow": shellBlurRow
+        "shellBlurRow": shellBlurRow,
+        "secBarre": secBarre
     })
 
     // 1+2. Thème & Fond d'écran (jeux de couleurs, wallpaper, matugen, palette hex custom)
@@ -75,66 +73,66 @@ Column {
         spacing: 10
 
         Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Palettes disponibles :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
+anchors.verticalCenter: parent.verticalCenter
+text: "Palettes disponibles :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
         }
 
         Item {
-            width: Math.max(0, parent.width - 150 - btnInstallTheme.width - parent.spacing * 2)
-            height: 1
+width: Math.max(0, parent.width - 150 - btnInstallTheme.width - parent.spacing * 2)
+height: 1
         }
 
         // Bouton « Installer un thème » (.colors / archive)
         Rectangle {
-            id: btnInstallTheme
-            anchors.verticalCenter: parent.verticalCenter
-            width: rowInstallTheme.implicitWidth + 20
-            height: 28
-            radius: Theme.globalRadius
-            color: root.themeInstallBusy
-                   ? Qt.alpha(Theme.accent, 0.25)
-                   : (maInstallTheme.containsMouse ? Theme.accentMuted : Theme.accent)
+id: btnInstallTheme
+anchors.verticalCenter: parent.verticalCenter
+width: rowInstallTheme.implicitWidth + 20
+height: 28
+radius: Theme.globalRadius
+color: root.themeInstallBusy
+       ? Qt.alpha(Theme.accent, 0.25)
+       : (maInstallTheme.containsMouse ? Theme.accentMuted : Theme.accent)
 
-            Row {
-                id: rowInstallTheme
-                anchors.centerIn: parent
-                spacing: 6
+Row {
+    id: rowInstallTheme
+    anchors.centerIn: parent
+    spacing: 6
 
-                Icon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    glyph: "download"
-                    size: Math.round(Theme.iconSm * 0.8)
-                    color: Theme.bg
-                    opacityLevel: 1
-                }
+    Icon {
+        anchors.verticalCenter: parent.verticalCenter
+        glyph: "download"
+        size: Math.round(Theme.iconSm * 0.8)
+        color: Theme.bg
+        opacityLevel: 1
+    }
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.themeInstallBusy ? "Installation..." : "Installer un thème"
-                    color: Theme.bg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
-            }
+    Text {
+        anchors.verticalCenter: parent.verticalCenter
+        text: root.themeInstallBusy ? "Installation..." : "Installer un thème"
+        color: Theme.bg
+        font.pixelSize: Theme.textXs
+        font.bold: true
+    }
+}
 
-            MouseArea {
-                id: maInstallTheme
-                anchors.fill: parent
-                hoverEnabled: true
-                enabled: !root.themeInstallBusy
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    root.ouvrirSelecteurFichier(
-                        "install_theme_colors",
-                        "Installer un thème (.colors)",
-                        "~/Téléchargements",
-                        ["colors"],
-                        "palette"
-                    )
-                }
-            }
+MouseArea {
+    id: maInstallTheme
+    anchors.fill: parent
+    hoverEnabled: true
+    enabled: !root.themeInstallBusy
+    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    onClicked: {
+        root.ouvrirSelecteurFichier(
+            "install_theme_colors",
+            "Installer un thème (.colors)",
+            "~/Téléchargements",
+            ["colors"],
+            "palette"
+        )
+    }
+}
         }
     }
 
@@ -160,43 +158,43 @@ Flow {
         // couleurs KDE installés y sont importés au chargement du
         // panneau (`themes_scan.py --sync`), donc ils apparaissent ici.
         model: Theme.paletteNoms.length > 0 ? Theme.paletteNoms
-                                            : ["dynamic"]
+                                : ["dynamic"]
         Rectangle {
-            required property string modelData
-            readonly property bool isCurrent: Theme.activeTheme === modelData
-            // « kde-gruvboxdark » se lit « Gruvboxdark » : le préfixe
-            // dit d'où vient le thème, pas ce qu'il est.
-            readonly property string libelle: Theme.paletteEtiquettes[modelData]
-                                              || modelData.replace(/^kde-/, "")
+required property string modelData
+readonly property bool isCurrent: Theme.activeTheme === modelData
+// « kde-gruvboxdark » se lit « Gruvboxdark » : le préfixe
+// dit d'où vient le thème, pas ce qu'il est.
+readonly property string libelle: Theme.paletteEtiquettes[modelData]
+                                  || modelData.replace(/^kde-/, "")
 
-            width: 100
-            height: 32
-            radius: Theme.globalRadius
-            color: isCurrent ? Theme.accent : Theme.surfaceVariant
-            border.color: Theme.accent
-            border.width: isCurrent ? 1 : 0
+width: 100
+height: 32
+radius: Theme.globalRadius
+color: isCurrent ? Theme.accent : Theme.surfaceVariant
+border.color: Theme.accent
+border.width: isCurrent ? 1 : 0
 
-            Text {
-                anchors.centerIn: parent
-                width: parent.width - 12
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                text: parent.libelle
-                font.capitalization: Font.Capitalize
-                color: parent.isCurrent ? Theme.bg : Theme.fg
-                font.pixelSize: Theme.textSm
-                font.bold: parent.isCurrent
-            }
+Text {
+    anchors.centerIn: parent
+    width: parent.width - 12
+    horizontalAlignment: Text.AlignHCenter
+    elide: Text.ElideRight
+    text: parent.libelle
+    font.capitalization: Font.Capitalize
+    color: parent.isCurrent ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textSm
+    font.bold: parent.isCurrent
+}
 
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Quickshell.execDetached([
-                    "python3",
-                    Quickshell.shellPath("core/theme_manager.py"),
-                    parent.modelData
-                ])
-            }
+MouseArea {
+    anchors.fill: parent
+    cursorShape: Qt.PointingHandCursor
+    onClicked: Quickshell.execDetached([
+        "python3",
+        Quickshell.shellPath("core/theme_manager.py"),
+        parent.modelData
+    ])
+}
         }
     }
 }
@@ -222,38 +220,38 @@ Column {
         spacing: 10
 
     Repeater {
-                        model: [
-                            { id: "scheme-tonal-spot", label: "Doux" },
-                            { id: "scheme-vibrant", label: "Vif" },
-                            { id: "scheme-expressive", label: "Expressif" },
-                            { id: "scheme-neutral", label: "Neutre" },
-                            { id: "scheme-fruit-salad", label: "Fruité" },
-                            { id: "scheme-monochrome", label: "Mono" }
-                        ]
-                        Rectangle {
-                            required property var modelData
-                            readonly property bool active: root.matugenScheme === modelData.id
-                            width: 74; height: 24
-                            radius: Theme.globalRadius
-                            color: active ? Theme.accent : Theme.surfaceVariant
-                            Text {
-                                anchors.centerIn: parent
-                                text: parent.modelData.label
-                                color: parent.active ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: parent.active
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.matugenScheme = parent.modelData.id
-                                    root.runConfigCmd(["style", "matugen_scheme", parent.modelData.id])
-                                    Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
-                                }
-                            }
-                        }
+            model: [
+                { id: "scheme-tonal-spot", label: "Doux" },
+                { id: "scheme-vibrant", label: "Vif" },
+                { id: "scheme-expressive", label: "Expressif" },
+                { id: "scheme-neutral", label: "Neutre" },
+                { id: "scheme-fruit-salad", label: "Fruité" },
+                { id: "scheme-monochrome", label: "Mono" }
+            ]
+            Rectangle {
+                required property var modelData
+                readonly property bool active: root.matugenScheme === modelData.id
+                width: 74; height: 24
+                radius: Theme.globalRadius
+                color: active ? Theme.accent : Theme.surfaceVariant
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.modelData.label
+                    color: parent.active ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: parent.active
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.matugenScheme = parent.modelData.id
+                        root.runConfigCmd(["style", "matugen_scheme", parent.modelData.id])
+                        Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
                     }
+                }
+            }
+        }
     }
 }
 
@@ -276,40 +274,40 @@ Column {
         spacing: 10
 
     Repeater {
-                        model: [
-                            // Les libellés décrivent la saturation : Pastel = moins saturé (+0.8),
-                            // Max = plus saturé (-0.8).
-                            { v: 0.8, label: "Pastel" },
-                            { v: 0.6, label: "Doux-" },
-                            { v: 0.3, label: "Standard" },
-                            { v: 0.0, label: "Foncé+" },
-                            { v: -0.4, label: "Contrasté" },
-                            { v: -0.8, label: "Max" }
-                        ]
-                        Rectangle {
-                            required property var modelData
-                            readonly property bool active: Math.abs(root.matugenContrast - modelData.v) < 0.05
-                            width: 62; height: 24
-                            radius: Theme.globalRadius
-                            color: active ? Theme.accent : Theme.surfaceVariant
-                            Text {
-                                anchors.centerIn: parent
-                                text: parent.modelData.label
-                                color: parent.active ? Theme.bg : Theme.fg
-                                font.pixelSize: Theme.textXs
-                                font.bold: parent.active
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.matugenContrast = parent.modelData.v
-                                    root.runConfigCmd(["style", "matugen_contrast", String(parent.modelData.v)])
-                                    Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
-                                }
-                            }
-                        }
+            model: [
+                // Les libellés décrivent la saturation : Pastel = moins saturé (+0.8),
+                // Max = plus saturé (-0.8).
+                { v: 0.8, label: "Pastel" },
+                { v: 0.6, label: "Doux-" },
+                { v: 0.3, label: "Standard" },
+                { v: 0.0, label: "Foncé+" },
+                { v: -0.4, label: "Contrasté" },
+                { v: -0.8, label: "Max" }
+            ]
+            Rectangle {
+                required property var modelData
+                readonly property bool active: Math.abs(root.matugenContrast - modelData.v) < 0.05
+                width: 62; height: 24
+                radius: Theme.globalRadius
+                color: active ? Theme.accent : Theme.surfaceVariant
+                Text {
+                    anchors.centerIn: parent
+                    text: parent.modelData.label
+                    color: parent.active ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: parent.active
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.matugenContrast = parent.modelData.v
+                        root.runConfigCmd(["style", "matugen_contrast", String(parent.modelData.v)])
+                        Quickshell.execDetached(["bash", Quickshell.shellPath("core/generate_colors.sh")])
                     }
+                }
+            }
+        }
     }
 }
 Text {
@@ -327,101 +325,101 @@ Row {
 
     Repeater {
         model: [
-            { key: "bg", label: "Fond", col: Theme.bg },
-            { key: "surface", label: "Surface", col: Theme.surface },
-            { key: "surface_variant", label: "Variante", col: Theme.surfaceVariant },
-            { key: "fg", label: "Texte", col: Theme.fg },
-            { key: "accent", label: "Accent", col: Theme.accent },
-            { key: "accent_muted", label: "Second.", col: Theme.accentMuted },
-            { key: "warn", label: "Alerte", col: Theme.warn },
-            { key: "error", label: "Erreur", col: Theme.error }
+{ key: "bg", label: "Fond", col: Theme.bg },
+{ key: "surface", label: "Surface", col: Theme.surface },
+{ key: "surface_variant", label: "Variante", col: Theme.surfaceVariant },
+{ key: "fg", label: "Texte", col: Theme.fg },
+{ key: "accent", label: "Accent", col: Theme.accent },
+{ key: "accent_muted", label: "Second.", col: Theme.accentMuted },
+{ key: "warn", label: "Alerte", col: Theme.warn },
+{ key: "error", label: "Erreur", col: Theme.error }
         ]
 
         Column {
-            required property var modelData
-            spacing: 3
-            width: 56
+required property var modelData
+spacing: 3
+width: 56
 
-            Rectangle {
-                width: 52
-                height: 26
-                radius: Theme.globalRadius
-                color: parent.modelData.col
-                border.color: root.selectedColorKey === parent.modelData.key ? Theme.fg : Theme.surfaceVariant
-                border.width: root.selectedColorKey === parent.modelData.key ? 2 : 1
+Rectangle {
+    width: 52
+    height: 26
+    radius: Theme.globalRadius
+    color: parent.modelData.col
+    border.color: root.selectedColorKey === parent.modelData.key ? Theme.fg : Theme.surfaceVariant
+    border.width: root.selectedColorKey === parent.modelData.key ? 2 : 1
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.selectedColorKey = parent.parent.modelData.key
-                        hexInput.text = String(parent.parent.modelData.col)
-                    }
-                }
-            }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            root.selectedColorKey = parent.parent.modelData.key
+            hexInput.text = String(parent.parent.modelData.col)
+        }
+    }
+}
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: parent.modelData.label
-                color: Qt.alpha(Theme.fg, 0.8)
-                font.pixelSize: Theme.textXs
-            }
+Text {
+    anchors.horizontalCenter: parent.horizontalCenter
+    text: parent.modelData.label
+    color: Qt.alpha(Theme.fg, 0.8)
+    font.pixelSize: Theme.textXs
+}
         }
     }
 
 }
 
         Column {
-            spacing: 4
+spacing: 4
 
-            Text {
-                text: "Clé : " + root.selectedColorKey
-                color: Theme.accentMuted
-                font.pixelSize: Theme.textXs
-                font.bold: true
-            }
+Text {
+    text: "Clé : " + root.selectedColorKey
+    color: Theme.accentMuted
+    font.pixelSize: Theme.textXs
+    font.bold: true
+}
 
-            Row {
-                spacing: 4
-                Rectangle {
-                    width: 85
-                    height: 26
-                    color: Theme.bg
-                    radius: Theme.globalRadius
-                    border.color: Theme.accent
-                    border.width: 1
+Row {
+    spacing: 4
+    Rectangle {
+        width: 85
+        height: 26
+        color: Theme.bg
+        radius: Theme.globalRadius
+        border.color: Theme.accent
+        border.width: 1
 
-                    TextInput {
-                        id: hexInput
-                        anchors.fill: parent
-                        anchors.margins: 4
-                        verticalAlignment: TextInput.AlignVCenter
-                        text: "#b4befe"
-                        color: Theme.fg
-                        font.pixelSize: Theme.textXs
-                        onAccepted: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
-                    }
-                }
+        TextInput {
+            id: hexInput
+            anchors.fill: parent
+            anchors.margins: 4
+            verticalAlignment: TextInput.AlignVCenter
+            text: "#b4befe"
+            color: Theme.fg
+            font.pixelSize: Theme.textXs
+            onAccepted: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
+        }
+    }
 
-                Rectangle {
-                    width: 36
-                    height: 26
-                    radius: Theme.globalRadius
-                    color: Theme.accent
-                    Text {
-                        anchors.centerIn: parent
-                        text: "OK"
-                        color: Theme.bg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
-                    }
-                }
-            }
+    Rectangle {
+        width: 36
+        height: 26
+        radius: Theme.globalRadius
+        color: Theme.accent
+        Text {
+            anchors.centerIn: parent
+            text: "OK"
+            color: Theme.bg
+            font.pixelSize: Theme.textXs
+            font.bold: true
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.runConfigCmd(["style", root.selectedColorKey, hexInput.text])
+        }
+    }
+}
         }
 }
 
@@ -452,27 +450,27 @@ Row {
         border.width: 1
 
         Text {
-            anchors.centerIn: parent
-            text: "Fonds d'écran"
-            color: wpPickMa.containsMouse ? Theme.bg : Theme.fg
-            font.pixelSize: Theme.textXs
-            font.bold: true
+anchors.centerIn: parent
+text: "Fonds d'écran"
+color: wpPickMa.containsMouse ? Theme.bg : Theme.fg
+font.pixelSize: Theme.textXs
+font.bold: true
         }
 
         MouseArea {
-            id: wpPickMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                Theme.configPanelVisible = false
-                Quickshell.execDetached([
-                    "quickshell",
-                    "-n",
-                    "-p",
-                    Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"
-                ])
-            }
+id: wpPickMa
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: {
+    Theme.configPanelVisible = false
+    Quickshell.execDetached([
+        "quickshell",
+        "-n",
+        "-p",
+        Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"
+    ])
+}
         }
     }
 
@@ -505,18 +503,18 @@ Row {
         clip: true
 
         TextInput {
-            id: wpDirInput
-            anchors.fill: parent
-            anchors.margins: 6
-            verticalAlignment: TextInput.AlignVCenter
-            text: Theme.wallpaperDir || root.wallpaperDir
-            color: Theme.fg
-            font.pixelSize: Theme.textXs
-            onAccepted: {
-                if (wpDirInput.text.trim() !== "") {
-                    root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
-                }
-            }
+id: wpDirInput
+anchors.fill: parent
+anchors.margins: 6
+verticalAlignment: TextInput.AlignVCenter
+text: Theme.wallpaperDir || root.wallpaperDir
+color: Theme.fg
+font.pixelSize: Theme.textXs
+onAccepted: {
+    if (wpDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
+    }
+}
         }
     }
 
@@ -531,31 +529,31 @@ Row {
         border.width: 1
 
         Row {
-            anchors.centerIn: parent
-            spacing: 4
+anchors.centerIn: parent
+spacing: 4
 
-            Icon {
-                anchors.verticalCenter: parent.verticalCenter
-                glyph: "folder"
-                size: Math.round(Theme.iconSm * 0.78)
-                color: wpPickMa2.containsMouse ? Theme.bg : Theme.accent
-                opacityLevel: 1
-            }
+Icon {
+    anchors.verticalCenter: parent.verticalCenter
+    glyph: "folder"
+    size: Math.round(Theme.iconSm * 0.78)
+    color: wpPickMa2.containsMouse ? Theme.bg : Theme.accent
+    opacityLevel: 1
+}
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Choisir"
-                color: wpPickMa2.containsMouse ? Theme.bg : Theme.fg
-                font.pixelSize: Theme.textXs
-            }
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Choisir"
+    color: wpPickMa2.containsMouse ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textXs
+}
         }
 
         MouseArea {
-            id: wpPickMa2
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.ouvrirSelecteur("wallpaper_dir", "Dossier des fonds d'écran", wpDirInput.text)
+id: wpPickMa2
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: root.ouvrirSelecteur("wallpaper_dir", "Dossier des fonds d'écran", wpDirInput.text)
         }
     }
 
@@ -566,23 +564,23 @@ Row {
         color: wpDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
 
         Text {
-            anchors.centerIn: parent
-            text: "Appliquer"
-            color: Theme.bg
-            font.pixelSize: Theme.textXs
-            font.bold: true
+anchors.centerIn: parent
+text: "Appliquer"
+color: Theme.bg
+font.pixelSize: Theme.textXs
+font.bold: true
         }
 
         MouseArea {
-            id: wpDirSaveMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                if (wpDirInput.text.trim() !== "") {
-                    root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
-                }
-            }
+id: wpDirSaveMa
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: {
+    if (wpDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "wallpaper_dir", wpDirInput.text.trim()])
+    }
+}
         }
     }
 }
@@ -614,18 +612,18 @@ Row {
         clip: true
 
         TextInput {
-            id: shotsDirInput
-            anchors.fill: parent
-            anchors.margins: 6
-            verticalAlignment: TextInput.AlignVCenter
-            text: Theme.screenshotsDir || root.screenshotsDir
-            color: Theme.fg
-            font.pixelSize: Theme.textXs
-            onAccepted: {
-                if (shotsDirInput.text.trim() !== "") {
-                    root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-                }
-            }
+id: shotsDirInput
+anchors.fill: parent
+anchors.margins: 6
+verticalAlignment: TextInput.AlignVCenter
+text: Theme.screenshotsDir || root.screenshotsDir
+color: Theme.fg
+font.pixelSize: Theme.textXs
+onAccepted: {
+    if (shotsDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+    }
+}
         }
     }
 
@@ -638,31 +636,31 @@ Row {
         border.width: 1
 
         Row {
-            anchors.centerIn: parent
-            spacing: 4
+anchors.centerIn: parent
+spacing: 4
 
-            Icon {
-                anchors.verticalCenter: parent.verticalCenter
-                glyph: "folder"
-                size: Math.round(Theme.iconSm * 0.78)
-                color: shotsPickMa2.containsMouse ? Theme.bg : Theme.accent
-                opacityLevel: 1
-            }
+Icon {
+    anchors.verticalCenter: parent.verticalCenter
+    glyph: "folder"
+    size: Math.round(Theme.iconSm * 0.78)
+    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.accent
+    opacityLevel: 1
+}
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Choisir"
-                color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
-                font.pixelSize: Theme.textXs
-            }
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Choisir"
+    color: shotsPickMa2.containsMouse ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textXs
+}
         }
 
         MouseArea {
-            id: shotsPickMa2
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.ouvrirSelecteur("screenshots_dir", "Dossier des captures d'écran", shotsDirInput.text)
+id: shotsPickMa2
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: root.ouvrirSelecteur("screenshots_dir", "Dossier des captures d'écran", shotsDirInput.text)
         }
     }
 
@@ -673,23 +671,23 @@ Row {
         color: shotsDirSaveMa.containsMouse ? Theme.accentMuted : Theme.accent
 
         Text {
-            anchors.centerIn: parent
-            text: "Appliquer"
-            color: Theme.bg
-            font.pixelSize: Theme.textXs
-            font.bold: true
+anchors.centerIn: parent
+text: "Appliquer"
+color: Theme.bg
+font.pixelSize: Theme.textXs
+font.bold: true
         }
 
         MouseArea {
-            id: shotsDirSaveMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                if (shotsDirInput.text.trim() !== "") {
-                    root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
-                }
-            }
+id: shotsDirSaveMa
+anchors.fill: parent
+hoverEnabled: true
+cursorShape: Qt.PointingHandCursor
+onClicked: {
+    if (shotsDirInput.text.trim() !== "") {
+        root.runConfigCmd(["style", "screenshots_dir", shotsDirInput.text.trim()])
+    }
+}
         }
     }
 }
@@ -716,18 +714,18 @@ Row {
         border.width: 1
 
         Text {
-            anchors.centerIn: parent
-            text: Theme.depthWallpaper ? "✓ Actif" : "✕ Désactivé"
-            color: Theme.depthWallpaper ? Theme.bg : Theme.fg
-            font.pixelSize: Theme.textXs
+anchors.centerIn: parent
+text: Theme.depthWallpaper ? "✓ Actif" : "✕ Désactivé"
+color: Theme.depthWallpaper ? Theme.bg : Theme.fg
+font.pixelSize: Theme.textXs
         }
 
         MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.runConfigCmd([
-                "style", "depth_wallpaper", Theme.depthWallpaper ? "false" : "true"
-            ])
+anchors.fill: parent
+cursorShape: Qt.PointingHandCursor
+onClicked: root.runConfigCmd([
+    "style", "depth_wallpaper", Theme.depthWallpaper ? "false" : "true"
+])
         }
     }
 }
@@ -759,19 +757,19 @@ Row {
         border.width: 1
 
         Text {
-            anchors.centerIn: parent
-            text: "Peindre à la main…"
-            color: Theme.fg
-            font.pixelSize: Theme.textXs
+anchors.centerIn: parent
+text: "Peindre à la main…"
+color: Theme.fg
+font.pixelSize: Theme.textXs
         }
 
         MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                Theme.masqueParallaxeVisible = true
-                Theme.configPanelVisible = false
-            }
+anchors.fill: parent
+cursorShape: Qt.PointingHandCursor
+onClicked: {
+    Theme.masqueParallaxeVisible = true
+    Theme.configPanelVisible = false
+}
         }
     }
 }
@@ -803,25 +801,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Gaps internes (in) :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Gaps internes (in) :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.gapsIn
-            minimumValue: 0
-            maximumValue: 30
-            stepSize: 1
-            suffix: " px"
-            onValueModified: newVal => {
-                root.gapsIn = newVal
-                root.runConfigCmd(["gaps", "gaps_in", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.gapsIn
+minimumValue: 0
+maximumValue: 30
+stepSize: 1
+suffix: " px"
+onValueModified: newVal => {
+    root.gapsIn = newVal
+    root.runConfigCmd(["gaps", "gaps_in", String(newVal)])
+}
         }
     }
 
@@ -831,25 +829,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Gaps externes (out) :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Gaps externes (out) :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.gapsOut
-            minimumValue: 0
-            maximumValue: 40
-            stepSize: 1
-            suffix: " px"
-            onValueModified: newVal => {
-                root.gapsOut = newVal
-                root.runConfigCmd(["gaps", "gaps_out", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.gapsOut
+minimumValue: 0
+maximumValue: 40
+stepSize: 1
+suffix: " px"
+onValueModified: newVal => {
+    root.gapsOut = newVal
+    root.runConfigCmd(["gaps", "gaps_out", String(newVal)])
+}
         }
     }
 
@@ -861,25 +859,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Bordures fenêtres :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Bordures fenêtres :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.borderSize
-            minimumValue: 0
-            maximumValue: 10
-            stepSize: 1
-            suffix: " px"
-            onValueModified: newVal => {
-                root.borderSize = newVal
-                root.runConfigCmd(["gaps", "border_size", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.borderSize
+minimumValue: 0
+maximumValue: 10
+stepSize: 1
+suffix: " px"
+onValueModified: newVal => {
+    root.borderSize = newVal
+    root.runConfigCmd(["gaps", "border_size", String(newVal)])
+}
         }
     }
 
@@ -891,25 +889,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Arrondis fenêtres :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Arrondis fenêtres :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.hyprRounding
-            minimumValue: 0
-            maximumValue: 35
-            stepSize: 1
-            suffix: " px"
-            onValueModified: newVal => {
-                root.hyprRounding = newVal
-                root.runConfigCmd(["style", "hypr_rounding", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.hyprRounding
+minimumValue: 0
+maximumValue: 35
+stepSize: 1
+suffix: " px"
+onValueModified: newVal => {
+    root.hyprRounding = newVal
+    root.runConfigCmd(["style", "hypr_rounding", String(newVal)])
+}
         }
     }
 
@@ -923,12 +921,12 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Forme des coins :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Forme des coins :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         // Stepper comme les bordures : clic ou molette au dixième. Le
@@ -938,22 +936,22 @@ Grid {
         // 2 trace un arc. Au-delà, Hyprland ne fait qu'arrondir la
         // transition vers le carré, ce qui ne se distingue pas à l'œil.
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.hyprRoundingPower
-            minimumValue: 1
-            maximumValue: 2
-            stepSize: 1
-            onValueModified: newVal => {
-                root.hyprRoundingPower = newVal
-                root.runConfigCmd(["style", "hypr_rounding_power", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.hyprRoundingPower
+minimumValue: 1
+maximumValue: 2
+stepSize: 1
+onValueModified: newVal => {
+    root.hyprRoundingPower = newVal
+    root.runConfigCmd(["style", "hypr_rounding_power", String(newVal)])
+}
         }
 
         Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.hyprRoundingPower < 2 ? "coupe droite" : "cercle"
-            color: Qt.alpha(Theme.fg, 0.55)
-            font.pixelSize: Theme.textXs
+anchors.verticalCenter: parent.verticalCenter
+text: root.hyprRoundingPower < 2 ? "coupe droite" : "cercle"
+color: Qt.alpha(Theme.fg, 0.55)
+font.pixelSize: Theme.textXs
         }
     }
 
@@ -965,25 +963,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Pas redimensionnement :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Pas redimensionnement :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Slider {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.resizeStep
-            minimumValue: 5
-            maximumValue: 50
-            stepSize: 5
-            suffix: " px"
-            onValueModified: newVal => {
-                root.resizeStep = newVal
-                root.runConfigCmd(["style", "resize_step", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.resizeStep
+minimumValue: 5
+maximumValue: 50
+stepSize: 5
+suffix: " px"
+onValueModified: newVal => {
+    root.resizeStep = newVal
+    root.runConfigCmd(["style", "resize_step", String(newVal)])
+}
         }
     }
 
@@ -1003,25 +1001,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Opacité fenêtres :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Opacité fenêtres :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: Theme.globalOpacity
-            minimumValue: 0.30
-            maximumValue: 1.00
-            stepSize: 0.05
-            decimals: 2
-            textFormatter: v => Math.round(v * 100) + " %"
-            onValueModified: newVal => {
-                root.runConfigCmd(["style", "global_opacity", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: Theme.globalOpacity
+minimumValue: 0.30
+maximumValue: 1.00
+stepSize: 0.05
+decimals: 2
+textFormatter: v => Math.round(v * 100) + " %"
+onValueModified: newVal => {
+    root.runConfigCmd(["style", "global_opacity", String(newVal)])
+}
         }
     }
 
@@ -1033,25 +1031,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Taille du flou :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Taille du flou :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Slider {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.blurSize
-            minimumValue: 1
-            maximumValue: 20
-            stepSize: 1
-            suffix: " px"
-            onValueModified: newVal => {
-                root.blurSize = newVal
-                root.runConfigCmd(["style", "blur_size", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.blurSize
+minimumValue: 1
+maximumValue: 20
+stepSize: 1
+suffix: " px"
+onValueModified: newVal => {
+    root.blurSize = newVal
+    root.runConfigCmd(["style", "blur_size", String(newVal)])
+}
         }
     }
 
@@ -1061,24 +1059,24 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Passes du flou :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Passes du flou :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Stepper {
-            anchors.verticalCenter: parent.verticalCenter
-            value: root.blurPasses
-            minimumValue: 1
-            maximumValue: 8
-            stepSize: 1
-            onValueModified: newVal => {
-                root.blurPasses = newVal
-                root.runConfigCmd(["style", "blur_passes", String(newVal)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: root.blurPasses
+minimumValue: 1
+maximumValue: 8
+stepSize: 1
+onValueModified: newVal => {
+    root.blurPasses = newVal
+    root.runConfigCmd(["style", "blur_passes", String(newVal)])
+}
         }
     }
 
@@ -1090,48 +1088,48 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Variante du flou :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Variante du flou :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Flow {
-            width: parent.width - 168
-            spacing: 6
+width: parent.width - 168
+spacing: 6
 
-            Repeater {
-                model: root.blurVariantChoix
+Repeater {
+    model: root.blurVariantChoix
 
-                Rectangle {
-                    required property var modelData
-                    width: etatFlou.implicitWidth + 16
-                    height: 26
-                    radius: Theme.globalRadius
-                    color: root.blurVariant === modelData.key ? Theme.accent : Theme.surfaceVariant
-                    border.width: 1
-                    border.color: Theme.accent
+    Rectangle {
+        required property var modelData
+        width: etatFlou.implicitWidth + 16
+        height: 26
+        radius: Theme.globalRadius
+        color: root.blurVariant === modelData.key ? Theme.accent : Theme.surfaceVariant
+        border.width: 1
+        border.color: Theme.accent
 
-                    Text {
-                        id: etatFlou
-                        anchors.centerIn: parent
-                        text: modelData.label
-                        color: root.blurVariant === modelData.key ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
-                    }
+        Text {
+            id: etatFlou
+            anchors.centerIn: parent
+            text: modelData.label
+            color: root.blurVariant === modelData.key ? Theme.bg : Theme.fg
+            font.pixelSize: Theme.textXs
+        }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            root.blurVariant = modelData.key
-                            root.runConfigCmd(["style", "blur_variant", modelData.key])
-                        }
-                    }
-                }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                root.blurVariant = modelData.key
+                root.runConfigCmd(["style", "blur_variant", modelData.key])
             }
+        }
+    }
+}
         }
     }
 
@@ -1141,39 +1139,39 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Flou Hyprland :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Flou Hyprland :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 160
-            height: 26
-            radius: Theme.globalRadius
-            color: root.blurEnabled ? Theme.accent : Theme.surfaceVariant
-            border.color: Theme.accent
-            border.width: 1
+anchors.verticalCenter: parent.verticalCenter
+width: 160
+height: 26
+radius: Theme.globalRadius
+color: root.blurEnabled ? Theme.accent : Theme.surfaceVariant
+border.color: Theme.accent
+border.width: 1
 
-            Text {
-                anchors.centerIn: parent
-                text: root.blurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
-                color: root.blurEnabled ? Theme.bg : Theme.fg
-                font.pixelSize: Theme.textXs
-                font.bold: true
-            }
+Text {
+    anchors.centerIn: parent
+    text: root.blurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
+    color: root.blurEnabled ? Theme.bg : Theme.fg
+    font.pixelSize: Theme.textXs
+    font.bold: true
+}
 
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.blurEnabled = !root.blurEnabled
-                    root.runConfigCmd(["style", "blur_enabled", root.blurEnabled ? "true" : "false"])
-                }
-            }
+MouseArea {
+    anchors.fill: parent
+    cursorShape: Qt.PointingHandCursor
+    onClicked: {
+        root.blurEnabled = !root.blurEnabled
+        root.runConfigCmd(["style", "blur_enabled", root.blurEnabled ? "true" : "false"])
+    }
+}
         }
     }
 
@@ -1185,25 +1183,25 @@ Grid {
         spacing: 8
 
         Text {
-            width: 160
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Flou interne :"
-            color: Theme.fg
-            font.pixelSize: Theme.textSm
-            elide: Text.ElideRight
+width: 160
+anchors.verticalCenter: parent.verticalCenter
+text: "Flou interne :"
+color: Theme.fg
+font.pixelSize: Theme.textSm
+elide: Text.ElideRight
         }
 
         Slider {
-            anchors.verticalCenter: parent.verticalCenter
-            value: Math.round(Theme.shellFlouInterne * 100)
-            minimumValue: 0
-            maximumValue: 100
-            stepSize: 5
-            suffix: " %"
-            onValueModified: newVal => {
-                Theme.shellFlouInterne = newVal / 100
-                root.runConfigCmd(["style", "shell_flou_interne", String(newVal / 100)])
-            }
+anchors.verticalCenter: parent.verticalCenter
+value: Math.round(Theme.shellFlouInterne * 100)
+minimumValue: 0
+maximumValue: 100
+stepSize: 5
+suffix: " %"
+onValueModified: newVal => {
+    Theme.shellFlouInterne = newVal / 100
+    root.runConfigCmd(["style", "shell_flou_interne", String(newVal / 100)])
+}
         }
     }
 
@@ -1216,42 +1214,42 @@ Grid {
         spacing: 6
 
         Row {
-            width: parent.width
-            spacing: 8
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Masque de profondeur :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Masque de profondeur :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 160
-                height: 26
-                radius: Theme.globalRadius
-                color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
+Rectangle {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 160
+    height: 26
+    radius: Theme.globalRadius
+    color: Theme.depthMask ? Theme.accent : Theme.surfaceVariant
+    border.color: Theme.accent
+    border.width: 1
 
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
-                    color: Theme.depthMask ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                }
+    Text {
+        anchors.centerIn: parent
+        text: Theme.depthMask ? "✓ Actif" : "✕ Désactivé"
+        color: Theme.depthMask ? Theme.bg : Theme.fg
+        font.pixelSize: Theme.textXs
+    }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd([
-                        "style", "depth_mask", Theme.depthMask ? "false" : "true"
-                    ])
-                }
-            }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.runConfigCmd([
+            "style", "depth_mask", Theme.depthMask ? "false" : "true"
+        ])
+    }
+}
         }
 
         // Rendu du masque : un calque plein écran (copie du fond) ou un
@@ -1259,45 +1257,45 @@ Grid {
         // second est plus juste — rien ne se décale — mais rend chaque
         // widget hors écran à chaque changement.
         Row {
-            width: parent.width
-            spacing: 8
+width: parent.width
+spacing: 8
 
-            // Aligne « seuil » sous le libellé, pas sous le bouton.
-            Item { width: 160; height: 1 }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "seuil"
-                color: Qt.alpha(Theme.fg, 0.6)
-                font.pixelSize: Theme.text2xs
-            }
-            Stepper {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 84
-                value: Theme.depthMaskSeuil
-                minimumValue: 0
-                maximumValue: 100
-                stepSize: 5
-                onValueModified: newVal => root.runConfigCmd([
-                    "style", "depth_mask_seuil", String(newVal)
-                ])
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "adouci"
-                color: Qt.alpha(Theme.fg, 0.6)
-                font.pixelSize: Theme.text2xs
-            }
-            Stepper {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 84
-                value: Theme.depthMaskAdouci
-                minimumValue: 0
-                maximumValue: 50
-                stepSize: 1
-                onValueModified: newVal => root.runConfigCmd([
-                    "style", "depth_mask_adouci", String(newVal)
-                ])
-            }
+// Aligne « seuil » sous le libellé, pas sous le bouton.
+Item { width: 160; height: 1 }
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "seuil"
+    color: Qt.alpha(Theme.fg, 0.6)
+    font.pixelSize: Theme.text2xs
+}
+Stepper {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 84
+    value: Theme.depthMaskSeuil
+    minimumValue: 0
+    maximumValue: 100
+    stepSize: 5
+    onValueModified: newVal => root.runConfigCmd([
+        "style", "depth_mask_seuil", String(newVal)
+    ])
+}
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "adouci"
+    color: Qt.alpha(Theme.fg, 0.6)
+    font.pixelSize: Theme.text2xs
+}
+Stepper {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 84
+    value: Theme.depthMaskAdouci
+    minimumValue: 0
+    maximumValue: 50
+    stepSize: 1
+    onValueModified: newVal => root.runConfigCmd([
+        "style", "depth_mask_adouci", String(newVal)
+    ])
+}
         }
     }
 
@@ -1328,104 +1326,104 @@ CollapsibleSection {
 
         // 12. Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
         Row {
-            id: shellOpacityRow   // ancre de recherche
-            objectName: "shellOpacityRow"
-            width: parent.width
-            spacing: 8
+id: shellOpacityRow   // ancre de recherche
+objectName: "shellOpacityRow"
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Opacité surfaces :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Opacité surfaces :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Stepper {
-                anchors.verticalCenter: parent.verticalCenter
-                value: Theme.shellOpacity
-                minimumValue: 0.20
-                maximumValue: 1.00
-                stepSize: 0.05
-                decimals: 2
-                textFormatter: v => Math.round(v * 100) + " %"
-                onValueModified: newVal => {
-                    root.runConfigCmd(["style", "shell_opacity", String(newVal)])
-                }
-            }
+Stepper {
+    anchors.verticalCenter: parent.verticalCenter
+    value: Theme.shellOpacity
+    minimumValue: 0.20
+    maximumValue: 1.00
+    stepSize: 0.05
+    decimals: 2
+    textFormatter: v => Math.round(v * 100) + " %"
+    onValueModified: newVal => {
+        root.runConfigCmd(["style", "shell_opacity", String(newVal)])
+    }
+}
         }
 
         // 13. Flou des surfaces du shell (barre, OSD, panneau)
         Row {
-            id: shellBlurRow   // ancre de recherche
-            objectName: "shellBlurRow"
-            width: parent.width
-            spacing: 8
+id: shellBlurRow   // ancre de recherche
+objectName: "shellBlurRow"
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Flou Quickshell :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Flou Quickshell :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 160
-                height: 26
-                radius: Theme.globalRadius
-                color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
+Rectangle {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 160
+    height: 26
+    radius: Theme.globalRadius
+    color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
+    border.color: Theme.accent
+    border.width: 1
 
-                Text {
-                    anchors.centerIn: parent
-                    text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
-                    color: root.shellBlurEnabled ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
+    Text {
+        anchors.centerIn: parent
+        text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
+        color: root.shellBlurEnabled ? Theme.bg : Theme.fg
+        font.pixelSize: Theme.textXs
+        font.bold: true
+    }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.shellBlurEnabled = !root.shellBlurEnabled
-                        root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
-                    }
-                }
-            }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            root.shellBlurEnabled = !root.shellBlurEnabled
+            root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
+        }
+    }
+}
         }
 
         // 14. Seuil de transparence (ignore_alpha)
         Row {
-            width: parent.width
-            spacing: 8
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Seuil de flou :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Seuil de flou :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Stepper {
-                anchors.verticalCenter: parent.verticalCenter
-                value: root.shellBlurAlpha
-                minimumValue: 0.05
-                maximumValue: 0.9
-                stepSize: 0.05
-                decimals: 2
-                onValueModified: newVal => {
-                    root.shellBlurAlpha = newVal
-                    root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
-                }
-            }
+Stepper {
+    anchors.verticalCenter: parent.verticalCenter
+    value: root.shellBlurAlpha
+    minimumValue: 0.05
+    maximumValue: 0.9
+    stepSize: 0.05
+    decimals: 2
+    onValueModified: newVal => {
+        root.shellBlurAlpha = newVal
+        root.runConfigCmd(["style", "shell_blur_alpha", String(newVal)])
+    }
+}
         }
 
         // 14b. Bordure de la barre du haut (capsule fusionnée et îlots)
@@ -1437,91 +1435,91 @@ CollapsibleSection {
 
         // 15. Flou derrière les popups ancrés (calendrier, wifi, volume…)
         Row {
-            width: parent.width
-            spacing: 8
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Flou des popups :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Flou des popups :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 160
-                height: 26
-                radius: Theme.globalRadius
-                color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
+Rectangle {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 160
+    height: 26
+    radius: Theme.globalRadius
+    color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
+    border.color: Theme.accent
+    border.width: 1
 
-                Text {
-                    anchors.centerIn: parent
-                    text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
-                    color: root.shellBlurPopups ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
+    Text {
+        anchors.centerIn: parent
+        text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
+        color: root.shellBlurPopups ? Theme.bg : Theme.fg
+        font.pixelSize: Theme.textXs
+        font.bold: true
+    }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.shellBlurPopups = !root.shellBlurPopups
-                        root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
-                    }
-                }
-            }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            root.shellBlurPopups = !root.shellBlurPopups
+            root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
+        }
+    }
+}
         }
         // 16. Effet d'accordéon : un seul tiroir ouvert par onglet.
         Row {
-            width: parent.width
-            spacing: 8
+width: parent.width
+spacing: 8
 
-            Text {
-                width: 160
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Effet d'accordéon :"
-                color: Theme.fg
-                font.pixelSize: Theme.textSm
-                elide: Text.ElideRight
-            }
+Text {
+    width: 160
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Effet d'accordéon :"
+    color: Theme.fg
+    font.pixelSize: Theme.textSm
+    elide: Text.ElideRight
+}
 
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 160
-                height: 26
-                radius: Theme.globalRadius
-                color: Theme.panelAccordion ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
+Rectangle {
+    anchors.verticalCenter: parent.verticalCenter
+    width: 160
+    height: 26
+    radius: Theme.globalRadius
+    color: Theme.panelAccordion ? Theme.accent : Theme.surfaceVariant
+    border.color: Theme.accent
+    border.width: 1
 
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.panelAccordion ? "✓ Actif" : "✕ Désactivé"
-                    color: Theme.panelAccordion ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
+    Text {
+        anchors.centerIn: parent
+        text: Theme.panelAccordion ? "✓ Actif" : "✕ Désactivé"
+        color: Theme.panelAccordion ? Theme.bg : Theme.fg
+        font.pixelSize: Theme.textXs
+        font.bold: true
+    }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd([
-                        "style", "panel_accordion", Theme.panelAccordion ? "false" : "true"
-                    ])
-                }
-            }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.runConfigCmd([
+            "style", "panel_accordion", Theme.panelAccordion ? "false" : "true"
+        ])
+    }
+}
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Actif : ouvrir un tiroir referme les autres du même onglet."
-                color: Qt.alpha(Theme.fg, 0.5)
-                font.pixelSize: Theme.text2xs
-            }
+Text {
+    anchors.verticalCenter: parent.verticalCenter
+    text: "Actif : ouvrir un tiroir referme les autres du même onglet."
+    color: Qt.alpha(Theme.fg, 0.5)
+    font.pixelSize: Theme.text2xs
+}
         }
     }   // fin Grid shell
 
@@ -1529,9 +1527,9 @@ CollapsibleSection {
         width: parent.width
         topPadding: 8
         text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
-            + "L'opacité et le flou des fenêtres se règlent ici, section « Fenêtres Hyprland ». "
-            + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
-            + "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
++ "L'opacité et le flou des fenêtres se règlent ici, section « Fenêtres Hyprland ». "
++ "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
++ "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
         color: Theme.fg
         opacity: 0.6
         font.pixelSize: Theme.textXs
