@@ -13,6 +13,12 @@
             "text_scale": 100,
             "options": {}
         },
+        "minimise": {
+            "ile": "haut:debut",
+            "ordre": 15,
+            "text_scale": 100,
+            "options": {}
+        },
         "horloge": {
             "ile": "haut:milieu",
             "ordre": 10,
