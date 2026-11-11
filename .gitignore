@@ -26,6 +26,11 @@ dev/sddm/out/
 # référence de conception du panneau, de la barre et du greeter.
 dev/sddm/preview/
 
+# Les rendus PNG des maquettes (captures de l'interface) : les maquettes
+# HTML restent versionnees, leurs images non. Le 2026-11-11 elles sont sorties
+# du depot et l'historique a ete purge.
+dev/mockups/*.png
+
 # Sensitive information
 dev/core/secrets.json
 secrets.json
