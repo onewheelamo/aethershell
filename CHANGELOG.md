@@ -5,6 +5,38 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.1.5] — 2026-11-11
+
+### Ajouté
+
+- **Le catalogue des schémas de couleurs est lu sur le disque ([`dev/core/themes_scan.py`](dev/core/themes_scan.py), [`dev/core/veille_themes.sh`](dev/core/veille_themes.sh))** :
+  - `core/palette_cache.json` porte le catalogue (nom, palette convertie, chemin), recopié des deux dossiers à chaque scan — `~/.local/share/color-schemes` et `/usr/share/color-schemes`. C'est une donnée dérivée, ignorée par git.
+  - Lecture **unique au démarrage du shell** ([`dev/main.qml`](dev/main.qml)), puis relecture dès qu'un `.colors` apparaît ou disparaît dans l'un des deux dossiers : veille `inotifywait` (un processus, sans sondage), avec un regroupement de 600 ms sur les rafales de fichiers.
+  - Un schéma supprimé du disque disparaît de la liste du panneau ; l'étiquette de l'active reste.
+  - Option `--signature` (empreinte du disque, sans écrire) pour le diagnostic.
+- **Lanceur de service ([`dev/core/lancer_quickshell.sh`](dev/core/lancer_quickshell.sh))** : vérifie que le socket Wayland existe avant de lancer Qt, attend jusqu'à 20 s (`QS_ATTENTE_S`), retrouve la signature Hyprland la plus récente, et sort en 1 sans rien démarrer si la session ne vient pas.
+- `inotifywait` ajouté aux dépendances ([`dev/dependencies.txt`](dev/dependencies.txt)).
+
+### Modifié
+
+- **`style_vars.json` ne porte plus le catalogue** ([`dev/core/style_vars.json`](dev/core/style_vars.json)) : 99 palettes → 3. Le fichier suivi perd 1 250 lignes ; la migration est automatique au premier démarrage (le scan purge les palettes importées et n'en garde aucune, sauf l'active).
+- **Une seule palette importée vit dans la configuration, et seulement à l'activation** : [`dev/core/themes_scan.py`](dev/core/themes_scan.py) (`activer`) recopie ses couleurs dans `palette[active_theme]`, ce qui laisse rofi, le terminal, SDDM et `Theme` inchangés.
+- [`dev/core/theme_manager.py`](dev/core/theme_manager.py) délègue à `themes_scan.activer` — il testait `theme_name in palette` et aurait refusé tous les thèmes du disque.
+- [`dev/core/installer_theme_couleur.py`](dev/core/installer_theme_couleur.py) active le schéma du fichier choisi (et non le dernier ajouté, désigné par l'ordre alphabétique) et publie ses avertissements au lieu de conclure « installé avec succès ».
+- [`dev/dependencies.txt`](dev/dependencies.txt) n'existe plus qu'en un exemplaire, à la racine du dépôt ; [`dev/deploy.sh`](dev/deploy.sh) le copie **après** l'élagage (sinon il était archivé puis reposé à chaque déploiement) et l'élagage l'épargne.
+- [`dev/core/generate_terminal_theme.py`](dev/core/generate_terminal_theme.py) écrit les configurations de terminal de façon atomique (`.tmp` + `os.replace`) : un arrêt au mauvais moment ne laisse plus un `user.conf` ou un `alacritty.toml` tronqué.
+- [`dev/core/lien_systeme.py`](dev/core/lien_systeme.py) écrit `helpers.rc`, `mimeapps.list` et les aides exo atomiquement, et conserve le préambule de commentaires de `mimeapps.list`.
+- [`dev/CHANGELOG.md`](CHANGELOG.md) ne nomme plus le parc : 25 liens `file:///home/<utilisateur>/...` sont devenus des chemins relatifs.
+
+### Corrigé
+
+- **Boucle de crash au démarrage du shell** ([`dev/systemd/quickshell.service`](dev/systemd/quickshell.service)) : `WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"` ne couvrait que la variable absente, pas une valeur périmée — Qt démarrait sans platform plugin et abandonnait (SIGABRT), relancé toutes les 3 s. Mesuré : 194 coredumps en sept jours, compteur de relance à 42. Le lanceur vérifie le socket et l'unité borne les relances (`StartLimitBurst=5`, `StartLimitIntervalSec=90`).
+- **`FlouFond` réclamait un `fond-ecran.png` absent** ([`dev/FlouFond.qml`](dev/FlouFond.qml)) : 13 avertissements « Cannot open » par minute, en continu, pour tout fond sans profil de profondeur. Une tentative par surface, puis un drapeau (`ecranIndisponible`) — il reste un avertissement par surface au démarrage, aucun ensuite.
+- **Les couleurs du terminal n'atteignaient pas les nouveaux shells** : `~/.bashrc.d/10-aethershell-theme.sh` était écrit mais jamais sourcé (Arch ne lit pas `~/.bashrc.d`). La ligne est posée une fois dans `~/.bashrc`, gardée par un marqueur.
+- **Diffusion des couleurs dans les terminaux ouverts** : elle n'écrit plus dans un pty dont le premier plan n'est pas un shell (un programme plein écran voyait les séquences s'intercaler dans son flux), et publie le compte des ignorés.
+- **`alacritty.toml` pouvait ne plus démarrer** : la clé `import` était insérée même quand la section `[general]` en portait déjà une, ce que TOML refuse. Le tableau est complété, un import multiligne n'est pas réécrit, et le résultat est validé par `tomllib` avant écriture.
+- **Lanceur de terminal (exo / « Ouvrir un terminal ici »)** : le dossier est passé entre guillemets (mesuré : « Mes Docs » arrivait coupé en deux arguments sur foot et konsole) ; le gabarit printf de xterm — cassé par son apostrophe interne, le binaire ne recevait **aucun** argument — disparaît, xterm héritant du `cd`.
+
 ## [0.1.4] — 2026-11-10
 
 ### Ajouté
