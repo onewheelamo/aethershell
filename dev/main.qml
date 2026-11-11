@@ -277,10 +277,11 @@ Item {
         // La surface doit contenir la barre **et** sa marge extérieure, sinon la
         // pilule est rognée par le bas de la surface dès que la marge dépasse.
         // Les deux constantes valaient pour une marge de 8 px (8 + 6 et 8 + 2) :
-        // elles suivent maintenant `Theme.gutter` (réglage `bar_gaps_out`).
-        implicitHeight: barContainer.height + Theme.gutter + 6
+        // elles suivent la marge **verticale** (`bar_gaps_out_v`) — le haut de
+        // l'écran n'a que faire de la marge latérale.
+        implicitHeight: barContainer.height + Theme.gutterV + 6
         exclusionMode: ExclusionMode.Auto
-        exclusiveZone: barContainer.height + Theme.gutter + 2
+        exclusiveZone: barContainer.height + Theme.gutterV + 2
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Top
         // Le panneau réseau est celui de l'applet « reseau » depuis la mise en
@@ -298,9 +299,9 @@ Item {
                 top: parent.top
                 left: parent.left
                 right: parent.right
-                topMargin: Theme.gutter
-                leftMargin: Theme.gutter
-                rightMargin: Theme.gutter
+                topMargin: Theme.gutterV
+                leftMargin: Theme.gutterH
+                rightMargin: Theme.gutterH
             }
             height: Theme.barHeight
             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -652,7 +653,7 @@ Item {
             width: 740
             // Hauteur bornée : le panneau flotte au centre au lieu de coller à
             // la barre et au bas de l'écran.
-            height: Math.min(parent.height - Theme.barHeight - Theme.gutter * 4, 900)
+            height: Math.min(parent.height - Theme.barHeight - Theme.gutterV * 4, 900)
             active: charge
             source: "config_panel.qml"
         }
@@ -732,17 +733,18 @@ Item {
             bottom: !atTop
             left: true
         }
-        // La barre occupe y 8..44 : une capsule en haut commence 8 px plus bas.
-        margins.top: atTop ? Theme.barHeight + Theme.gutter * 2 : 0
+        // La barre occupe y (marge)..(marge + hauteur) : une capsule en haut
+        // commence une marge verticale plus bas.
+        margins.top: atTop ? Theme.barHeight + Theme.gutterV * 2 : 0
         // Barre du bas affichée : la capsule remonte de 20 px pour ne pas s'y
         // coller. Les zones réservées ne la décalent pas — elle est sur la couche
         // `Bottom`, positionnée par ses marges.
         margins.bottom: atTop ? 0
-            : Theme.barHeight + Theme.gutter + (Theme.barBottomVisible ? 20 : 0)
+            : Theme.barHeight + Theme.gutterV + (Theme.barBottomVisible ? 20 : 0)
         margins.left: atCentre
             ? Math.round(((screen ? screen.width : 1920) - restWidth) / 2)
-            : (atLeft ? Theme.gutter
-                      : (screen ? screen.width : 1920) - restWidth - Theme.gutter)
+            : (atLeft ? Theme.gutterH
+                      : (screen ? screen.width : 1920) - restWidth - Theme.gutterH)
         implicitWidth: restWidth
         implicitHeight: 62
         exclusionMode: ExclusionMode.Ignore

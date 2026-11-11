@@ -133,12 +133,14 @@ QtObject {
     readonly property int space3: 12
     readonly property int space4: 16
     readonly property int padH: 12     // padding horizontal interne d'une île
-    // Marge extérieure des quatre barres : l'écart entre la surface de la barre
-    // et le bord de l'écran. Réglable dans le panneau (clé `bar_gaps_out`, 0-32) ;
-    // 8 est le défaut d'une machine neuve. Les barres annexes, la hauteur de la
-    // surface de la barre du haut et la zone qu'elle réserve aux fenêtres
-    // (`exclusiveZone`, dans main.qml) se dérivent toutes de cette valeur.
-    property int gutter: 8
+    // Marge extérieure des quatre barres, en deux axes indépendants : latéral
+    // (gauche/droite) et haut/bas. Réglables dans le panneau (clés
+    // `bar_gaps_out_h` et `bar_gaps_out_v`, 0-32) ; 8 est le défaut d'une machine
+    // neuve. Les barres annexes, la hauteur de la surface de la barre du haut et
+    // la zone qu'elle réserve aux fenêtres (`exclusiveZone`, dans main.qml) se
+    // dérivent de ces deux valeurs.
+    property int gutterH: 8
+    property int gutterV: 8
     // Largeur d'une barre latérale. Égale à la hauteur de barre par défaut, donc
     // une bande aussi fine que la barre est haute. C'est **le** réglage à
     // augmenter pour caser un peu plus de texte dans une colonne : `bar_extra`,
@@ -505,7 +507,13 @@ QtObject {
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
         if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
-        if (typeof data.bar_gaps_out === "number") root.gutter = Math.max(0, Math.min(32, Math.round(data.bar_gaps_out)))
+        // Les deux axes, avec l'ancienne clé `bar_gaps_out` en repli : une
+        // machine qui n'a pas encore été réglée garde exactement son aspect.
+        const margeOut = (typeof data.bar_gaps_out === "number") ? data.bar_gaps_out : 8
+        root.gutterH = Math.round(Math.max(0, Math.min(32,
+            typeof data.bar_gaps_out_h === "number" ? data.bar_gaps_out_h : margeOut)))
+        root.gutterV = Math.round(Math.max(0, Math.min(32,
+            typeof data.bar_gaps_out_v === "number" ? data.bar_gaps_out_v : margeOut)))
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
         if (typeof data.widgets_locked === "boolean") root.widgetsLocked = data.widgets_locked

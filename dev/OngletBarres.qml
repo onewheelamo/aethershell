@@ -32,7 +32,8 @@ Column {
     readonly property var cibles: ({
         "roundingIslandRow": roundingIslandRow,
         "barHeightRow": barHeightRow,
-        "barGapsOutRow": barGapsOutRow,
+        "barGapsOutHRow": barGapsOutHRow,
+        "barGapsOutVRow": barGapsOutVRow,
         "barGapsRow": barGapsRow,
         "secVisualiseur": secVisualiseur,
         "secApplets": secApplets,
@@ -71,7 +72,7 @@ CollapsibleSection {
     id: secBarres
     objectName: "secBarres"
     title: "Barres du shell"
-    summary: "Hauteur " + Theme.barHeight + " · gaps " + Theme.gutter + " · " + (root.barGapsTransparent ? "îlots transparents" : "capsule continue")
+    summary: "Hauteur " + Theme.barHeight + " · gaps " + Theme.gutterH + "/" + Theme.gutterV + " · " + (root.barGapsTransparent ? "îlots transparents" : "capsule continue")
     icon: "monitor"
     expanded: root.sectionOpen("quickshell_barres", false)
     onToggled: expanded => {
@@ -175,19 +176,18 @@ CollapsibleSection {
         }
 
     }
-        // 7. Marge extérieure (gaps out) : l'écart entre la barre et le bord de
-        // l'écran. Les quatre barres suivent ce réglage, et la surface de la
-        // barre du haut grandit avec lui.
+        // 7. Marges extérieures : deux axes indépendants — les côtés et le
+        // haut/bas ne se règlent pas ensemble.
         Row {
-            id: barGapsOutRow   // ancre de recherche
-            objectName: "barGapsOutRow"
+            id: barGapsOutHRow   // ancre de recherche
+            objectName: "barGapsOutHRow"
             width: parent.width
             spacing: 8
 
             Text {
                 width: 160
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Gaps extérieurs :"
+                text: "Gaps latéraux :"
                 color: Theme.fg
                 font.pixelSize: Theme.textSm
                 elide: Text.ElideRight
@@ -195,13 +195,40 @@ CollapsibleSection {
 
             Slider {
                 anchors.verticalCenter: parent.verticalCenter
-                value: Theme.gutter
+                value: Theme.gutterH
                 minimumValue: 0
                 maximumValue: 32
                 stepSize: 1
                 suffix: " px"
                 onValueModified: newVal => {
-                    root.runConfigCmd(["style", "bar_gaps_out", String(newVal)])
+                    root.runConfigCmd(["style", "bar_gaps_out_h", String(newVal)])
+                }
+            }
+        }
+        Row {
+            id: barGapsOutVRow   // ancre de recherche
+            objectName: "barGapsOutVRow"
+            width: parent.width
+            spacing: 8
+
+            Text {
+                width: 160
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Gaps haut/bas :"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+            }
+
+            Slider {
+                anchors.verticalCenter: parent.verticalCenter
+                value: Theme.gutterV
+                minimumValue: 0
+                maximumValue: 32
+                stepSize: 1
+                suffix: " px"
+                onValueModified: newVal => {
+                    root.runConfigCmd(["style", "bar_gaps_out_v", String(newVal)])
                 }
             }
         }

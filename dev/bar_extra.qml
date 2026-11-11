@@ -24,7 +24,11 @@ PanelWindow {
                                  : (cote === "cote-gauche" ? Theme.barLeftVisible
                                                            : Theme.barRightVisible)
 
-    readonly property int ecart: Math.round(Theme.gutter)
+    // Deux marges indépendantes (réglage `bar_gaps_out_h` / `_v`) : une barre
+    // du bas s'écarte latéralement de la marge horizontale et du bord bas de la
+    // verticale ; une barre de côté, l'inverse.
+    readonly property int ecartH: Math.round(Theme.gutterH)
+    readonly property int ecartV: Math.round(Theme.gutterV)
     readonly property int rembourrage: Math.round(Theme.space3)
 
     // Une barre allumée s'affiche, même vide : sans ça, l'interrupteur du panneau
@@ -43,10 +47,10 @@ PanelWindow {
     anchors.left: verticale ? aGauche : true
     anchors.right: verticale ? !aGauche : true
 
-    margins.top: verticale ? ecart : 0
-    margins.bottom: ecart
-    margins.left: ecart
-    margins.right: ecart
+    margins.top: verticale ? ecartV : 0
+    margins.bottom: ecartV
+    margins.left: ecartH
+    margins.right: ecartH
 
     implicitWidth: verticale ? Theme.barSideWidth : 0
     implicitHeight: Theme.barHeight
@@ -56,7 +60,9 @@ PanelWindow {
     // voit comme un panneau flottant. `Normal` dit explicitement « je réserve ma
     // bande ». La zone est constante, jamais dérivée d'une taille encore nulle.
     exclusionMode: ExclusionMode.Normal
-    exclusiveZone: visible ? Theme.barHeight + ecart : 0
+    // La bande réservée suit l'axe qui la porte : horizontale pour une barre de
+    // côté, verticale pour celle du bas.
+    exclusiveZone: visible ? Theme.barHeight + (verticale ? ecartH : ecartV) : 0
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "shell-bar-" + cote
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
