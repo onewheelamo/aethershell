@@ -480,7 +480,7 @@ QtObject {
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
-        if (typeof data.shell_flou_taille === "number") root.shellFlouTaille = Math.max(8, Math.min(96, data.shell_flou_taille))
+        if (typeof data.shell_flou_taille === "number") root.shellFlouTaille = Math.max(1, Math.min(96, data.shell_flou_taille))
         if (typeof data.shell_flou_passes === "number") root.shellFlouPasses = Math.max(1, Math.min(8, data.shell_flou_passes))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
         if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion

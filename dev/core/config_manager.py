@@ -760,8 +760,9 @@ def update_style_var(key, value):
         # Rayon du flou des surfaces (le `blurMax` de MultiEffect, en pixels).
         # Hyprland ne sait pas régler size/passes par couche : le verre interne
         # est le seul endroit où « taille » et « passes » peuvent différer de
-        # ceux des fenêtres.
-        data[key] = max(8, min(96, int(float(value))))
+        # ceux des fenêtres. Plancher à 1 : en dessous de 8 px le flou reste
+        # lisible et c'est là qu'on distingue les petits rayons.
+        data[key] = max(1, min(96, int(float(value))))
     elif key == "shell_flou_passes":
         data[key] = max(1, min(8, int(float(value))))
     elif key == "bar_border":

@@ -130,8 +130,7 @@ Item {
 
         Rectangle {
             id: carte
-        anchors.fill: parent
-            // Remplit la fenêtre : c'est elle qui porte la taille.
+            anchors.fill: parent
 
 
             radius: root.rayonCarte
@@ -199,7 +198,7 @@ Item {
 
                         Row {
                             id: filtreRow
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             spacing: 5
                             Icon {
                                 anchors.verticalCenter: parent.verticalCenter
@@ -246,7 +245,7 @@ Item {
                         border.width: 1
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "↑"
                             color: Theme.accent
                             font.pixelSize: Theme.textSm
@@ -384,7 +383,7 @@ Item {
                                     visible: est_dossier
 
                                     Icon {
-                                        // Remplit la fenêtre : c'est elle qui porte la taille.
+                                        anchors.centerIn: parent
                                         glyph: "chevron-right"
                                         size: Math.round(Theme.iconSm * 0.7)
                                         color: Qt.alpha(Theme.fg, 0.3)
@@ -422,7 +421,7 @@ Item {
                     }
 
                     Text {
-                        // Remplit la fenêtre : c'est elle qui porte la taille.
+                        anchors.centerIn: parent
                         visible: liste.count === 0
                         text: root.erreur !== "" ? root.erreur : "Aucun dossier ni fichier correspondant"
                         color: Qt.alpha(Theme.fg, 0.5)
@@ -476,7 +475,7 @@ Item {
                         border.width: 1
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "Annuler"
                             color: Theme.fg
                             font.pixelSize: Theme.textXs
@@ -502,7 +501,7 @@ Item {
                         opacity: actif ? 1.0 : 0.45
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "Choisir"
                             color: parent.actif ? Theme.bg : Qt.alpha(Theme.fg, 0.6)
                             font.pixelSize: Theme.textXs

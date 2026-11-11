@@ -111,8 +111,7 @@ Item {
 
         Rectangle {
             id: carte
-        anchors.fill: parent
-            // Remplit la fenêtre : c'est elle qui porte la taille.
+            anchors.fill: parent
 
 
             radius: root.rayonCarte
@@ -181,7 +180,7 @@ Item {
                         border.width: 1
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "↑"
                             color: Theme.accent
                             font.pixelSize: Theme.textSm
@@ -305,7 +304,7 @@ Item {
                     }
 
                     Text {
-                        // Remplit la fenêtre : c'est elle qui porte la taille.
+                        anchors.centerIn: parent
                         visible: liste.count === 0
                         text: root.erreur !== "" ? root.erreur : "Aucun sous-dossier"
                         color: Qt.alpha(Theme.fg, 0.5)
@@ -330,7 +329,7 @@ Item {
                         border.width: 1
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "Annuler"
                             color: Theme.fg
                             font.pixelSize: Theme.textXs
@@ -352,7 +351,7 @@ Item {
                         color: choisirMa.containsMouse ? Theme.accentMuted : Theme.accent
 
                         Text {
-                            // Remplit la fenêtre : c'est elle qui porte la taille.
+                            anchors.centerIn: parent
                             text: "Choisir"
                             color: Theme.bg
                             font.pixelSize: Theme.textXs

@@ -1561,9 +1561,9 @@ onValueModified: newVal => {
         Stepper {
             anchors.verticalCenter: parent.verticalCenter
             value: Theme.shellFlouTaille
-            minimumValue: 8
+            minimumValue: 1
             maximumValue: 96
-            stepSize: 4
+            stepSize: 1
             decimals: 0
             textFormatter: v => v + " px"
             onValueModified: newVal => {
