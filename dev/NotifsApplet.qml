@@ -429,10 +429,15 @@ Item {
                                 Behavior on color { ColorAnimation { duration: 120 } }
 
                                 // Liseré d'application : 2 px, franc sur la carte la
-                                // plus récente, effacé sur les anciennes.
+                                // plus récente, effacé sur les anciennes. Il s'arrête
+                                // avant les arrondis de la carte (retrait = Theme.globalRadius
+                                // en haut/bas) et porte son propre rayon pour éviter les
+                                // angles vifs aux bouts.
                                 Rectangle {
                                     width: 2
-                                    height: parent.height
+                                    height: parent.height - Theme.globalRadius * 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: Theme.globalRadius
                                     color: Qt.alpha(Theme.accent, index === 0 ? 0.95 : 0.35)
                                 }
 
