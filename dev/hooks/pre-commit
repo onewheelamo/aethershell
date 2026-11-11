@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refuse les fichiers qui ne doivent jamais entrer dans l'historique.
+# Refuse un commit qui casse une règle du dépôt, depuis n'importe quelle machine.
 #
 # `.gitignore` ne suffit pas : `git add -f` passe outre, et un `git commit -a`
 # après un force-add ne redemande rien. Ce crochet est le dernier rempart, et il
@@ -7,24 +7,35 @@
 #
 # Piège vérifié : si `core.hooksPath` pointe vers un dossier absent (dépôt qui
 # n'a pas encore tiré ce fichier), git ne dit rien et laisse passer le commit.
-# Installer ne suffit donc pas : vérifier que ce fichier existe après le clone.
+# Installer ne suffit donc pas : `deploy.sh` repose la configuration et vérifie
+# que ce fichier est bien là.
 #
 # Ce qui est refusé :
-#   sync.sh, dev/sync.sh      outils de synchronisation locaux : les publier
-#                             reviendrait à laisser quelqu'un pousser à ta place
-#   core/secrets.json         identifiants Proxmox et clés d'API, en clair
+#   dev/core/secrets.json     identifiants Proxmox et clés d'API, en clair
 #   *.upstream                copies de réconciliation de deploy.sh, locales
+#   sync.sh, dev/sync.sh      outils de synchronisation entre machines
+#   dev/mockups/              maquettes et rendus PNG, purgés de l'historique
+#   dev/sddm/preview/         aperçus du greeter, purgés eux aussi
+#   puis `core/neutralite.py` : nom d'utilisateur, dossier personnel et nom de
+#   machine n'ont rien à faire dans un dépôt qui s'installe chez d'autres.
+#
+# Contournement volontaire : `git commit --no-verify`.
 set -euo pipefail
 
 INTERDITS=(
-    '^core/secrets\.json$'
+    '^dev/core/secrets\.json$'
+    '^secrets\.json$'
     '\.upstream$'
+    '(^|/)sync\.sh$'
+    '^dev/mockups/'
+    '^dev/sddm/preview/'
 )
 
 stagies=$(git diff --cached --name-only --diff-filter=ACMR)
 [ -n "$stagies" ] || exit 0
 
 refuses=""
+
 while IFS= read -r fichier; do
     for motif in "${INTERDITS[@]}"; do
         if printf '%s' "$fichier" | grep -qE "$motif"; then
@@ -40,4 +51,19 @@ if [ -n "$refuses" ]; then
     echo "   Retire-les de l'index : git restore --staged <fichier>" >&2
     exit 1
 fi
+
+# Neutralité : le dépôt ne doit nommer personne. Le contrôle lit les fichiers
+# suivis, donc il juge aussi ce qui est déjà en place, pas seulement le commit.
+racine=$(git rev-parse --show-toplevel)
+for chemin in "$racine/dev/core/neutralite.py" "$racine/core/neutralite.py"; do
+    if [ -f "$chemin" ]; then
+        if ! sortie=$(cd "$racine" && python3 "$chemin" 2>&1); then
+            echo "⛔ Commit refusé : le dépôt doit rester neutre." >&2
+            printf '%s\n' "$sortie" | sed 's/^/   /' >&2
+            exit 1
+        fi
+        break
+    fi
+done
+
 exit 0

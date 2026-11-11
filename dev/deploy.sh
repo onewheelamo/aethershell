@@ -616,6 +616,33 @@ compute_diff_stats() {
     (diff -u "$src" "$dst" 2>/dev/null || true) | awk '/^\+[^+]/ {add++} /^-[^-]/ {del++} END {printf "+%d / -%d", add, del}'
 }
 
+# ── Crochets git : le dernier rempart avant un commit ───────────────────────
+# `.gitignore` écarte les maquettes et les états locaux, mais `git add -f` passe
+# outre. Le crochet versionné (`dev/hooks/pre-commit`) refuse les chemins
+# interdits et vérifie la neutralité du dépôt. Il ne sert que si `core.hooksPath`
+# pointe dessus — une configuration qui ne suit pas le clone, d'où ce passage à
+# chaque déploiement, sur chaque machine.
+installer_crochets_git() {
+    local racine
+    racine="$(git -C "$DEV_DIR" rev-parse --show-toplevel 2>/dev/null)" || return 0
+    [ -f "$racine/dev/hooks/pre-commit" ] || return 0
+    chmod +x "$racine/dev/hooks/pre-commit" 2>/dev/null || true
+
+    if [ "$(git -C "$racine" config --get core.hooksPath 2>/dev/null)" != "dev/hooks" ]; then
+        git -C "$racine" config core.hooksPath dev/hooks
+        echo "  ↪ crochets git installés (core.hooksPath = dev/hooks)"
+    fi
+
+    # Un hooksPath qui pointe dans le vide ne dit rien et laisse tout passer :
+    # c'est le piège que le crochet documente. On le vérifie donc, pas seulement
+    # la configuration.
+    local pose
+    pose="$(git -C "$racine" config --get core.hooksPath 2>/dev/null)"
+    if [ ! -x "$racine/${pose:-.git/hooks}/pre-commit" ]; then
+        echo "  ⚠️  crochets git inopérants : ${pose:-.git/hooks}/pre-commit absent ou non exécutable"
+    fi
+}
+
 # ── Neutralité : ni nom d'utilisateur ni nom de machine en dur ──────────────
 # Le dépôt doit s'installer chez quelqu'un d'autre. `core/neutralite.py` lit les
 # fichiers suivis et cherche le nom de la personne qui lance le déploiement, son
@@ -1254,6 +1281,8 @@ deploy_new_env() {
         done
         systemctl --user daemon-reload 2>/dev/null || true
     fi
+
+    installer_crochets_git
 
     "$CORE_DIR/generate_rofi_theme.sh"
 
