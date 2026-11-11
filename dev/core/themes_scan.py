@@ -1,34 +1,46 @@
 #!/usr/bin/env python3
-"""Thèmes de couleurs installés : lire les schémas KDE et les proposer au shell.
+"""Schémas de couleurs installés : les lire sur le disque, pas les recopier ici.
 
-Le panneau listait trois noms en dur (`dynamic`, `tokyo-night`, `catppuccin`),
-alors que les schémas de couleurs KDE déjà installés — Gruvbox, Nord, Dracula,
-Breeze… — sont exactement ce qu'il faut : un fichier INI `.colors` par thème,
-dans `~/.local/share/color-schemes` ou `/usr/share/color-schemes`.
+Deux dossiers peuvent porter un schéma KDE (un fichier INI `.colors`) :
+`~/.local/share/color-schemes` (ce que le panneau installe) et
+`/usr/share/color-schemes` (ce que la distribution livre). Ce sont eux qui font
+foi : un schéma supprimé du disque n'a rien à faire dans la liste du panneau.
 
-Ce script les lit, les convertit dans la forme de `palette` de
-`style_vars.json` (bg, fg, accent, accent_muted, surface, surface_variant,
-error, warn, info, success) et les y ajoute. Le panneau n'a plus qu'à lister
-les clés de `palette`.
+D'où deux niveaux, et c'est la raison d'être de ce fichier :
+
+  • `palette_cache.json` — le **catalogue**, recopié du disque à chaque scan
+    (nom, palette convertie, chemin). Donnée dérivée : elle se jette et se refait,
+    elle ne va pas dans le dépôt.
+  • `style_vars.json` — la **configuration** : la palette active seulement, plus
+    les palettes écrites à la main (`dynamic`, `tokyo-night`, `catppuccin`). Le
+    panneau n'y ajoute plus soixante schémas à chaque ouverture.
+
+Une palette importée n'est écrite dans `style_vars.json` qu'au moment où on
+l'active : tout ce qui lit `palette[active_theme]` (rofi, terminal, SDDM, Theme)
+continue de fonctionner sans rien savoir du cache.
 
 CLI :
-    themes_scan.py --list            un schéma par ligne : <slug>\t<nom>
+    themes_scan.py --list            un schéma par ligne : <slug>\\t<nom>
     themes_scan.py --json            dictionnaire complet des schémas détectés
-    themes_scan.py --sync            ajoute à `palette` ceux qui manquent
-    themes_scan.py --import <slug>   ajoute ce schéma et l'active
+    themes_scan.py --sync            relit le disque, retire les schémas disparus
+    themes_scan.py --import <slug>   active ce schéma (copie sa palette au besoin)
+    themes_scan.py --signature       empreinte du disque (diagnostic, sans écrire)
 """
 import argparse
 import configparser
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 STYLE_FILE = BASE_DIR / "style_vars.json"
+CACHE_FILE = BASE_DIR / "palette_cache.json"
 ROFI_GEN = BASE_DIR / "generate_rofi_theme.sh"
 
 DOSSIERS = [Path.home() / ".local" / "share" / "color-schemes",
@@ -51,8 +63,8 @@ SECTION = {
 
 
 def slug(chemin):
-    """Nom de fichier utilisable en clé de palette : `Gruvbox.colors` → gruvbox."""
-    base = unicodedata.normalize("NFD", chemin.stem.lower())
+    """Nom de fichier utilisable en clé de palette : `Gruvbox.colors` → kde-gruvbox."""
+    base = unicodedata.normalize("NFD", Path(chemin).stem.lower())
     base = "".join(c for c in base if unicodedata.category(c) != "Mn")
     base = re.sub(r"[^a-z0-9]+", "-", base).strip("-")
     return "kde-" + (base or "sans-nom")
@@ -106,7 +118,7 @@ def lire(chemin):
     if "fond" not in couleurs or "texte" not in couleurs:
         return None
 
-    nom = cfg.get("General", "Name", fallback="").strip() or chemin.stem
+    nom = cfg.get("General", "Name", fallback="").strip() or Path(chemin).stem
     palette = {
         "bg": couleurs["fond"],
         "fg": couleurs["texte"],
@@ -123,7 +135,11 @@ def lire(chemin):
 
 
 def detecter():
-    """Tous les schémas lisibles, indexés par slug. Un doublon de nom : le premier gagne."""
+    """Tous les schémas lisibles, indexés par slug. Un doublon de nom : le premier gagne.
+
+    `~/.local` passe avant `/usr` : ce que l'utilisateur a installé l'emporte sur
+    ce que la distribution livre sous le même nom.
+    """
     trouves = {}
     for dossier in DOSSIERS:
         if not dossier.is_dir():
@@ -138,68 +154,143 @@ def detecter():
     return trouves
 
 
-def style():
-    if not STYLE_FILE.is_file():
-        sys.exit("style_vars.json introuvable : %s" % STYLE_FILE)
-    return json.loads(STYLE_FILE.read_text(encoding="utf-8"))
+def empreinte(detectes):
+    """Empreinte de ce que le disque propose : nom, mtime et taille de chaque schéma.
+
+    Elle évite de réécrire le catalogue pour rien, et distingue un schéma nouveau
+    d'un schéma simplement relu.
+    """
+    h = hashlib.sha256()
+    for cle in sorted(detectes):
+        p = Path(detectes[cle]["fichier"])
+        try:
+            st = p.stat()
+            h.update(("%s|%d|%d\n" % (cle, st.st_mtime_ns, st.st_size)).encode("utf-8"))
+        except OSError:
+            h.update(("%s|absent\n" % cle).encode("utf-8"))
+    return h.hexdigest()
 
 
-def ecrire(donnees):
-    """Écrit en deux temps puis renomme : le shell relit ce fichier en continu.
+def lire_json(chemin, defaut):
+    try:
+        return json.loads(Path(chemin).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return defaut
+
+
+def ecrire_json(chemin, donnees):
+    """Écrit en deux temps puis renomme : le shell relit ces fichiers en continu.
 
     Une écriture directe laissait Theme lire un JSON tronqué (« Failed to parse
-    style_vars.json ») le temps de l'écriture — le panneau importe les thèmes au
-    moment où il s'ouvre, donc les deux se croisent à coup sûr.
+    style_vars.json ») le temps de l'écriture — le panneau relit ce fichier au
+    moment où il s'ouvre, donc les deux se croisent à coup sûr. Le nom temporaire
+    porte le pid : deux services qui écrivent en même temps ne se marchent pas
+    dessus.
     """
-    temporaire = STYLE_FILE.with_suffix(".json.tmp")
+    chemin = Path(chemin)
+    temporaire = chemin.with_name("%s.tmp.%d" % (chemin.name, os.getpid()))
     temporaire.write_text(json.dumps(donnees, ensure_ascii=False, indent=4) + "\n",
                           encoding="utf-8")
-    os.replace(temporaire, STYLE_FILE)
+    os.replace(temporaire, chemin)
 
 
 def synchroniser(silencieux=False):
-    """Ajoute à `palette` les schémas détectés qui n'y sont pas encore."""
-    donnees = style()
-    palette = donnees.setdefault("palette", {})
-    # Noms lisibles à part : la clé reste un identifiant, l'étiquette du panneau
-    # est le nom du schéma (« Catppuccin.Mocha » → « Catppuccin Mocha »).
-    noms = donnees.setdefault("palette_noms", {})
+    """Relit le disque : tient le catalogue à jour, retire les schémas disparus.
+
+    Idempotent et bon marché : un appel sans changement n'écrit rien. C'est ce qui
+    permet de l'appeler au démarrage, à la détection d'un nouveau `.colors` et à
+    l'ouverture du panneau sans se demander si c'est « déjà fait ».
+    """
     detectes = detecter()
-    ajoutes = []
-    for cle, entree in detectes.items():
-        if cle not in noms:
-            noms[cle] = entree["nom"].replace(".", " ").strip()
-        if cle in palette:
-            continue
-        palette[cle] = entree["palette"]
-        ajoutes.append({"cle": cle, "nom": entree["nom"]})
-    if ajoutes:
-        ecrire(donnees)
-        if not silencieux:
-            print(json.dumps({"ok": True, "ajoutes": ajoutes}, ensure_ascii=False))
-    elif not silencieux:
-        print(json.dumps({"ok": True, "ajoutes": []}, ensure_ascii=False))
+    sig = empreinte(detectes)
+    cache = lire_json(CACHE_FILE, {})
+    if cache.get("signature") != sig:
+        ecrire_json(CACHE_FILE, {
+            "version": 1,
+            "scan_at": datetime.now().isoformat(timespec="seconds"),
+            "signature": sig,
+            "dossiers": [str(d) for d in DOSSIERS],
+            "themes": detectes,
+        })
+
+    donnees = lire_json(STYLE_FILE, {})
+    actif = donnees.get("active_theme", "dynamic")
+    palette = donnees.setdefault("palette", {})
+    noms = donnees.setdefault("palette_noms", {})
+    modifie = False
+
+    # `style_vars.json` ne garde aucune palette importée, sauf celle qui est
+    # active : le reste est le catalogue, et il vit sur le disque.
+    for cle in [k for k in palette if k.startswith("kde-") and k != actif]:
+        palette.pop(cle, None)
+        noms.pop(cle, None)
+        modifie = True
+
+    # Les étiquettes du catalogue vivent dans le cache, pas ici : les recopier
+    # dans la configuration y ferait entrer les noms des schémas de cette machine.
+    # Seules les palettes maison gardent la leur.
+    for cle in [k for k in noms if k.startswith("kde-")
+                and k not in detectes and k != actif]:
+        noms.pop(cle, None)
+        modifie = True
+
+    if modifie:
+        ecrire_json(STYLE_FILE, donnees)
+
+    anciens = set((cache.get("themes") or {}).keys())
+    ajoutes = [{"cle": c, "nom": e["nom"]} for c, e in detectes.items() if c not in anciens]
+    if not silencieux:
+        print(json.dumps({"ok": True, "ajoutes": ajoutes,
+                          "themes": len(detectes)}, ensure_ascii=False))
     return ajoutes
 
 
-def activer(cle):
-    donnees = style()
-    if cle not in (donnees.get("palette") or {}):
-        sys.exit("thème inconnu : %s" % cle)
-    donnees["active_theme"] = cle
-    ecrire(donnees)
+def activer(cle, silencieux=False):
+    """Rend `cle` active, en recopiant sa palette dans style_vars.json au besoin."""
+    donnees = lire_json(STYLE_FILE, {})
+    palette = donnees.setdefault("palette", {})
+    modifie = False
+
+    if cle not in palette:
+        cache = lire_json(CACHE_FILE, {})
+        entree = (cache.get("themes") or {}).get(cle)
+        if entree is None:
+            # Le disque a pu changer depuis le dernier scan : on relit avant de
+            # refuser, sinon un schéma tout juste installé serait « inconnu ».
+            entree = detecter().get(cle)
+        if entree is None:
+            sys.exit("thème inconnu : %s" % cle)
+        palette[cle] = entree["palette"]
+        donnees.setdefault("palette_noms", {})[cle] = entree["nom"].replace(".", " ").strip()
+        modifie = True
+
+    # Une seule palette importée à la fois dans style_vars.json, y compris quand on
+    # revient à une palette maison : le catalogue reste sur le disque.
+    for k in [k for k in palette if k.startswith("kde-") and k != cle]:
+        palette.pop(k, None)
+        donnees.setdefault("palette_noms", {}).pop(k, None)
+        modifie = True
+
+    if donnees.get("active_theme") != cle:
+        donnees["active_theme"] = cle
+        modifie = True
+
+    if modifie:
+        ecrire_json(STYLE_FILE, donnees)
     if ROFI_GEN.is_file():
         subprocess.run(["bash", str(ROFI_GEN)], check=False)
-    print(json.dumps({"ok": True, "actif": cle}, ensure_ascii=False))
+    if not silencieux:
+        print(json.dumps({"ok": True, "actif": cle}, ensure_ascii=False))
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--list", action="store_true", help="un schéma par ligne")
     ap.add_argument("--json", action="store_true", help="dictionnaire des schémas")
-    ap.add_argument("--sync", action="store_true", help="ajouter les schémas manquants")
+    ap.add_argument("--sync", action="store_true", help="relire le disque, purger le disparu")
     ap.add_argument("--import", dest="importer", metavar="SLUG",
-                    help="ajouter ce schéma à la palette et l'activer")
+                    help="activer ce schéma")
+    ap.add_argument("--signature", action="store_true", help="empreinte du disque")
     a = ap.parse_args()
 
     if a.list:
@@ -209,11 +300,10 @@ def main():
     if a.json:
         print(json.dumps(detecter(), ensure_ascii=False, indent=1))
         return
+    if a.signature:
+        print(empreinte(detecter()))
+        return
     if a.importer:
-        ajoutes = synchroniser(silencieux=True)
-        connu = a.importer in detecter() or a.importer in (style().get("palette") or {})
-        if not connu:
-            sys.exit("schéma introuvable : %s" % a.importer)
         activer(a.importer)
         return
     if a.sync:

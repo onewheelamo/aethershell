@@ -15,6 +15,7 @@ quickshell
 hyprland
 rofi
 matugen
+inotifywait
 nmcli
 jq
 magick

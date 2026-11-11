@@ -111,37 +111,35 @@ def installer(chemin_str, activer=False):
         print(json.dumps(res, ensure_ascii=False))
         return 1
 
-    # Synchroniser les thèmes dans style_vars.json via themes_scan
+    # Le catalogue est tenu par themes_scan : il relit le disque et n'écrit dans
+    # style_vars.json que le nécessaire. Une erreur ici ne doit pas être avalée :
+    # le fichier est installé, mais il ne serait pas listé.
+    avertissements = []
     try:
         sys.path.insert(0, str(BASE_DIR))
         import themes_scan
-        ajoutes = themes_scan.synchroniser(silencieux=True)
     except Exception as e:
-        ajoutes = []
+        themes_scan = None
+        avertissements.append("themes_scan illisible : %s" % e)
+    if themes_scan is not None:
+        try:
+            themes_scan.synchroniser(silencieux=True)
+        except Exception as e:
+            avertissements.append("catalogue non relu : %s" % e)
 
     noms = [f.stem for f in fichiers_installes]
-    dernier_slug = None
-    if ajoutes:
-        dernier_slug = ajoutes[-1].get("cle")
 
+    # Le thème activé est celui du **fichier choisi**, pas « le dernier ajouté »
+    # au catalogue : une archive qui contient plusieurs schémas en activait un
+    # autre, désigné par l'ordre alphabétique.
     slug_a_activer = None
-    if activer:
-        if dernier_slug:
-            slug_a_activer = dernier_slug
-        else:
-            # Slug tiré du premier fichier installé
-            try:
-                import themes_scan
-                slug_a_activer = themes_scan.slug(fichiers_installes[0])
-            except Exception:
-                pass
-
-        if slug_a_activer:
-            try:
-                import themes_scan
-                themes_scan.activer(slug_a_activer)
-            except Exception:
-                pass
+    if activer and themes_scan is not None:
+        try:
+            slug_a_activer = themes_scan.slug(fichiers_installes[0])
+            themes_scan.activer(slug_a_activer, silencieux=True)
+        except (SystemExit, Exception) as e:
+            avertissements.append("non activé : %s" % e)
+            slug_a_activer = None
 
     titre_notif = "Thème installé" if len(noms) == 1 else "Thèmes installés"
     corps_notif = f"{', '.join(noms)} a été ajouté à votre liste de thèmes."
@@ -152,7 +150,11 @@ def installer(chemin_str, activer=False):
         "fichiers": [str(f) for f in fichiers_installes],
         "noms": noms,
         "actif": slug_a_activer,
-        "message": f"{len(noms)} thème(s) installé(s) avec succès !"
+        "avertissements": avertissements,
+        "message": (
+            f"{len(noms)} thème(s) installé(s) avec succès !" if not avertissements
+            else f"{len(noms)} thème(s) copié(s), avec réserve : " + " ; ".join(avertissements)
+        )
     }
     print(json.dumps(res, ensure_ascii=False))
     return 0

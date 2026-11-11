@@ -1,34 +1,31 @@
-import json
+#!/usr/bin/env python3
+"""Bascule de palette demandée par le panneau (et par l'IPC).
+
+Une seule implémentation, dans `themes_scan.activer` : c'est lui qui sait si la
+palette demandée est écrite à la main dans `style_vars.json` ou si elle vient du
+catalogue lu sur le disque, et qui recopie les couleurs de l'active dans la
+configuration (rofi, terminal et SDDM lisent tous `palette[active_theme]`).
+
+Ce script ne faisait que vérifier `theme_name in palette` : depuis que les
+schémas importés vivent dans le cache et non plus dans la configuration, il
+aurait refusé tous les thèmes du disque.
+"""
 import os
-import subprocess
 import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STYLE_FILE = os.path.join(BASE_DIR, "style_vars.json")
-ROFI_GEN_SCRIPT = os.path.join(BASE_DIR, "generate_rofi_theme.sh")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import themes_scan  # noqa: E402
 
 
 def set_theme(theme_name):
-    if not os.path.exists(STYLE_FILE):
-        print(f"Style file not found: {STYLE_FILE}")
-        return False
-
-    with open(STYLE_FILE, "r") as f:
-        data = json.load(f)
-
-    if theme_name in data.get("palette", {}):
-        data["active_theme"] = theme_name
-        with open(STYLE_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-        if os.path.exists(ROFI_GEN_SCRIPT):
-            subprocess.run(["bash", ROFI_GEN_SCRIPT], check=False)
-        print(f"Theme switched to {theme_name}")
+    try:
+        themes_scan.activer(theme_name)
         return True
-    else:
-        print(f"Theme '{theme_name}' not found in style_vars.json.")
+    except SystemExit as e:
+        print(e)
         return False
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        set_theme(sys.argv[1])
+        sys.exit(0 if set_theme(sys.argv[1]) else 1)

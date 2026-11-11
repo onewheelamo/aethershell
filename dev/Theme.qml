@@ -22,10 +22,23 @@ QtObject {
     // SECTION 1: GLOBAL STYLE & ONBOARDING VARIABLES
     // ────────────────────────────────────────────────────────────────────────
     property string activeTheme: "dynamic"
-    // Clés de `palette` dans style_vars.json, dans l'ordre du fichier, et leur
-    // étiquette lisible quand elle est connue (thèmes importés de KDE).
-    property var paletteNoms: []
-    property var paletteEtiquettes: ({})
+    // Palettes écrites dans style_vars.json : les trois faites à la main, plus
+    // celle qui est active quand elle vient d'un schéma du disque.
+    property var paletteLocales: []
+    // Catalogue des schémas lus sur le disque (core/palette_cache.json) : c'est
+    // lui qui porte la liste du panneau, pas la configuration.
+    property var paletteImportees: []
+    property var etiquettesLocales: ({})
+    property var etiquettesImportees: ({})
+    readonly property var paletteEtiquettes: Object.assign({}, etiquettesLocales, etiquettesImportees)
+    // Liste montrée par le panneau : les palettes maison d'abord, puis les
+    // schémas du disque, sans doublon (l'active importée figure dans les deux).
+    readonly property var paletteNoms: {
+        const vus = []
+        for (const k of root.paletteLocales) if (k && vus.indexOf(k) < 0) vus.push(k)
+        for (const k of root.paletteImportees) if (k && vus.indexOf(k) < 0) vus.push(k)
+        return vus
+    }
 
     // Relit style_vars.json : après un import de thèmes, ou un réglage écrit
     // par un service Python.
@@ -514,10 +527,10 @@ QtObject {
         }
 
         const palettes = data.palette || {}
-        // Noms des palettes disponibles : le panneau les liste au lieu de trois
-        // noms écrits en dur, et les schémas KDE importés apparaissent là.
-        root.paletteNoms = Object.keys(palettes)
-        root.paletteEtiquettes = data.palette_noms || ({})
+        // Les palettes de la configuration seulement : le catalogue des schémas
+        // du disque arrive par `catalogueFile`, juste en dessous.
+        root.paletteLocales = Object.keys(palettes)
+        root.etiquettesLocales = data.palette_noms || ({})
         const pal = palettes[root.activeTheme] || palettes["dynamic"] || {}
 
         if (pal.bg) root.bg = pal.bg
@@ -564,6 +577,34 @@ QtObject {
                     return
                 }
                 console.warn("Theme.qml: Failed to parse core/style_vars.json:", e)
+            }
+        }
+    }
+
+    // Catalogue des schémas de couleurs du disque (core/palette_cache.json), tenu
+    // par themes_scan.py. Le shell le relit quand il change : un `.colors` ajouté
+    // ou retiré des deux dossiers apparaît dans le panneau sans redémarrer.
+    function relireCatalogue() {
+        catalogueFile.reload()
+    }
+
+    property FileView catalogueFile: FileView {
+        path: Quickshell.shellPath("core/palette_cache.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const themes = (JSON.parse(text()) || {}).themes || ({})
+                const cles = Object.keys(themes).sort()
+                const labels = {}
+                for (const cle of cles) labels[cle] = themes[cle].nom || cle
+                root.paletteImportees = cles
+                root.etiquettesImportees = labels
+            } catch (e) {
+                // Absent au tout premier démarrage : le scan du shell le crée.
+                root.paletteImportees = []
+                root.etiquettesImportees = ({})
             }
         }
     }

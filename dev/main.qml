@@ -187,6 +187,38 @@ Item {
         command: ["python3", Quickshell.shellPath("core/lien_systeme.py"), "--appliquer"]
     }
 
+    // Schémas de couleurs : le catalogue est lu **une fois** au démarrage, puis
+    // relu quand un `.colors` apparaît ou disparaît dans l'un des deux dossiers
+    // de schémas (veille inotify, un seul processus, pas de sondage). Le panneau
+    // liste le catalogue — il ne le recopie pas dans la configuration.
+    Process {
+        id: themesScanProc
+        running: true
+        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        onExited: Theme.relireCatalogue()
+    }
+    Process {
+        id: themesVeilleProc
+        running: true
+        command: ["sh", Quickshell.shellPath("core/veille_themes.sh")]
+        stdout: SplitParser {
+            // La veille signale aussi l'ouverture des dossiers : seuls les
+            // événements qui nomment un `.colors` concernent le catalogue.
+            onRead: line => { if (line.indexOf(".colors") >= 0) themesDebounce.restart() }
+        }
+    }
+    // Un seul scan pour un dépôt de plusieurs fichiers : on attend que la rafale
+    // d'événements se calme.
+    Timer {
+        id: themesDebounce
+        interval: 600
+        repeat: false
+        onTriggered: {
+            if (themesScanProc.running) return
+            themesScanProc.running = true
+        }
+    }
+
     // Mode nuit : la plage horaire s'applique **d'ici**, pas depuis l'applet
     // luminosité. Un minuteur posé dans un applet s'arrête avec lui, et la
     // modularisation permet de retirer cet applet : l'automatisme disparaissait

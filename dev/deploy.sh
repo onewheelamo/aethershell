@@ -282,6 +282,9 @@ prune_target() {
             *.upstream) continue ;;
             hypridle.conf|hyprlock.conf|hyprlock-colors.conf|autostart_cmds.txt|.quickshell_managed) continue ;;
             secrets.json) continue ;;
+            # Copié après l'élagage depuis la racine du dépôt : sans cette ligne,
+            # chaque déploiement l'archivait puis le reposait.
+            dependencies.txt) continue ;;
             # Caches écrits à l'exécution par les services : absents du dépôt par
             # construction, donc jamais « obsolètes ». Sans cette ligne, chaque
             # déploiement les archivait et le shell repartait d'un cache vide.
@@ -1019,15 +1022,17 @@ deploy_new_env() {
 
     mkdir -p "$CORE_DIR"
     copy_dir_files "$DEV_DIR/core" "$CORE_DIR" "$PRESERVE_CORE"
-    # La liste des dépendances part avec le shell : le panneau (« Installer les
-    # paquets manquants », onglet Apps & Alertes) la lit à l'exécution dans
-    # core/dependencies.txt, sans savoir où le dépôt a été cloné.
-    cp -f "$DEPS_FILE" "$CORE_DIR/dependencies.txt" || true
     local core_manifest
     core_manifest=$(mktemp)
     (cd "$DEV_DIR/core" && ls -1) > "$core_manifest"
     prune_target "$CORE_DIR" "$core_manifest" "$PRESERVE_CORE"
     rm -f "$core_manifest"
+    # La liste des dépendances part avec le shell : le panneau (« Installer les
+    # paquets manquants », onglet Apps & Alertes) la lit à l'exécution dans
+    # core/dependencies.txt, sans savoir où le dépôt a été cloné. Copiée **après**
+    # l'élagage : elle ne vit plus dans core/ au dépôt, une seule source à la
+    # racine, et l'élagage l'aurait retirée de la cible juste après la copie.
+    cp -f "$DEPS_FILE" "$CORE_DIR/dependencies.txt" || true
     # Index des applications de la pilule spotlight : données de la machine,
     # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
     if [ -f "$CORE_DIR/app_index.py" ]; then
