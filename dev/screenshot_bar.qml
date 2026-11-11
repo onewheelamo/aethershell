@@ -21,8 +21,8 @@ import QtQuick
 //
 // La surface qui héberge la pastille (main.qml) est plein écran pour attraper le
 // clic extérieur ; la pastille, elle, ne prend pas la hauteur : elle est centrée
-// et glisse depuis le bord gauche. Géométrie maquettée dans une maquette
-// locale, hors dépôt (voir `.gitignore`).
+// et glisse depuis le bord gauche. Géométrie maquettée dans
+// dev/mockups/shotbar_mock.html.
 // ────────────────────────────────────────────────────────────────────────────
 Item {
     id: root

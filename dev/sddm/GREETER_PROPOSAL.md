@@ -3,10 +3,10 @@
 ## Décision
 
 Pas de thème maison : `sddm-astronaut-theme` (AUR), re-coloré depuis
-`style_vars.json` et posé par `dev/sddm/install.sh`. La maquette maison et ses
-rendus ont servi de référence pour la direction visuelle ; ils vivent sur la
-machine, plus dans le dépôt (voir `.gitignore`), et la mise en page livrée est
-celle d'astronaut : horloge géante, formulaire centré sur une colonne floutée, libellés
+`style_vars.json` et posé par `dev/sddm/install.sh`. La maquette maison
+(`dev/mockups/greeter_mock.html` et ses rendus) reste dans le dépôt comme
+référence de la direction visuelle, mais la mise en page livrée est celle
+d'astronaut : horloge géante, formulaire centré sur une colonne floutée, libellés
 français, bouton accent.
 
 ## État mesuré le 03/11/2026

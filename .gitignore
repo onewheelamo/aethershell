@@ -20,10 +20,10 @@ dev/core/launch_history.json
 # Sorties générées du greeter (conf + fond issus de style_vars.json)
 dev/sddm/out/
 
-# Maquettes et rendus d'écran : ils servent à concevoir, ils n'ont pas à peser
-# dans le dépôt ni à partir sur GitHub. Le 2026-11-11 ils en sont sortis, et
-# l'historique a été purgé pour qu'il n'en reste aucune trace.
-dev/mockups/
+# Aperçus du greeter : des rendus d'écran qui n'ont pas à peser dans le dépôt ni
+# à partir sur GitHub. Sortis le 2026-11-11, historique purgé pour qu'il n'en
+# reste aucune trace. Les maquettes (`dev/mockups/`), elles, restent : c'est la
+# référence de conception du panneau, de la barre et du greeter.
 dev/sddm/preview/
 
 # Sensitive information
