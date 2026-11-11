@@ -246,7 +246,8 @@ Rectangle {
         "widgets": "secWidgets",
         "apps_programs": "secApps",
         "donnees_localisation": "secLocalisation",
-        "ecrans_captures": "secCaptures"
+        "ecrans_captures": "secCaptures",
+        "systeme_maj": "shellMajRow"
     })
 
     // Un nom de section ne dit pas dans quel onglet il vit : sans ça, le clic
@@ -261,7 +262,7 @@ Rectangle {
         "quickshell_visualiseur": 1,
         "widgets": 2, "widgets_pilule": 2, "widgets_api": 7,
         "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
-        "ecrans_captures": 3,
+        "ecrans_captures": 3, "systeme_maj": 3,
         "clavier_disposition": 4, "clavier_binds": 4,
         "apps_programs": 5, "apps_autostart": 5, "quickshell_notifications": 5,
         "greeter_theme": 6,
