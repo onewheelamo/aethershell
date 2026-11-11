@@ -11,6 +11,10 @@
 # peut donc pas se retrouver silencieusement dans la liste.
 
 #: commun
+# git et curl : ce que l'installateur en une ligne réclame avant tout le reste
+#   curl -fsSL .../install.sh | sh
+git
+curl
 quickshell
 hyprland
 rofi

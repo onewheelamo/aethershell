@@ -27,15 +27,102 @@ Column {
         "ecrans_profils": secProfils,
         "systeme_horloge": secHorloge,
         "systeme_nuit": secNuit,
-        "ecrans_captures": secCaptures
+        "ecrans_captures": secCaptures,
+        "systeme_maj": secMaj
     })
 
     readonly property var cibles: ({
         "monitorsRow": monitorsRow,
         "timezoneRow": timezoneRow,
         "idleTimeoutRow": idleTimeoutRow,
-        "screenshotsDirRow": screenshotsDirRow
+        "screenshotsDirRow": screenshotsDirRow,
+        "shellMajRow": shellMajRow
     })
+
+    // ── Mise à jour du shell ─────────────────────────────────────────────────
+    // Une seule ligne sert à installer **et** à mettre à jour, comme pour Ollama :
+    //
+    //   curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh
+    //
+    // `core/maj_shell.py` compare la version déployée (`core/version.json`, écrit
+    // par `deploy.sh`) au dernier tag publié sur GitHub. Il ne sort sur le réseau
+    // qu'une fois toutes les `intervalleMin` minutes — 280 par défaut — et le
+    // minuteur ci-dessous ne fait que lui redemander l'état : le cache répond.
+    // L'intervalle est publié par le script, pour n'avoir qu'une constante.
+    property string majEtat: ""
+    property string majLocale: ""
+    property string majDistante: ""
+    property string majVerifie: ""
+    property string majDetail: "vérification…"
+    property string majCopie: ""
+    property int intervalleMin: 280
+    property bool majOccupe: false
+    property string majCommande: "curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh"
+
+    readonly property bool majDisponible: majEtat === "disponible"
+    readonly property string majResume: majLocale === ""
+        ? "vérification…"
+        : (majDisponible ? majLocale + " → " + majDistante
+                         : (majEtat === "a_jour" ? majLocale + " · à jour"
+                                                 : majLocale + " · état inconnu"))
+
+    function verifierMaj(force) {
+        if (procMaj.running) return
+        procMaj.command = ["python3", Quickshell.shellPath("core/maj_shell.py")]
+                          .concat(force ? ["--force"] : [])
+        procMaj.running = true
+    }
+
+    function appliquerMaj(texte) {
+        try {
+            const d = JSON.parse(texte)
+            bloc.majEtat = String(d.etat || "")
+            bloc.majLocale = String(d.locale || "")
+            bloc.majDistante = String(d.distante || "")
+            bloc.majDetail = String(d.detail || "")
+            bloc.majVerifie = String(d.verifie_le || "")
+            if (d.commande) bloc.majCommande = String(d.commande)
+            // Le script fait foi : changer la fenêtre de vérification ne touche
+            // qu'à `INTERVALLE_MIN` dans core/maj_shell.py.
+            if (d.intervalle_min) bloc.intervalleMin = Number(d.intervalle_min)
+        } catch (e) {
+            bloc.majEtat = "inconnu"
+            bloc.majDetail = "réponse illisible de core/maj_shell.py"
+        }
+    }
+
+    Process {
+        id: procMaj
+        onRunningChanged: bloc.majOccupe = running
+        stdout: StdioCollector {
+            onStreamFinished: bloc.appliquerMaj(text)
+        }
+        onExited: code => {
+            if (code !== 0 && bloc.majEtat === "") {
+                bloc.majEtat = "inconnu"
+                bloc.majDetail = "core/maj_shell.py a échoué (code " + code + ")"
+            }
+        }
+    }
+
+    // Toutes les 280 minutes, et seulement tant que l'onglet est à l'écran :
+    // fermer le panneau ne laisse aucun minuteur derrière lui. `triggeredOnStart`
+    // donne l'état dès l'ouverture, sans attendre la première échéance.
+    Timer {
+        interval: Math.max(1, bloc.intervalleMin) * 60 * 1000
+        running: bloc.visible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: bloc.verifierMaj(false)
+    }
+
+    // Retour visuel du bouton « Copier la ligne ».
+    Timer {
+        id: finCopie
+        interval: 2200
+        onTriggered: bloc.majCopie = ""
+    }
+
 spacing: 12
 
 // Tiroir : moniteurs détectés, moniteur principal, résolution et
@@ -958,5 +1045,212 @@ onClicked: {
         }
     }
 }
+}
+
+// Mise à jour du shell : la version posée, celle publiée sur GitHub, et les
+// gestes qui en découlent. « Mettre à jour » ouvre un terminal au lieu d'agir
+// en douce : le déploiement redémarre le shell, et une commande qui s'exécute
+// sans qu'on la voie est une commande qu'on ne peut pas interrompre.
+CollapsibleSection {
+    id: secMaj
+    objectName: "secMaj"
+    title: "Mise à jour du shell"
+    summary: bloc.majResume
+    icon: "download"
+    expanded: root.sectionOpen("systeme_maj", false)
+    onToggled: expanded => {
+        root.setPanelSection("systeme_maj", expanded)
+        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_maj")
+        if (expanded && bloc.majLocale === "") bloc.verifierMaj(false)
+    }
+
+Column {
+    width: parent.width
+    spacing: 10
+
+    // Version installée + état, sur une carte : c'est la ligne que la recherche
+    // du panneau vise (`shellMajRow`).
+    Rectangle {
+        id: shellMajRow
+        objectName: "shellMajRow"
+        width: parent.width
+        height: 62
+        radius: Theme.globalRadius
+        color: Theme.surfaceVariant
+        border.color: bloc.majDisponible ? Theme.accent : Theme.accentMuted
+        border.width: 1
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 10
+            spacing: 3
+
+            Row {
+                spacing: 8
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: bloc.majLocale !== "" ? bloc.majLocale : "version inconnue"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textMd
+                    font.bold: true
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: majPilule.implicitWidth + 16
+                    height: 18
+                    radius: 4
+                    color: bloc.majDisponible ? Theme.accent : Theme.surfaceBg
+                    border.width: 1
+                    border.color: bloc.majDisponible ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+
+                    Text {
+                        id: majPilule
+                        anchors.centerIn: parent
+                        text: bloc.majOccupe
+                              ? "vérification…"
+                              : (bloc.majDisponible ? bloc.majDistante + " disponible"
+                              : (bloc.majEtat === "a_jour" ? "à jour"
+                              : (bloc.majEtat === "inconnu" ? "état inconnu" : "…")))
+                        color: bloc.majDisponible ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                        font.bold: bloc.majDisponible
+                    }
+                }
+            }
+
+            Text {
+                width: parent.width
+                text: bloc.majDetail
+                color: Qt.alpha(Theme.fg, 0.7)
+                font.pixelSize: Theme.textXs
+                elide: Text.ElideRight
+            }
+        }
+    }
+
+    Row {
+        width: parent.width
+        spacing: 8
+
+        // Revérifier tout de suite : `--force` passe outre les 280 minutes.
+        Rectangle {
+            width: 158
+            height: 30
+            radius: Theme.globalRadius
+            color: majVerifMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+            border.width: 1
+            border.color: Theme.accentMuted
+
+            Row {
+                anchors.centerIn: parent
+                spacing: 6
+
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "refresh"
+                    size: Math.round(Theme.iconSm * 0.8)
+                    color: Theme.accent
+                    opacityLevel: 1
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: bloc.majOccupe ? "Vérification…" : "Vérifier maintenant"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textXs
+                }
+            }
+
+            MouseArea {
+                id: majVerifMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                enabled: !bloc.majOccupe
+                onClicked: bloc.verifierMaj(true)
+            }
+        }
+
+        // La même ligne que pour une première installation, ouverte dans le
+        // terminal par défaut (`core/maj_terminal.sh` sait lequel existe).
+        Rectangle {
+            width: 160
+            height: 30
+            radius: Theme.globalRadius
+            color: majActionMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+            Row {
+                anchors.centerIn: parent
+                spacing: 6
+
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "download"
+                    size: Math.round(Theme.iconSm * 0.8)
+                    color: Theme.bg
+                    opacityLevel: 1
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Mettre à jour"
+                    color: Theme.bg
+                    font.pixelSize: Theme.textXs
+                    font.bold: true
+                }
+            }
+
+            MouseArea {
+                id: majActionMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"),
+                                                    bloc.majCommande])
+            }
+        }
+
+        // Pour poser le shell sur une autre machine : la ligne, dans le
+        // presse-papiers, sans avoir à la retaper.
+        Rectangle {
+            width: 132
+            height: 30
+            radius: Theme.globalRadius
+            color: majCopieMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+            border.width: 1
+            border.color: Theme.accentMuted
+
+            Text {
+                anchors.centerIn: parent
+                text: bloc.majCopie !== "" ? "Ligne copiée" : "Copier la ligne"
+                color: Theme.fg
+                font.pixelSize: Theme.textXs
+            }
+
+            MouseArea {
+                id: majCopieMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" | wl-copy',
+                                             "sh", bloc.majCommande])
+                    bloc.majCopie = "copié"
+                    finCopie.restart()
+                }
+            }
+        }
+    }
+
+    Text {
+        width: parent.width
+        text: "Installation et mise à jour passent par la même ligne, vérifiée toutes les "
+              + bloc.intervalleMin + " minutes."
+        color: Qt.alpha(Theme.fg, 0.5)
+        font.pixelSize: Theme.textXs
+        wrapMode: Text.WordWrap
+    }
 }
 }

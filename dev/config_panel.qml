@@ -183,6 +183,8 @@ Rectangle {
           tab: 3, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
           tab: 3, section: "", target: "timezoneRow" },
+        { label: "Mise à jour du shell", words: "mise a jour version installateur curl update github aethershell terminal",
+          tab: 3, section: "systeme_maj", target: "shellMajRow" },
         { label: "Mise en veille automatique", words: "mise en veille veille inactivité suspend sleep ecran timer energie heure",
           tab: 3, section: "systeme_horloge", target: "idleTimeoutRow" },
         { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",

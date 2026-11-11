@@ -1123,6 +1123,27 @@ deploy_ghostty_overrides() {
     fi
 }
 
+# Version déployée → $CORE_DIR/version.json.
+#
+# Le dossier cible n'est pas un dépôt git : déployé, le shell ne peut pas
+# répondre seul à « quelle version tourne ? ». Le panneau (« Écrans & Système »)
+# l'affiche et `core/maj_shell.py` la compare au dernier tag publié sur GitHub.
+# C'est un état de la machine, comme les autres .json non livrés de core/ :
+# `est_etat_machine` le protège, donc aucune version ultérieure ne l'écrase ni
+# ne l'élague — il est réécrit à chaque déploiement, et c'est voulu.
+ecrire_version_deployee() {
+    local tag="" commit="" decrite=""
+    if git -C "$DEV_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        commit="$(git -C "$DEV_DIR" rev-parse --short HEAD 2>/dev/null || true)"
+        tag="$(git -C "$DEV_DIR" describe --tags --abbrev=0 2>/dev/null || true)"
+        decrite="$(git -C "$DEV_DIR" describe --tags --always --dirty 2>/dev/null || true)"
+    fi
+    printf '{"version": "%s", "tag": "%s", "commit": "%s", "deploye_le": "%s"}\n' \
+        "$decrite" "$tag" "$commit" "$(date -Iseconds)" \
+        > "$CORE_DIR/version.json.new" || return 0
+    mv -f "$CORE_DIR/version.json.new" "$CORE_DIR/version.json" || true
+}
+
 deploy_new_env() {
     echo "🚀 Deploying $DISTRO_TITLE..."
 
@@ -1170,6 +1191,9 @@ deploy_new_env() {
     # l'élagage : elle ne vit plus dans core/ au dépôt, une seule source à la
     # racine, et l'élagage l'aurait retirée de la cible juste après la copie.
     cp -f "$DEPS_FILE" "$CORE_DIR/dependencies.txt" || true
+    # Quelle version vient d'être posée : le dossier déployé n'est pas un dépôt
+    # git, le panneau et core/maj_shell.py n'ont que ce fichier pour le savoir.
+    ecrire_version_deployee
     # Index des applications de la pilule spotlight : données de la machine,
     # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
     if [ -f "$CORE_DIR/app_index.py" ]; then
