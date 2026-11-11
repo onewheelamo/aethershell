@@ -41,6 +41,7 @@ CATEGORY_LABELS = [
 ]
 
 DROP_MARKS = re.compile(r"\s*%[fFuUdDnNickvm]")
+DROP_FLATPAK_MARKS = re.compile(r"(?:^|\s)@@u?\s+@@(?=\s|$)")
 
 
 def parse_desktop(path):
@@ -76,7 +77,8 @@ def pick_name(fields):
 
 
 def clean_exec(exec_line):
-    cmd = DROP_MARKS.sub("", exec_line).strip()
+    cmd = DROP_MARKS.sub("", exec_line)
+    cmd = DROP_FLATPAK_MARKS.sub("", cmd).strip()
     return cmd
 
 

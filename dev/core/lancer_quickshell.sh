@@ -177,6 +177,9 @@ while ! compositeur_vivant; do
 done
 
 export WAYLAND_DISPLAY="$socket"
+# systemd --user n'exporte pas toujours XDG_SESSION_TYPE : certains wrappers
+# Flatpak (ex. VSCodium) le testent explicitement et retombent sur X11 sinon.
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 if [ -n "$signature" ]; then
     export HYPRLAND_INSTANCE_SIGNATURE="$signature"
 fi
