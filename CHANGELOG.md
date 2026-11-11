@@ -17,23 +17,23 @@ montée de mineure peut demander une adaptation des réglages.
     - **Kitty** : `~/.config/kitty/aethershell-theme.conf` avec inclusion automatique dans `kitty.conf`.
     - **Alacritty** : `~/.config/alacritty/aethershell-theme.toml` avec import dynamique dans `alacritty.toml`.
     - **Foot** : `~/.config/foot/themes/aethershell.ini`.
-  - Intégration dans [`dev/core/generate_rofi_theme.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/generate_rofi_theme.sh) pour une mise à jour immédiate à chaque changement de fond d'écran ou sélection de palette.
+  - Intégration dans [`dev/core/generate_rofi_theme.sh`](dev/core/generate_rofi_theme.sh) pour une mise à jour immédiate à chaque changement de fond d'écran ou sélection de palette.
 
-- **Bouton d'installation de thèmes de couleurs téléchargés ([`dev/core/installer_theme_couleur.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/installer_theme_couleur.py))** :
-  - **Bouton « Installer un thème »** dans le tiroir *Palettes & Thèmes* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
-  - Ouvre [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml) configuré avec l'icône `palette` et filtre actif par défaut sur les extensions `.colors`.
+- **Bouton d'installation de thèmes de couleurs téléchargés ([`dev/core/installer_theme_couleur.py`](dev/core/installer_theme_couleur.py))** :
+  - **Bouton « Installer un thème »** dans le tiroir *Palettes & Thèmes* de [`dev/config_panel.qml`](dev/config_panel.qml).
+  - Ouvre [`dev/SelecteurFichier.qml`](dev/SelecteurFichier.qml) configuré avec l'icône `palette` et filtre actif par défaut sur les extensions `.colors`.
   - **Bouton filtre débrayable** dans le sélecteur permettant de basculer en 1 clic entre le filtre `.colors` et l'affichage de tous les fichiers (archives `.zip`, `.tar.gz`, etc.).
   - Extraction et copie sécurisée dans `~/.local/share/color-schemes/` puis synchronisation immédiate du catalogue de thèmes via `themes_scan.py --sync`.
-  - Ajout du glyphe `filter` (`\u{F0232}`) dans [`dev/Icon.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Icon.qml).
+  - Ajout du glyphe `filter` (`\u{F0232}`) dans [`dev/Icon.qml`](dev/Icon.qml).
 
 - **Réglage dédié des arrondis des sélecteurs modaux (`selecteur_radius`)** :
-  - Ajout de la propriété réactive `selecteurRadius` dans [`dev/Theme.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Theme.qml) (0 = suit automatiquement `globalRadius`).
-  - Prise en charge dans [`dev/core/config_manager.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/config_manager.py) et persistance dans `style_vars.json`.
-  - Curseur « Arrondis sélecteurs » ajouté dans l'onglet *Gestion Quickshell* (tiroir *Barre et surfaces du shell*) de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
+  - Ajout de la propriété réactive `selecteurRadius` dans [`dev/Theme.qml`](dev/Theme.qml) (0 = suit automatiquement `globalRadius`).
+  - Prise en charge dans [`dev/core/config_manager.py`](dev/core/config_manager.py) et persistance dans `style_vars.json`.
+  - Curseur « Arrondis sélecteurs » ajouté dans l'onglet *Gestion Quickshell* (tiroir *Barre et surfaces du shell*) de [`dev/config_panel.qml`](dev/config_panel.qml).
 
 ### Modifié
 
-- **Harmonisation visuelle et flou des sélecteurs modaux ([`dev/SelecteurDossier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurDossier.qml), [`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** :
+- **Harmonisation visuelle et flou des sélecteurs modaux ([`dev/SelecteurDossier.qml`](dev/SelecteurDossier.qml), [`dev/SelecteurFichier.qml`](dev/SelecteurFichier.qml))** :
   - **Alignement des arrondis** : la courbure des fenêtres de sélecteurs suit désormais `Theme.globalRadius` par défaut au lieu d'une valeur fixe exagérée (`Theme.globalRadius * 3`).
   - **Flou de verre dépoli autonome (`FlouFond`)** : chaque carte modale bénéficie du flou interne du fond d'écran à courbure exacte (`FlouFond` avec intensité garantie ≥ 85 %), superposé avec un calque teinté `Theme.surfaceBg` et bordure contrastée.
   - Voile de fond sombre semi-transparent (`Qt.alpha(Theme.bg, 0.65)`) pour détacher la feuille modale du panneau hôte.
@@ -44,21 +44,21 @@ montée de mineure peut demander une adaptation des réglages.
   - Suppression du composant `ShaderEffectSource` ciblant un item ancêtre (`root.parent.parent`) dans `SelecteurFichier.qml` et `SelecteurDossier.qml`, éliminant les cycles d'invalidation dans le scene graph Qt 6 (`QQuickItemPrivate::addToDirtyList()`) survenus lors de la fermeture ou du changement d'état.
 - **Gestion de la touche Échap et restauration du focus clavier** :
   - Ajout d'une méthode `annulerEtFermer()` fermant proprement le sélecteur, émettant `annule()` et rétablissant le focus clavier sur le champ de recherche `searchInput`.
-  - Ajout d'un écouteur racine `Keys.onEscapePressed` dans [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml) fermant en priorité le sélecteur actif s'il est ouvert, ou refermant le panneau de configuration en l'absence de modal.
+  - Ajout d'un écouteur racine `Keys.onEscapePressed` dans [`dev/config_panel.qml`](dev/config_panel.qml) fermant en priorité le sélecteur actif s'il est ouvert, ou refermant le panneau de configuration en l'absence de modal.
 
 ## [0.1.3] — 2026-11-10
 
 ### Ajouté
 
 - **Sélecteur de fichier graphique pour les fichiers Markdown suivis (onglet Données & Comptes)** :
-  - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
+  - **Bouton « Choisir »** dans le tiroir *Tâches — fichiers suivis* de [`dev/config_panel.qml`](dev/config_panel.qml), reprenant le design et l'ergonomie des sélecteurs de dossiers de fonds d'écran et de captures.
   - **Harmonisation visuelle des sélecteurs de dossiers** : ajout du glyphe `folder` sur les deux boutons « Choisir » du tiroir *Fonds d'écran & Captures* (onglet Apparence) pour une cohérence graphique parfaite dans tout le panneau.
-  - **Feuille modale dédiée ([`dev/SelecteurFichier.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/SelecteurFichier.qml))** : surface intégrée au panneau avec fond en verre et flou interne (`FlouFond`), navigation par dossier (`↑`), filtre automatique sur les extensions `.md` et `.markdown`, sélection par simple clic et validation par double-clic ou bouton « Choisir ».
-  - **Script de lecture arborescente ([`dev/core/lister_fichiers.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/lister_fichiers.py))** : listing JSON rapide des dossiers et fichiers filtrés, ignorant les entrées cachées et gérant les erreurs d'accès de manière robuste.
+  - **Feuille modale dédiée ([`dev/SelecteurFichier.qml`](dev/SelecteurFichier.qml))** : surface intégrée au panneau avec fond en verre et flou interne (`FlouFond`), navigation par dossier (`↑`), filtre automatique sur les extensions `.md` et `.markdown`, sélection par simple clic et validation par double-clic ou bouton « Choisir ».
+  - **Script de lecture arborescente ([`dev/core/lister_fichiers.py`](dev/core/lister_fichiers.py))** : listing JSON rapide des dossiers et fichiers filtrés, ignorant les entrées cachées et gérant les erreurs d'accès de manière robuste.
   - **Remplissage automatique intelligent** : la sélection insère le chemin sous forme abrégée `~/...` et pré-remplit automatiquement le nom suggéré du fichier si le champ nom est vide.
-  - **Glyphes dédiés dans [`dev/Icon.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/Icon.qml)** : ajout des icônes `markdown` (`\u{F0354}`) et `file-document` (`\u{F0214}`).
+  - **Glyphes dédiés dans [`dev/Icon.qml`](dev/Icon.qml)** : ajout des icônes `markdown` (`\u{F0354}`) et `file-document` (`\u{F0214}`).
 
-- **Gestionnaire de déploiement — Sauvegarde fine granulaire & Moteur de pré-vol ([`dev/deploy.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/deploy.sh))** :
+- **Gestionnaire de déploiement — Sauvegarde fine granulaire & Moteur de pré-vol ([`dev/deploy.sh`](dev/deploy.sh))** :
   - **Moteur de pré-vol (`--diff` / `--dry-run`)** : analyse comparative exhaustive de l'arborescence du dépôt (`dev/`) par rapport à l'environnement vivant (`~/.config/hypr` et `~/.config/quickshell`).
   - Rapport catégorisé avec métriques claires : fichiers préservés (états locaux protégés : palettes, applets, secrets, binds, etc.), fichiers modifiés (avec comptage précis `+X / -Y` lignes), nouveaux fichiers, fichiers orphelins à élaguer, et fichiers générés post-déploiement.
   - Robustesse totale sous `set -euo pipefail` : isolation des sorties d'erreurs et des retours unitaires de comparaison.
@@ -71,11 +71,11 @@ montée de mineure peut demander une adaptation des réglages.
 - **Hermes — Surveillance et contrôle de la passerelle (Gateway & Daemon)** :
   - Intégration de la surveillance du service systemd utilisateur `hermes-gateway.service`, de l'état du démon (`~/.hermes/gateway_state.json`) et de la vivacité du PID.
   - Visualisation en direct du statut (actif/inactif, PID, profils desservis, version, âge du battement ticker).
-  - Contrôle et relance rapide en 1-clic (`systemctl --user restart hermes-gateway.service`) depuis le popup de la barre supérieure ([`dev/HermesPopup.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/HermesPopup.qml)) et le widget de bureau.
+  - Contrôle et relance rapide en 1-clic (`systemctl --user restart hermes-gateway.service`) depuis le popup de la barre supérieure ([`dev/HermesPopup.qml`](dev/HermesPopup.qml)) et le widget de bureau.
 - **Hermes — Planifications et moteur Cron** :
   - Lecture et affichage des tâches cron planifiées (`~/.hermes/cron/jobs.json`) et du battement de cœur (`ticker_heartbeat`).
   - Actions rapides intégrées : déclenchement d'un passage manuel (`⚡ Tick` via `hermes cron tick`) et diagnostic d'intégrité (`🔍 Doctor` via `hermes cron doctor`).
-- **Hermes — Widget de bureau enrichi, dépliable et scrollable ([`dev/widgets/hermes.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/widgets/hermes.qml))** :
+- **Hermes — Widget de bureau enrichi, dépliable et scrollable ([`dev/widgets/hermes.qml`](dev/widgets/hermes.qml))** :
   - Vue compacte par défaut préservant l'espace du bureau (sessions récentes, jetons du jour, état global).
   - Bouton interactif « Détails & Actions ▾ » / « Replier ▴ » pour afficher à la demande le volet d'administration et de diagnostic.
   - Zone scrollable (`Flickable`) bornée à hauteur maximale avec ascenseur discret : le widget s'adapte sans jamais déborder du bureau et reste navigable à la molette.
@@ -83,24 +83,24 @@ montée de mineure peut demander une adaptation des réglages.
   - Journal en direct (tail sur les dernières lignes de `~/.hermes/logs/agent.log`) avec coloration contextuelle des statuts, avertissements et erreurs.
 
 - **Aperçus du greeter SDDM isolés sur un bureau dédié (`workspace 99`)** :
-  - Modification de [`dev/core/greeter_preview.sh`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/greeter_preview.sh) : mémorisation du bureau actif et bascule automatique sur le workspace 99 avant de lancer `sddm-greeter-qt6 --test-mode`.
-  - Règle de fenêtre Hyprland dédiée dans [`dev/hypr_modular/windows.lua`](file:///home/<utilisateur>/dev/quickshell_todo/dev/hypr_modular/windows.lua) contraignant la fenêtre du greeter sur le workspace 99.
+  - Modification de [`dev/core/greeter_preview.sh`](dev/core/greeter_preview.sh) : mémorisation du bureau actif et bascule automatique sur le workspace 99 avant de lancer `sddm-greeter-qt6 --test-mode`.
+  - Règle de fenêtre Hyprland dédiée dans [`dev/hypr_modular/windows.lua`](dev/hypr_modular/windows.lua) contraignant la fenêtre du greeter sur le workspace 99.
   - Restauration automatique du bureau de travail d'origine lors de la fermeture (appui sur `Échap`, expiration du délai de sécurité ou fermeture normale).
   - Protection absolue : en cas de blocage ou d'erreur dans un thème testé, le bureau de travail courant n'est jamais masqué ni immobilisé.
 
 - **Minuterie de mise en veille automatique (Système & Écrans)** :
-  - Ajout d'un réglage interactif par pilules dans l'onglet *Système & Écrans* (tiroir *Alimentation, Veille & Horloge*) de [`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml).
+  - Ajout d'un réglage interactif par pilules dans l'onglet *Système & Écrans* (tiroir *Alimentation, Veille & Horloge*) de [`dev/config_panel.qml`](dev/config_panel.qml).
   - Délais configurables : 15 min, 30 min, **1 heure (par défaut)**, 2 heures, 3 heures, ou Jamais (désactivé).
-  - Synchronisation immédiate avec la règle de suspension de [`dev/hypr_modular/hypridle.conf`](file:///home/<utilisateur>/dev/quickshell_todo/dev/hypr_modular/hypridle.conf) et `~/.config/hypr/hypridle.conf`.
+  - Synchronisation immédiate avec la règle de suspension de [`dev/hypr_modular/hypridle.conf`](dev/hypr_modular/hypridle.conf) et `~/.config/hypr/hypridle.conf`.
   - Redémarrage à chaud automatique du démon utilisateur `hypridle.service` lors du clic.
   - Indexation dans le moteur de recherche interne du panneau (`searchIndex`) sous les termes « veille », « suspend », « inactivité », « sleep », « timer ».
 
 - **Pont Todo ↔ Hermes & Interrupteur de surveillance des cases (Étape 1)** :
-  - Ajout d'un interrupteur de surveillance dans le popup Tâches ([`dev/TodoPopup.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/TodoPopup.qml)) et dans le panneau de configuration ([`dev/config_panel.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/config_panel.qml)).
+  - Ajout d'un interrupteur de surveillance dans le popup Tâches ([`dev/TodoPopup.qml`](dev/TodoPopup.qml)) et dans le panneau de configuration ([`dev/config_panel.qml`](dev/config_panel.qml)).
   - Persistance de l'option dans `core/todo.json` (`"surveillance": true/false`) et contrôle CLI via `todo_applet.py surveillance [on|off|toggle]`.
   - Conditionnement de la file d'attente : cocher une case alimente `todo-demandes.json` uniquement si la surveillance est activée. En mode désactivé, la coche reste une manipulation Markdown locale classique sans solliciter l'agent.
-  - Implémentation du worker d'exécution [`dev/core/todo_worker.py`](file:///home/<utilisateur>/dev/quickshell_todo/dev/core/todo_worker.py) : prise en charge des demandes en attente, exécution automatique par Hermes (`hermes -z`), notifications bureau de début et fin, réécriture du Markdown en `✓ fait le <date>` en cas de succès ou alerte `⚠` en cas d'échec.
-  - Indicateur visuel `⚡ hermes` dans le widget de bureau ([`dev/widgets/todo.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/widgets/todo.qml)) signalant quand la surveillance est active.
+  - Implémentation du worker d'exécution [`dev/core/todo_worker.py`](dev/core/todo_worker.py) : prise en charge des demandes en attente, exécution automatique par Hermes (`hermes -z`), notifications bureau de début et fin, réécriture du Markdown en `✓ fait le <date>` en cas de succès ou alerte `⚠` en cas d'échec.
+  - Indicateur visuel `⚡ hermes` dans le widget de bureau ([`dev/widgets/todo.qml`](dev/widgets/todo.qml)) signalant quand la surveillance est active.
 
 ## [0.1.2] — 2026-11-09
 
@@ -128,7 +128,7 @@ montée de mineure peut demander une adaptation des réglages.
 ### Corrigé
 
 - **Visibilité et focus des invites Polkit au-dessus du panneau de configuration** :
-  - Le panneau de configuration (`configOverlayWindow` dans [`dev/main.qml`](file:///home/<utilisateur>/dev/quickshell_todo/dev/main.qml))
+  - Le panneau de configuration (`configOverlayWindow` dans [`dev/main.qml`](dev/main.qml))
     passe de la couche `WlrLayer.Overlay` avec `aboveWindows: true` à la couche `WlrLayer.Top`.
   - Masquage et restauration automatiques : lorsqu'une opération réclame une authentification Polkit
     (comme l'installation de thème), le panneau s'efface automatiquement après 180 ms pour laisser
