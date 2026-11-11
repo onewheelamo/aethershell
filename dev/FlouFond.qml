@@ -94,11 +94,17 @@ Item {
     readonly property string cheminEcran: racine.nomFond === "" ? ""
         : racine.racineFonds + "profondeur/" + racine.nomFond + "/fond-ecran.png"
     property bool ecranPret: false
+    // Un fond sans profil de profondeur n'a pas ce fichier : sans ce drapeau,
+    // chaque réévaluation de `sourceClipRect` redemandait le fichier absent et Qt
+    // journalisait « Cannot open » à chaque fois (13 par minute, mesuré).
+    property bool ecranIndisponible: false
+    onCheminEcranChanged: racine.ecranIndisponible = false
 
     Image {
         id: imageEcran
         anchors.fill: parent
-        source: racine.cheminEcran !== "" ? "file://" + racine.cheminEcran : ""
+        source: (racine.cheminEcran !== "" && !racine.ecranIndisponible)
+                ? "file://" + racine.cheminEcran : ""
         // La fenêtre du fond à montrer se choisit par `sourceClipRect`, pas en
         // déplaçant l'image : MultiEffect aligne la texture de sa source sur son
         // propre coin, donc une image décalée sortait déformée (le fond de la
@@ -114,7 +120,14 @@ Item {
         cache: true
         visible: false
         layer.enabled: true
-        onStatusChanged: racine.ecranPret = (status === Image.Ready)
+        onStatusChanged: {
+            if (status === Image.Error) {
+                racine.ecranIndisponible = true
+                racine.ecranPret = false
+            } else {
+                racine.ecranPret = (status === Image.Ready)
+            }
+        }
     }
 
     // Le fond est décodé une fois, à petite taille : le flou efface la

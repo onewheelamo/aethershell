@@ -3,12 +3,19 @@ Description=AetherShell (barre, panneaux, widgets)
 # Rattaché à la session graphique : arrêté avec elle, relancé avec elle.
 PartOf=graphical-session.target
 After=graphical-session.target
+# Borne de relance : sans elle, un échec toutes les 3 s bouclait indéfiniment
+# (194 coredumps en sept jours, compteur de relance monté à 42). Cinq essais en
+# 90 s couvrent un démarrage de session normal ; au-delà, l'échec reste au
+# journal au lieu de tourner en rond.
+StartLimitIntervalSec=90
+StartLimitBurst=5
 
 [Service]
 Type=simple
-# Hyprland ne transmet pas HYPRLAND_INSTANCE_SIGNATURE à systemd : on la retrouve
-# dans le dossier des sockets. Sans elle, quickshell démarre et échoue sans un mot.
-ExecStart=/bin/sh -c 'sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | head -1); export HYPRLAND_INSTANCE_SIGNATURE="$sig"; export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"; exec quickshell -n'
+# Le lanceur attend le socket Wayland et retrouve la signature Hyprland : sans
+# ça, Qt démarre sans platform plugin et abandonne (SIGABRT) à chaque session où
+# le compositeur n'est pas encore prêt.
+ExecStart=/bin/sh %h/.config/quickshell/core/lancer_quickshell.sh
 Restart=on-failure
 RestartSec=3
 
