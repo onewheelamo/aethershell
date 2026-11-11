@@ -18,6 +18,13 @@
 # en 1 sans rien lancer s'il ne vient pas : un échec se lit dans le journal, il
 # ne produit pas de coredump.
 #
+# Une seule instance par session : deux chemins de lancement coexistent (cette
+# unité systemd, et l'autostart Hyprland qui appelle ce même script). Sans le
+# verrou ci-dessous, le second en démarre une pendant que le premier attend
+# encore le compositeur — `pgrep -x quickshell` ne voit pas un `sh` en attente.
+# Mesuré : deux barres (l'une à y=40), deux jeux de veilleurs (notifications,
+# presse-papiers, pactl) et deux instances à qui parlait l'IPC `shell`.
+#
 # Variables : QS_ATTENTE_S (défaut 45) = durée d'attente maximale.
 
 r="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -50,6 +57,37 @@ compositeur_vivant() {
     return 0
 }
 
+# Une instance du shell principal tourne-t-elle déjà ? Un lancement d'une AUTRE
+# configuration (`-p` / `--path`, le sélecteur de fond d'écran) porte le même nom
+# de process sans dessiner la barre : il ne compte pas.
+shell_deja_lance() {
+    for p in $(pgrep -x quickshell 2>/dev/null); do
+        cmd=$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null) || continue
+        case "$cmd" in
+            *" -p "*|*" --path "*) continue ;;
+        esac
+        return 0
+    done
+    return 1
+}
+
+# Verrou détenu pendant toute la vie du shell : le descripteur 9 est conservé par
+# l'exec qui suit, donc il se libère exactement quand quickshell meurt (et
+# `systemctl restart` tue l'ancien avant de relancer). Deux appels simultanés ne
+# peuvent pas empiler deux instances : le second sort en 0 sans rien démarrer.
+verrou="$r/aethershell.shell.lock"
+if ! : 2>/dev/null > "$verrou"; then
+    echo "quickshell : verrou impossible dans $r (session absente ?)" >&2
+    exit 1
+fi
+exec 9> "$verrou"
+if command -v flock >/dev/null 2>&1; then
+    if ! flock -n 9; then
+        echo "quickshell : un lancement est deja en cours, rien a faire" >&2
+        exit 0
+    fi
+fi
+
 while ! compositeur_vivant; do
     attente=$((attente + 1))
     if [ "$attente" -ge "$max" ]; then
@@ -62,6 +100,13 @@ done
 export WAYLAND_DISPLAY="$socket"
 if [ -n "$signature" ]; then
     export HYPRLAND_INSTANCE_SIGNATURE="$signature"
+fi
+
+# Sous verrou, dernière barrière : une instance peut avoir été lancée hors de ce
+# script (à la main) pendant l'attente du compositeur.
+if shell_deja_lance; then
+    echo "quickshell : une instance tourne deja, rien a faire" >&2
+    exit 0
 fi
 
 exec quickshell -n "$@"

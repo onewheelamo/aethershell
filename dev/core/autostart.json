@@ -6,7 +6,7 @@
     },
     {
         "name": "Quickshell (barre)",
-        "cmd": "sh -c '/usr/bin/pgrep -x quickshell >/dev/null || exec quickshell -n' &",
+        "cmd": "sh -c '/usr/bin/pgrep -x quickshell >/dev/null || exec \"$HOME/.config/quickshell/core/lancer_quickshell.sh\"' &",
         "enabled": true
     },
     {
