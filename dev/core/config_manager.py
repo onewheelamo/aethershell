@@ -382,6 +382,10 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-spotlight-rest", "shell-cheatsheet",
                          "shell-tray-menu", "shell-shotbar",
                          "shell-menu-session", "shell-menu-widget",
+                         # Les deux sélecteurs de fichiers : fenêtres de la taille
+                         # de la carte, donc le flou tombe sur le panneau qui est
+                         # derrière eux, et nulle part ailleurs.
+                         "shell-selecteur",
                          # Le tiroir d'historique des notifications : sa fenêtre
                          # est plein écran (elle porte le capteur de clic
                          # extérieur), mais seul le tiroir peint — Hyprland ne
