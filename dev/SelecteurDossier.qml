@@ -67,7 +67,9 @@ Item {
     // Voile assombrissant le panneau
     Rectangle {
         anchors.fill: parent
-        color: Qt.alpha(Theme.bg, 0.65)
+        // Voile léger : la carte a son propre verre, un voile dense
+        // assombrissait tout le panneau derrière (0,65 mesuré comme trop).
+        color: Qt.alpha(Theme.bg, 0.25)
         radius: (root.parent && root.parent.parent && root.parent.parent.radius !== undefined)
                 ? root.parent.parent.radius : 0
 

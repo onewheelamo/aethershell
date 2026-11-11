@@ -35,7 +35,13 @@ Item {
     property real rayon: 0
     // Force du flou : MultiEffect attend 0..1 (1 = flou maximal pour `blurMax`).
     property real flou: 0.85
-    property int flouMax: 48
+    // Rayon du flou **des surfaces**, en pixels. Deux réglages du panneau :
+    // « taille » (le rayon de base) et « passes ». Chez Hyprland, des passes
+    // supplémentaires élargissent la diffusion ; ici, le même effet se lit
+    // en multipliant le rayon (3 passes = le rayon de base, l'ancien rendu
+    // figé à 48 px). Plafonné à 160 px : au-delà, la surface coûte plus
+    // qu'elle ne gagne, et le texte bave.
+    property int flouMax: Math.min(160, Math.round(Theme.shellFlouTaille * Theme.shellFlouPasses / 3))
     // Chemin du fond d'écran courant : lu au démarrage auprès d'awww, avec un
     // repli sur le dossier de fonds si le démon ne répond pas.
     property string fond: ""

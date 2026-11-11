@@ -1205,10 +1205,72 @@ onValueModified: newVal => {
         }
     }
 
+    // Taille et passes du flou des surfaces : Hyprland ne les règle qu'en
+    // global (fenêtres comprises), donc les surfaces ont les leurs, portées par
+    // le verre interne. Défauts = l'ancien rendu figé (48 px, 3 passes).
+    Row {
+        width: parent.width
+        spacing: 8
+
+        Text {
+            width: 160
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Flou surfaces : taille"
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            elide: Text.ElideRight
+        }
+
+        Stepper {
+            anchors.verticalCenter: parent.verticalCenter
+            value: Theme.shellFlouTaille
+            minimumValue: 8
+            maximumValue: 96
+            stepSize: 4
+            decimals: 0
+            textFormatter: v => v + " px"
+            onValueModified: newVal => {
+                Theme.shellFlouTaille = newVal
+                root.runConfigCmd(["style", "shell_flou_taille", String(newVal)])
+            }
+        }
+    }
+
+    Row {
+        width: parent.width
+        spacing: 8
+
+        Text {
+            width: 160
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Flou surfaces : passes"
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            elide: Text.ElideRight
+        }
+
+        Stepper {
+            anchors.verticalCenter: parent.verticalCenter
+            value: Theme.shellFlouPasses
+            minimumValue: 1
+            maximumValue: 8
+            stepSize: 1
+            decimals: 0
+            textFormatter: v => v + " passes"
+            onValueModified: newVal => {
+                Theme.shellFlouPasses = newVal
+                root.runConfigCmd(["style", "shell_flou_passes", String(newVal)])
+            }
+        }
+    }
+
     Text {
         width: parent.width
-        text: "Ne floute que le fond d'écran, jamais les fenêtres : "
-            + "sous 70 % d'opacité il rend le texte lisible sur le fond ; "
+        text: "Ces trois réglages ne concernent que le verre interne des surfaces. "
+            + "Il ne floute que le fond d'écran, jamais les fenêtres. "
+            + "La taille est le rayon de base, les passes l'élargissent "
+            + "(3 passes = l'ancien rendu). "
+            + "Sous 70 % d'opacité il rend le texte lisible sur le fond ; "
             + "au-dessus il ne sert plus à rien, le compositeur floute déjà "
             + "et laisser voir les fenêtres est voulu. À 0, les surfaces "
             + "translucides n'ont plus aucune matière — les fenêtres se lisent "

@@ -752,6 +752,14 @@ def update_style_var(key, value):
         data[key] = round(max(0.3, min(1.0, float(value))), 2)
     elif key == "shell_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
+    elif key == "shell_flou_taille":
+        # Rayon du flou des surfaces (le `blurMax` de MultiEffect, en pixels).
+        # Hyprland ne sait pas régler size/passes par couche : le verre interne
+        # est le seul endroit où « taille » et « passes » peuvent différer de
+        # ceux des fenêtres.
+        data[key] = max(8, min(96, int(float(value))))
+    elif key == "shell_flou_passes":
+        data[key] = max(1, min(8, int(float(value))))
     elif key == "bar_border":
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "viz_fps":
@@ -1935,6 +1943,8 @@ def get_full_config_state():
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.4)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
+        "shell_flou_taille": int(style_data.get("shell_flou_taille", 48)),
+        "shell_flou_passes": int(style_data.get("shell_flou_passes", 3)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
         "panel_accordion": bool(style_data.get("panel_accordion", True)),
         "user_location_ville": str(style_data.get("user_location_ville", "") or ""),

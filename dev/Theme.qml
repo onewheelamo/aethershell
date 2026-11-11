@@ -207,6 +207,12 @@ QtObject {
     // laisser voir les fenêtres est voulu. En dessous, il rend le texte lisible
     // sans dépendre de la passe de flou du compositeur.
     property real shellFlouInterne: 0.0
+    // Rayon et « passes » du flou **des surfaces** (le verre interne).
+    // Hyprland ne règle size/passes qu'en global, fenêtres comprises :
+    // ces deux-là ne concernent que `FlouFond`. Les valeurs par défaut
+    // reproduisent l'ancien rendu figé (48 px, 3 passes → 0,84).
+    property int shellFlouTaille: 48
+    property int shellFlouPasses: 3
     // Fond de bureau en profondeur (FondProfondeur.qml) : parallaxe des calques
     // au changement de bureau. Faux par défaut, le fond d'écran du démon reste
     // intact tant qu'on ne l'allume pas.
@@ -474,6 +480,8 @@ QtObject {
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
+        if (typeof data.shell_flou_taille === "number") root.shellFlouTaille = Math.max(8, Math.min(96, data.shell_flou_taille))
+        if (typeof data.shell_flou_passes === "number") root.shellFlouPasses = Math.max(1, Math.min(8, data.shell_flou_passes))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
         if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion
         if (typeof data.user_location_ville === "string") root.userLocationVille = data.user_location_ville
