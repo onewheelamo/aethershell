@@ -20,15 +20,17 @@ import Quickshell.Wayland
 // l'entrée. Une cible de type « action » n'est pas rouvrable (il faudrait le
 // client) : son titre reste du texte.
 //
-// Pas de flou sur cette surface : le tiroir occupe presque toute la hauteur,
-// une règle de flou sur son namespace flouterait tout l'écran. Le fond est donc
-// plus dense que celui du panneau (0.92 au lieu de l'opacité des surfaces).
+// Le tiroir prend son verre du composant interne (`FlouFond`) et non d'une règle
+// de flou sur son namespace : sa fenêtre est plein écran (elle porte le capteur
+// de clic extérieur), donc une `layer_rule` flouterait tout l'écran. `FlouFond`
+// redessine le fond d'écran **dans** la surface et ne floute que le tiroir, avec
+// la même intensité que le panneau de configuration.
 // ────────────────────────────────────────────────────────────────────────────
 Item {
     id: root
 
     readonly property int drawerWidth: 380
-    readonly property color surfaceColor: Qt.alpha(Theme.surface, 0.92)
+    readonly property color surfaceColor: Theme.surfaceBg
     property var rows: []
     property int entryCount: 0
     // Ligne sélectionnée au clavier (-1 : aucune). Seules les cartes comptent,
@@ -41,6 +43,7 @@ Item {
     property double openedAt: 0
 
     signal closeRequested()
+
 
     // `Quickshell.env()` rend `undefined` pour une variable absente, et non une
     // chaîne vide : un test `!== ""` passait donc toujours, la propriété (typée
@@ -278,6 +281,15 @@ Item {
             anchors.rightMargin: 14 - (1 - historyWindow.reveal) * (width + 20)
             radius: Theme.globalRadius
             color: root.surfaceColor
+
+            // Même verre que le panneau de configuration : opacité par
+            // `surfaceColor` (qui suit `shell_opacity`), flou par
+            // `shell_flou_interne`. Le tiroir gardait 0,92 en dur, sans flou.
+            FlouFond {
+                anchors.fill: parent
+                rayon: parent.radius
+                intensite: Theme.shellFlouInterne
+            }
 
             // Sans cette surface, un clic sur une carte (hors titre, croix ou
             // bouton) traversait le tiroir et atteignait le capteur plein

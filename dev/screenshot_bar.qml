@@ -31,7 +31,8 @@ Item {
     readonly property int buttonSize: 44
     readonly property int pad: 8
     readonly property int gap: 6
-    readonly property color surfaceColor: Qt.alpha(Theme.surface, 0.88)
+    readonly property color surfaceColor: Theme.surfaceBg
+
 
     // Renseigné à l'ouverture de la barre par un `pgrep -x wf-recorder` dans
     // main.qml : un enregistrement peut tourner depuis une ouverture précédente.
@@ -73,6 +74,16 @@ Item {
         color: root.surfaceColor
         border.color: Qt.alpha(Theme.accent, 0.22)
         border.width: 1
+
+        // Verre dépoli autonome, comme le panneau et les îlots de la barre :
+        // l'opacité suit `shell_opacity` (surfaceColor) et le flou suit
+        // `shell_flou_interne`. Sans lui, la pastille gardait 0,88 en dur et ne
+        // réagissait à aucun des deux réglages.
+        FlouFond {
+            anchors.fill: parent
+            rayon: parent.radius
+            intensite: Theme.shellFlouInterne
+        }
 
         Column {
             id: stack
