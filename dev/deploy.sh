@@ -707,6 +707,33 @@ preflight_diff() {
         done
     fi
 
+    # 2 bis. Greeter (dev/sddm → quickshell/sddm)
+    if [ -d "$DEV_DIR/sddm" ]; then
+        for f in "$DEV_DIR/sddm"/*; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            dst="$QS_DIR/sddm/$name"
+            if [ -f "$dst" ]; then
+                if cmp -s "$f" "$dst"; then
+                    count_ident=$((count_ident + 1))
+                else
+                    stats=$(compute_diff_stats "$dst" "$f")
+                    list_modified+=("quickshell/sddm/$name ($stats)")
+                fi
+            else
+                list_added+=("quickshell/sddm/$name")
+            fi
+        done
+        if [ -d "$QS_DIR/sddm" ]; then
+            for f in "$QS_DIR/sddm"/*; do
+                [ -f "$f" ] || continue
+                name="$(basename "$f")"
+                [ -f "$DEV_DIR/sddm/$name" ] && continue
+                list_pruned+=("quickshell/sddm/$name")
+            done
+        fi
+    fi
+
     # 3. Root QML & qmldir
     for f in "$DEV_DIR"/*.qml "$DEV_DIR"/qmldir; do
         [ -f "$f" ] || continue
@@ -1079,6 +1106,20 @@ deploy_new_env() {
     (cd "$DEV_DIR/core" && ls -1) > "$core_manifest"
     prune_target "$CORE_DIR" "$core_manifest" "$PRESERVE_CORE"
     rm -f "$core_manifest"
+
+    # Le greeter part avec le shell (`~/.config/quickshell/sddm`) : le module le
+    # cherchait dans le clone et, à défaut, parcourait tout le home. Sur une
+    # machine où le shell est seulement déployé, refresh de palette, miniatures,
+    # installation et désinstallation échouaient. Seuls les fichiers sont copiés :
+    # `out/`, `preview/` et `__pycache__` sont des sorties de l'outil.
+    if [ -d "$DEV_DIR/sddm" ]; then
+        mkdir -p "$QS_DIR/sddm/out/Themes" "$QS_DIR/sddm/out/Backgrounds"
+        for f in "$DEV_DIR/sddm"/*; do
+            [ -f "$f" ] || continue
+            cp -f "$f" "$QS_DIR/sddm/"
+        done
+        chmod +x "$QS_DIR/sddm/install.sh" "$QS_DIR/sddm/greeter-palette" 2>/dev/null || true
+    fi
     # La liste des dépendances part avec le shell : le panneau (« Installer les
     # paquets manquants », onglet Apps & Alertes) la lit à l'exécution dans
     # core/dependencies.txt, sans savoir où le dépôt a été cloné. Copiée **après**

@@ -29,8 +29,12 @@ SDDM_CONF = Path("/etc/sddm.conf.d/10-sddm-theme.conf")
 QYLOCK_CACHE = HOME / ".local/share/qylock-themes"
 HELPER = "/usr/local/bin/greeter-palette"
 THUMBS = HOME / ".cache/quickshell/greeter-thumbs"
-GENERATE = HOME / "dev/quickshell_todo/dev/sddm/generate.py"
-DEV_SDDM = HOME / "dev/quickshell_todo/dev/sddm"
+# Le greeter est déployé avec le shell (`~/.config/quickshell/sddm`), il ne vit
+# plus dans le clone du dépôt : sur une machine où le shell est seulement
+# déployé, refresh de palette, miniatures, installation et désinstallation
+# échouaient faute de retrouver ces fichiers.
+DEV_SDDM = HOME / ".config/quickshell/sddm"      # valeur de repli, remplacée au premier appel
+GENERATE = DEV_SDDM / "generate.py"
 
 # Libellés : les identifiants viennent des noms de fichiers du thème.
 LABELS = {
@@ -276,11 +280,13 @@ def apply(ident):
         fail(f"configuration inconnue : {ident}")
     if ident == "palette":
         # La palette peut avoir changé depuis la dernière installation.
-        gen = subprocess.run([sys.executable, str(GENERATE)], capture_output=True, text=True)
+        gen = subprocess.run([sys.executable, str(get_sddm_dir() / "generate.py")],
+                             capture_output=True, text=True)
         if gen.returncode != 0:
             fail(f"génération impossible : {gen.stderr.strip()[:200]}")
-        ok, out = helper("set-palette", str(DEV_SDDM / "out/Themes/palette.conf"),
-                         str(DEV_SDDM / "out/Backgrounds/wallpaper.png"))
+        sddm = get_sddm_dir()
+        ok, out = helper("set-palette", str(sddm / "out/Themes/palette.conf"),
+                         str(sddm / "out/Backgrounds/wallpaper.png"))
         if not ok:
             fail(f"installation de la palette refusée : {out[:200]}")
     ok, out = helper("apply", ident)
@@ -311,7 +317,7 @@ def sources(ids):
 
 
 def thumbnails(ids):
-    script = DEV_SDDM / "thumbnails.sh"
+    script = get_sddm_dir() / "thumbnails.sh"
     if not script.exists():
         fail("thumbnails.sh absent")
     cmd = ["bash", str(script), *ids] if ids else ["bash", str(script)]
@@ -338,15 +344,18 @@ def qylock_pkg_name(ident):
 
 
 def get_sddm_dir():
+    """Répertoire du greeter : le déploiement d'abord, le clone en dernier.
+
+    Le `glob("**/…")` qui parcourait tout le home a été retiré : il coûtait cher
+    et ne servait qu'aux machines où le shell était déployé sans le greeter —
+    cas que le déploiement couvre désormais.
+    """
     cand = Path(__file__).resolve().parent.parent / "sddm"
     if cand.is_dir() and (cand / "install.sh").exists():
         return cand
     cand = HOME / "dev/quickshell_todo/dev/sddm"
     if cand.is_dir() and (cand / "install.sh").exists():
         return cand
-    matches = list(HOME.glob("**/quickshell_todo/dev/sddm/install.sh"))
-    if matches:
-        return matches[0].parent
     return DEV_SDDM
 
 
