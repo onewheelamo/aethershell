@@ -16,6 +16,7 @@ montée de mineure peut demander une adaptation des réglages.
   - Option `--signature` (empreinte du disque, sans écrire) pour le diagnostic.
 - **Lanceur de service ([`dev/core/lancer_quickshell.sh`](dev/core/lancer_quickshell.sh))** : vérifie que le socket Wayland existe avant de lancer Qt, attend jusqu'à 20 s (`QS_ATTENTE_S`), retrouve la signature Hyprland la plus récente, et sort en 1 sans rien démarrer si la session ne vient pas.
 - `inotifywait` ajouté aux dépendances ([`dev/dependencies.txt`](dev/dependencies.txt)).
+- **Les tâches de code ne s'écrivent plus toutes seules ([`dev/core/todo_worker.py`](dev/core/todo_worker.py))** : le prompt du worker interdit désormais de modifier le dépôt ou l'environnement vivant et demande une **proposition** dans `~/.cache/quickshell/propositions/<date>-<sujet>.md` (fichier visé, lignes, code actuel et proposé, points à vérifier). Un fichier déposé pendant l'exécution laisse la tâche ouverte avec la mention « proposition à valider : … » et une notification dédiée — elle ne se ferme plus sur un `✓ fait` alors que du code a été touché.
 
 ### Modifié
 
