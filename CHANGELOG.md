@@ -5,11 +5,15 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
-## [0.1.5] — 2026-11-11
+## [Unreleased]
 
 ### Ajouté
 
 - **Le dépôt ne nomme plus personne** ([`dev/core/neutralite.py`](dev/core/neutralite.py), [`dev/core/notif_target.py`](dev/core/notif_target.py), [`dev/core/screenshot.sh`](dev/core/screenshot.sh), [`dev/sddm/50-greeter-palette.rules`](dev/sddm/50-greeter-palette.rules)) : AetherShell doit s'installer sous n'importe quel compte. `neutralite.py` lit les fichiers suivis et signale tout `/home/<nom>` qui n'est pas un espace réservé, le nom de la personne qui lance le contrôle et celui de sa machine (avec une liste de noms trop banals pour être cherchés : « portable », « localhost »). Le pré-vol du déploiement l'exécute et avertit sans bloquer ; une ligne peut porter `neutralite:ok — <raison>`. Corrigé au passage : la règle polkit du greeter nommait l'utilisateur en dur — elle accepte maintenant tout utilisateur local actif, sur ce seul programme ; la clé de hint `x-amo-open` devient `x-aethershell-open` (l'ancienne reste lue). Éprouvé : contrôle propre sous l'identité réelle, et un `/home/<nom>` injecté dans un fichier suivi est bien signalé par le pré-vol.
+
+## [0.1.5] — 2026-11-11
+
+### Ajouté
 
 - **Le catalogue des schémas de couleurs est lu sur le disque ([`dev/core/themes_scan.py`](dev/core/themes_scan.py), [`dev/core/veille_themes.sh`](dev/core/veille_themes.sh))** :
   - `core/palette_cache.json` porte le catalogue (nom, palette convertie, chemin), recopié des deux dossiers à chaque scan — `~/.local/share/color-schemes` et `/usr/share/color-schemes`. C'est une donnée dérivée, ignorée par git.
