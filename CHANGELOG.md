@@ -28,6 +28,7 @@ montée de mineure peut demander une adaptation des réglages.
 - [`dev/core/generate_terminal_theme.py`](dev/core/generate_terminal_theme.py) écrit les configurations de terminal de façon atomique (`.tmp` + `os.replace`) : un arrêt au mauvais moment ne laisse plus un `user.conf` ou un `alacritty.toml` tronqué.
 - [`dev/core/lien_systeme.py`](dev/core/lien_systeme.py) écrit `helpers.rc`, `mimeapps.list` et les aides exo atomiquement, et conserve le préambule de commentaires de `mimeapps.list`.
 - [`dev/CHANGELOG.md`](CHANGELOG.md) ne nomme plus le parc : 25 liens `file:///home/<utilisateur>/...` sont devenus des chemins relatifs.
+- **Le panneau de configuration se découpe ([`dev/config_panel.qml`](dev/config_panel.qml), [`dev/OngletEsthetique.qml`](dev/OngletEsthetique.qml))** : l'onglet *Bureau* (1 499 lignes) sort dans son fichier, chargé par URL et instancié à la première ouverture. Le panneau passe de 9 000 à 7 500 lignes ; une règle de gel en tête du fichier interdit d'y ajouter de nouvelles options (elles naissent dans leur propre composant). Les tables `targetMap` et `tiroirs` ne peuvent plus nommer les sections d'un onglet déporté : elles passent par `tiroirDe()` / `cibleDe()`, que l'onglet alimente par ses propres `sections` et `cibles`.
 
 ### Corrigé
 
