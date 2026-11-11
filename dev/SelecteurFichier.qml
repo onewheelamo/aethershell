@@ -118,7 +118,9 @@ Item {
         FlouFond {
             anchors.fill: parent
             rayon: carte.radius
-            intensite: Math.max(Theme.shellFlouInterne, 0.85)
+            // Pas de plancher : la surface vit dans la fenêtre `shell-config`,
+            // déjà floutée par le compositeur ; le verre interne suit le réglage.
+            intensite: Theme.shellFlouInterne
         }
 
         Rectangle {

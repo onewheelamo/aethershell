@@ -1205,6 +1205,19 @@ onValueModified: newVal => {
         }
     }
 
+    Text {
+        width: parent.width
+        text: "Ne floute que le fond d'écran, jamais les fenêtres : "
+            + "sous 70 % d'opacité il rend le texte lisible sur le fond ; "
+            + "au-dessus il ne sert plus à rien, le compositeur floute déjà "
+            + "et laisser voir les fenêtres est voulu. À 0, les surfaces "
+            + "translucides n'ont plus aucune matière — les fenêtres se lisent "
+            + "nettes à travers."
+        color: Qt.alpha(Theme.fg, 0.5)
+        font.pixelSize: Theme.text2xs
+        wrapMode: Text.WordWrap
+    }
+
     // Masque de premier plan (idée du plugin Noctalia wallpaper_depth) :
     // une carte de profondeur du fond décide ce qui passe devant les
     // widgets de bureau. Sur deux lignes : à cinq contrôles sur une
@@ -1529,7 +1542,11 @@ Text {
         text: "Ces réglages ne concernent que les surfaces du shell (barre, OSD, panneau, popups). "
 + "L'opacité et le flou des fenêtres se règlent ici, section « Fenêtres Hyprland ». "
 + "La taille et les passes du flou restent communes aux deux, d'où un rendu plus ou moins diffus de part et d'autre. "
-+ "Le seuil doit rester sous l'opacité des surfaces : au-delà, Hyprland cesse de flouter."
++ "Deux seuils, tous deux sur l'opacité des surfaces : sous 30 % ("
++ "le « seuil » ci-dessous) Hyprland cesse de flouter derrière elles, donc "
++ "fenêtres nettes sous une surface transparente ; au-delà de ~70 % le verre "
++ "interne ne change plus rien. Entre les deux, les deux flous se cumulent : "
++ "celui du compositeur (fenêtres comprises) et le verre interne (fond seul)."
         color: Theme.fg
         opacity: 0.6
         font.pixelSize: Theme.textXs
