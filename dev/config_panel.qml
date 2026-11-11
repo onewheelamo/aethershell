@@ -44,7 +44,7 @@ import Quickshell.Io
 // Ce fichier ne doit plus grossir. Une option nouvelle naît dans son propre
 // composant, chargé par URL depuis ici : `Loader { source: "Onglet….qml" }`.
 // C'est le motif qui a déjà sorti l'onglet Greeter (707 lignes) puis l'onglet
-// Bureau (1 500 lignes dans OngletEsthetique.qml).
+// Bureau (1 500 lignes dans OngletApparence.qml).
 //
 // Pourquoi : 9 000 lignes à un seul endroit font payer chaque édition, et une
 // retouche scriptée y a déjà dupliqué un bloc entier — le panneau ne s'instanciait
@@ -1041,7 +1041,7 @@ Rectangle {
     // « ReferenceError: secTheme is not defined ». On les demande donc à l'onglet
     // chargé, qui expose `sections` (nom de tiroir → objet) et `cibles` (nom
     // d'ancre → objet). La liste grandit au fil des extractions.
-    readonly property var ongletsDeportes: [ongletEsthetique]
+    readonly property var ongletsDeportes: [ongletApparence]
 
     function tiroirDe(nom) {
         if (root.tiroirs[nom]) return root.tiroirs[nom]
@@ -1168,6 +1168,10 @@ Rectangle {
     // (SelecteurDossier.qml / SelecteurFichier.qml), pas des dialogues Qt.
     property string selecteurCible: ""
     property string selecteurFichierCible: ""
+    // Paramètres en attente pour les feuilles modales : le premier clic sur
+    // « Choisir » crée le composant, et c'est `onLoaded` qui les applique.
+    property var selecteurParams: ({})
+    property var selecteurFichierParams: ({})
 
     // Installation des paquets manquants (onglet « Apps & Alertes »). Le script
     // lit dependencies.txt, filtre sur la distribution et élève par pkexec —
@@ -1970,7 +1974,7 @@ Rectangle {
             boundsBehavior: Flickable.StopAtBounds
             contentWidth: width
             contentHeight: {
-                if (root.currentTab === 0) return ongletEsthetique.item ? ongletEsthetique.item.implicitHeight : 0
+                if (root.currentTab === 0) return ongletApparence.item ? ongletApparence.item.implicitHeight : 0
                 if (root.currentTab === 1) return tabQuickshellCol.implicitHeight
                 if (root.currentTab === 2) return tabWidgetsCol.implicitHeight
                 if (root.currentTab === 3) return tabSystemeCol.implicitHeight
@@ -1997,19 +2001,17 @@ Rectangle {
             }
 
             // ═══════════════════════════════════════════════════════════════════════════
-            // TAB 0: BUREAU — fonds d'écran, thèmes, fenêtres Hyprland, barre et surfaces.
-            // Le tiroir « Barre & surfaces » est ici ; les barres annexes, les applets
-            // et le visualiseur sont dans l'onglet « Quickshell ».
+            // ONGLET 0 : APPARENCE — fonds d'écran, thèmes, fenêtres Hyprland, barre.
+            // Le corps (1 500 lignes) vit dans OngletApparence.qml, instancié seulement
+            // quand l'onglet s'ouvre ; ici il ne reste que le Loader et son câblage.
+            // Le tiroir « Barre & surfaces » est dans cet onglet ; les barres annexes,
+            // les applets et le visualiseur sont dans « Barres & Applets ».
             // ═══════════════════════════════════════════════════════════════════════════
-        // Onglet « Bureau » : 1 500 lignes déplacées dans OngletEsthetique.qml,
-        // instanciées seulement quand l'onglet s'ouvre. Le fichier du panneau ne
-        // garde que le tronc commun (rail, recherche, en-tête collant) et les
-        // Loaders — voir la règle de gel en tête de fichier.
         Loader {
-            id: ongletEsthetique
+            id: ongletApparence
             width: mainFlickable.width
             active: root.currentTab === 0
-            source: "OngletEsthetique.qml"
+            source: "OngletApparence.qml"
             onLoaded: {
                 item.root = root
                 item.mainFlickable = mainFlickable
@@ -7451,30 +7453,65 @@ Rectangle {
     // Chargée par **URL** et non par nom de type : « SelecteurDossier is not a
     // type » — le moteur ne l'enregistre pas dans l'import implicite du dossier,
     // alors qu'un Loader par chemin n'a pas besoin de cet enregistrement.
+    //
+    // ── Feuilles modales, instanciées à la demande ───────────────────────────
+    // Deux feuilles de ~850 lignes qui ne servent qu'après un clic sur « Choisir » :
+    // les garder montées avec le panneau faisait payer leur analyse et leur
+    // instanciation à chaque ouverture. `active` les crée au premier besoin et les
+    // relâche une fois refermées (le délai laisse la fermeture se faire avant de
+    // détruire l'item).
+    property var selecteurALiberer: null
+    Timer {
+        id: liberationSelecteur
+        interval: 300
+        repeat: false
+        onTriggered: {
+            if (!root.selecteurALiberer) return
+            root.selecteurALiberer.active = false
+            root.selecteurALiberer = null
+        }
+    }
+    function libererSelecteur(loader) {
+        root.selecteurALiberer = loader
+        root.restaurerFocus()
+        liberationSelecteur.restart()
+    }
+
     Loader {
         id: selecteurLoader
         anchors.fill: parent
         z: 1000
+        active: false
         source: "SelecteurDossier.qml"
         onLoaded: {
-            item.accepte.connect(chemin => {
+            item.accepte.connect(function (chemin) {
                 root.validerSelecteur(chemin)
-                root.restaurerFocus()
+                root.libererSelecteur(selecteurLoader)
             })
-            item.annule.connect(() => {
+            item.annule.connect(function () {
                 root.selecteurCible = ""
-                root.restaurerFocus()
+                root.libererSelecteur(selecteurLoader)
             })
+            // Premier clic : l'item n'existait pas encore quand `ouvrirSelecteur` a
+            // posé la cible, c'est ici qu'on lui passe ses paramètres.
+            root.appliquerSelecteur()
         }
     }
 
     function ouvrirSelecteur(cible, titre, chemin) {
         root.selecteurCible = String(cible)
-        if (!selecteurLoader.item)
+        root.selecteurParams = ({ titre: String(titre), chemin: root.cheminAbsolu(chemin) })
+        selecteurLoader.active = true
+        root.appliquerSelecteur()
+    }
+
+    function appliquerSelecteur() {
+        const it = selecteurLoader.item
+        if (!it || root.selecteurCible === "")
             return
-        selecteurLoader.item.titre = String(titre)
-        selecteurLoader.item.chemin = root.cheminAbsolu(chemin)
-        selecteurLoader.item.ouvert = true
+        it.titre = String(root.selecteurParams.titre || "")
+        it.chemin = String(root.selecteurParams.chemin || "")
+        it.ouvert = true
     }
 
     function validerSelecteur(chemin) {
@@ -7489,33 +7526,48 @@ Rectangle {
         id: selecteurFichierLoader
         anchors.fill: parent
         z: 1000
+        active: false
         source: "SelecteurFichier.qml"
         onLoaded: {
-            item.accepte.connect(chemin => {
+            item.accepte.connect(function (chemin) {
                 root.validerSelecteurFichier(chemin)
-                root.restaurerFocus()
+                root.libererSelecteur(selecteurFichierLoader)
             })
-            item.annule.connect(() => {
+            item.annule.connect(function () {
                 root.selecteurFichierCible = ""
-                root.restaurerFocus()
+                root.libererSelecteur(selecteurFichierLoader)
             })
+            root.appliquerSelecteurFichier()
         }
     }
 
     function ouvrirSelecteurFichier(cible, titre, chemin, extensions, icone) {
         root.selecteurFichierCible = String(cible)
-        if (!selecteurFichierLoader.item)
-            return
-        selecteurFichierLoader.item.titre = String(titre)
-        if (extensions && extensions.length > 0)
-            selecteurFichierLoader.item.extensions = extensions
-        selecteurFichierLoader.item.filtrerExtensions = true
-        selecteurFichierLoader.item.icone = icone ? String(icone) : "file-document"
         let chem = String(chemin || "")
         if (chem === "") chem = "~"
-        selecteurFichierLoader.item.chemin = root.cheminAbsolu(chem)
-        selecteurFichierLoader.item.fichierSelectionne = ""
-        selecteurFichierLoader.item.ouvert = true
+        root.selecteurFichierParams = ({
+            titre: String(titre),
+            chemin: root.cheminAbsolu(chem),
+            extensions: extensions || [],
+            icone: icone ? String(icone) : "file-document"
+        })
+        selecteurFichierLoader.active = true
+        root.appliquerSelecteurFichier()
+    }
+
+    function appliquerSelecteurFichier() {
+        const it = selecteurFichierLoader.item
+        if (!it || root.selecteurFichierCible === "")
+            return
+        const p = root.selecteurFichierParams
+        it.titre = String(p.titre || "")
+        if (p.extensions && p.extensions.length > 0)
+            it.extensions = p.extensions
+        it.filtrerExtensions = true
+        it.icone = String(p.icone || "file-document")
+        it.chemin = String(p.chemin || "")
+        it.fichierSelectionne = ""
+        it.ouvert = true
     }
 
     function validerSelecteurFichier(chemin) {

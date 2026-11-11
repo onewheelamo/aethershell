@@ -3,10 +3,11 @@ import Quickshell
 import Quickshell.Io
 import "."
 
-// Onglet « Bureau » du panneau de configuration, sorti de config_panel.qml
-// (9 000 lignes à un seul endroit : chaque édition scriptée y risquait de
-// dupliquer un bloc). Le panneau le charge par URL et ne l'instancie qu'à
-// l'ouverture de l'onglet (`active: currentTab === 0`).
+// Onglet « Apparence » du panneau de configuration (libellé du rail ; il s'appelait
+// « TAB 0: BUREAU » dans le panneau d'avant le découpage), sorti de config_panel.qml
+// (9 000 lignes à un seul endroit : chaque édition scriptée y risquait de dupliquer
+// un bloc). Le panneau le charge par URL et ne l'instancie qu'à l'ouverture de
+// l'onglet (`active: currentTab === 0`).
 //
 // Deux propriétés viennent du panneau, sous les noms qu'elles avaient déjà dans le
 // corps — les 109 `root.` n'ont donc pas bougé : `root` (propriétés et fonctions du

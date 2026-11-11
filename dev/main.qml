@@ -609,6 +609,13 @@ Item {
 
         Loader {
             id: configLoader
+            // Chargé à la **première** ouverture, puis gardé en mémoire : aucune
+            // analyse des 7 500 lignes au démarrage du shell, et la réouverture
+            // est immédiate (onglet, tiroirs et défilement restent en place).
+            // Le décharger à la fermeture ferait rejouer son Component.onCompleted
+            // — donc un appel `state` à config_manager et un scan de thèmes — à
+            // chaque ouverture : ce n'est pas gratuit.
+            property bool charge: false
             anchors.centerIn: parent
             // 740 px : le rail d'onglets porte des libellés (168 px) et le
             // contenu garde ses 540 px utiles.
@@ -616,7 +623,16 @@ Item {
             // Hauteur bornée : le panneau flotte au centre au lieu de coller à
             // la barre et au bas de l'écran.
             height: Math.min(parent.height - Theme.barHeight - Theme.gutter * 4, 900)
+            active: charge
             source: "config_panel.qml"
+        }
+
+        Connections {
+            target: Theme
+            function onConfigPanelVisibleChanged() {
+                if (Theme.configPanelVisible)
+                    configLoader.charge = true
+            }
         }
     }
 
