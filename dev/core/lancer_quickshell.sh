@@ -9,39 +9,57 @@
 # abandonnait (SIGABRT). Mesuré : 194 coredumps en sept jours, dont 142 en sept
 # minutes, relancés toutes les 3 s par systemd.
 #
-# Ici on vérifie que le socket existe vraiment, on attend quelques secondes s'il
-# n'est pas encore là (démarrage à froid), et on sort en 1 sans rien lancer si la
-# session ne vient pas : un échec se lit dans le journal, il ne produit pas de
-# coredump.
+# Le nœud de socket, lui, survit aussi à la session : il passe donc le test
+# d'existence alors que plus personne n'écoute, et Qt avorte encore. D'où le
+# second test — sur Hyprland, une signature doit **répondre** (`hyprctl
+# version`). Un compositeur mort laisse son dossier mais ne répond pas.
 #
-# Variables : QS_ATTENTE_S (défaut 20) = durée d'attente maximale du socket.
+# Ici on attend le compositeur quelques secondes (démarrage à froid), et on sort
+# en 1 sans rien lancer s'il ne vient pas : un échec se lit dans le journal, il
+# ne produit pas de coredump.
+#
+# Variables : QS_ATTENTE_S (défaut 45) = durée d'attente maximale.
 
 r="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-max="${QS_ATTENTE_S:-20}"
+max="${QS_ATTENTE_S:-45}"
 attente=0
+socket=""
+signature=""
 
-while :; do
+# Le compositeur est-il joignable ? Pose `socket` et `signature`.
+compositeur_vivant() {
     socket="${WAYLAND_DISPLAY:-}"
     # Une valeur héritée n'est retenue que si elle désigne un socket existant.
     if [ -z "$socket" ] || [ ! -S "$r/$socket" ]; then
         socket=$(ls "$r" 2>/dev/null | grep -E '^wayland-[0-9]+$' | head -1)
     fi
-    if [ -n "$socket" ] && [ -S "$r/$socket" ]; then
-        break
+    [ -n "$socket" ] && [ -S "$r/$socket" ] || return 1
+
+    # Hyprland : il faut une réponse, pas seulement un nœud présent. La plus
+    # récente d'abord, au cas où une session précédente aurait laissé le sien.
+    if [ -d "$r/hypr" ] && [ -n "$(ls -A "$r/hypr" 2>/dev/null)" ]; then
+        for sig in $(ls -t "$r/hypr" 2>/dev/null); do
+            if hyprctl -i "$sig" version >/dev/null 2>&1; then
+                signature="$sig"
+                return 0
+            fi
+        done
+        return 1
     fi
+    # Autre compositeur : le socket qui existe suffit.
+    return 0
+}
+
+while ! compositeur_vivant; do
     attente=$((attente + 1))
     if [ "$attente" -ge "$max" ]; then
-        echo "quickshell : aucun socket Wayland dans $r après ${max}s (session absente ou en cours de démarrage trop long)" >&2
+        echo "quickshell : aucun compositeur ne repond dans $r apres ${max}s (session absente ou en cours de demarrage)" >&2
         exit 1
     fi
     sleep 1
 done
 
 export WAYLAND_DISPLAY="$socket"
-
-# Signature Hyprland : le dossier de sockets porte son nom. La plus récente
-# d'abord, au cas où une session précédente aurait laissé le sien.
-signature=$(ls -t "$r/hypr" 2>/dev/null | head -1)
 if [ -n "$signature" ]; then
     export HYPRLAND_INSTANCE_SIGNATURE="$signature"
 fi

@@ -18,6 +18,10 @@ Type=simple
 ExecStart=/bin/sh %h/.config/quickshell/core/lancer_quickshell.sh
 Restart=on-failure
 RestartSec=3
+# Qt avorte sur une erreur fatale (platform plugin absent) : sans cette borne,
+# chaque abandon laissait un cœur de 1,6 Mo. 332 Mo accumulés en sept jours. Le
+# lanceur évite désormais l'abandon ; la borne couvre les autres cas.
+LimitCORE=0
 
 [Install]
 WantedBy=default.target
