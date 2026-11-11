@@ -25,6 +25,8 @@ Item {
     property string summary: ""
     property string icon: ""
     property bool expanded: false
+    // Espacement entre les éléments du tiroir (voir `contentCol.spacing`).
+    property int espacementContenu: 0
     property color headerColor: Theme.surfaceBg
     property color titleColor: Theme.fg
 
@@ -128,6 +130,10 @@ Item {
                 id: contentCol
                 width: parent.width
                 topPadding: 10
+                // Respiration entre les éléments d'un tiroir. Vaut 0 par défaut :
+                // les tiroirs qui posent leurs propres espaces ne bougent pas ;
+                // ceux dont les éléments se touchent demandent `espacementContenu`.
+                spacing: root.espacementContenu
                 visible: root.expanded || bodyClip.height > 0
             }
         }

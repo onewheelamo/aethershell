@@ -22,6 +22,9 @@ Column {
     // (le `visible:` du panneau avait été retiré à la découpe).
     visible: root ? root.currentTab === 0 : false
     width: mainFlickable ? mainFlickable.width : 0
+    // Respiration entre les tiroirs de cet onglet : les autres la posent (10 px
+    // entre deux sections), celui-ci laissait ses quatre bandeaux se toucher.
+    spacing: 10
 
     readonly property var sections: ({
         "esthetique_theme": secTheme,
@@ -436,12 +439,14 @@ CollapsibleSection {
     summary: root.resumeChemin(root.wallpaperDir)
     icon: "image"
     expanded: root.sectionOpen("esthetique_fonds", false)
+    // Éléments espacés de 8 px : boutons, chemins et libellés se touchaient. Les
+    // espaces manuels (6, 10 et 2 px) ont été retirés — sinon ils s'ajouteraient.
+    espacementContenu: 8
     onToggled: expanded => {
         root.setPanelSection("esthetique_fonds", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("esthetique_fonds")
     }
-    Item { width: 1; height: 6 }
-Row {
+    Row {
     width: parent.width
     spacing: 8
 
@@ -479,7 +484,6 @@ onClicked: {
     }
 
 }
-Item { width: 1; height: 10 }
 
 // Wallpaper Directory Path
 Row {
@@ -588,7 +592,6 @@ onClicked: {
         }
     }
 }
-Item { width: 1; height: 2 }
 
 // Dossier des captures d'écran (lu par core/screenshot.sh)
 Row {

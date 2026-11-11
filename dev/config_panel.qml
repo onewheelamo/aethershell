@@ -1687,8 +1687,15 @@ Rectangle {
     Connections {
         target: Theme
         function onConfigPanelVisibleChanged() {
-            if (!Theme.configPanelVisible)
+            // La réouverture doit recharger : `libererOnglets()` a tout déchargé à
+            // la fermeture, et rouvrir sur le même onglet ne change pas
+            // `currentTab` — donc `onCurrentTabChanged` ne se déclenche pas et le
+            // panneau restait vide, réduit à son rail.
+            if (Theme.configPanelVisible) {
+                root.majOnglets()
+            } else {
                 root.libererOnglets()
+            }
         }
     }
 
