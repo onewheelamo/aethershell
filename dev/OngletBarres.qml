@@ -33,6 +33,29 @@ Column {
         "secApplets": secApplets,
         "secBarres": secBarres
     })
+
+    // Sections qui naissent dans un délégué de `Repeater` : leur `id` n'est pas
+    // dans la portée du fichier, donc les tables `sections`/`cibles` ne peuvent
+    // pas les nommer (un id absent lève « ReferenceError »). Elles se retrouvent
+    // par `objectName`, et `tiroirDe` / `cibleDe` du panneau passent par ici.
+    readonly property var sectionsTardives: ({ "quickshell_disques": "secDisques" })
+
+    function objetParObjectName(nom) {
+        function chercher(objet) {
+            if (!objet || !objet.children)
+                return null
+            for (let k = 0; k < objet.children.length; ++k) {
+                const enfant = objet.children[k]
+                if (enfant.objectName === nom)
+                    return enfant
+                const trouve = chercher(enfant)
+                if (trouve)
+                    return trouve
+            }
+            return null
+        }
+        return chercher(bloc)
+    }
 spacing: 11
 
 
@@ -818,6 +841,9 @@ CollapsibleSection {
                     // il ne mange pas la place des autres applets.
                     CollapsibleSection {
                         id: secDisques
+                        // Son id est hors de portée du fichier (délégué de Repeater) :
+                        // le panneau le retrouve par ce nom, voir sectionsTardives.
+                        objectName: "secDisques"
                         visible: appletRow.donnee.liste !== undefined
                         title: String((appletRow.donnee.liste || ({})).libelle
                                       || "Disques affichés")

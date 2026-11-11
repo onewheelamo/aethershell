@@ -20,6 +20,8 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Modifié
 
+- **Le tiroir « disques affichés » est atteignable, et les onglets visités restent montés** ([`dev/config_panel.qml`](dev/config_panel.qml), [`dev/OngletBarres.qml`](dev/OngletBarres.qml)) : `secDisques` vit dans un `Repeater`, donc son id n'est pas dans la portée du fichier et les tables `sections` / `cibles` ne pouvaient pas le nommer — le clic milieu ouvrait l'onglet sans amener le tiroir. Il porte un `objectName`, l'onglet publie `sectionsTardives` et une recherche en profondeur, que `tiroirDe` / `cibleDe` consultent en dernier recours ; la clé de section est désormais écrite dans l'état au clic (mesuré). Côté onglets : quitter ne détruit plus le composant, tout est libéré à la fermeture du panneau — quatre visites alternées de deux onglets ne provoquent que deux chargements.
+
 - **Taille du flou des surfaces : de 1 à 96 px, pas de 1** ([`dev/OngletApparence.qml`](dev/OngletApparence.qml), [`dev/Theme.qml`](dev/Theme.qml), [`dev/core/config_manager.py`](dev/core/config_manager.py)) : la borne basse était à 8 px et le pas à 4, ce qui interdisait les petits rayons. Vérifié : 2 px est conservé, 0 est ramené au plancher de 1.
 
 - **`style_vars.json` ne porte plus le catalogue** ([`dev/core/style_vars.json`](dev/core/style_vars.json)) : 99 palettes → 3. Le fichier suivi perd 1 250 lignes ; la migration est automatique au premier démarrage (le scan purge les palettes importées et n'en garde aucune, sauf l'active).

@@ -1044,6 +1044,10 @@ Rectangle {
         for (let i = 0; i < root.ongletsDeportes.length; i++) {
             const it = root.ongletsDeportes[i] ? root.ongletsDeportes[i].item : null
             if (it && it.sections && it.sections[nom]) return it.sections[nom]
+            // Section née dans un délégué de `Repeater` : son id n'est pas dans
+            // la portée du fichier, l'onglet la retrouve par `objectName`.
+            if (it && it.sectionsTardives && it.sectionsTardives[nom] && it.objetParObjectName)
+                return it.objetParObjectName(String(it.sectionsTardives[nom]))
         }
         return null
     }
@@ -1053,6 +1057,10 @@ Rectangle {
         for (let i = 0; i < root.ongletsDeportes.length; i++) {
             const it = root.ongletsDeportes[i] ? root.ongletsDeportes[i].item : null
             if (it && it.cibles && it.cibles[nom]) return it.cibles[nom]
+            if (it && it.objetParObjectName) {
+                const trouve = it.objetParObjectName(String(nom))
+                if (trouve) return trouve
+            }
         }
         return null
     }
@@ -1076,6 +1084,10 @@ Rectangle {
             for (const k in it.sections)
                 if (noms.indexOf(k) < 0)
                     noms.push(k)
+            if (it.sectionsTardives)
+                for (const k in it.sectionsTardives)
+                    if (noms.indexOf(k) < 0)
+                        noms.push(k)
         }
         return noms
     }
@@ -1623,8 +1635,8 @@ Rectangle {
     // could not be converted to an object »). `setSource` passe les propriétés
     // **avant** la création. Quitter un onglet le libère : la position de
     // défilement est perdue, la mémoire revient.
-    function majOnglets() {
-        const defs = [
+    function defsOnglets() {
+        return [
             [0, ongletApparence, "OngletApparence.qml", {}],
             [1, ongletBarres, "OngletBarres.qml", { disquesListeProc: disquesListeProc }],
             [2, ongletBureau, "OngletBureau.qml", {}],
@@ -1634,21 +1646,51 @@ Rectangle {
             [6, ongletConnexion, "OngletConnexion.qml", {}],
             [7, ongletDonnees, "OngletDonnees.qml", { ncEtatProc: ncEtatProc }]
         ]
+    }
+
+    // Un onglet visité **reste monté** jusqu'à la fermeture du panneau : quitter
+    // puis revenir ne détruit plus le composant, donc la position de défilement
+    // et les champs en cours de saisie sont conservés. Le prix est la mémoire des
+    // onglets ouverts ; elle est rendue à la fermeture (`libererOnglets`).
+    property var ongletsVisites: ({})
+
+    function majOnglets() {
+        const defs = root.defsOnglets()
         for (let i = 0; i < defs.length; ++i) {
             const index = defs[i][0]
             const chargeur = defs[i][1]
-            if (root.currentTab !== index) {
-                if (chargeur.status !== Loader.Null)
-                    chargeur.source = ""
+            if (root.currentTab !== index)
                 continue
-            }
             if (chargeur.status === Loader.Null)
                 chargeur.setSource(defs[i][2],
                                    Object.assign({ root: root, mainFlickable: mainFlickable }, defs[i][3]))
+            if (!root.ongletsVisites[index]) {
+                const visites = Object.assign({}, root.ongletsVisites)
+                visites[index] = true
+                root.ongletsVisites = visites
+            }
         }
     }
 
+    function libererOnglets() {
+        const defs = root.defsOnglets()
+        for (let i = 0; i < defs.length; ++i) {
+            const chargeur = defs[i][1]
+            if (chargeur.status !== Loader.Null)
+                chargeur.source = ""
+        }
+        root.ongletsVisites = ({})
+    }
+
     onCurrentTabChanged: root.majOnglets()
+
+    Connections {
+        target: Theme
+        function onConfigPanelVisibleChanged() {
+            if (!Theme.configPanelVisible)
+                root.libererOnglets()
+        }
+    }
 
     Component.onCompleted: {
         refreshConfigState()
