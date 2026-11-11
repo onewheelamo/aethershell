@@ -45,6 +45,7 @@ Item {
     signal closeRequested()
 
 
+
     // `Quickshell.env()` rend `undefined` pour une variable absente, et non une
     // chaîne vide : un test `!== ""` passait donc toujours, la propriété (typée
     // string) retombait sur "" et le chemin devenait « /quickshell/… » — le
@@ -285,7 +286,14 @@ Item {
             // Même verre que le panneau de configuration : opacité par
             // `surfaceColor` (qui suit `shell_opacity`), flou par
             // `shell_flou_interne`. Le tiroir gardait 0,92 en dur, sans flou.
+            // `FlouFond` ne redessine que le **fond d'écran** : il ne montre
+            // jamais les fenêtres. Le flou derrière le tiroir — celui qui compte
+            // quand une fenêtre est sous lui — vient du compositeur, par
+            // `layer_rule` sur le namespace `shell-notif-history`
+            // (`SHELL_BLUR_NAMESPACES`) ; le verre interne reste pour le cas
+            // « bureau nu », à l'intensité du réglage, comme le panneau.
             FlouFond {
+                id: verre
                 anchors.fill: parent
                 rayon: parent.radius
                 intensite: Theme.shellFlouInterne
