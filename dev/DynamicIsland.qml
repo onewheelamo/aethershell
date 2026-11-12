@@ -3,24 +3,44 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Services.Mpris
 import "."
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 // DYNAMIC ISLAND (DynamicIsland.qml)
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 // Îlot central dynamique style macOS / iOS / r/unixporn :
-// - Compact au repos (Horloge + Bureau actif / Media indicator)
+// - Compact au repos : Heure par défaut + mini lecteur audio avec contrôles
 // - Morphing fluide et extension au survol de la souris
 // - Révélation progressive des applets système, réseau, tray et batterie
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 
 Item {
     id: root
 
     property bool isHovered: islandMouseArea.containsMouse || extraMouseArea.containsMouse
-    property bool isMediaActive: Theme.mediaPlaying && Theme.mediaTitle !== ""
 
-    // Délai de rétractation (150 ms) pour une navigation fluide sans sursauts
+    // Service MPRIS direct pour la réactivité instantanée
+    readonly property var players: Mpris.players.values
+    readonly property var activePlayer: {
+        if (!players || players.length === 0) return null
+        for (let i = 0; i < players.length; i++) {
+            let p = players[i]
+            if (p && p.playbackState === MprisPlaybackState.Playing) return p
+        }
+        for (let i = 0; i < players.length; i++) {
+            let p = players[i]
+            if (p && p.trackTitle && p.trackTitle.length > 0) return p
+        }
+        return players[0] || null
+    }
+
+    readonly property bool isPlaying: activePlayer ? (activePlayer.playbackState === MprisPlaybackState.Playing) : false
+    readonly property string mediaTitle: activePlayer ? (activePlayer.trackTitle || "") : ""
+    readonly property string mediaArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
+    readonly property bool isMediaActive: (mediaTitle !== "" || isPlaying)
+
+    // Délai de rétractation (160 ms) pour une navigation fluide sans sursauts
     property bool expanded: isHovered
     onIsHoveredChanged: {
         if (isHovered) {
@@ -48,14 +68,15 @@ Item {
     readonly property real expandedWidth: Math.max(520, fullContentRow.implicitWidth + Theme.padH * 2.5)
 
     width: expanded ? expandedWidth : compactWidth
+
     Behavior on width {
         NumberAnimation {
-            duration: 220
+            duration: 240
             easing.type: Easing.OutCubic
         }
     }
 
-    // Surface d'arrière-plan avec FlouFond et bordure réactive
+    // Fond en pilule élégante avec bordure subtile et flou d'arrière-plan
     Rectangle {
         id: bgRect
         anchors.fill: parent
@@ -83,9 +104,9 @@ Item {
         Behavior on border.color { ColorAnimation { duration: 180 } }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
     // CONTENU COMPACT (AU REPOS)
-    // ────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
     Item {
         id: compactContainer
         anchors.fill: parent
@@ -98,24 +119,24 @@ Item {
             anchors.centerIn: parent
             spacing: 12
 
-            // Indicateur Workspace ou Icône Applet
+            // Horloge principale affichée par défaut
             Row {
                 spacing: 6
                 anchors.verticalCenter: parent.verticalCenter
 
-                Rectangle {
-                    width: 7
-                    height: 7
-                    radius: 3.5
+                Text {
+                    text: "" // Horloge
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
                     color: Theme.accent
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Text {
-                    text: Hyprland.focusedWorkspace ? ("WS " + Hyprland.focusedWorkspace.id) : ""
+                    text: Qt.formatDateTime(Theme.now, "hh:mm")
                     font.family: Theme.fontFamily
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
+                    font.pixelSize: Theme.textSm
+                    font.weight: Font.Bold
                     color: Theme.fg
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -130,44 +151,79 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // Horloge compacte centrale
-            Text {
-                text: Qt.formatDateTime(Theme.now, "hh:mm")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.textSm
-                font.weight: Font.Bold
-                color: Theme.fg
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            // Indicateur Média compact (si actif)
+            // Si un média est actif : Mini-lecteur audio compact avec bouton play/pause
             Row {
                 visible: root.isMediaActive
                 spacing: 6
                 anchors.verticalCenter: parent.verticalCenter
 
                 Rectangle {
-                    width: 1
-                    height: 12
-                    color: Theme.fg
-                    opacity: 0.15
+                    width: 18
+                    height: 18
+                    radius: 9
+                    color: Qt.alpha(Theme.accent, playCompactArea.containsMouse ? 0.35 : 0.18)
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.isPlaying ? "" : "" // pause / play
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                        color: Theme.accent
+                    }
+
+                    MouseArea {
+                        id: playCompactArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: if (root.activePlayer) root.activePlayer.togglePlaying()
+                    }
+                }
+
+                Text {
+                    text: {
+                        let t = root.mediaTitle
+                        if (!t) return "Audio"
+                        return t.length > 16 ? (t.substring(0, 15) + "…") : t
+                    }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                    color: Theme.accent
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            // Si aucun média : Badge Workspace actif en secondaire
+            Row {
+                visible: !root.isMediaActive
+                spacing: 6
+                anchors.verticalCenter: parent.verticalCenter
+
+                Rectangle {
+                    width: 6
+                    height: 6
+                    radius: 3
+                    color: Theme.accent
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Text {
-                    text: "\uf001" // Note de musique
+                    text: Hyprland.focusedWorkspace ? ("WS " + Hyprland.focusedWorkspace.id) : ""
                     font.family: Theme.fontFamily
                     font.pixelSize: 11
-                    color: Theme.accent
+                    font.weight: Font.DemiBold
+                    color: Qt.alpha(Theme.fg, 0.75)
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
     // CONTENU ÉTENDU (AU SURVOL)
-    // ────────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
     Item {
         id: expandedContainer
         anchors.fill: parent
@@ -193,12 +249,14 @@ Item {
                 }
             }
 
-            // Centre : Horloge + Date cliquable (Calendrier)
+            // Centre : Horloge + Date cliquable (Calendrier) OU Média détaillé
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
+                // Si aucun média : Horloge + Date
                 Row {
+                    visible: !root.isMediaActive
                     anchors.centerIn: parent
                     spacing: 8
 
@@ -220,9 +278,87 @@ Item {
                     }
                 }
 
+                // Si média actif : Titre + Contrôles Précédent / Play / Suivant
+                Row {
+                    visible: root.isMediaActive
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Text {
+                        text: ""
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        color: Theme.accent
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                        text: {
+                            let t = root.mediaTitle
+                            let a = root.mediaArtist
+                            if (!t) return "Audio"
+                            return a ? (t + " — " + a) : t
+                        }
+                        color: Theme.accent
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        font.family: Theme.fontFamily
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    // Précédent
+                    Text {
+                        text: ""
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        color: prevMouse.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            id: prevMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (root.activePlayer) root.activePlayer.previous()
+                        }
+                    }
+
+                    // Play / Pause
+                    Text {
+                        text: root.isPlaying ? "" : ""
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 12
+                        color: playMouse.containsMouse ? Theme.accent : Theme.fg
+                        anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            id: playMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (root.activePlayer) root.activePlayer.togglePlaying()
+                        }
+                    }
+
+                    // Suivant
+                    Text {
+                        text: ""
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 11
+                        color: nextMouse.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        anchors.verticalCenter: parent.verticalCenter
+                        MouseArea {
+                            id: nextMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (root.activePlayer) root.activePlayer.next()
+                        }
+                    }
+                }
+
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
+                    enabled: !root.isMediaActive
                     onClicked: Theme.activePopup = (Theme.activePopup === "calendar" ? "" : "calendar")
                 }
             }

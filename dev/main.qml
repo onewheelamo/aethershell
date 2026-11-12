@@ -439,14 +439,18 @@ Item {
             Item {
                 id: slotGauche
                 x: zoneGauche.x + zoneGauche.width
-                width: Math.max(0, zoneCentre.x - x)
+                width: Theme.barStyle === "island"
+                    ? Math.max(0, islandContainer.x - x)
+                    : Math.max(0, zoneCentre.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
             }
 
             Item {
                 id: slotDroit
-                x: zoneCentre.x + zoneCentre.width
+                x: Theme.barStyle === "island"
+                    ? islandContainer.x + islandContainer.width
+                    : zoneCentre.x + zoneCentre.width
                 width: Math.max(0, zoneDroite.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
