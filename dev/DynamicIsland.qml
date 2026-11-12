@@ -18,6 +18,14 @@ import "."
 Item {
     id: root
 
+    property var currentTime: new Date()
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: root.currentTime = new Date()
+    }
+
     property bool isHovered: islandMouseArea.containsMouse || extraMouseArea.containsMouse
 
     // Service MPRIS direct pour la réactivité instantanée
@@ -178,7 +186,7 @@ Item {
                 }
 
                 Text {
-                    text: Qt.formatDateTime(Theme.now, "hh:mm")
+                    text: Qt.formatDateTime(root.currentTime, "hh:mm")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.textSm
                     font.weight: Font.Bold
@@ -308,7 +316,7 @@ Item {
                     spacing: 8
 
                     Text {
-                        text: Qt.formatDateTime(Theme.now, "hh:mm")
+                        text: Qt.formatDateTime(root.currentTime, "hh:mm")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.textSm
                         font.weight: Font.Bold
@@ -317,7 +325,7 @@ Item {
                     }
 
                     Text {
-                        text: Qt.formatDateTime(Theme.now, "ddd d MMM")
+                        text: Qt.formatDateTime(root.currentTime, "ddd d MMM")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.textXs
                         color: Theme.textDim

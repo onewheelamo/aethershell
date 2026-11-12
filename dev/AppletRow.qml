@@ -7,7 +7,13 @@ import Quickshell
 Item {
     id: root
     property string ile: "haut:fin"
-    readonly property var applets: root.ile !== "" ? Theme.appletsPourIle(root.ile) : []
+    property var exclude: []
+    readonly property var applets: {
+        if (root.ile === "") return []
+        let list = Theme.appletsPourIle(root.ile)
+        if (!root.exclude || root.exclude.length === 0) return list
+        return list.filter(function(a) { return root.exclude.indexOf(a.id) === -1 })
+    }
 
     implicitWidth: ligne.implicitWidth
     implicitHeight: ligne.implicitHeight
