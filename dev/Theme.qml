@@ -527,6 +527,7 @@ QtObject {
         root.gutterV = Math.round(Math.max(0, Math.min(32,
             typeof data.bar_gaps_out_v === "number" ? data.bar_gaps_out_v : margeOut)))
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
+        if (typeof data.bar_style === "string") root.barStyle = data.bar_style
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent
         if (typeof data.widgets_locked === "boolean") root.widgetsLocked = data.widgets_locked
         if (typeof data.viz_fps === "number") root.vizFps = Math.max(10, Math.min(60, Math.round(data.viz_fps)))

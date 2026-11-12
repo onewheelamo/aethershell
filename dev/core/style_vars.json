@@ -4,6 +4,7 @@
     "global_radius": 18,
     "selecteur_radius": 0,
     "global_opacity": 0.7,
+    "bar_style": "classic",
     "bar_height": 36,
     "bar_gaps_out_h": 8,
     "bar_gaps_out_v": 8,

@@ -765,6 +765,8 @@ def update_style_var(key, value):
         data[key] = round(max(0.5, min(4.0, float(value))), 1)
     elif key == "viz_couleur" and str(value) in VIZ_COULEURS:
         data[key] = str(value)
+    elif key == "bar_style" and str(value) in ("classic", "island"):
+        data[key] = str(value)
     elif key == "bar_gaps_transparent":
         # Espaces entre les îlots de la barre du haut : booléen, relu par
         # Theme.qml (barGapsTransparent), qui découpe le fond en trois zones.
