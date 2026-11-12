@@ -20,8 +20,8 @@ Item {
         id: previewBox
         anchors.fill: parent
         radius: Theme.btnRadius
-        color: root.activeSelection ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12) : Theme.surface
-        border.color: root.activeSelection ? Theme.accent : Theme.surfaceBorder
+        color: root.activeSelection ? Qt.alpha(Theme.accent, 0.14) : Theme.surface
+        border.color: root.activeSelection ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
         border.width: root.activeSelection ? 2 : 1
 
         Behavior on color { ColorAnimation { duration: 160 } }
@@ -64,7 +64,7 @@ Item {
                     width: 48
                     height: 12
                     radius: 6
-                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    color: Qt.alpha(Theme.accent, 0.35)
                     border.color: Theme.accent
                     border.width: 1
                 }
@@ -76,7 +76,7 @@ Item {
                     width: 64
                     height: 12
                     radius: 6
-                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    color: Qt.alpha(Theme.accent, 0.35)
                     border.color: Theme.accent
                     border.width: 1
                 }
@@ -88,7 +88,7 @@ Item {
                     width: 52
                     height: 12
                     radius: 6
-                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    color: Qt.alpha(Theme.accent, 0.35)
                     border.color: Theme.accent
                     border.width: 1
                 }
@@ -110,7 +110,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 13
                     radius: 6.5
-                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45)
+                    color: Qt.alpha(Theme.accent, 0.45)
                     border.color: Theme.accent
                     border.width: 1
 

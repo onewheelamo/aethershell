@@ -120,8 +120,8 @@ CollapsibleSection {
                         width: 140
                         height: 28
                         radius: 6
-                        color: Theme.barStyle === modelData.key ? Theme.accent : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.4)
-                        border.color: Theme.barStyle === modelData.key ? Theme.accent : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+                        color: Theme.barStyle === modelData.key ? Theme.accent : Qt.alpha(Theme.surfaceVariant, 0.4)
+                        border.color: Theme.barStyle === modelData.key ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
                         border.width: 1
 
                         Text {
