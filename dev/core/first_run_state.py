@@ -184,6 +184,17 @@ def barre_courante():
     return "haut"
 
 
+def bar_style_courant():
+    """Le style de barre d'après style_vars.json ("classic" ou "island")."""
+    try:
+        style = cm.load_json(cm.STYLE_FILE)
+    except Exception:
+        return "classic"
+    if not isinstance(style, dict):
+        return "classic"
+    return style.get("bar_style") or "classic"
+
+
 def main():
     apps = cm.load_json(cm.APP_VARS_FILE)
 
@@ -221,6 +232,7 @@ def main():
         # n'est allumée, donc « haut » ; en relançant l'assistant, la page
         # retrouve le choix déjà fait.
         "barre": barre_courante(),
+        "bar_style": bar_style_courant(),
     }, ensure_ascii=False))
     return 0
 

@@ -146,6 +146,14 @@ def main():
             except Exception as exc:
                 rapport["erreurs"].append(f"barre : {exc}")
 
+        bar_style = str(choix.get("bar_style") or "").strip()
+        if bar_style in ("classic", "island"):
+            try:
+                cm.update_style_var("bar_style", bar_style)
+                rapport["bar_style"] = bar_style
+            except Exception as exc:
+                rapport["erreurs"].append(f"style barre : {exc}")
+
         poses = {}
         for w in cm.load_widgets():
             poses.setdefault(str(w.get("type")), str(w.get("id")))
