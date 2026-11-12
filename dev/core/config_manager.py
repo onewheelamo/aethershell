@@ -1918,6 +1918,7 @@ def get_full_config_state():
         "global_opacity": float(style_data.get("global_opacity", 0.7)),
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
+        "bar_style": str(style_data.get("bar_style", "classic")),
         "bar_border": bool(style_data.get("bar_border", True)),
         "bar_gaps_transparent": bool(style_data.get("bar_gaps_transparent", False)),
         "viz_fps": int(style_data.get("viz_fps", 30)),
