@@ -1168,6 +1168,40 @@ ecrire_version_deployee() {
     mv -f "$CORE_DIR/version.json.new" "$CORE_DIR/version.json" || true
 }
 
+# Action polkit + helper root de la limite de charge (dev/charge-limit).
+#
+# Ils vivent hors de ~/.config : /usr/local/bin, /usr/share/polkit-1/actions,
+# /etc/polkit-1/rules.d — donc root, donc pkexec. L'élévation n'est demandée que
+# si les trois sources ont changé depuis la dernière installation : une machine
+# à jour ne voit aucune invite à chaque déploiement. L'empreinte est retenue
+# dans le cache, pas dans ~/.config/quickshell (que l'élagage nettoierait).
+installer_charge_limit() {
+    local dir="$DEV_DIR/charge-limit"
+    [ -f "$dir/install.sh" ] || return 0
+
+    local stamp="$HOME/.cache/quickshell/charge-limit.stamp" courant
+    courant=$(cat "$dir/aether-charge-limit" \
+                  "$dir/org.aethershell.charge.policy" \
+                  "$dir/50-aethershell-charge.rules" | sha256sum | cut -d' ' -f1)
+    if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$courant" ]; then
+        return 0
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        echo "  ⚙ charge-limit : action polkit et helper à installer (root)"
+        return 0
+    fi
+    if command -v pkexec >/dev/null 2>&1; then
+        if pkexec bash "$dir/install.sh"; then
+            mkdir -p "$(dirname "$stamp")" \
+                && printf '%s\n' "$courant" > "$stamp"
+        else
+            echo "  ⚠ limite de charge non installée — à lancer à la main : sudo bash $dir/install.sh"
+        fi
+    else
+        echo "  ⚠ pkexec absent : limite de charge non installée (sudo bash $dir/install.sh)"
+    fi
+}
+
 deploy_new_env() {
     echo "🚀 Deploying $DISTRO_TITLE..."
 
@@ -1330,7 +1364,18 @@ deploy_new_env() {
             echo "  ↪ unité installée : $(basename "$unite")"
         done
         systemctl --user daemon-reload 2>/dev/null || true
+        # Une unité copiée mais jamais activée ne sert à rien : `enable` la rend
+        # persistante, `--now` la démarre sans attendre la prochaine session.
+        # L'agent polkit en dépend : sans lui, `pkexec` n'a personne à qui
+        # demander l'autorisation, et les écritures dans /sys (limite de charge
+        # à 80 %) échouent sans un mot.
+        if [ -f "$HOME/.config/systemd/user/polkit-agent.service" ]; then
+            systemctl --user enable --now polkit-agent.service 2>/dev/null \
+                || echo "  ⚠ agent polkit non démarré (systemctl --user enable --now polkit-agent)"
+        fi
     fi
+
+    installer_charge_limit
 
     installer_crochets_git
 

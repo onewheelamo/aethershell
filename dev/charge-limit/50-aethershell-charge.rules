@@ -1,0 +1,18 @@
+/* Limite de charge : les membres de wheel, en session locale active, changent
+   le seuil sans mot de passe.
+
+   Pourquoi une règle et pas `allow_active=yes` dans le fichier .policy :
+   `allow_active=yes` autoriserait *toute* session active, y compris un compte
+   sans privilège ; ici l'action reste auth_admin pour tous les autres, et seule
+   cette règle dispense wheel. Un interrupteur d'applet ne doit pas ouvrir une
+   invite à chaque bascule, mais il ne doit pas non plus être ouvert au premier
+   venu.
+
+   subject.local et subject.active : une session distante (ssh) garde le mot de
+   passe — c'est voulu, l'autorisation vaut pour la session graphique. */
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.aethershell.charge.limit" &&
+            subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

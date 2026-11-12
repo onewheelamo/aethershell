@@ -1,0 +1,91 @@
+#!/bin/sh
+# aether-charge-limit — limite la charge de la batterie, ou la rétablit.
+#
+# Appelé par le shell à travers `pkexec`, sous l'action polkit
+# `org.aethershell.charge.limit` : root uniquement.
+#
+#   aether-charge-limit 80      80 % (seuil 80, conservation_mode 1)
+#   aether-charge-limit 100     100 % (seuil 100, conservation_mode 0)
+#   aether-charge-limit status  état courant en JSON, sans root
+#
+# Deux mécanismes coexistent selon la machine : le seuil générique
+# (`charge_control_end_threshold`, la plupart des ThinkPads récents) et le
+# `conservation_mode` d'ideapad_acpi (IdeaPad/Yoga). On écrit dans les deux
+# quand ils existent : la batterie n'est pas toujours BAT0, et une machine peut
+# exposer l'un, l'autre, ou les deux. Écrire une valeur déjà en place est sans
+# effet, donc l'idempotence est gratuite.
+set -u
+
+usage() { echo "usage : aether-charge-limit 80|100|status" >&2; exit 2; }
+
+seuils() {
+    for p in /sys/class/power_supply/BAT*/charge_control_end_threshold; do
+        [ -e "$p" ] && echo "$p"
+    done
+}
+
+conservation() {
+    for p in /sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode; do
+        [ -e "$p" ] && echo "$p"
+    done
+}
+
+# etat : même règle que `get_battery_limit_state` côté Python — un seuil <= 85 %
+# ou une conservation active veut dire « limité à 80 % ».
+etat() {
+    limite=false
+    seuil=""
+    for p in $(seuils); do
+        v=$(cat "$p" 2>/dev/null || true)
+        [ -n "$seuil" ] || seuil="$v"
+        case "$v" in
+            ''|*[!0-9]*) ;;
+            *) [ "$v" -le 85 ] && limite=true ;;
+        esac
+    done
+    for p in $(conservation); do
+        v=$(cat "$p" 2>/dev/null || true)
+        [ "$v" = "1" ] && limite=true
+    done
+    printf '{"limit_80": %s, "seuil": "%s"}\n' "$limite" "$seuil"
+}
+
+[ "${1:-}" = "status" ] && { etat; exit 0; }
+
+case "${1:-}" in
+    80|100) val="$1" ;;
+    *) usage ;;
+esac
+
+[ "$(id -u)" = "0" ] || { echo "aether-charge-limit : root requis (passer par pkexec)" >&2; exit 3; }
+
+[ "$val" = "80" ] && cons_val=1 || cons_val=0
+
+ecrits=0
+echecs=""
+for p in $(seuils); do
+    if printf '%s\n' "$val" > "$p" 2>/dev/null; then
+        ecrits=$((ecrits + 1))
+    else
+        echecs="$echecs $p"
+    fi
+done
+for p in $(conservation); do
+    if printf '%s\n' "$cons_val" > "$p" 2>/dev/null; then
+        ecrits=$((ecrits + 1))
+    else
+        echecs="$echecs $p"
+    fi
+done
+
+if [ "$ecrits" = "0" ]; then
+    echo "aucun mécanisme de limite de charge sur cette machine" >&2
+    exit 1
+fi
+if [ -n "$echecs" ]; then
+    echo "écriture impossible sur :$echecs" >&2
+    exit 1
+fi
+
+etat
+exit 0

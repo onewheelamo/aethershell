@@ -30,12 +30,21 @@ Item {
     property int batPourcent: 0
     property string batEtat: ""
     property bool batLimite: false
+    // Plafond réel de la machine : 80 % sur un seuil (`charge_control_end_threshold`),
+    // ~60 % sur un `conservation_mode` d'IdeaPad. Le libellé suit, sinon il promet
+    // une valeur que le matériel n'applique pas.
+    property int batPlafond: 80
     property bool briPresente: false
     property int briPourcent: 100
 
     readonly property real cote: Math.max(18, Math.round(Theme.barHeight * 0.70 * echelle))
 
     readonly property bool vide: !batPresente && !briPresente
+
+    // « Not charging » à 57 % n'est pas une panne quand le plafond est 60 % :
+    // c'est la limite atteinte. Le noyau ne fait pas la différence, l'applet si.
+    readonly property string batEtatAffiche:
+        (batLimite && batPourcent >= batPlafond - 1) ? "limite atteinte" : batEtat
 
     // Icône du bouton : la batterie quand elle existe (et son état), sinon le
     // rétroéclairage, sinon le contour de batterie — une tour garde ainsi une
@@ -82,6 +91,7 @@ Item {
                         root.batPourcent = Number(d.battery.level || 0)
                         root.batEtat = String(d.battery.status || "")
                         root.batLimite = Boolean(d.battery.limit_80)
+                        root.batPlafond = Number(d.battery.limit_pct || 80)
                     }
                     root.briPresente = Boolean(d.has_backlight)
                     if (typeof d.brightness === "number") root.briPourcent = d.brightness
@@ -92,7 +102,27 @@ Item {
 
     Process {
         id: action
-        onExited: root.relire()
+        // La sortie de `system_service.py` est du JSON, `error` compris : sans la
+        // lire, un refus d'autorisation ou un mécanisme absent ne se voyait que
+        // comme un interrupteur qui revient tout seul. `-u normal` : l'échec doit
+        // se lire, il ne disparaît pas comme une notification d'agrément.
+        property string sortie: ""
+        stdout: StdioCollector {
+            onStreamFinished: action.sortie = text.trim()
+        }
+        onExited: code => {
+            let motif = ""
+            try {
+                const d = JSON.parse(action.sortie)
+                if (d && d.error) motif = String(d.error)
+            } catch (e) { /* pas de JSON : on garde le code de sortie */ }
+            if (code !== 0 && motif !== "")
+                Quickshell.execDetached(["notify-send", "-a", "AetherShell",
+                                         "-u", "normal",
+                                         "Réglage non appliqué", motif])
+            action.sortie = ""
+            root.relire()
+        }
     }
 
     function reglerLuminosite(pct) {
@@ -232,7 +262,7 @@ Item {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.batPourcent + " %" + (root.batEtat !== "" ? " · " + root.batEtat : "")
+                        text: root.batPourcent + " %" + (root.batEtatAffiche !== "" ? " · " + root.batEtatAffiche : "")
                         color: root.batPourcent <= 15 ? Theme.warn : Qt.alpha(Theme.fg, 0.7)
                         font.pixelSize: Theme.textXs
                         font.features: { "tnum": 1 }
@@ -249,7 +279,7 @@ Item {
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Limiter la charge à 80 % (santé)"
+                        text: "Limiter la charge à " + root.batPlafond + " % (santé)"
                         color: Qt.alpha(Theme.fg, 0.9)
                         font.pixelSize: Theme.textXs
                     }

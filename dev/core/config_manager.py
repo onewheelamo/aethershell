@@ -1680,8 +1680,16 @@ DEFAULT_AUTOSTART = [
     # propre `sh -c` et ne démarrait jamais rien.
     # La garde est dans le script (pidfile) : un `pgrep -f` sur le nom du script se
     # trouverait lui-même dans le `sh -c` qui le porte.
+    # L'agent polkit n'est plus au démarrage : il a son unité systemd
+    # (`dev/systemd/polkit-agent.service`). Deux raisons. L'ancien garde
+    # `pgrep -f "(polkit-...)"` se reconnaissait dans sa propre ligne de
+    # commande et sortait aussitôt : l'agent n'était jamais lancé. Et sur une
+    # machine où Hyprland démarre depuis un TTY, un agent lancé par l'autostart
+    # appartient à la session du compositeur, alors que les applets tournent
+    # dans celle de quickshell (systemd --user) : polkit ne le leur présente
+    # pas. Sans agent joignable, `pkexec` échoue, et la limite de charge à 80 %
+    # ne fait rien — sans un mot.
     {"name": "Presse-papiers (veilleurs cliphist)", "cmd": "sh -c '$HOME/.config/quickshell/core/cliphist_watch.sh' &", "enabled": True},
-    {"name": "Agent Polkit", "cmd": "sh -c '/usr/bin/pgrep -f \"(polkit-kde-authentication-agent-1|hyprpolkitagent|lxqt-policykit-agent)\" >/dev/null && exit 0; for agent in /usr/libexec/kf6/polkit-kde-authentication-agent-1 /usr/lib/polkit-kde-authentication-agent-1 /usr/libexec/polkit-kde-authentication-agent-1 /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent /usr/libexec/lxqt-policykit-agent /usr/lib/lxqt-policykit-agent; do if [ -x \"$agent\" ]; then exec \"$agent\"; fi; done'", "enabled": True},
 ]
 
 

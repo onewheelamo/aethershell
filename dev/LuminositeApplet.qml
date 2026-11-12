@@ -41,6 +41,9 @@ Item {
     property bool batCharge: false
     property string batEtat: ""
     property bool batLimite: false
+    // Même règle que GestionEnergieApplet : le plafond affiché est celui que la
+    // machine applique (80 % sur un seuil, ~60 % sur conservation_mode).
+    property int batPlafond: 80
     property bool briPresente: false
     property int briPourcent: 100
     property bool pret: false
@@ -48,6 +51,11 @@ Item {
     readonly property bool batterie: batPresente
     readonly property bool ouvert: Theme.activePopup === "applet:luminosite"
     readonly property bool vide: !batPresente && !briPresente
+
+    // À plafond atteint, le noyau dit « Not charging » : ce n'est pas une panne,
+    // c'est la limite qui travaille. Le dire évite de chercher un bug.
+    readonly property string batEtatAffiche:
+        (batLimite && batPourcent >= batPlafond - 1) ? "limite atteinte" : batEtat
 
     readonly property string glypheBatterie: {
         if (!batPresente) return briPresente ? "brightness" : "battery-outline"
@@ -77,7 +85,26 @@ Item {
 
     Process {
         id: actionEnergie
-        onExited: root.lire()
+        // Même lecture que dans GestionEnergieApplet : le JSON de
+        // `system_service.py` porte `error`, et un échec silencieux se lisait
+        // comme un interrupteur qui revient tout seul.
+        property string sortie: ""
+        stdout: StdioCollector {
+            onStreamFinished: actionEnergie.sortie = text.trim()
+        }
+        onExited: code => {
+            let motif = ""
+            try {
+                const d = JSON.parse(actionEnergie.sortie)
+                if (d && d.error) motif = String(d.error)
+            } catch (e) { /* pas de JSON : on garde le code de sortie */ }
+            if (code !== 0 && motif !== "")
+                Quickshell.execDetached(["notify-send", "-a", "AetherShell",
+                                         "-u", "normal",
+                                         "Réglage non appliqué", motif])
+            actionEnergie.sortie = ""
+            root.lire()
+        }
     }
 
     function reglerLuminosite(pct) {
@@ -168,6 +195,7 @@ Item {
                         root.batEtat = st
                         root.batCharge = (st === "Charging" || st === "Full")
                         root.batLimite = Boolean(d.battery.limit_80)
+                        root.batPlafond = Number(d.battery.limit_pct || 80)
                     }
                     root.briPresente = Boolean(d.has_backlight)
                     if (typeof d.brightness === "number") root.briPourcent = d.brightness
@@ -330,7 +358,7 @@ Item {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.batPourcent + " %" + (root.batEtat !== "" ? " · " + root.batEtat : "")
+                        text: root.batPourcent + " %" + (root.batEtatAffiche !== "" ? " · " + root.batEtatAffiche : "")
                         color: root.batPourcent <= 15 ? Theme.warn : Qt.alpha(Theme.fg, 0.7)
                         font.pixelSize: Theme.textXs
                         font.features: { "tnum": 1 }
@@ -345,7 +373,7 @@ Item {
                     Text {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Limiter la charge à 80 % (santé)"
+                        text: "Limiter la charge à " + root.batPlafond + " % (santé)"
                         color: Qt.alpha(Theme.fg, 0.9)
                         font.pixelSize: Theme.textXs
                     }

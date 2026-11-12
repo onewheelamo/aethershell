@@ -10,6 +10,22 @@ from runtime_paths import runtime_path  # noqa: E402
 
 TABLET_STATE_FILE = runtime_path("tablet_mode")
 
+# Helper root de la limite de charge, posé par dev/charge-limit/install.sh
+# avec son action polkit (org.aethershell.charge.limit).
+HELPER_CHARGE = "/usr/local/bin/aether-charge-limit"
+
+# Deux mécanismes, deux plafonds réels — et ils ne sont pas les mêmes :
+#   charge_control_end_threshold  le seuil écrit vaut plafond (80 par défaut) ;
+#   conservation_mode             l'EC d'IdeaPad/Yoga vise ~60 % (documentation
+#                                 du noyau : « the battery will only be charged to
+#                                 60% »). Afficher « 80 % » sur ces machines est
+#                                 faux : à 57 %, la limite est déjà atteinte et la
+#                                 batterie affiche « Not charging », ce qui se lit
+#                                 comme une panne alors que c'est le comportement
+#                                 attendu.
+SEUIL_CIBLE_PCT = 80
+CONSERVATION_PCT = 60
+
 
 def run_cmd(cmd):
     try:
@@ -61,6 +77,21 @@ def get_battery_limit_state():
         except Exception:
             pass
     return False
+
+
+def get_charge_limit_info():
+    """(limite_active, plafond_pct, mécanisme) — le plafond que la machine applique vraiment.
+
+    `seuil` : un charge_control_end_threshold existe, le plafond est la valeur
+    visée (80). `conservation` : seul un conservation_mode existe, le plafond est
+    celui de l'EC (~60 %, voir CONSERVATION_PCT). Chaîne vide : aucun mécanisme.
+    """
+    actif = get_battery_limit_state()
+    if glob.glob("/sys/class/power_supply/BAT*/charge_control_end_threshold"):
+        return actif, SEUIL_CIBLE_PCT, "seuil"
+    if glob.glob("/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"):
+        return actif, CONSERVATION_PCT, "conservation"
+    return actif, SEUIL_CIBLE_PCT, ""
 
 
 def _read_proc_wifi_signal(iface):
@@ -190,6 +221,8 @@ def get_system_info():
     bat_cap = 0
     bat_status = "NoBattery"
     limit_80 = False
+    limit_pct = SEUIL_CIBLE_PCT
+    limit_kind = ""
     if has_bat:
         bat_dirs = sorted(glob.glob("/sys/class/power_supply/BAT*"))
         bat_dir = bat_dirs[0]
@@ -204,7 +237,7 @@ def get_system_info():
                 bat_status = f.read().strip() or "Unknown"
         except Exception:
             bat_status = "Unknown"
-        limit_80 = get_battery_limit_state()
+        limit_80, limit_pct, limit_kind = get_charge_limit_info()
 
     # 2. Volume (PipeWire wpctl first, fallback to amixer)
     volume = get_volume_info()
@@ -259,6 +292,10 @@ def get_system_info():
             "level": bat_cap,
             "status": bat_status,
             "limit_80": limit_80,
+            # Plafond réel et mécanisme, pour que l'applet n'annonce pas « 80 % »
+            # sur une machine qui coupe à 60 %.
+            "limit_pct": limit_pct,
+            "limit_kind": limit_kind,
         },
         "volume": {
             "level": vol_pct,
@@ -284,36 +321,54 @@ def set_battery_limit(limit=80):
     target_pct = 80 if enable_limit else 100
     cons_val = 1 if enable_limit else 0
 
-    # (valeur, chemin) : les fichiers sysfs appartiennent à root. La batterie
-    # n'est pas toujours BAT0 (BAT1 sur le Yoga sous Fedora) : on les cherche tous.
-    writes = []
-    for path in glob.glob("/sys/class/power_supply/BAT*/charge_control_end_threshold"):
-        writes.append((target_pct, path))
-    for path in glob.glob("/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"):
-        writes.append((cons_val, path))
-
-    pending = []
-    for val, path in writes:
-        try:
-            with open(path, "w") as f:
-                f.write(str(val))
-        except OSError:
-            pending.append((val, path))
-
     error = ""
-    if pending:
-        # Pas de sudo sans mot de passe sur cette machine : pkexec demande
-        # l'autorisation à l'agent polkit de la session, en une seule invite.
-        script = "; ".join(f"echo {v} > {p}" for v, p in pending)
+    if os.access(HELPER_CHARGE, os.X_OK):
+        # Le helper fait le travail des deux mécanismes (seuil générique et
+        # conservation_mode ideapad) et vérifie ce qu'il a écrit. Il porte
+        # l'action polkit dédiée : les membres de wheel en session locale
+        # active n'ont pas de mot de passe à saisir pour un interrupteur.
         try:
-            res = subprocess.run(["pkexec", "sh", "-c", script],
+            res = subprocess.run(["pkexec", HELPER_CHARGE, str(target_pct)],
                                  capture_output=True, text=True, timeout=60)
             if res.returncode != 0:
-                error = (res.stderr or "autorisation refusée").strip()
+                error = (res.stderr or res.stdout or "le helper a échoué").strip()
         except FileNotFoundError:
             error = "pkexec introuvable"
         except subprocess.TimeoutExpired:
             error = "autorisation non donnée à temps"
+    else:
+        # Repli : machine dont le déploiement n'a pas posé le helper. Écriture
+        # directe (elle passe si un udev a ouvert les droits), puis pkexec ligne
+        # par ligne — avec l'invite, faute d'action dédiée.
+        # (valeur, chemin) : les fichiers sysfs appartiennent à root. La batterie
+        # n'est pas toujours BAT0 (BAT1 sur le Yoga sous Fedora) : on les cherche tous.
+        writes = []
+        for path in glob.glob("/sys/class/power_supply/BAT*/charge_control_end_threshold"):
+            writes.append((target_pct, path))
+        for path in glob.glob("/sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode"):
+            writes.append((cons_val, path))
+
+        pending = []
+        for val, path in writes:
+            try:
+                with open(path, "w") as f:
+                    f.write(str(val))
+            except OSError:
+                pending.append((val, path))
+
+        if pending:
+            # Pas de sudo sans mot de passe sur cette machine : pkexec demande
+            # l'autorisation à l'agent polkit de la session, en une seule invite.
+            script = "; ".join(f"echo {v} > {p}" for v, p in pending)
+            try:
+                res = subprocess.run(["pkexec", "sh", "-c", script],
+                                     capture_output=True, text=True, timeout=60)
+                if res.returncode != 0:
+                    error = (res.stderr or "autorisation refusée").strip()
+            except FileNotFoundError:
+                error = "pkexec introuvable"
+            except subprocess.TimeoutExpired:
+                error = "autorisation non donnée à temps"
 
     state = get_battery_limit_state()
     out = {"status": "ok" if state == enable_limit else "error",
@@ -404,7 +459,11 @@ if __name__ == "__main__":
         print(json.dumps(connect_wifi(ssid_arg, pwd_arg)))
     elif action == "limit":
         lim = int(sys.argv[2]) if len(sys.argv) > 2 else 80
-        print(json.dumps(set_battery_limit(lim)))
+        out = set_battery_limit(lim)
+        print(json.dumps(out))
+        # Code de sortie significatif : le panneau peut prévenir l'utilisateur
+        # au lieu d'afficher un interrupteur qui revient tout seul.
+        sys.exit(0 if out.get("status") == "ok" else 1)
     elif action == "volume" and len(sys.argv) > 2:
         set_volume(sys.argv[2])
         print(json.dumps({"volume": get_volume_info()}))

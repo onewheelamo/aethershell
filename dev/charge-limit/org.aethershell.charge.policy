@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+  L'action de la limite de charge. `exec.path` la lie au helper : quand le
+  shell appelle `pkexec /usr/local/bin/aether-charge-limit 80`, pkexec présente
+  cette action au lieu de l'action générique org.freedesktop.policykit.exec —
+  donc une règle ciblée s'applique, au lieu d'ouvrir l'exécution de n'importe
+  quel programme en root.
+
+  Défaut : mot de passe (auth_admin). C'est la règle JS
+  `50-aethershell-charge.rules` qui dispense les membres de wheel en session
+  locale active, pour que l'interrupteur de l'applet n'ouvre pas une invite à
+  chaque bascule. Sans cette règle, l'action reste protégée. -->
+<policyconfig>
+  <vendor>AetherShell</vendor>
+  <vendor_url>https://github.com/onewheelamo/aethershell</vendor_url>
+
+  <action id="org.aethershell.charge.limit">
+    <description>Limiter la charge de la batterie</description>
+    <message>Limiter la charge de la batterie à 80 % (santé) ou la rétablir à 100 %.</message>
+    <icon_name>battery-good</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/aether-charge-limit</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,23 @@
+[Unit]
+Description=Agent polkit de la session (AetherShell)
+# Pourquoi une unité et non une ligne d'autostart : sur une machine où Hyprland
+# est lancé depuis un TTY, le compositeur et le shell ne sont pas dans la même
+# session logind (Hyprland en session « seat0 », quickshell en session
+# « manager » via systemd --user). Un agent démarré par l'autostart appartient
+# alors à la session du compositeur, et polkit refuse de le présenter à un
+# appelant de la session du shell : « No authentication agent found », donc
+# aucune autorisation possible et un clic qui ne fait rien. Lancé par
+# systemd --user, l'agent vit dans la session du shell, celle qui appelle pkexec.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+# --force : la garde « un agent tourne déjà » regarde tout le système ; ici on
+# veut un agent dans *cette* session, même si un autre traîne ailleurs.
+ExecStart=/bin/sh %h/.config/quickshell/core/agent_polkit.sh --force
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
