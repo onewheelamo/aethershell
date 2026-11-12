@@ -553,10 +553,11 @@ Item {
     }
 
     // OSD overlay (volume / brightness): temporary centered pill, auto-hides
+    // En mode island, l'OSD est directement projeté dans l'îlot central
     PanelWindow {
         id: osdWindow
         screen: topBarWindow.screen
-        visible: Theme.osdVisible || osdBox.opacity > 0
+        visible: (Theme.barStyle !== "island") && (Theme.osdVisible || osdBox.opacity > 0)
         anchors {
             bottom: true
             left: true

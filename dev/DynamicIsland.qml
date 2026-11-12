@@ -167,32 +167,61 @@ Item {
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
+        // 1. OSD actif : affiche le volume / luminosité dans la pilule
+        Row {
+            anchors.centerIn: parent
+            spacing: 8
+            visible: Theme.osdVisible
+
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: Theme.osdKind === "brightness" ? "brightness"
+                    : Theme.osdKind === "mute" ? "volume-off"
+                    : (Theme.osdValue <= 0 ? "mute" : Theme.osdValue < 50 ? "volume-medium" : "volume-high")
+                size: Theme.iconSm
+                color: Theme.accent
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 70
+                height: 4
+                radius: 2
+                color: Theme.surfaceVariant
+                Rectangle {
+                    width: parent.width * (Theme.osdValue / 100)
+                    height: parent.height
+                    radius: 2
+                    color: Theme.accent
+                    Behavior on width { NumberAnimation { duration: 100 } }
+                }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Math.round(Theme.osdValue) + "%"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.textXs
+                font.weight: Font.Bold
+                color: Theme.fg
+            }
+        }
+
+        // 2. Repos : Heure pure (sans glyphe) et lecteur audio
         Row {
             id: compactContentRow
             anchors.centerIn: parent
             spacing: 12
+            visible: !Theme.osdVisible
 
-            // Horloge principale affichée par défaut
-            Row {
-                spacing: 6
+            // Horloge principale sans glyphe
+            Text {
+                text: Qt.formatDateTime(root.currentTime, "hh:mm")
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.textSm
+                font.weight: Font.Bold
+                color: Theme.fg
                 anchors.verticalCenter: parent.verticalCenter
-
-                Text {
-                    text: "" // Horloge
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 11
-                    color: Theme.accent
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Text {
-                    text: Qt.formatDateTime(root.currentTime, "hh:mm")
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.textSm
-                    font.weight: Font.Bold
-                    color: Theme.fg
-                    anchors.verticalCenter: parent.verticalCenter
-                }
             }
 
             // Séparateur subtil

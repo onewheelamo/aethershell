@@ -207,4 +207,8 @@ Item {
         border.width: 1
         border.color: Qt.alpha(Theme.fg, 0.06)
     }
+
+    function rafraichir() {
+        if (!sonde.running) sonde.running = true
+    }
 }

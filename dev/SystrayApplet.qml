@@ -1,5 +1,6 @@
 import QtQuick
-import "."
+import QtQuick.Layouts
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.SystemTray
@@ -88,12 +89,23 @@ Item {
                         visible: iconSource !== ""
 
                         Image {
+                            id: trayIconImg
                             anchors.centerIn: parent
                             width: 16
                             height: 16
                             source: trayDelegate.iconSource
                             sourceSize: Qt.size(16, 16)
                             smooth: true
+                            visible: false
+                        }
+
+                        MultiEffect {
+                            anchors.fill: trayIconImg
+                            source: trayIconImg
+                            saturation: -1.0
+                            brightness: 0.15
+                            contrast: 0.1
+                            opacity: trayDelegate.hovered ? 1.0 : 0.82
                         }
 
                         MouseArea {
