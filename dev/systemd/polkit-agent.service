@@ -10,12 +10,19 @@ Description=Agent polkit de la session (AetherShell)
 # systemd --user, l'agent vit dans la session du shell, celle qui appelle pkexec.
 PartOf=graphical-session.target
 After=graphical-session.target
+# Une borne : hyprpolkitagent part en SIGSEGV sous systemd --user quand aucun
+# compositeur n'est visible dans son environnement. Sans limite, il se relançait
+# toutes les 3 s et remplissait le journal de coredumps ; trois essais suffisent,
+# ensuite l'échec reste au journal.
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
-# --force : la garde « un agent tourne déjà » regarde tout le système ; ici on
-# veut un agent dans *cette* session, même si un autre traîne ailleurs.
-ExecStart=/bin/sh %h/.config/quickshell/core/agent_polkit.sh --force
+# Le script ne démarre rien si un agent tourne déjà *dans cette session* : sur une
+# machine où Hyprland et le shell partagent leur session, l'autostart a déjà fait
+# le travail et l'unité s'arrête proprement (sortie 0, pas une erreur).
+ExecStart=/bin/sh %h/.config/quickshell/core/agent_polkit.sh
 Restart=on-failure
 RestartSec=3
 
