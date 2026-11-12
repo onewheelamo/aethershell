@@ -22,23 +22,68 @@ Item {
 
     // Service MPRIS direct pour la réactivité instantanée
     readonly property var players: Mpris.players.values
+
+    // Respecte le filtre navigateur activé dans les réglages de l'applet musique
+    readonly property bool ignorerNavigateurs: {
+        let a = (Theme.barAppletsActifs && Theme.barAppletsActifs["musique"]) ? Theme.barAppletsActifs["musique"].options : null
+        return (a && a.ignorer_navigateurs !== undefined) ? Boolean(a.ignorer_navigateurs) : true
+    }
+
+    function isBrowserPlayer(p) {
+        if (!p) return false
+        let id = (p.identity || "").toLowerCase()
+        let entry = (p.desktopEntry || "").toLowerCase()
+        let bus = (p.busName || "").toLowerCase()
+        const navs = ["firefox", "chromium", "chrome", "brave", "vivaldi", "epiphany", "zen", "edge", "opera"]
+        return navs.some(n => id.indexOf(n) !== -1 || entry.indexOf(n) !== -1 || bus.indexOf(n) !== -1)
+    }
+
+    readonly property var validPlayers: {
+        if (!players || players.length === 0) return []
+        let res = []
+        for (let i = 0; i < players.length; i++) {
+            let p = players[i]
+            if (!p) continue
+            if (root.ignorerNavigateurs && isBrowserPlayer(p)) continue
+            res.push(p)
+        }
+        return res
+    }
+
     readonly property var activePlayer: {
-        if (!players || players.length === 0) return null
-        for (let i = 0; i < players.length; i++) {
-            let p = players[i]
-            if (p && p.playbackState === MprisPlaybackState.Playing) return p
+        let list = validPlayers
+        if (!list || list.length === 0) return null
+        // 1. Cherche en priorité un lecteur en cours de lecture avec titre
+        for (let i = 0; i < list.length; i++) {
+            let p = list[i]
+            if (p.playbackState === MprisPlaybackState.Playing && p.trackTitle && p.trackTitle.trim().length > 0) {
+                return p
+            }
         }
-        for (let i = 0; i < players.length; i++) {
-            let p = players[i]
-            if (p && p.trackTitle && p.trackTitle.length > 0) return p
+        // 2. Cherche un lecteur avec titre valide (même en pause)
+        for (let i = 0; i < list.length; i++) {
+            let p = list[i]
+            if (p.trackTitle && p.trackTitle.trim().length > 0) {
+                return p
+            }
         }
-        return players[0] || null
+        // 3. Lecteur en cours de lecture quelconque
+        for (let i = 0; i < list.length; i++) {
+            let p = list[i]
+            if (p.playbackState === MprisPlaybackState.Playing) return p
+        }
+        return list[0] || null
     }
 
     readonly property bool isPlaying: activePlayer ? (activePlayer.playbackState === MprisPlaybackState.Playing) : false
     readonly property string mediaTitle: activePlayer ? (activePlayer.trackTitle || "") : ""
     readonly property string mediaArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
-    readonly property bool isMediaActive: (mediaTitle !== "" || isPlaying)
+    readonly property bool isMediaActive: (mediaTitle.trim() !== "")
+
+    // Synchronise Theme.mediaPlaying si nécessaire
+    onIsPlayingChanged: Theme.mediaPlaying = isPlaying
+    onMediaTitleChanged: Theme.mediaTitle = mediaTitle
+    onMediaArtistChanged: Theme.mediaArtist = mediaArtist
 
     // Délai de rétractation (160 ms) pour une navigation fluide sans sursauts
     property bool expanded: isHovered
@@ -65,7 +110,7 @@ Item {
 
     // Largeur dynamique animée selon l'état
     readonly property real compactWidth: Math.max(220, compactContentRow.implicitWidth + Theme.padH * 2)
-    readonly property real expandedWidth: Math.max(520, fullContentRow.implicitWidth + Theme.padH * 2.5)
+    readonly property real expandedWidth: Math.max(460, leftApplets.implicitWidth + (root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth) + rightApplets.implicitWidth + Theme.padH * 3 + 28)
 
     width: expanded ? expandedWidth : compactWidth
 
@@ -111,7 +156,7 @@ Item {
         id: compactContainer
         anchors.fill: parent
         opacity: root.expanded ? 0.0 : 1.0
-        visible: opacity > 0.01
+        visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
         Row {
@@ -228,7 +273,7 @@ Item {
         id: expandedContainer
         anchors.fill: parent
         opacity: root.expanded ? 1.0 : 0.0
-        visible: opacity > 0.01
+        visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
         RowLayout {
@@ -251,11 +296,13 @@ Item {
 
             // Centre : Horloge + Date cliquable (Calendrier) OU Média détaillé
             Item {
-                Layout.fillWidth: true
+                Layout.preferredWidth: root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth
+                Layout.fillWidth: false
                 Layout.fillHeight: true
 
                 // Si aucun média : Horloge + Date
                 Row {
+                    id: clockDateRow
                     visible: !root.isMediaActive
                     anchors.centerIn: parent
                     spacing: 8
@@ -280,6 +327,7 @@ Item {
 
                 // Si média actif : Titre + Contrôles Précédent / Play / Suivant
                 Row {
+                    id: mediaDetailRow
                     visible: root.isMediaActive
                     anchors.centerIn: parent
                     spacing: 10
@@ -297,7 +345,8 @@ Item {
                             let t = root.mediaTitle
                             let a = root.mediaArtist
                             if (!t) return "Audio"
-                            return a ? (t + " — " + a) : t
+                            let s = a ? (t + " — " + a) : t
+                            return s.length > 28 ? (s.substring(0, 26) + "…") : s
                         }
                         color: Theme.accent
                         font.pixelSize: 12
@@ -364,12 +413,14 @@ Item {
             }
 
             // Côté Droit : Applets système, réseau, systray, batterie, etc.
+            // L'applet "musique" est exclue pour éviter le doublon avec le lecteur central
             Item {
                 Layout.preferredWidth: rightApplets.implicitWidth
                 Layout.fillHeight: true
                 AppletRow {
                     id: rightApplets
                     ile: "haut:fin"
+                    exclude: ["musique"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
