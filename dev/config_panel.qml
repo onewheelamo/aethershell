@@ -90,9 +90,17 @@ Rectangle {
 
     // Verre dépoli autonome : inactif tant que Theme.shellFlouInterne vaut 0.
     FlouFond {
+        id: fondFlou
         anchors.fill: parent
         rayon: root.radius
         intensite: Theme.shellFlouInterne
+    }
+
+    Connections {
+        target: Theme
+        function onConfigPanelVisibleChanged() {
+            if (Theme.configPanelVisible) fondFlou.rafraichir()
+        }
     }
 
     // Teinte par-dessus le verre : c'est elle qui donne sa couleur à la surface.
