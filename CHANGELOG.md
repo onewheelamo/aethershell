@@ -5,6 +5,22 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.2.1] — 2026-11-12
+
+### Ajouté
+
+- **Les quotas Antigravity se lisent par fenêtre, sur le CLI lui-même** ([`dev/core/antigravity_service.py`](dev/core/antigravity_service.py), [`dev/core/comptes_applet.py`](dev/core/comptes_applet.py)) : `agy -p /usage --output-format json` répond depuis la session déjà ouverte, sans tour de modèle et sans consommer de quota, et rend un bucket par couple (groupe de modèles, fenêtre) — fraction restante et heure de remise à zéro : Gemini 7 j et 5 h, Claude/GPT 7 j et 5 h, Gemini 4 Argon 7 j, soit cinq fenêtres sur un abonnement Pro. C'est plus précis que l'API Code Assist, qui donne un reste par modèle sans dire à quelle fenêtre il appartient, et que les logs, qui ne savent dire que « bloqué jusqu'à ». Le service garde ses replis dans l'ordre — API, puis logs, puis dernier relevé complet daté — et retient un échec du CLI dix minutes : `agy` sans session ouverte lance son flux OAuth et se bloque, ce qui ne doit pas coûter l'attente à chaque rafraîchissement. Le widget passe en tableau sans changement de QML (`widgets/llm.qml` rendait déjà des `lignes` : une ligne par fenêtre, nom, tranche, pourcentage, échéance) ; l'applet reprend la fenêtre dans son libellé (« Claude/GPT 7 j »), sinon deux lignes de la même famille portent le même nom avec deux chiffres différents. Mesuré : 2,9 s à froid, 0,05 s depuis le cache, cinq lignes.
+
+- **La limite de charge se bascule sans mot de passe** ([`dev/charge-limit/`](dev/charge-limit), [`dev/core/system_service.py`](dev/core/system_service.py), [`dev/deploy.sh`](dev/deploy.sh)) : l'action polkit `org.aethershell.charge.limit` est liée au helper `/usr/local/bin/aether-charge-limit` par `org.freedesktop.policykit.exec.path`, donc `pkexec` présente cette action et non l'exécution générique de n'importe quel programme en root. Le helper (`80|100|status`) écrit le seuil générique et le `conservation_mode` d'`ideapad_acpi` quand ils existent, puis relit ce qu'il a écrit ; une règle JS dispense les membres de `wheel` en session locale active, le défaut restant `auth_admin` pour tous les autres — une session distante garde le mot de passe. L'installation est idempotente par empreinte sha256 des trois fichiers, retenue hors de `~/.config/quickshell` que l'élagage nettoie : une machine à jour ne voit aucune invite à chaque déploiement. L'applet notifie l'échec — le JSON de `system_service.py` porte `error` — au lieu de laisser un interrupteur revenir tout seul.
+
+### Modifié
+
+- **Le plafond de charge affiché est celui que la machine applique** ([`dev/core/system_service.py`](dev/core/system_service.py), [`dev/GestionEnergieApplet.qml`](dev/GestionEnergieApplet.qml), [`dev/LuminositeApplet.qml`](dev/LuminositeApplet.qml)) : le `conservation_mode` d'IdeaPad vise 60 %, pas 80 % — l'applet annonçait donc « 80 % » puis affichait le `Not charging` du contrôleur comme une panne, à un niveau inférieur au plafond promis. Le service publie `limit_pct` et `limit_kind` (seuil ou conservation), le libellé suit la valeur réelle, et à plafond atteint l'applet écrit « limite atteinte ».
+
+### Corrigé
+
+- **L'agent polkit de la session est réellement lancé** ([`dev/core/agent_polkit.sh`](dev/core/agent_polkit.sh), [`dev/systemd/polkit-agent.service`](dev/systemd/polkit-agent.service), [`dev/core/config_manager.py`](dev/core/config_manager.py), [`dev/deploy.sh`](dev/deploy.sh)) : le garde `pgrep -f "(polkit-…)"` de l'entrée d'autostart se reconnaissait dans sa propre ligne de commande, répondait « déjà lancé » et sortait — l'agent n'était jamais démarré, donc `pkexec` échouait sans un mot et les actions qui écrivent dans `/sys` ne faisaient rien. Le garde vit désormais dans un script, où le motif n'est plus dans la ligne de commande, et il compare les **sessions** (`/proc/<pid>/sessionid`) : sur une machine où le compositeur et le shell sont dans deux sessions logind, un agent lancé par l'autostart ne sert à rien pour les applets. Une unité `polkit-agent.service`, activée par le déploiement, le lance depuis la session du shell ; `hyprpolkitagent`, qui part en SIGSEGV sous `systemd --user` sans compositeur visible, passe en dernier recours, et l'unité est bornée à trois essais par minute. Vérifié par `pkcheck` : `org.aethershell.charge.limit` répond « yes » sans interaction, `org.freedesktop.policykit.exec` reste en `auth_admin`.
+
 ## [0.2.0] — 2026-11-11
 
 ### Ajouté
@@ -416,6 +432,7 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.2.1]: https://github.com/onewheelamo/aethershell/releases/tag/v0.2.1
 [0.2.0]: https://github.com/onewheelamo/aethershell/releases/tag/v0.2.0
 [0.1.5]: https://github.com/onewheelamo/aethershell/releases/tag/v0.1.5
 [0.1.4]: https://github.com/onewheelamo/aethershell/releases/tag/v0.1.4
