@@ -43,3 +43,5 @@ CalqueProfondeur 1.0 CalqueProfondeur.qml
 MasqueParallaxe 1.0 MasqueParallaxe.qml
 SelecteurDossier 1.0 SelecteurDossier.qml
 SelecteurFichier 1.0 SelecteurFichier.qml
+PreviewBarLayout 1.0 PreviewBarLayout.qml
+DynamicIsland 1.0 DynamicIsland.qml
