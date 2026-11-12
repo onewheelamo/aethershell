@@ -845,6 +845,8 @@ def update_style_var(key, value):
         # Masque de profondeur rendu par un MultiEffect par widget au lieu du
         # calque plein écran. Booléen relu par Theme.qml (widgetsMultieffect).
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "first_run_completed":
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key in ("user_location_ville", "user_location_tz"):
         # Localisation de l'utilisateur : ville affichée et fuseau. Le fuseau
         # n'est pas validé ici (liste mouvante) mais reste une chaîne courte.
