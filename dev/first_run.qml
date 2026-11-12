@@ -64,6 +64,7 @@ Item {
     // Le bord de la barre principale. Les barres supplémentaires du registre
     // disparaissent au profit de ce choix unique : une seule barre, où l'on veut.
     property string barre: "haut"
+    property string styleBarre: "classic" // "classic" ou "island"
     readonly property var barresPossibles: [
         { code: "haut", titre: "En haut", detail: "Le classique, trois îlots" },
         { code: "bas", titre: "En bas", detail: "Comme un dock" },
@@ -137,6 +138,7 @@ Item {
         }
         clavier = String(data.kb_layout || "fr")
         if (String(data.barre || "") !== "") barre = String(data.barre)
+        if (String(data.bar_style || "") !== "") styleBarre = String(data.bar_style)
         dossiers = data.dossiers || []
         programmes = data.programmes || []
         const liste = []
@@ -219,7 +221,8 @@ Item {
             programmes: alias,
             widgets_ajouter: ajouter,
             widgets_retirer: retirer,
-            barre: barre
+            barre: barre,
+            bar_style: styleBarre
         })
         chargeAAppliquer = charge
         ecrireEtAppliquer()
@@ -691,12 +694,12 @@ Item {
                                 required property var modelData
                                 readonly property bool choisi: root.barre === modelData.code
                                 width: (parent.width - 12) / 2
-                                height: 66
+                                height: 58
                                 radius: Theme.globalRadius
                                 color: choisi
                                     ? Qt.alpha(Theme.accent, 0.25)
                                     : (sourisBarre.containsMouse ? Theme.surfaceVariant
-                                                                 : Qt.alpha(Theme.surfaceVariant, 0.55))
+                                                                  : Qt.alpha(Theme.surfaceVariant, 0.55))
                                 border.color: choisi ? Theme.accent : Theme.surfaceVariant
                                 border.width: choisi ? 2 : 1
 
@@ -707,23 +710,24 @@ Item {
                                     anchors.left: parent.left
                                     anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 44
-                                    height: 30
-                                    radius: 4
+                                    width: 32
+                                    height: 22
+                                    radius: 3
                                     color: Qt.alpha(Theme.fg, 0.08)
-                                    border.color: Qt.alpha(Theme.fg, 0.25)
+                                    border.color: carteBarre.choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.25)
                                     border.width: 1
 
+                                    // Bande représentant la barre posée sur le bord
                                     Rectangle {
                                         readonly property string c: carteBarre.modelData.code
-                                        width: c === "cote-gauche" || c === "cote-droite" ? 4 : apercu.width - 6
-                                        height: c === "cote-gauche" || c === "cote-droite" ? apercu.height - 6 : 4
-                                        radius: 2
-                                        color: carteBarre.choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
-                                        x: c === "cote-gauche" ? 3
-                                           : (c === "cote-droite" ? apercu.width - 7 : 3)
+                                        color: carteBarre.choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
+                                        radius: 1
+                                        width: (c === "haut" || c === "bas") ? apercu.width - 6 : 4
+                                        height: (c === "haut" || c === "bas") ? 4 : apercu.height - 6
+                                        x: c === "haut" || c === "bas" ? 3
+                                            : (c === "cote-droite" ? apercu.width - 7 : 3)
                                         y: c === "haut" ? 3
-                                           : (c === "bas" ? apercu.height - 7 : 3)
+                                            : (c === "bas" ? apercu.height - 7 : 3)
                                     }
                                 }
 
@@ -731,7 +735,7 @@ Item {
                                     anchors.left: apercu.right
                                     anchors.leftMargin: 10
                                     anchors.right: parent.right
-                                    anchors.rightMargin: 10
+                                    anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 3
 
@@ -743,11 +747,9 @@ Item {
                                     }
 
                                     Text {
-                                        width: parent.width
                                         text: carteBarre.modelData.detail
                                         color: Qt.alpha(Theme.fg, 0.75)
                                         font.pixelSize: Theme.textXs
-                                        wrapMode: Text.WordWrap
                                     }
                                 }
 
@@ -760,6 +762,89 @@ Item {
                                 }
                             }
                         }
+                    }
+
+                    // Choix d'agencement pour la barre du haut : Classique vs Îlot Dynamique
+                    Item {
+                        width: parent.width
+                        height: 10
+                        visible: root.barre === "haut"
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: root.barre === "haut"
+                        text: "Style d'agencement de la barre haute :"
+                        color: Theme.accent
+                        font.pixelSize: Theme.textSm
+                        font.bold: true
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+                        visible: root.barre === "haut"
+
+                        // Aperçu Classique (3 îlots)
+                        Item {
+                            width: (parent.width - 12) / 2
+                            height: 105
+
+                            PreviewBarLayout {
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                height: 75
+                                styleMode: "classic"
+                                activeSelection: root.styleBarre === "classic"
+                            }
+
+                            Text {
+                                anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Barre classique (3 îlots)"
+                                color: root.styleBarre === "classic" ? Theme.accent : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.styleBarre = "classic"
+                            }
+                        }
+
+                        // Aperçu Îlot Dynamique (minimaliste)
+                        Item {
+                            width: (parent.width - 12) / 2
+                            height: 105
+
+                            PreviewBarLayout {
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                height: 75
+                                styleMode: "island"
+                                activeSelection: root.styleBarre === "island"
+                            }
+
+                            Text {
+                                anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Îlot dynamique (minimaliste)"
+                                color: root.styleBarre === "island" ? Theme.accent : Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.styleBarre = "island"
+                            }
+                        }
+                    }
                     }
                 }
 
