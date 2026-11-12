@@ -90,6 +90,58 @@ CollapsibleSection {
         columnSpacing: 14
         rowSpacing: 12
 
+        // 4b. Disposition de la barre (Classique vs Îlot dynamique)
+        Row {
+            id: barStyleRow
+            objectName: "barStyleRow"
+            width: parent.width
+            spacing: 8
+
+            Text {
+                width: 160
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Disposition :"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+            }
+
+            Row {
+                spacing: 8
+                anchors.verticalCenter: parent.verticalCenter
+
+                Repeater {
+                    model: [
+                        { key: "classic", label: "Classique (3 îlots)" },
+                        { key: "island",  label: "Îlot dynamique" }
+                    ]
+
+                    Rectangle {
+                        width: 140
+                        height: 28
+                        radius: 6
+                        color: Theme.barStyle === modelData.key ? Theme.accent : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.4)
+                        border.color: Theme.barStyle === modelData.key ? Theme.accent : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.label
+                            font.pixelSize: 11
+                            font.weight: Theme.barStyle === modelData.key ? Font.DemiBold : Font.Normal
+                            color: Theme.barStyle === modelData.key ? (Theme.activeTheme === "light" ? "#ffffff" : "#101010") : Theme.fg
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.runConfigCmd(["style", "bar_style", modelData.key])
+                        }
+                    }
+                }
+            }
+        }
+
         // 5. Arrondis îlots (Quickshell)
         Row {
             id: roundingIslandRow   // ancre de recherche

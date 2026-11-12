@@ -155,6 +155,8 @@ Rectangle {
           tab: 0, section: "esthetique_aspect", target: "roundingWinRow" },
         { label: "Forme des coins", words: "arrondi rounding power chanfrein squircle forme coin courbe",
           tab: 0, section: "esthetique_aspect", target: "roundingPowerRow" },
+        { label: "Disposition de la barre (Classique ou Îlot dynamique)", words: "disposition style barre ilot dynamique island classique",
+          tab: 1, section: "quickshell_barres", target: "barStyleRow" },
         { label: "Arrondis des îlots", words: "arrondi rayon ilot quickshell barre",
           tab: 1, section: "quickshell_barres", target: "roundingIslandRow" },
         { label: "Hauteur de la barre", words: "hauteur barre taille bar",

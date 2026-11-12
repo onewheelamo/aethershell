@@ -59,6 +59,8 @@ QtObject {
     property int barHeight: 40
     // Bordure de la barre du haut (capsule fusionnée et îlots) : réglable.
     property bool barBorder: true
+    // Style d'agencement de la barre : "classic" (3 îlots) ou "island" (îlot central dynamique)
+    property string barStyle: "classic"
     // ── Visualiseur audio (style_vars) ──────────────────────────────────────
     // Réglages de capture et de dessin ; l'applet choisit son rendu (onde ou
     // barres) dans sa propre option, ces valeurs-ci valent pour les deux.
