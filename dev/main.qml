@@ -309,7 +309,7 @@ Item {
             // 5a : surface unique derrière les trois groupes
             Rectangle {
                 id: capsuleBg
-                visible: Theme.barMerged && !Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && !Theme.barGapsTransparent
                 anchors.fill: parent
                 radius: Theme.pillRadius
                 // Teinte au-dessus du verre : peinte sous le FlouFond, elle laissait
@@ -351,7 +351,7 @@ Item {
             // ont la même courbe, la barre ne se coupe pas à angle droit.
             Rectangle {
                 id: zoneGauche
-                visible: Theme.barMerged && Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: 0
                 width: Math.max(1, leftLoader.x + leftLoader.width)
                 anchors.verticalCenter: parent.verticalCenter
@@ -379,7 +379,7 @@ Item {
 
             Rectangle {
                 id: zoneCentre
-                visible: Theme.barMerged && Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: centerLoader.x
                 width: Math.max(1, centerLoader.width)
                 anchors.verticalCenter: parent.verticalCenter
@@ -407,7 +407,7 @@ Item {
 
             Rectangle {
                 id: zoneDroite
-                visible: Theme.barMerged && Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: rightLoader.x
                 width: Math.max(1, parent.width - rightLoader.x)
                 anchors.verticalCenter: parent.verticalCenter
@@ -479,6 +479,8 @@ Item {
             // LEFT ISLAND: Launcher + Workspaces
             Loader {
                 id: leftLoader
+                visible: Theme.barStyle !== "island"
+                active: Theme.barStyle !== "island"
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 source: "island_left.qml"
@@ -487,6 +489,8 @@ Item {
             // CENTER ISLAND: Clock, Date, Hover Weather, Calendar & Config Trigger
             Loader {
                 id: centerLoader
+                visible: Theme.barStyle !== "island"
+                active: Theme.barStyle !== "island"
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
                 source: "island_center.qml"
@@ -495,9 +499,21 @@ Item {
             // RIGHT ISLAND: Systray, System Controls, Network & Power Menu
             Loader {
                 id: rightLoader
+                visible: Theme.barStyle !== "island"
+                active: Theme.barStyle !== "island"
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 source: "island_right.qml"
+            }
+
+            // DYNAMIC ISLAND: Îlot central dynamique unique (mode island)
+            Loader {
+                id: dynamicIslandLoader
+                visible: Theme.barStyle === "island"
+                active: Theme.barStyle === "island"
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                source: "DynamicIsland.qml"
             }
 
             // Séparateurs de groupes : 9 % de la couleur de texte, 1 px.
