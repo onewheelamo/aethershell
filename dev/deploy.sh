@@ -1208,10 +1208,11 @@ deploy_new_env() {
     mkdir -p "$CURRENT_HYPR"
     if [ ! -f "$MARKER" ]; then
         if [ "$BACKUP_OK" = "1" ]; then
-            echo "ℹ️ No Quickshell marker in $CURRENT_HYPR: existing files will be replaced (backup done)."
+            echo "ℹ️ Aucun marqueur Quickshell dans $CURRENT_HYPR : sauvegarde effectuée (backup done)."
         else
-            echo "ℹ️ No Quickshell marker in $CURRENT_HYPR: existing files will be replaced (no backup was created)."
+            echo "ℹ️ Aucun marqueur Quickshell dans $CURRENT_HYPR : configuration initiale."
         fi
+        echo "   Les fichiers d'état existants (style_vars, general.lua, binds.lua...) restent préservés."
     fi
 
     copy_dir_files "$DEV_DIR/hypr_modular" "$CURRENT_HYPR" "$PRESERVE_HYPR"
