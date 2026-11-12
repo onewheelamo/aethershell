@@ -18,6 +18,20 @@ import "."
 Item {
     id: root
 
+    readonly property string ile: "haut:milieu"
+
+    // Panneau calendrier interactif rattaché à l'îlot dynamique
+    Loader {
+        id: calPanneauLoader
+        active: Theme.barStyle === "island"
+        source: "CalendrierPanneau.qml"
+        onLoaded: {
+            if (!item) return
+            item.ancre = Qt.binding(() => root)
+            item.ouvert = Qt.binding(() => Theme.barStyle === "island" && Theme.activePopup === "calendar")
+        }
+    }
+
     property var currentTime: new Date()
     Timer {
         interval: 1000
@@ -93,13 +107,23 @@ Item {
     onMediaTitleChanged: Theme.mediaTitle = mediaTitle
     onMediaArtistChanged: Theme.mediaArtist = mediaArtist
 
+    readonly property bool isCalendarOpen: Theme.activePopup === "calendar"
+
     // Délai de rétractation (160 ms) pour une navigation fluide sans sursauts
-    property bool expanded: isHovered
+    property bool expanded: isHovered || isCalendarOpen
     onIsHoveredChanged: {
-        if (isHovered) {
+        if (isHovered || isCalendarOpen) {
             retractTimer.stop()
             expanded = true
         } else {
+            retractTimer.restart()
+        }
+    }
+    onIsCalendarOpenChanged: {
+        if (isCalendarOpen) {
+            retractTimer.stop()
+            expanded = true
+        } else if (!isHovered) {
             retractTimer.restart()
         }
     }
@@ -109,7 +133,7 @@ Item {
         interval: 160
         repeat: false
         onTriggered: {
-            if (!root.isHovered) root.expanded = false
+            if (!root.isHovered && !root.isCalendarOpen) root.expanded = false
         }
     }
 
@@ -150,7 +174,7 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 180 } }
         }
 
-        border.color: Theme.accent
+        border.color: root.isCalendarOpen ? Theme.accentMuted : Theme.accent
         border.width: Theme.barBorder ? 1 : 0
 
         Behavior on color { ColorAnimation { duration: 180 } }
@@ -222,6 +246,12 @@ Item {
                 font.weight: Font.Bold
                 color: Theme.fg
                 anchors.verticalCenter: parent.verticalCenter
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.activePopup = (Theme.activePopup === "calendar" ? "" : "calendar")
+                }
             }
 
             // Séparateur subtil (uniquement si média actif)
@@ -423,7 +453,7 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     enabled: !root.isMediaActive
-                    onClicked: Theme.activePopup = (Theme.activePopup === "calendrier" ? "" : "calendrier")
+                    onClicked: Theme.activePopup = (Theme.activePopup === "calendar" ? "" : "calendar")
                 }
             }
 

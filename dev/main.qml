@@ -520,14 +520,6 @@ Item {
                 source: "DynamicIsland.qml"
             }
 
-            // Popups partagés de l'îlot central (disponibles en mode island ou barre)
-            Loader {
-                id: islandSharedPopupLoader
-                active: Theme.barStyle === "island" && (Theme.activePopup === "calendrier" || Theme.activePopup === "meteo")
-                source: Theme.activePopup === "meteo" ? "MeteoPanneau.qml" : "CalendrierPanneau.qml"
-                visible: active
-            }
-
             // Séparateurs de groupes : 9 % de la couleur de texte, 1 px.
             //
             // Placés à la moitié du padding de l'île, **vers l'intérieur**, et non
