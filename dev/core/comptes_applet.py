@@ -63,6 +63,17 @@ def _collecter():
     return {nom: _lancer(nom) for nom in SERVICES}
 
 
+def _libelle_ligne(ligne, nom):
+    """« Claude/GPT » ou « Claude/GPT 7 j » : la fenêtre fait partie du sens.
+
+    Depuis que les quotas viennent de `agy -p /usage`, une même famille apparaît
+    deux fois (5 h et 7 j) : un libellé qui les confond rend le chiffre illisible.
+    """
+    base = str(ligne.get("nom") or nom)
+    tranche = str(ligne.get("tranche") or "").strip()
+    return f"{base} {tranche}" if tranche else base
+
+
 def _choisir(services):
     """Renvoie (valeur, libellé, alerte) selon l'ordre de priorité documenté."""
     quotas = []
@@ -73,7 +84,7 @@ def _choisir(services):
         for ligne in (s.get("lignes") or []):
             quotas.append((_pourcentage(ligne.get("valeur")),
                            str(ligne.get("valeur") or "").strip(),
-                           str(ligne.get("nom") or nom)))
+                           _libelle_ligne(ligne, nom)))
         premieres = s.get("mesures") or []
         if premieres:
             m = premieres[0]
@@ -111,7 +122,7 @@ def _valeur_service(nom, s):
         pire = min(lignes, key=lambda l: _pourcentage(l.get("valeur")))
         texte = str(pire.get("valeur") or "").strip()
         if texte:
-            return texte, str(pire.get("nom") or nom), bool(pire.get("alerte"))
+            return texte, _libelle_ligne(pire, nom), bool(pire.get("alerte"))
     mesures = s.get("mesures") or []
     if mesures:
         texte = str(mesures[0].get("valeur") or "").strip()

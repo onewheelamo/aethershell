@@ -3,7 +3,14 @@
 
     antigravity_service.py [--force]
 
-Une ligne JSON sur stdout, rien d'autre. Deux sources, dans cet ordre :
+Une ligne JSON sur stdout, rien d'autre. Trois sources, dans cet ordre :
+
+0. `agy -p /usage --output-format json` — la commande de quota du CLI lui-même.
+   Elle répond depuis la session déjà ouverte, sans tour de modèle et sans
+   consommer de quota, et rend un bucket par couple (groupe de modèles, fenêtre) :
+   fraction restante et heure de remise à zéro. C'est la mesure la plus fine des
+   trois, et la seule qui nomme la fenêtre (« Gemini 5 h » vs « Claude/GPT 7 j »)
+   au lieu de la déduire de l'heure de reset.
 
 1. L'API Code Assist (`cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`),
    la même que Gemini CLI. Elle rend, par modèle, une fraction restante et l'heure
@@ -33,8 +40,10 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -125,6 +134,146 @@ def _trouver_agy():
         if candidat and Path(candidat).is_file():
             return str(candidat)
     return "agy"          # dernier recours : que le PATH tranche
+
+
+# Fenêtre du CLI -> ce qu'on écrit dans la colonne « tranche ».
+TRANCHES = {"weekly": "7 j", "5h": "5 h"}
+AGY_USAGE_TIMEOUT = 6.0
+# `agy` sans session ouverte lance son flux OAuth et se bloque : on retient
+# l'échec dix minutes plutôt que de payer l'attente à chaque rafraîchissement.
+# L'applet et le widget retombent alors tout de suite sur l'API ou les logs ;
+# `--force` ignore ce délai pour éprouver après une connexion.
+AGY_FAIL_FILE = BASE_DIR / "antigravity_agy_fail.json"
+AGY_FAIL_TTL = 600
+
+
+def _groupe_court(nom):
+    """« Claude and GPT models » -> « Claude/GPT » ; le reste est conservé."""
+    mots = str(nom or "").split()
+    if mots and mots[-1].lower() == "models":
+        mots = mots[:-1]
+    return " ".join(mots).replace(" and ", "/") or "quota"
+
+
+def _instant(texte):
+    """Horodatage ISO du CLI -> secondes Unix (0 si illisible)."""
+    try:
+        return int(dt.datetime.fromisoformat(str(texte).replace("Z", "+00:00")).timestamp())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _agy_echec(raison):
+    """Retient l'échec et le rend, pour que le prochain passage n'attende pas."""
+    ecrire_json(AGY_FAIL_FILE, {"ts": int(time.time()), "raison": raison})
+    return raison
+
+
+def depuis_agy(force=False):
+    """Fenêtres de quota lues sur `agy -p /usage` ; ([], raison) si indisponible.
+
+    Le CLI est lancé dans un groupe de processus à lui : un `agy` qui se bloque
+    après avoir rendu la main à son enfant ne doit pas retenir le shell. On lui
+    donne un cwd temporaire pour qu'il n'adopte pas le dépôt courant comme
+    espace de travail, et on coupe sa mise à jour automatique.
+    """
+    if not force:
+        echec = lire_json(AGY_FAIL_FILE)
+        age = int(time.time()) - int(echec.get("ts") or 0)
+        if echec.get("raison") and 0 <= age < AGY_FAIL_TTL:
+            return [], f'{echec["raison"]} (retenté dans {max(1, (AGY_FAIL_TTL - age) // 60)} min)'
+
+    agy = _trouver_agy()
+    env = dict(os.environ, AGY_CLI_DISABLE_AUTO_UPDATE="true")
+    argv = [agy, "-p", "/usage", "--output-format", "json", "--print-timeout", "6s"]
+    sortie = None
+    try:
+        with tempfile.TemporaryDirectory(prefix="aether-agy-usage-") as cwd:
+            proc = subprocess.Popen(
+                argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                encoding="utf-8", errors="replace", start_new_session=True)
+            try:
+                sortie, _ = proc.communicate(timeout=AGY_USAGE_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                proc.communicate()
+                return [], _agy_echec("agy n'a pas répondu à temps")
+            if proc.returncode != 0:
+                # Le CLI range la cause dans son JSON (« authentication failed
+                # or timed out », par exemple) : la remonter vaut mieux qu'un
+                # code de sortie, qui se lit comme une panne du service.
+                motif = ""
+                try:
+                    motif = str((json.loads(sortie or "") or {}).get("error") or "").strip()
+                except (ValueError, AttributeError):
+                    pass
+                return [], _agy_echec(f"agy : {motif[:80]}" if motif
+                                      else f"agy a échoué (code {proc.returncode})")
+    except OSError as erreur:
+        return [], _agy_echec(f"agy injoignable : {erreur}")
+
+    try:
+        corps = json.loads(sortie or "")
+    except ValueError:
+        return [], _agy_echec("réponse agy illisible")
+    # Un `num_turns` non nul veut dire que le CLI a traité « /usage » comme un
+    # prompt : le quota vient d'être dépensé pour un aller-retour de modèle.
+    if not isinstance(corps, dict) or corps.get("status") != "SUCCESS" \
+            or corps.get("num_turns") != 0:
+        return [], _agy_echec("réponse agy inattendue")
+    commande = corps.get("command") or {}
+    if commande.get("name") != "usage":
+        return [], _agy_echec("commande /usage non reconnue")
+    donnees = commande.get("data") or {}
+
+    fenetres = []
+    for groupe in donnees.get("groups") or []:
+        if not isinstance(groupe, dict):
+            continue
+        nom = _groupe_court(groupe.get("name"))
+        for bucket in groupe.get("buckets") or []:
+            if not isinstance(bucket, dict):
+                continue
+            reste = bucket.get("remaining_fraction")
+            # Un bucket sans fraction n'est pas « 0 % » : il ne dit rien du quota.
+            if isinstance(reste, bool) or not isinstance(reste, (int, float)):
+                continue
+            reste = min(1.0, max(0.0, float(reste)))
+            fenetre = str(bucket.get("window") or "")
+            fenetres.append({
+                "groupe": nom,
+                "tranche": TRANCHES.get(fenetre, fenetre),
+                "reste": reste,
+                "reset_at": _instant(bucket.get("reset_time")),
+                "detail": str(bucket.get("description") or ""),
+            })
+    if not fenetres:
+        return [], _agy_echec("aucune fenêtre dans la réponse")
+    fenetres.sort(key=lambda f: (f["reste"], -f["reset_at"]))
+    # Source redevenue bonne : on efface la mémoire d'échec.
+    try:
+        AGY_FAIL_FILE.unlink()
+    except OSError:
+        pass
+    return fenetres, ""
+
+
+def lignes_de_agy(fenetres):
+    """Une ligne de tableau par fenêtre, la plus contrainte d'abord."""
+    lignes = [{
+        "nom": fenetre["groupe"],
+        "tranche": fenetre["tranche"],
+        "valeur": f'{int(round(fenetre["reste"] * 100)):>3} %',
+        "echeance": echeance(fenetre["reset_at"]) if fenetre["reset_at"] else "",
+        "reste": fenetre["reste"],
+        "alerte": fenetre["reste"] <= SEUIL_ALERTE,
+    } for fenetre in fenetres]
+    lignes.sort(key=lambda ligne: (0 if ligne["alerte"] else 1, ligne["reste"]))
+    return lignes
 
 
 def renouveler():
@@ -546,6 +695,22 @@ def presenter(donnees):
     if not donnees.get("ok"):
         return donnees
 
+    # 0. Fenêtres lues sur `agy -p /usage` : le tableau se suffit. Le pied ne
+    #    garde que ce qui ne s'y lit pas — la fraîcheur d'un relevé repris du
+    #    cache. `mesures` reste vide : en mode tableau le widget ne l'affiche
+    #    pas, et l'applet, elle, lit `lignes`.
+    lignes_agy = donnees.get("lignes")
+    if lignes_agy:
+        pied = []
+        if donnees.get("source") == "cache":
+            pied.append(llm_contrat.mesure(
+                texte="relevé", depuis=int(donnees.get("releve_ts") or 0)))
+        alerte = any(ligne.get("alerte") for ligne in lignes_agy)
+        resultat = llm_contrat.presenter(
+            donnees, "Antigravity", "rocket", pied, alerte)
+        resultat["lignes"] = lignes_agy
+        return resultat
+
     fenetres = donnees.get("percent_windows")
     if fenetres:
         lignes = lignes_de(fenetres)
@@ -632,7 +797,27 @@ def presenter(donnees):
         donnees, "Antigravity", "rocket", mesures, bool(actives))
 
 
-def analyser():
+def analyser(force=False):
+    # 1. La commande de quota du CLI : la mesure la plus fine des trois, et la
+    #    seule qui dise à quelle fenêtre appartient chaque groupe de modèles.
+    agy, raison_agy = depuis_agy(force)
+    if agy:
+        pire = min(f["reste"] for f in agy)
+        maintenant = int(time.time())
+        return {
+            "ok": True, "provider": "antigravity",
+            "state": "exhausted" if pire <= 0 else "free",
+            "reste_min": pire,
+            "lignes": lignes_de_agy(agy),
+            # Gardé pour la compatibilité des lecteurs qui comptent les fenêtres.
+            "windows": [{
+                "kind": "week" if f["tranche"] == "7 j" else "session",
+                "reset_at": f["reset_at"],
+                "seconds_left": max(0, f["reset_at"] - maintenant),
+            } for f in agy],
+            "source": "agy",
+        }
+
     fenetres, raison, palier = depuis_api()
     if fenetres:
         pire = min(f["reste"] for f in fenetres)
@@ -649,6 +834,8 @@ def analyser():
 
     donnees = depuis_logs()
     donnees["api_error"] = raison
+    if raison_agy:
+        donnees["agy_error"] = raison_agy
     donnees["palier"] = palier
     # Repli de repli : plutôt qu'un simple décompte, montrer le dernier relevé
     # complet, daté. Un pourcentage d'il y a quarante minutes vaut mieux qu'un
@@ -671,7 +858,7 @@ def main(argv):
         return llm_contrat.sortir(presenter(cache))
 
     try:
-        donnees = analyser()
+        donnees = analyser(force)
     except Exception as erreur:                       # noqa: BLE001
         donnees = {"ok": False, "provider": "antigravity", "error": str(erreur)[:120]}
 
