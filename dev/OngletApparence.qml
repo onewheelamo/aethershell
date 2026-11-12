@@ -45,7 +45,6 @@ Column {
         "winOpacityRow": winOpacityRow,
         "shellOpacityRow": shellOpacityRow,
         "blurRow": blurRow,
-        "blurVariantRow": blurVariantRow,
         "shellBlurRow": shellBlurRow,
         "secBarre": secBarre
     })
@@ -1074,59 +1073,6 @@ stepSize: 1
 onValueModified: newVal => {
     root.blurPasses = newVal
     root.runConfigCmd(["style", "blur_passes", String(newVal)])
-}
-        }
-    }
-
-    // 10b. Variante du flou (kawase … haze)
-    Row {
-        id: blurVariantRow   // ancre de recherche
-        objectName: "blurVariantRow"
-        width: parent.width
-        spacing: 8
-
-        Text {
-width: 160
-anchors.verticalCenter: parent.verticalCenter
-text: "Variante du flou :"
-color: Theme.fg
-font.pixelSize: Theme.textSm
-elide: Text.ElideRight
-        }
-
-        Flow {
-width: parent.width - 168
-spacing: 6
-
-Repeater {
-    model: root.blurVariantChoix
-
-    Rectangle {
-        required property var modelData
-        width: etatFlou.implicitWidth + 16
-        height: 26
-        radius: Theme.globalRadius
-        color: root.blurVariant === modelData.key ? Theme.accent : Theme.surfaceVariant
-        border.width: 1
-        border.color: Theme.accent
-
-        Text {
-            id: etatFlou
-            anchors.centerIn: parent
-            text: modelData.label
-            color: root.blurVariant === modelData.key ? Theme.bg : Theme.fg
-            font.pixelSize: Theme.textXs
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                root.blurVariant = modelData.key
-                root.runConfigCmd(["style", "blur_variant", modelData.key])
-            }
-        }
-    }
 }
         }
     }

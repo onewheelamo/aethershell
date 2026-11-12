@@ -133,10 +133,41 @@ CollapsibleSection {
                     return v === true || v === "true" || v === 1 || v === "1"
                 }
 
+                // Services suivis par le widget Comptes (Quotas IA) :
+                // undefined = tous les services déclarés.
+                readonly property var wServices: {
+                    const brut = widgetCard.wOptions.services
+                    if (brut !== undefined && brut !== null) {
+                        const liste = []
+                        if (brut.length !== undefined && typeof brut !== "string") {
+                            for (let i = 0; i < brut.length; i++) {
+                                const s = String(brut[i] || "").trim()
+                                if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                            }
+                        } else if (typeof brut === "string" && brut.trim() !== "") {
+                            const parts = brut.split(",")
+                            for (let i = 0; i < parts.length; i++) {
+                                const s = parts[i].trim()
+                                if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                            }
+                        }
+                        return liste
+                    }
+                    const tous = []
+                    const src = (root && root.llmProviders && root.llmProviders.length > 0)
+                              ? root.llmProviders
+                              : [{id: "deepseek"}, {id: "ollama"}, {id: "antigravity"}]
+                    for (let i = 0; i < src.length; ++i) {
+                        const s = String(src[i].id || "").trim()
+                        if (s !== "" && tous.indexOf(s) < 0) tous.push(s)
+                    }
+                    return tous
+                }
+
                 readonly property int wTextScale: {
                     const v = Number(widgetCard.wOptions.text_scale)
                     if (v >= 60 && v <= 160) return Math.round(v)
-                    const ia = ["deepseek", "ollama", "antigravity"]
+                    const ia = ["deepseek", "ollama", "antigravity", "comptes"]
                     return ia.indexOf(widgetCard.wtype) >= 0 ? 85 : 100
                 }
 
@@ -165,7 +196,8 @@ CollapsibleSection {
                                    : (widgetCard.wtype === "musique" ? "music"
                                    : (widgetCard.wtype === "combo" ? "widgets"
                                    : (widgetCard.wtype === "systeme" ? "monitor"
-                                   : "clock"))))
+                                   : (widgetCard.wtype === "comptes" ? "wallet"
+                                   : "clock")))))
                             size: Theme.iconSm
                             color: Theme.accent
                         }
@@ -429,6 +461,7 @@ CollapsibleSection {
                             visible: widgetCard.wtype === "deepseek"
                                      || widgetCard.wtype === "ollama"
                                      || widgetCard.wtype === "antigravity"
+                                     || widgetCard.wtype === "comptes"
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 6
 
@@ -578,6 +611,65 @@ CollapsibleSection {
                                     "widget_set", widgetCard.wid, "afficher_faits",
                                     widgetCard.wAfficherFaits ? "false" : "true"
                                 ])
+                            }
+                        }
+                    }
+
+                    // Widget Quotas IA (comptes) : sélection des services surveillés.
+                    Row {
+                        width: parent.width
+                        spacing: Theme.space2
+                        visible: widgetCard.wtype === "comptes"
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 56
+                            text: "Services"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Row {
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 6
+
+                            Repeater {
+                                model: (root.llmProviders && root.llmProviders.length > 0)
+                                    ? root.llmProviders
+                                    : [
+                                        { id: "deepseek", label: "DeepSeek" },
+                                        { id: "ollama", label: "Ollama" },
+                                        { id: "antigravity", label: "Antigravity" }
+                                    ]
+
+                                Rectangle {
+                                    required property var modelData
+                                    readonly property string sId: String(modelData.id || "")
+                                    readonly property bool pris:
+                                        widgetCard.wServices.indexOf(sId) >= 0
+                                    width: nomService.width + 16
+                                    height: 24
+                                    radius: Theme.globalRadius
+                                    color: pris ? Qt.alpha(Theme.accent, 0.16)
+                                                : Theme.surfaceVariant
+                                    border.width: 1
+                                    border.color: pris ? Theme.accent : Theme.surfaceVariant
+
+                                    Text {
+                                        id: nomService
+                                        anchors.centerIn: parent
+                                        text: String(modelData.label || modelData.id || "")
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.basculerServiceWidget(
+                                                       widgetCard.wid, sId)
+                                    }
+                                }
                             }
                         }
                     }

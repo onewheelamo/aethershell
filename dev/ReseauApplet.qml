@@ -53,8 +53,7 @@ Item {
     }
 
     function rafraichir() {
-        if (statut.running) return
-        statut.running = true
+        Theme.rafraichirSystemInfo()
     }
 
     function startWifiScan(rescan) {
@@ -90,29 +89,17 @@ Item {
 
     // Amorçage : l'état Bluetooth est lu une fois au démarrage, pour que le
     // panneau s'ouvre déjà rempli (sinon il est vide le temps d'un aller-retour).
-    Component.onCompleted: { root.rafraichir(); root.lireBluetooth() }
+    Component.onCompleted: root.lireBluetooth()
 
-    Timer {
-        interval: 10000
-        repeat: true
-        running: true
-        onTriggered: root.rafraichir()
-    }
-
-    Process {
-        id: statut
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const w = (JSON.parse(text.trim()) || {}).wifi
-                    if (!w) return
-                    root.wifiConnected = Boolean(w.connected)
-                    root.wifiSsid = String(w.ssid || "")
-                    root.wifiSignal = Number(w.signal || 0)
-                    root.netType = String(w.type || "wifi")
-                } catch (e) { /* lecture illisible : on garde le dernier état */ }
-            }
+    Connections {
+        target: Theme
+        function onSystemInfoChanged() {
+            const w = (Theme.systemInfo && Theme.systemInfo.wifi) || null
+            if (!w) return
+            root.wifiConnected = Boolean(w.connected)
+            root.wifiSsid = String(w.ssid || "")
+            root.wifiSignal = Number(w.signal || 0)
+            root.netType = String(w.type || "wifi")
         }
     }
 

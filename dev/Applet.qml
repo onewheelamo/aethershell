@@ -176,9 +176,8 @@ Item {
         interval: Math.max(1000, root.cadenceMin * 60000)
         repeat: true
         running: !root.estQml
-        // La cadence choisie est la cadence réelle : sans --force, le cache du
-        // service ignorerait un réglage à 1 ou 2 minutes.
-        onTriggered: root.rafraichir(true)
+        // Le timer régulier respecte le cache ; le clic souris manuel force la mesure.
+        onTriggered: root.rafraichir(false)
     }
 
     Process {

@@ -79,8 +79,7 @@ Item {
     }
 
     function lire() {
-        if (lecture.running) return
-        lecture.running = true
+        Theme.rafraichirSystemInfo()
     }
 
     Process {
@@ -123,12 +122,9 @@ Item {
         Theme.activePopup = ""
     }
 
-    Component.onCompleted: { root.lire(); root.lireNuit() }
+    Component.onCompleted: root.lireNuit()
 
-    // État du mode nuit. La **plage horaire** ne s'applique plus d'ici : le
-    // minuteur vit dans `main.qml`, qui est toujours monté, alors qu'un applet
-    // peut être retiré des barres — l'automatisme disparaissait alors en
-    // silence. Ici on ne fait que lire l'état pour l'afficher.
+    // État du mode nuit.
     Timer {
         id: relanceNuit
         interval: 60000
@@ -160,7 +156,6 @@ Item {
 
     Process {
         id: nuitProc
-        // Lecture seule : l'application de la plage vit dans `main.qml`.
         command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "etat"]
         stdout: StdioCollector {
             onStreamFinished: root.majNuit(text)
@@ -174,34 +169,22 @@ Item {
         }
     }
 
-    Timer {
-        interval: 15000
-        repeat: true
-        running: true
-        onTriggered: root.lire()
-    }
-
-    Process {
-        id: lecture
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim()) || {}
-                    root.batPresente = Boolean(d.has_battery)
-                    if (d.battery) {
-                        root.batPourcent = Number(d.battery.level || 0)
-                        const st = String(d.battery.status || "")
-                        root.batEtat = st
-                        root.batCharge = (st === "Charging" || st === "Full")
-                        root.batLimite = Boolean(d.battery.limit_80)
-                        root.batPlafond = Number(d.battery.limit_pct || 80)
-                    }
-                    root.briPresente = Boolean(d.has_backlight)
-                    if (typeof d.brightness === "number") root.briPourcent = d.brightness
-                    root.pret = true
-                } catch (e) { /* lecture illisible : on garde l'état précédent */ }
+    Connections {
+        target: Theme
+        function onSystemInfoChanged() {
+            const d = Theme.systemInfo || ({})
+            root.batPresente = Boolean(d.has_battery)
+            if (d.battery) {
+                root.batPourcent = Number(d.battery.level || 0)
+                const st = String(d.battery.status || "")
+                root.batEtat = st
+                root.batCharge = (st === "Charging" || st === "Full")
+                root.batLimite = Boolean(d.battery.limit_80)
+                root.batPlafond = Number(d.battery.limit_pct || 80)
             }
+            root.briPresente = Boolean(d.has_backlight)
+            if (typeof d.brightness === "number") root.briPourcent = d.brightness
+            root.pret = Theme.systemInfoPret
         }
     }
 

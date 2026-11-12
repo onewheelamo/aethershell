@@ -45,18 +45,17 @@ PopupWindow {
     color: "transparent"
 
     anchor.item: ancre
+    anchor.edges: Theme.ancrePopupEdges(ile)
+    anchor.gravity: Theme.ancrePopupGravity(ile)
     anchor.rect.x: Theme.ancrePopupX(ile, ancre, implicitWidth, alignement)
-    // Posée pour la lisibilité, mais sans effet mesuré : voir l'en-tête.
     anchor.rect.y: Theme.ancrePopupY(ile, ancre, implicitHeight)
 
-    // L'écart réel entre l'applet et le panneau : une seule valeur pour tous.
-    // Aucune marge haute : c'est le placement par défaut de Quickshell qui donne
-    // l'espacement voulu sous la barre. Mesuré à l'écran : -12 collait le panneau
-    // à la barre (centre de notifications et réseau), alors que les autres
-    // gardaient l'écart. Une valeur unique, ici, et nulle part ailleurs.
-    anchor.margins.top: ecart
-    anchor.margins.bottom: 14
-    anchor.margins.left: 14
-    anchor.margins.right: 14
+    // Marges directionnelles : l'écart personnalisé (ecart) s'applique sur le bord
+    // adjacent à la barre porteuse (haut si barre du haut, bas si barre du bas,
+    // gauche si barre gauche, droite si barre droite).
+    anchor.margins.top: (String(ile || "").split(":")[0] === "haut") ? ecart : 14
+    anchor.margins.bottom: (String(ile || "").split(":")[0] === "bas") ? ecart : 14
+    anchor.margins.left: (String(ile || "").split(":")[0] === "cote-gauche") ? ecart : 14
+    anchor.margins.right: (String(ile || "").split(":")[0] === "cote-droite") ? ecart : 14
     anchor.adjustment: PopupAdjustment.All
 }

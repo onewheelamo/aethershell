@@ -47,24 +47,17 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 3: MPRIS MEDIA INTEGRATION
     // ────────────────────────────────────────────────────────────────────────
-    // Live tracking of currently playing media (excluding Firefox / Zen / web browsers)
+    // Live tracking of currently playing media & lecture position (toutes les 1s quand ouvert)
     property bool mediaPollTick: false
     Timer {
         interval: 1000
-        // aussi quand le popup média est ouvert : titre, état et boutons doivent suivre
         running: panneau.ouvert
         repeat: true
         triggeredOnStart: true
-        onTriggered: panneau.mediaPollTick = !panneau.mediaPollTick
-    }
-
-    // Position de lecture : MPRIS ne la pousse pas, il faut la relire pour animer
-    // la barre de progression du popup.
-    Timer {
-        interval: 1000
-        repeat: true
-        running: panneau.ouvert
-        onTriggered: panneau.mediaProgressTick++
+        onTriggered: {
+            panneau.mediaPollTick = !panneau.mediaPollTick
+            panneau.mediaProgressTick++
+        }
     }
 
     // Tout lecteur ayant une piste, en lecture ou non. Il pilote le popup (sinon

@@ -132,14 +132,18 @@ def _valeur_service(nom, s):
 
 
 def _survol(services, prefere, affiche=None):
-    """Les autres services, pour la carte de survol : nom et valeur, rien de plus.
+    """Les autres services et quotas pour la carte de survol : nom et valeur.
 
-    On écarte aussi celui que la barre montre déjà : sans préférence choisie, la
-    règle d'alerte peut désigner n'importe quel service, et la carte le répétait.
+    Si Antigravity est le service affiché ou préféré, on liste également toutes ses
+    autres lignes de quotas (notamment Gemini Flash, Argon, Claude/GPT).
     """
     lignes = []
     for nom in SERVICES:
         if nom == prefere:
+            continue
+        # Quand Antigravity est actif, ses lignes détaillées sont ajoutées plus bas ;
+        # on ne met pas une entrée globale redondante pour Antigravity.
+        if nom == "antigravity":
             continue
         trouve = _valeur_service(nom, services.get(nom))
         if not trouve:
@@ -147,6 +151,21 @@ def _survol(services, prefere, affiche=None):
         if affiche and trouve[1] == affiche[1] and trouve[0] == affiche[0]:
             continue
         lignes.append({"nom": trouve[1], "valeur": trouve[0], "alerte": trouve[2]})
+
+    # Détail des fenêtres Antigravity dans la carte de survol
+    ag = services.get("antigravity") or {}
+    if ag.get("ok"):
+        lignes_ag = ag.get("lignes") or []
+        for l in lignes_ag:
+            lib = _libelle_ligne(l, "antigravity")
+            val = str(l.get("valeur") or "").strip()
+            # Ne pas répéter la mesure exacte déjà affichée en barre
+            if affiche and lib == affiche[1] and val == affiche[0]:
+                continue
+            # Évite d'insérer un doublon si une ligne porte le même libellé
+            if any(exist.get("nom") == lib for exist in lignes):
+                continue
+            lignes.append({"nom": lib, "valeur": val, "alerte": bool(l.get("alerte"))})
     return lignes
 
 

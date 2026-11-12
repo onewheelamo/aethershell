@@ -73,30 +73,22 @@ Item {
     }
 
     function relire() {
-        if (infos.running) return
-        infos.running = true
+        Theme.rafraichirSystemInfo()
     }
 
-    // `system_service.py info` donne batterie (niveau, état, limite 80 %) et
-    // luminosité en une seule lecture : inutile d'ouvrir trois sources.
-    Process {
-        id: infos
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim()) || {}
-                    root.batPresente = Boolean(d.has_battery)
-                    if (d.battery) {
-                        root.batPourcent = Number(d.battery.level || 0)
-                        root.batEtat = String(d.battery.status || "")
-                        root.batLimite = Boolean(d.battery.limit_80)
-                        root.batPlafond = Number(d.battery.limit_pct || 80)
-                    }
-                    root.briPresente = Boolean(d.has_backlight)
-                    if (typeof d.brightness === "number") root.briPourcent = d.brightness
-                } catch (e) { /* lecture illisible : on garde l'état précédent */ }
+    Connections {
+        target: Theme
+        function onSystemInfoChanged() {
+            const d = Theme.systemInfo || ({})
+            root.batPresente = Boolean(d.has_battery)
+            if (d.battery) {
+                root.batPourcent = Number(d.battery.level || 0)
+                root.batEtat = String(d.battery.status || "")
+                root.batLimite = Boolean(d.battery.limit_80)
+                root.batPlafond = Number(d.battery.limit_pct || 80)
             }
+            root.briPresente = Boolean(d.has_backlight)
+            if (typeof d.brightness === "number") root.briPourcent = d.brightness
         }
     }
 

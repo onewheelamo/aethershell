@@ -184,12 +184,6 @@ QtObject {
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.1696
-    // Nom de la variante (`decoration:blur:variant`) : kawase, frost, ripple,
-    // drops, water, fluid_jar, prism, heat_shimmer, acrylic, aurora, haze.
-    // style_vars.json fait foi ; general.lua ne porte que le défaut d'une
-    // machine neuve.
-    property string blurVariant: "kawase"
-
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 3: PALETTE COLORS & TRANSLUCENT SURFACES
     // ────────────────────────────────────────────────────────────────────────
@@ -271,7 +265,9 @@ QtObject {
         root.osdValue = Math.max(0, Math.min(100, value))
         root.osdVisible = true
         root.osdTimer.restart()
+        if (kind === "volume") root.volumeUpdated()
     }
+    signal volumeUpdated()
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 5: POPUP COORDINATION ACROSS ISLANDS
@@ -382,6 +378,23 @@ QtObject {
     // qu'on attend. Sur les côtés, le popup s'ouvre **à côté** de l'applet,
     // centré verticalement sur lui ; l'alignement est alors ignoré.
     //
+    // Bords et gravités d'ancrage directionnel pour les popups selon la barre porteuse
+    function ancrePopupEdges(ile) {
+        const barre = String(ile || "").split(":")[0]
+        if (barre === "bas") return Edges.Top
+        if (barre === "cote-gauche") return Edges.Right
+        if (barre === "cote-droite") return Edges.Left
+        return Edges.Bottom
+    }
+
+    function ancrePopupGravity(ile) {
+        const barre = String(ile || "").split(":")[0]
+        if (barre === "bas") return Edges.Top
+        if (barre === "cote-gauche") return Edges.Right
+        if (barre === "cote-droite") return Edges.Left
+        return Edges.Bottom
+    }
+
     // `PopupAdjustment.All` reste le filet de sécurité si le résultat sort de
     // l'écran : Quickshell le retourne ou le fait glisser.
     function ancrePopupX(ile, item, popupW, alignement) {
@@ -451,8 +464,7 @@ QtObject {
             + "decoration = { rounding = " + root.hyprRounding + ", active_opacity = " + root.globalOpacity + ", inactive_opacity = " + root.globalOpacity + ", "
             + "blur = { enabled = " + (root.blurEnabled ? "true" : "false")
             + ", size = " + root.blurSize + ", passes = " + root.blurPasses
-            + ", vibrancy = " + root.blurVibrancy
-            + ", variant = \"" + root.blurVariant + "\" } } "
+            + ", vibrancy = " + root.blurVibrancy + " } } "
             + "})"
         hyprApplyProc.command = ["hyprctl", "eval", luaCmd]
         hyprApplyProc.running = true
@@ -536,7 +548,6 @@ QtObject {
         if (typeof data.blur_size === "number") root.blurSize = Math.max(1, Math.min(20, data.blur_size))
         if (typeof data.blur_passes === "number") root.blurPasses = Math.max(1, Math.min(8, data.blur_passes))
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = Math.max(0, Math.min(1, data.blur_vibrancy))
-        if (typeof data.blur_variant === "string" && data.blur_variant.length > 0) root.blurVariant = data.blur_variant
         if (typeof data.kb_layout === "string") root.kbLayout = data.kb_layout
         if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
         if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
@@ -647,6 +658,142 @@ QtObject {
                 console.warn("Theme.qml: Failed to parse core/widgets.json:", e)
             }
         }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Registre des applets de barre (bar_applets.json + applets_catalogue.json)
+    // ────────────────────────────────────────────────────────────────────────
+    // Centralisé ici en pur JS pour éliminer les 22 FileView et les dizaines de
+    // processus concurrents `bar_applets.py resoudre`.
+    property var barAppletsCatalogue: []
+    property var barAppletsActifs: ({})
+    property int barAppletsRev: 0
+
+    readonly property var barIles: [
+        "haut:debut", "haut:milieu", "haut:fin",
+        "bas:debut", "bas:milieu", "bas:fin",
+        "cote-gauche:debut", "cote-gauche:milieu", "cote-gauche:fin",
+        "cote-droite:debut", "cote-droite:milieu", "cote-droite:fin"
+    ]
+
+    readonly property var barAnciens: ({
+        "gauche": "haut:debut", "centre": "haut:milieu", "droite": "haut:fin",
+        "haut-gauche": "haut:debut", "haut-centre": "haut:milieu", "haut-droite": "haut:fin",
+        "bas": "bas:milieu",
+        "cote-gauche": "cote-gauche:milieu",
+        "cote-droite": "cote-droite:milieu"
+    })
+
+    property FileView appletsCatalogueFile: FileView {
+        path: Quickshell.shellPath("core/applets_catalogue.json")
+        watchChanges: false
+        printErrors: false
+        onLoaded: {
+            try {
+                const d = JSON.parse(text())
+                root.barAppletsCatalogue = (d && Array.isArray(d.applets)) ? d.applets : []
+                root.barAppletsRev++
+            } catch (e) {
+                root.barAppletsCatalogue = []
+            }
+        }
+    }
+
+    property FileView barAppletsFile: FileView {
+        path: Quickshell.shellPath("core/bar_applets.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const d = JSON.parse(text())
+                const rawActifs = (d && typeof d.actifs === "object" && d.actifs) ? d.actifs : ({})
+                const normActifs = ({})
+                for (const cle in rawActifs) {
+                    const item = Object.assign({}, rawActifs[cle])
+                    if (item.ile && root.barAnciens[item.ile]) {
+                        item.ile = root.barAnciens[item.ile]
+                    }
+                    normActifs[cle] = item
+                }
+                root.barAppletsActifs = normActifs
+                root.barAppletsRev++
+            } catch (e) {
+                root.barAppletsActifs = ({})
+            }
+        }
+    }
+
+    function appletsPourIle(ile) {
+        const _ = root.barAppletsRev
+        if (!ile || !root.barAppletsCatalogue.length) return []
+        const cible = root.barAnciens[ile] || ile
+        const liste = []
+        for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
+            const cat = root.barAppletsCatalogue[i]
+            if (!cat || !cat.id || cat.fixe) continue
+            const choix = root.barAppletsActifs[cat.id]
+            if (!choix) continue
+
+            let itemIle = String(choix.ile || cat.ile || "haut:fin")
+            itemIle = root.barAnciens[itemIle] || itemIle
+            if (itemIle !== cible) continue
+
+            const entree = Object.assign({}, cat)
+            entree.actif = true
+            entree.ile = itemIle
+            const ordre = parseInt(choix.ordre, 10)
+            entree.ordre = isNaN(ordre) ? (cat.ordre || 100) : ordre
+            const echelle = parseInt(choix.text_scale, 10)
+            entree.text_scale = isNaN(echelle) ? 100 : Math.max(60, Math.min(160, echelle))
+            entree.options = choix.options || ({})
+            liste.push(entree)
+        }
+
+        liste.sort(function(a, b) {
+            const oa = (typeof a.ordre === "number") ? a.ordre : 100
+            const ob = (typeof b.ordre === "number") ? b.ordre : 100
+            if (oa !== ob) return oa - ob
+            return String(a.id || "").localeCompare(String(b.id || ""))
+        })
+        return liste
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // État système partagé (core/system_service.py info)
+    // ────────────────────────────────────────────────────────────────────────
+    // Centralisé ici avec un unique polling cadencé (10s) pour alimenter
+    // ReseauApplet, LuminositeApplet, GestionEnergieApplet et island_right
+    // sans multiplier les forks concurrents de python3.
+    property var systemInfo: ({})
+    property bool systemInfoPret: false
+
+    property Process systemInfoProc: Process {
+        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (d && typeof d === "object") {
+                        root.systemInfo = d
+                        root.systemInfoPret = true
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    function rafraichirSystemInfo() {
+        if (systemInfoProc.running) return
+        systemInfoProc.running = true
+    }
+
+    property Timer systemInfoTimer: Timer {
+        interval: 10000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.rafraichirSystemInfo()
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -877,6 +1024,8 @@ QtObject {
     property var notifOpenHook: null
     //   quickshell ipc call shell notifClear        → vide le centre (pas l'historique)
     property var notifClearHook: null
+    //   quickshell ipc call shell notifInvoke <actionId> → invoque l'action de la notification la plus récente
+    property var notifInvokeHook: null
 
     property IpcHandler ipc: IpcHandler {
         target: "shell"
@@ -977,6 +1126,9 @@ QtObject {
         }
         function notifClear(): bool {
             return root.notifClearHook ? Boolean(root.notifClearHook()) : false
+        }
+        function notifInvoke(actionId: string): bool {
+            return root.notifInvokeHook ? Boolean(root.notifInvokeHook(actionId)) : false
         }
         // Tiroir de l'historique : toggle + show/hide idempotents (mêmes règles
         // que les autres surfaces : un toggle perd un appel, un show non).

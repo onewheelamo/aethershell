@@ -1,57 +1,16 @@
 import QtQuick
 import "."
 import Quickshell
-import Quickshell.Io
 
-// RANGÉE D'APPLETS d'un îlot. Elle demande au registre ce qui est allumé sur son
-// côté (`bar_applets.py resoudre <îlot>`) et ne dessine que ça : un îlot sans
-// applet n'a donc aucune largeur, aucun espace réservé.
-//
-// Elle réagit à l'écriture de `bar_applets.json`, donc cocher un applet dans le
-// panneau l'affiche sans redémarrer le shell.
+// RANGÉE D'APPLETS d'un îlot — résolue de manière instantanée et réactive
+// via Theme.appletsPourIle(ile) en JS pur, sans sous-processus Python.
 Item {
     id: root
     property string ile: "haut:fin"
-    property var applets: []
+    readonly property var applets: root.ile !== "" ? Theme.appletsPourIle(root.ile) : []
 
     implicitWidth: ligne.implicitWidth
     implicitHeight: ligne.implicitHeight
-
-    FileView {
-        path: Quickshell.shellPath("core/bar_applets.json")
-        watchChanges: true
-        onFileChanged: root.resoudre()
-        onTextChanged: root.resoudre()
-    }
-
-    Process {
-        id: requete
-        command: ["python3", Quickshell.shellPath("core/bar_applets.py"),
-                  "resoudre", root.ile]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const liste = JSON.parse(text.trim())
-                    root.applets = Array.isArray(liste) ? liste : []
-                } catch (e) {
-                    root.applets = []
-                }
-            }
-        }
-    }
-
-    function resoudre() {
-        // Emplacement vide : la rangée ne sert pas pour cette orientation, elle ne
-        // doit ni interroger le registre ni se dessiner.
-        if (root.ile === "") {
-            root.applets = []
-            return
-        }
-        requete.running = false
-        requete.running = true
-    }
-
-    Component.onCompleted: root.resoudre()
 
     Row {
         id: ligne

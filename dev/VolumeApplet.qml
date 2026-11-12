@@ -62,8 +62,18 @@ Item {
 
     Component.onCompleted: root.lire()
 
+    // Synchronisation événementielle lors des modifications de volume clavier (OSD)
+    Connections {
+        target: Theme
+        function onVolumeUpdated() {
+            root.lire()
+        }
+    }
+
+    // Timer au repos : 10 s suffisent en filet de sécurité si un programme
+    // change le volume sans passer par les touches matérielles ou la molette
     Timer {
-        interval: 1500
+        interval: 10000
         running: true
         repeat: true
         onTriggered: root.lire()

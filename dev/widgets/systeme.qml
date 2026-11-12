@@ -109,18 +109,20 @@ Item {
         return Theme.accent
     }
 
-    function rafraichir() {
-        proc.command = ["python3", Quickshell.shellPath("core/systeme_applet.py"), "--force"]
+    function rafraichir(force) {
+        proc.command = force
+            ? ["python3", Quickshell.shellPath("core/systeme_applet.py"), "--force"]
+            : ["python3", Quickshell.shellPath("core/systeme_applet.py")]
         proc.running = true
     }
 
-    Component.onCompleted: rafraichir()
+    Component.onCompleted: rafraichir(false)
 
     Timer {
         interval: 3000
         running: true
         repeat: true
-        onTriggered: root.rafraichir()
+        onTriggered: root.rafraichir(false)
     }
 
     Process {
@@ -143,6 +145,12 @@ Item {
     Column {
         id: colonne
         spacing: 7
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.rafraichir(true)
+        }
 
         Repeater {
             model: root.lignes

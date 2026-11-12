@@ -534,28 +534,12 @@ Item {
 
     property Process quietNotifProc: Process {}
 
-    // Le seul sondage système qui reste : le mode tablette, qui commande le
-    // bouton clavier virtuel (Yoga). Batterie, volume et luminosité sont lus par
-    // les applets concernés, chacun pour son compte.
-    Process {
-        id: modeTabletteProc
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    if (typeof d.tablet_mode === "boolean") islandRight.tabletMode = d.tablet_mode
-                } catch (e) {}
-            }
+    Connections {
+        target: Theme
+        function onSystemInfoChanged() {
+            const d = Theme.systemInfo
+            if (d && typeof d.tablet_mode === "boolean") islandRight.tabletMode = d.tablet_mode
         }
-    }
-
-    Timer {
-        interval: 30000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: if (!modeTabletteProc.running) modeTabletteProc.running = true
     }
 
 
@@ -588,7 +572,8 @@ Item {
                     resume: e.summary || "",
                     regle: e.target ? String(e.target.rule || "") : "",
                     type: e.target ? String(e.target.kind || "") : "",
-                    cible: e.target ? String(e.target.display || "") : ""
+                    cible: e.target ? String(e.target.display || "") : "",
+                    actions: islandRight.notifActions(e)
                 })
             }
             return JSON.stringify(out)
@@ -602,6 +587,21 @@ Item {
             for (let i = 0; i < list.length; i++)
                 if (islandRight.notifHasTarget(list[i]))
                     return islandRight.openNotifTarget(list[i], true)
+            return false
+        }
+        Theme.notifInvokeHook = function(actionId) {
+            const list = islandRight.notificationsList
+            for (let i = 0; i < list.length; i++) {
+                const acts = islandRight.notifActions(list[i])
+                for (let j = 0; j < acts.length; j++) {
+                    if (String(acts[j].identifier) === String(actionId)) {
+                        const ok = islandRight.invokeNotifAction(list[i], actionId)
+                        if (islandRight.latestToast && islandRight.latestToast.raw === list[i].raw)
+                            islandRight.latestToast = null
+                        return ok
+                    }
+                }
+            }
             return false
         }
     }
@@ -822,6 +822,56 @@ Item {
                     color: Qt.alpha(Theme.fg, 0.85)
                     font.pixelSize: Theme.textXs
                     wrapMode: Text.WordWrap
+                }
+
+                // Actions natives de l'application (lot L4) dans le toast transitoire :
+                // petites pastilles cliquables sous le corps du message.
+                Flow {
+                    width: parent.width
+                    visible: Boolean(islandRight.latestToast && islandRight.notifActions(islandRight.latestToast).length > 0)
+                    spacing: Theme.space1
+
+                    Repeater {
+                        model: islandRight.latestToast ? islandRight.notifActions(islandRight.latestToast) : []
+
+                        Rectangle {
+                            required property var modelData
+                            width: toastActionLabel.implicitWidth + Theme.space3 * 2
+                            height: 20
+                            radius: Theme.globalRadius
+                            color: toastActionMa.containsMouse
+                                ? Qt.alpha(Theme.accent, 0.22)
+                                : Qt.alpha(Theme.fg, 0.08)
+                            border.width: 1
+                            border.color: toastActionMa.containsMouse ? Theme.accent : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Behavior on border.color { ColorAnimation { duration: 120 } }
+
+                            Text {
+                                id: toastActionLabel
+                                anchors.centerIn: parent
+                                text: modelData.text || modelData.identifier
+                                color: toastActionMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.9)
+                                font.pixelSize: Theme.textXs
+                                elide: Text.ElideRight
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: toastActionMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (islandRight.latestToast) {
+                                        islandRight.invokeNotifAction(islandRight.latestToast, modelData.identifier)
+                                        islandRight.latestToast = null
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

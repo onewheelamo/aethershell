@@ -175,8 +175,6 @@ Rectangle {
           tab: 1, section: "quickshell_barres", target: "barGapsRow" },
         { label: "Taille et passes du flou", words: "flou blur taille passes intensite",
           tab: 0, section: "esthetique_aspect", target: "blurRow" },
-        { label: "Variante du flou", words: "flou blur variante variant acrylic kawase haze aurora",
-          tab: 0, section: "esthetique_aspect", target: "blurVariantRow" },
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
           tab: 0, section: "quickshell_barre", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
@@ -938,6 +936,48 @@ Rectangle {
         root.runConfigCmd(["widget_set", wid, "fichiers", JSON.stringify(liste)])
     }
 
+    // Services suivis par le widget Comptes (Quotas IA) : une option vide veut
+    // dire « tous », donc on matérialise la liste complète avant d'en retirer un.
+    function basculerServiceWidget(wid, serviceId) {
+        let vive = null
+        for (let i = 0; i < root.widgetsList.length; ++i) {
+            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
+        }
+        if (!vive) return
+        const o = vive.options || ({})
+        let liste = null
+        if (o.services !== undefined && o.services !== null) {
+            liste = []
+            if (o.services.length !== undefined && typeof o.services !== "string") {
+                for (let i = 0; i < o.services.length; i++) {
+                    const s = String(o.services[i] || "").trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
+            } else if (typeof o.services === "string" && o.services.trim() !== "") {
+                const parts = o.services.split(",")
+                for (let i = 0; i < parts.length; i++) {
+                    const s = parts[i].trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
+            }
+        }
+        if (liste === null) {
+            liste = []
+            const provs = (root.llmProviders && root.llmProviders.length > 0)
+                        ? root.llmProviders
+                        : [{id: "deepseek"}, {id: "ollama"}, {id: "antigravity"}]
+            for (let j = 0; j < provs.length; ++j) {
+                const sid = String(provs[j].id || "").trim()
+                if (sid !== "" && liste.indexOf(sid) < 0) liste.push(sid)
+            }
+        }
+        const s = String(serviceId).trim()
+        const idx = liste.indexOf(s)
+        if (idx >= 0) liste.splice(idx, 1)
+        else liste.push(s)
+        root.runConfigCmd(["widget_set", wid, "services", JSON.stringify(liste)])
+    }
+
     // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
     // toutes ses instances — il ne doit pas y en avoir plusieurs.
     function toggleWidgetType(nature, present) {
@@ -986,25 +1026,7 @@ Rectangle {
     property int blurSize: 3
     property int blurPasses: 3
     property real blurVibrancy: 0.17
-    // Variante du flou (decoration:blur:variant) : le panneau gagne, la valeur
-    // est rangée dans style_vars.json et Theme.qml l'applique à chaud.
-    property string blurVariant: "kawase"
-    // Les onze variantes que Hyprland 0.57 accepte en clair ; l'ordre suit le
-    // binaire (kawase 0 … haze 10). Les libellés sont mis en forme, la clé
-    // reste le nom brut que `hl.config` attend.
-    readonly property var blurVariantChoix: [
-        { key: "kawase",       label: "Kawase" },
-        { key: "frost",        label: "Frost" },
-        { key: "ripple",       label: "Ripple" },
-        { key: "drops",        label: "Drops" },
-        { key: "water",        label: "Water" },
-        { key: "fluid_jar",    label: "Fluid jar" },
-        { key: "prism",        label: "Prism" },
-        { key: "heat_shimmer", label: "Heat shimmer" },
-        { key: "acrylic",      label: "Acrylic" },
-        { key: "aurora",       label: "Aurora" },
-        { key: "haze",         label: "Haze" }
-    ]
+
     // Flou des surfaces layer-shell du shell (layer rules de general.lua)
     property bool shellBlurEnabled: true
     property bool barBorder: true
@@ -1296,7 +1318,6 @@ Rectangle {
         if (typeof data.blur_size === "number") root.blurSize = data.blur_size
         if (typeof data.blur_passes === "number") root.blurPasses = data.blur_passes
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = data.blur_vibrancy
-        if (typeof data.blur_variant === "string" && data.blur_variant.length > 0) root.blurVariant = data.blur_variant
         if (typeof data.shell_blur_enabled === "boolean") root.shellBlurEnabled = data.shell_blur_enabled
         if (typeof data.bar_border === "boolean") root.barBorder = data.bar_border
         if (typeof data.bar_gaps_transparent === "boolean") root.barGapsTransparent = data.bar_gaps_transparent

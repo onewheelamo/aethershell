@@ -82,7 +82,7 @@ LIGNE = re.compile(r"^([IWEF])(\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.\d+\s+\d+\
 DELAI = re.compile(r"Resets in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
 QUOTA = "Individual quota reached"
 
-FAMILLES = (("claude", "Claude"), ("gemini", "Gemini"), ("gpt", "GPT"))
+FAMILLES = (("claude", "Claude"),    ("gemini", "Gemini Flash"), ("gpt", "GPT"))
 # Les modèles qui nous concernent ; `chat_*`, `tab_*` et consorts sont internes.
 NOM_MODELE = re.compile(r"gemini|claude|gpt", re.I)
 
@@ -148,7 +148,10 @@ AGY_FAIL_TTL = 600
 
 
 def _groupe_court(nom):
-    """« Claude and GPT models » -> « Claude/GPT » ; le reste est conservé."""
+    """« Gemini Models » -> « Gemini Flash », « Claude and GPT models » -> « Claude/GPT »."""
+    bas = str(nom or "").strip().lower()
+    if bas == "gemini models":
+        return "Gemini Flash"
     mots = str(nom or "").split()
     if mots and mots[-1].lower() == "models":
         mots = mots[:-1]

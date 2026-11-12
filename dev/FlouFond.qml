@@ -151,16 +151,11 @@ Item {
         id: image
         anchors.fill: parent
         source: racine.fond !== "" ? "file://" + racine.fond : ""
-        sourceSize.width: Math.max(160, Math.round(width / 4))
-        // `sourceClipRect` s'exprime dans les pixels de l'image **décodée**, pas
-        // ceux de l'écran : sans ce rapport, la fenêtre demandée sortait de
-        // l'image pour les surfaces de droite et Qt servait un coin sombre —
-        // visible dès qu'on montait le flou interne.
-        readonly property real rapport: width > 0 ? sourceSize.width / racine.ecran.width : 0
-        sourceClipRect: Qt.rect(racine.positionEcran.x * rapport,
-                                racine.positionEcran.y * rapport,
-                                width * rapport,
-                                height * rapport)
+        sourceSize: Qt.size(racine.ecran.width, racine.ecran.height)
+        readonly property point coin: Qt.point(
+            Math.max(0, Math.min(racine.ecran.width - width, racine.positionEcran.x)),
+            Math.max(0, Math.min(racine.ecran.height - height, racine.positionEcran.y)))
+        sourceClipRect: Qt.rect(coin.x, coin.y, width, height)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
@@ -169,14 +164,30 @@ Item {
     }
 
     MultiEffect {
+        id: effet
         anchors.fill: parent
-        // Le fond à l'échelle 1 d'abord ; le décodage réduit seulement s'il
-        // manque (fond jamais découpé en calques).
+        // Le fond à l'échelle 1 d'abord ; le décodage plein écran sinon.
         source: racine.ecranPret ? imageEcran : image
         blurEnabled: true
         blur: racine.flou
         blurMax: racine.flouMax
         saturation: 1.0
+        maskEnabled: racine.rayon > 0
+        maskSource: masqueArrondi
+    }
+
+    Item {
+        id: masqueArrondi
+        anchors.fill: parent
+        visible: false
+        layer.enabled: racine.actif && racine.rayon > 0
+        layer.smooth: true
+
+        Rectangle {
+            anchors.fill: parent
+            radius: racine.rayon
+            color: "white"
+        }
     }
 
     // Voile de couleur : sans lui, le verre tire vers les teintes du fond et

@@ -596,11 +596,16 @@ Item {
                                                 color: actionMa.containsMouse
                                                     ? Qt.alpha(Theme.accent, 0.16)
                                                     : Qt.alpha(Theme.fg, 0.06)
+                                                border.width: 1
+                                                border.color: actionMa.containsMouse ? Theme.accent : "transparent"
+
+                                                Behavior on color { ColorAnimation { duration: 120 } }
+                                                Behavior on border.color { ColorAnimation { duration: 120 } }
 
                                                 Text {
                                                     id: actionLabel
                                                     anchors.centerIn: parent
-                                                    text: modelData.text
+                                                    text: modelData.text || modelData.identifier
                                                     color: actionMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
                                                     font.pixelSize: Theme.textXs
                                                     elide: Text.ElideRight

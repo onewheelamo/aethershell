@@ -1,5 +1,6 @@
 import QtQuick
 import "."
+import Quickshell
 
 // APPLET HORLOGE — l'heure, et le calendrier qu'elle ouvre.
 //
@@ -11,18 +12,15 @@ Item {
     property var applet: ({})
     property real echelle: 1.0
 
-    property string heure: Qt.formatDateTime(new Date(), "hh:mm")
+    SystemClock {
+        id: clock
+        precision: SystemClock.Minutes
+    }
+
+    property string heure: Qt.formatTime(clock.date, "HH:mm")
 
     implicitWidth: texte.implicitWidth
     implicitHeight: texte.implicitHeight
-
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: root.heure = Qt.formatDateTime(new Date(), "hh:mm")
-    }
 
     Text {
         id: texte

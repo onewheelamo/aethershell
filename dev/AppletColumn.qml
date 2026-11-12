@@ -1,52 +1,16 @@
 import QtQuick
 import "."
 import Quickshell
-import Quickshell.Io
 
-// RANGÉE VERTICALE D'APPLETS — la même mécanique que `AppletRow`, pour les
-// barres de côté. Un applet n'a pas de forme propre : ici ils s'empilent, et
-// chacun garde son icône et sa valeur sur une ligne.
+// RANGÉE VERTICALE D'APPLETS — résolue de manière instantanée et réactive
+// via Theme.appletsPourIle(ile) en JS pur, sans sous-processus Python.
 Item {
     id: root
     property string ile: "cote-gauche:milieu"
-    property var applets: []
+    readonly property var applets: root.ile !== "" ? Theme.appletsPourIle(root.ile) : []
 
     implicitWidth: colonne.implicitWidth
     implicitHeight: colonne.implicitHeight
-
-    FileView {
-        path: Quickshell.shellPath("core/bar_applets.json")
-        watchChanges: true
-        onFileChanged: root.resoudre()
-        onTextChanged: root.resoudre()
-    }
-
-    Process {
-        id: requete
-        command: ["python3", Quickshell.shellPath("core/bar_applets.py"),
-                  "resoudre", root.ile]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const liste = JSON.parse(text.trim())
-                    root.applets = Array.isArray(liste) ? liste : []
-                } catch (e) {
-                    root.applets = []
-                }
-            }
-        }
-    }
-
-    function resoudre() {
-        if (root.ile === "") {
-            root.applets = []
-            return
-        }
-        requete.running = false
-        requete.running = true
-    }
-
-    Component.onCompleted: root.resoudre()
 
     Column {
         id: colonne

@@ -21,13 +21,21 @@ Item {
 
     readonly property var services: {
         const v = options && options.services
-        if (v && v.length !== undefined) {
+        if (v !== undefined && v !== null) {
             const liste = []
-            for (let i = 0; i < v.length; i++) {
-                const s = String(v[i] || "").trim()
-                if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+            if (v.length !== undefined && typeof v !== "string") {
+                for (let i = 0; i < v.length; i++) {
+                    const s = String(v[i] || "").trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
+            } else if (typeof v === "string" && v.trim() !== "") {
+                const parts = v.split(",")
+                for (let i = 0; i < parts.length; i++) {
+                    const s = parts[i].trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
             }
-            if (liste.length > 0) return liste
+            return liste
         }
         return ["deepseek", "ollama", "antigravity"]
     }
@@ -67,6 +75,13 @@ Item {
         id: pile
         spacing: root.respiration
 
+        Text {
+            visible: root.services.length === 0
+            text: "Aucun service sélectionné"
+            color: Qt.alpha(Theme.fg, 0.45)
+            font.pixelSize: Math.round(11 * root.echelle)
+        }
+
         Repeater {
             model: root.services
 
@@ -91,21 +106,33 @@ Item {
                     }
                 }
 
+                function majOptions() {
+                    if (!corps.item) return
+                    corps.item.options = {
+                        provider: bloc.service,
+                        // L'en-tête ne sert que dans une pile : un widget seul
+                        // n'a pas besoin de se nommer.
+                        entete: true,
+                        text_scale: root.options ? root.options.text_scale : undefined,
+                        refresh_min: root.options ? root.options.refresh_min : undefined
+                    }
+                }
+
                 Loader {
                     id: corps
                     source: "llm.qml"
                     onLoaded: {
                         if (!item) return
-                        item.options = {
-                            provider: bloc.service,
-                            // L'en-tête ne sert que dans une pile : un widget seul
-                            // n'a pas besoin de se nommer.
-                            entete: true,
-                            text_scale: root.options ? root.options.text_scale : undefined,
-                            refresh_min: root.options ? root.options.refresh_min : undefined
-                        }
+                        bloc.majOptions()
                         item.widgetId = ""
                         root.noterLargeur(index, item.implicitWidth)
+                    }
+                }
+
+                Connections {
+                    target: root
+                    function onOptionsChanged() {
+                        bloc.majOptions()
                     }
                 }
 

@@ -1,8 +1,10 @@
 # AetherShell
 
+[Read in English](docs/README.md)
+
 Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une barre en îlots, de panneaux modulaires, de widgets de bureau et d'outils du quotidien, écrit en QML/Qt et animé par [Quickshell](https://quickshell.org).
 
-> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.1.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
+> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.2.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
 
 ---
 

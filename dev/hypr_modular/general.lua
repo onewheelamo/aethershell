@@ -28,14 +28,7 @@ hl.config({
             color        = 0xee1a1a1a,
         },
         blur = {
-            enabled   = true,
-            -- Variante du flou. Défaut de la machine neuve : kawase — l'acrylic,
-            -- essayé, coûte 1,5× sous une charge de flou continue (+2,3 W) et
-            -- n'apporte rien au repos. Le panneau « Réglages » fait foi : il
-            -- réécrit cette ligne depuis style_vars.json, sinon un `hyprctl
-            -- reload` reprendrait ce défaut.
-            variant   = "kawase",
-            size      = 3,
+            enabled   = true,            size      = 3,
             passes    = 3,
             vibrancy  = 0.1696,
             -- Les menus (popups GTK) héritent de l'opacité de la fenêtre mais

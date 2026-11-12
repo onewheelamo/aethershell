@@ -676,6 +676,7 @@ Item {
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
     PanelWindow {
         id: spotlightWindow
+        property bool loaded: false
         screen: topBarWindow.screen
         visible: Theme.spotlightVisible
         anchors {
@@ -691,6 +692,13 @@ Item {
         WlrLayershell.keyboardFocus: Theme.spotlightVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-spotlight"
 
+        Connections {
+            target: Theme
+            function onSpotlightVisibleChanged() {
+                if (Theme.spotlightVisible) spotlightWindow.loaded = true
+            }
+        }
+
         // Un clic hors de la pilule ferme la surface — sauf juste après
         // l'ouverture, où le relâchement du clic d'invocation arrive ici.
         MouseArea {
@@ -704,6 +712,8 @@ Item {
         Loader {
             id: spotlightLoader
             anchors.fill: parent
+            active: spotlightWindow.loaded
+            visible: Theme.spotlightVisible
             source: "spotlight.qml"
         }
     }
@@ -801,7 +811,7 @@ Item {
 
     Process {
         id: cheatsheetProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "state"]
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "binds"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -886,8 +896,10 @@ Item {
     // dans first_run.qml ; elle ne s'affiche que tant que `first_run_completed`
     // est faux dans style_vars.json.
     // ────────────────────────────────────────────────────────────────────────
-    FirstRun {
+    Loader {
         id: assistantPremierLancement
+        active: !Theme.firstRunCompleted
+        source: "first_run.qml"
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -1188,6 +1200,15 @@ Item {
                         if (item) {
                             item.options = widgetWindow.w.options || ({})
                             item.widgetId = widgetWindow.w.id || ""
+                        }
+                    }
+                }
+
+                Connections {
+                    target: widgetWindow
+                    function onWChanged() {
+                        if (widgetLoader.item) {
+                            widgetLoader.item.options = widgetWindow.w.options || ({})
                         }
                     }
                 }
