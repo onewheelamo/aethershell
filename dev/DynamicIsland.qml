@@ -224,8 +224,9 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // Séparateur subtil
+            // Séparateur subtil (uniquement si média actif)
             Rectangle {
+                visible: root.isMediaActive
                 width: 1
                 height: 12
                 color: Theme.fg
@@ -248,7 +249,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: root.isPlaying ? "" : "" // pause / play
+                        text: root.isPlaying ? "󰏤" : "󰐊" // pause / play
                         font.family: Theme.fontFamily
                         font.pixelSize: 9
                         color: Theme.accent
@@ -273,30 +274,6 @@ Item {
                     font.pixelSize: 11
                     font.weight: Font.Medium
                     color: Theme.accent
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            // Si aucun média : Badge Workspace actif en secondaire
-            Row {
-                visible: !root.isMediaActive
-                spacing: 6
-                anchors.verticalCenter: parent.verticalCenter
-
-                Rectangle {
-                    width: 6
-                    height: 6
-                    radius: 3
-                    color: Theme.accent
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Text {
-                    text: Hyprland.focusedWorkspace ? ("WS " + Hyprland.focusedWorkspace.id) : ""
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    color: Qt.alpha(Theme.fg, 0.75)
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -356,8 +333,9 @@ Item {
                     Text {
                         text: Qt.formatDateTime(root.currentTime, "ddd d MMM")
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.textXs
-                        color: Theme.textDim
+                        font.pixelSize: Theme.textSm
+                        font.weight: Font.Medium
+                        color: Theme.fg
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -445,7 +423,7 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     enabled: !root.isMediaActive
-                    onClicked: Theme.activePopup = (Theme.activePopup === "calendar" ? "" : "calendar")
+                    onClicked: Theme.activePopup = (Theme.activePopup === "calendrier" ? "" : "calendrier")
                 }
             }
 
