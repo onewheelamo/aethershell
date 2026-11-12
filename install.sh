@@ -133,10 +133,10 @@ if [ -d "$CIBLE/.git" ]; then
     fi
 
     avant="$(git -C "$CIBLE" rev-parse --short HEAD)"
-    # --ff-only : un clone modifié ou divergent s'arrête ici avec un message
-    # clair, plutôt que de fabriquer une fusion que personne n'a demandée.
-    if ! git -C "$CIBLE" -c advice.diverging=false pull --ff-only --quiet origin "$BRANCHE"; then
-        mourir "mise à jour impossible : le clone a des modifications locales ou a divergé (voir « git -C $CIBLE status »)"
+    # --ff-only --autostash : préserve les modifications locales (ex. tests ou synchro rsync)
+    # et évite d'échouer sur un arbre localement modifié.
+    if ! git -C "$CIBLE" -c advice.diverging=false pull --ff-only --autostash --quiet origin "$BRANCHE"; then
+        mourir "mise à jour impossible : le clone a des modifications locales divergentes (voir « git -C $CIBLE status »)"
     fi
     apres="$(git -C "$CIBLE" rev-parse --short HEAD)"
     if [ "$avant" = "$apres" ]; then

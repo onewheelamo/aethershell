@@ -57,9 +57,36 @@ TERMINAL_CHOISI=$(resoudre) || {
     exit 1
 }
 
+# 3. Préparation de l'enveloppe d'exécution :
+# - Journalise dans ~/.cache/quickshell/maj.log via tee
+# - Maintient le terminal ouvert si la commande échoue (code != 0)
+LOG_DIR="$HOME/.cache/quickshell"
+mkdir -p "$LOG_DIR"
+WRAPPER="$LOG_DIR/maj_exec.sh"
+cat << 'EOF' > "$WRAPPER"
+#!/usr/bin/env bash
+LOG="$HOME/.cache/quickshell/maj.log"
+CMD="$*"
+echo "=== Début de la mise à jour : $(date) ===" | tee -a "$LOG"
+echo "Commande : $CMD" | tee -a "$LOG"
+eval "$CMD" 2>&1 | tee -a "$LOG"
+CODE=${PIPESTATUS[0]}
+echo "=== Fin de la mise à jour (code $CODE) : $(date) ===" | tee -a "$LOG"
+if [ $CODE -ne 0 ]; then
+    echo ""
+    echo "❌ La commande a échoué (code $CODE). Journal complet : $LOG"
+    echo ""
+    read -r -p "Appuyez sur Entrée pour fermer cette fenêtre..." _
+fi
+exit $CODE
+EOF
+chmod +x "$WRAPPER"
+
+COMMANDE_FINALE="$WRAPPER $CORPS"
+
 case "$TERMINAL_CHOISI" in
-    ghostty|kitty|foot|alacritty) exec "$TERMINAL_CHOISI" -e bash -lc "$CORPS" ;;
-    konsole)                      exec konsole -e bash -lc "$CORPS" ;;
-    xterm)                        exec xterm -e bash -lc "$CORPS" ;;
-    *)                            exec "$TERMINAL_CHOISI" -e bash -lc "$CORPS" ;;
+    ghostty|kitty|foot|alacritty) exec "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+    konsole)                      exec konsole -e bash -lc "$COMMANDE_FINALE" ;;
+    xterm)                        exec xterm -e bash -lc "$COMMANDE_FINALE" ;;
+    *)                            exec "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
 esac
