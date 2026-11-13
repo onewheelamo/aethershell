@@ -13,7 +13,8 @@ Item {
 
     property var todoItems: []
     property int todoOpenCount: 0
-    property string nextEventText: "Aucun événement à venir"
+    property var upcomingEvents: []
+    property var _curMonthDays: ({})
 
     function refreshTasks() {
         if (!todoProc.running) {
@@ -57,29 +58,43 @@ Item {
         onExited: root.refreshTasks()
     }
 
-    function trouverProchainEvenement(eventsMap, isoToday, prefixSiFutur) {
-        if (!eventsMap) return ""
-        const todayList = eventsMap[isoToday] || []
-        if (todayList.length > 0) {
-            const ev = todayList[0]
-            return "Aujourd'hui · " + (ev.time ? (ev.time + " · ") : "") + String(ev.summary || "Événement")
-        }
-        const keys = Object.keys(eventsMap).sort()
-        for (let i = 0; i < keys.length; i++) {
-            const k = keys[i]
-            if (k > isoToday && eventsMap[k] && eventsMap[k].length > 0) {
-                const ev = eventsMap[k][0]
-                const parts = k.split("-")
-                let dateLabel = k
-                if (parts.length === 3) {
-                    const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-                    dateLabel = Qt.formatDate(dt, "ddd d MMM")
+    function collecterProchainsEvenements(daysA, daysB, isoToday, maxCount) {
+        let merged = []
+        let sources = [daysA || ({}), daysB || ({})]
+        let seen = ({})
+        for (let s = 0; s < sources.length; s++) {
+            let map = sources[s]
+            let keys = Object.keys(map).sort()
+            for (let i = 0; i < keys.length; i++) {
+                let k = keys[i]
+                if (k < isoToday) continue
+                let arr = map[k] || []
+                for (let j = 0; j < arr.length; j++) {
+                    let ev = arr[j]
+                    let summary = String(ev.summary || "Événement")
+                    let dedup = k + "|" + summary + "|" + String(ev.time || "")
+                    if (seen[dedup]) continue
+                    seen[dedup] = true
+                    let dateLabel = k
+                    if (k === isoToday) {
+                        dateLabel = "Aujourd'hui"
+                    } else {
+                        let parts = k.split("-")
+                        if (parts.length === 3) {
+                            let dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+                            dateLabel = Qt.formatDate(dt, "ddd d MMM")
+                        }
+                    }
+                    merged.push({
+                        sortKey: k + " " + String(ev.sort_key || "00:00"),
+                        dateLabel: dateLabel,
+                        summary: summary
+                    })
                 }
-                return (prefixSiFutur ? "Prochain · " : "") + dateLabel + " · "
-                    + (ev.time ? (ev.time + " · ") : "") + String(ev.summary || "Événement")
             }
         }
-        return ""
+        merged.sort((a, b) => a.sortKey < b.sortKey ? -1 : (a.sortKey > b.sortKey ? 1 : 0))
+        return merged.slice(0, maxCount || 3)
     }
 
     Process {
@@ -88,12 +103,13 @@ Item {
             onStreamFinished: {
                 try {
                     let d = JSON.parse(text.trim())
+                    let daysMap = d.days || d.events || ({})
+                    root._curMonthDays = daysMap
                     let now = new Date()
                     let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
-                    let found = root.trouverProchainEvenement(d.events, iso, true)
-                    if (found !== "") {
-                        root.nextEventText = found
-                    } else if (!calNextProc.running) {
+                    let list = root.collecterProchainsEvenements(daysMap, null, iso, 3)
+                    root.upcomingEvents = list
+                    if (list.length < 3 && !calNextProc.running) {
                         let nm = now.getMonth() + 2
                         let ny = now.getFullYear()
                         if (nm > 12) { nm = 1; ny += 1 }
@@ -114,13 +130,11 @@ Item {
             onStreamFinished: {
                 try {
                     let d = JSON.parse(text.trim())
+                    let nextMap = d.days || d.events || ({})
                     let now = new Date()
                     let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
-                    let found = root.trouverProchainEvenement(d.events, iso, true)
-                    root.nextEventText = found !== "" ? found : "Aucun événement à venir"
-                } catch (e) {
-                    root.nextEventText = "Aucun événement à venir"
-                }
+                    root.upcomingEvents = root.collecterProchainsEvenements(root._curMonthDays, nextMap, iso, 3)
+                } catch (e) {}
             }
         }
     }
@@ -434,17 +448,51 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    alignment: Qt.AlignTop
 
-                    Text {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        text: "📅 " + root.nextEventText
-                        font.family: Theme.fontUi
-                        font.pixelSize: Theme.textXs
-                        color: Theme.fg
-                        elide: Text.ElideRight
+                        spacing: 3
+
+                        Text {
+                            visible: root.upcomingEvents.length === 0
+                            Layout.fillWidth: true
+                            text: "📅 Aucun événement à venir"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            color: Qt.alpha(Theme.fg, 0.55)
+                            elide: Text.ElideRight
+                        }
+
+                        Repeater {
+                            model: root.upcomingEvents
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Text {
+                                    text: "📅 " + String(modelData.dateLabel || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: 10
+                                    font.weight: Font.DemiBold
+                                    color: Theme.accent
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.summary || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    color: Theme.fg
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
                     }
 
                     Text {
+                        Layout.alignment: Qt.AlignBottom
                         text: "Agenda ↗"
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs

@@ -71,8 +71,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: root.rayon
-                color: Theme.barBg
-                opacity: Theme.shellOpacity
+                color: Theme.surfaceBg
             }
         }
 
