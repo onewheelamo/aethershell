@@ -9,7 +9,7 @@ tag publié sur GitHub.
 La même ligne d'installation sert aux deux gestes — première pose et mise à
 jour —, exactement comme pour Ollama :
 
-    curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash
 
 Fréquence : GitHub n'est interrogé qu'une fois toutes les **280 minutes**.
 Entre deux, la réponse vient du cache (`~/.cache/quickshell/maj_shell.json`) :
@@ -43,7 +43,7 @@ from pathlib import Path
 DEPOT = "onewheelamo/aethershell"
 BRANCHE = "master"
 LIEN = f"https://raw.githubusercontent.com/{DEPOT}/{BRANCHE}/install.sh"
-COMMANDE = f"curl -fsSL {LIEN} | sh"
+COMMANDE = f"curl -fsSL {LIEN} | bash"
 
 INTERVALLE_MIN = 280
 ESSAI_APRES_ECHEC_MIN = 10

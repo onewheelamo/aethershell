@@ -8,6 +8,7 @@
 #
 # Usage local (depuis le dépôt) :
 #   bash install.sh --yes              # pré-vol + sauvegarde HQ + déploiement
+#   bash install.sh --install-deps     # vérifier et installer les dépendances
 #   bash install.sh --diff             # comparer dépôt et fichiers déployés
 #   bash install.sh --deps             # lister les dépendances de la distro
 #   bash install.sh --check            # état du dépôt et de l'installation
@@ -15,16 +16,21 @@
 #   bash install.sh --restore-file P   # restaurer un fichier depuis un snapshot
 #
 # Options bootstrap (utilisées si hors dépôt ou avec --sync / --check / --no-deploy) :
-#   --dir CHEMIN      dossier du dépôt (défaut : $AETHERSHELL_DIR, sinon
-#                     ~/dev/quickshell_todo s'il existe, sinon ~/dev/aethershell)
-#   --branche NOM     branche à suivre (défaut : master)
-#   --check           montre l'état (dépôt, version, cible) et s'arrête
-#   --no-deploy       clone ou met à jour le dépôt, sans déployer
-#   --sync            force la synchronisation git avant de déployer
-#   --arch|--fedora   force la cible au lieu de la lire dans /etc/os-release
+#   --dir CHEMIN                dossier du dépôt (défaut : $AETHERSHELL_DIR, sinon
+#                               ~/dev/quickshell_todo s'il existe, sinon ~/dev/aethershell)
+#   --branche NOM               branche à suivre (défaut : master)
+#   --check                     montre l'état (dépôt, version, cible) et s'arrête
+#   --no-deploy                 clone ou met à jour le dépôt, sans déployer
+#   --sync                      force la synchronisation git avant de déployer
+#   --offline|--no-sync         n'interroge pas GitHub, utilise les sources locales
+#   --install-deps              installe les dépendances système manquantes
+#   --arch|--fedora|--debian    force la distribution au lieu de la lire dans /etc/os-release
+#   --laptop|--desktop          force le type de poste (auto par batterie/châssis sinon)
 # ══════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 DEPOT="onewheelamo/aethershell"
 URL_GIT="https://github.com/$DEPOT.git"
@@ -35,6 +41,11 @@ CIBLE="${AETHERSHELL_DIR:-}"
 MODE_CHECK=0
 NO_DEPLOY=0
 SYNC_REMOTE=0
+OFFLINE_MODE=0
+OFFLINE_FALLBACK=0
+MISSING_DEPS_WARN=0
+SOURCES_MAJ=0
+ORIG_ARGS=("$@")
 
 SCRIPT_DIR=""
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
@@ -57,7 +68,7 @@ usage() {
     sed -n '6,26p' "${BASH_SOURCE[0]:-$0}" 2>/dev/null || cat <<'TXT'
 AetherShell — installation et déploiement unifiés
   curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash
-  bash install.sh [--yes|--diff|--deps|--check|--no-deploy|--arch|--fedora]
+  bash install.sh [--yes|--install-deps|--diff|--deps|--check|--no-deploy|--arch|--fedora|--debian|--laptop|--desktop]
 TXT
 }
 if [ -t 1 ]; then
@@ -81,12 +92,13 @@ else
 fi
 
 # Dépendances applicables à une cible, d'après les portées du fichier :
-#   #: commun          → les deux familles
-#   #: arch|fedora     → une seule
+#   #: commun                 → tous les postes et distributions
+#   #: laptop|desktop         → facteur de forme (portable ou tour)
+#   #: arch|fedora|debian     → famille de distribution
 # Un binaire par ligne ; le reste est commentaire. Sert au contrôle avant
 # déploiement et à `--deps`, qui affiche la liste résolue sans rien installer.
 deps_pour_cible() {
-    local cible="$1" portee="commun" ligne dep
+    local cible="$1" forme="${2:-${FORM_FACTOR:-desktop}}" portee="commun" ligne dep ok
     [ -f "$DEPS_FILE" ] || return 1
     while IFS= read -r ligne || [ -n "$ligne" ]; do
         case "$ligne" in
@@ -98,24 +110,57 @@ deps_pour_cible() {
         esac
         dep="$(printf '%s' "${ligne%%#*}" | tr -d '[:space:]')"
         [ -z "$dep" ] && continue
-        if [ "$portee" = "commun" ] || [ "$portee" = "$cible" ]; then
-            printf '%s\n' "$dep"
-        fi
+        ok=0
+        case "$portee" in
+            commun|"$cible") ok=1 ;;
+            laptop|portable) [ "$forme" = "laptop" ] && ok=1 ;;
+            desktop|fixe)    [ "$forme" = "desktop" ] && ok=1 ;;
+        esac
+        [ "$ok" -eq 1 ] && printf '%s\n' "$dep"
     done < "$DEPS_FILE"
 }
+
+detect_form_factor() {
+    if compgen -G "/sys/class/power_supply/BAT*" >/dev/null 2>&1; then
+        echo "laptop"
+        return 0
+    fi
+    if [ -r /sys/class/dmi/id/chassis_type ]; then
+        local ctype
+        ctype="$(tr -d '[:space:]' < /sys/class/dmi/id/chassis_type 2>/dev/null || true)"
+        case "$ctype" in
+            8|9|10|14|30|31|32) echo "laptop"; return 0 ;;
+        esac
+    fi
+    echo "desktop"
+}
+
+FORM_FACTOR="$(detect_form_factor)"
 
 # 1. Détection de la distribution (argument > /etc/os-release > historique)
 DISTRO=""
 IDENT=""
+ID_LIKE=""
 if [ -f /etc/os-release ]; then
-    IDENT="$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')"
+    IDENT="$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]' || true)"
+    ID_LIKE="$(grep -E '^ID_LIKE=' /etc/os-release | cut -d= -f2- | tr -d '"' | tr '[:upper:]' '[:lower:]' || true)"
 fi
 case "$IDENT" in
     arch|archarm|endeavouros|manjaro|garuda|cachyos) DISTRO="arch" ;;
     fedora|nobara|bazzite) DISTRO="fedora" ;;
+    debian|ubuntu|linuxmint|pop|elementary|zorin|kali) DISTRO="debian" ;;
 esac
+if [ -z "$DISTRO" ] && [ -n "$ID_LIKE" ]; then
+    case " $ID_LIKE " in
+        *" arch "*) DISTRO="arch" ;;
+        *" fedora "*) DISTRO="fedora" ;;
+        *" debian "*|*" ubuntu "*) DISTRO="debian" ;;
+    esac
+fi
 
 PRINT_DEPS=0
+INSTALL_DEPS_ONLY=0
+YES_MODE=0
 DIFF_ONLY=0
 DRY_RUN=0
 AUTO_DEPLOY=0
@@ -149,29 +194,37 @@ while [ $# -gt 0 ]; do
         --check)      MODE_CHECK=1; NO_DEPLOY=1; shift ;;
         --no-deploy)  NO_DEPLOY=1; SYNC_REMOTE=1; shift ;;
         --sync)       SYNC_REMOTE=1; shift ;;
+        --offline|--no-sync) OFFLINE_MODE=1; shift ;;
         -h|--help)    usage; exit 0 ;;
         --arch|arch) DISTRO="arch"; shift ;;
         --fedora|fedora) DISTRO="fedora"; shift ;;
+        --debian|debian|--ubuntu|ubuntu) DISTRO="debian"; shift ;;
+        --laptop|--portable|laptop|portable) FORM_FACTOR="laptop"; shift ;;
+        --desktop|--tour|desktop|tour) FORM_FACTOR="desktop"; shift ;;
         --target=*)
             case "${1#*=}" in
-                arch|fedora) DISTRO="${1#*=}"; shift ;;
-                *) echo "❌ Cible inconnue : ${1#*=} (attendu : arch | fedora)" >&2; exit 2 ;;
+                arch|fedora|debian) DISTRO="${1#*=}"; shift ;;
+                ubuntu) DISTRO="debian"; shift ;;
+                *) echo "❌ Cible inconnue : ${1#*=} (attendu : arch | fedora | debian)" >&2; exit 2 ;;
             esac
             ;;
         --target)
             shift
             case "${1:-}" in
-                arch|fedora) DISTRO="${1:-}"; shift ;;
-                *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora)" >&2; exit 2 ;;
+                arch|fedora|debian) DISTRO="${1:-}"; shift ;;
+                ubuntu) DISTRO="debian"; shift ;;
+                *) echo "❌ Cible inconnue : ${1:-} (attendu : arch | fedora | debian)" >&2; exit 2 ;;
             esac
             ;;
         --deps) PRINT_DEPS=1; shift ;;
+        --install-deps) INSTALL_DEPS_ONLY=1; shift ;;
         --diff) DIFF_ONLY=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         --backup) DO_BACKUP=1; shift ;;
         --no-backup|--skip-backup) NO_BACKUP=1; shift ;;
         --deploy-only) AUTO_DEPLOY=1; NO_BACKUP=1; shift ;;
-        --deploy|-y|--yes) AUTO_DEPLOY=1; shift ;;
+        --deploy) AUTO_DEPLOY=1; shift ;;
+        -y|--yes) AUTO_DEPLOY=1; YES_MODE=1; shift ;;
         --snapshots) SNAPSHOTS_ACTION="list"; shift ;;
         --restore-file)
             shift
@@ -207,13 +260,16 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# ── Bootstrap distant / synchronisation git (si hors dépôt ou demandé) ──────
+FORM_TITLE="Desktop"
+[ "$FORM_FACTOR" = "laptop" ] && FORM_TITLE="Laptop"
+
+# ── Bootstrap distant / récupération GitHub / repli local (hors-ligne / USB) ──
 LOCAL_REPO=0
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/dev/dependencies.txt" ]; then
     LOCAL_REPO=1
 fi
 
-if [ "$LOCAL_REPO" -eq 0 ] || [ "$SYNC_REMOTE" -eq 1 ] || [ "$MODE_CHECK" -eq 1 ] || [ "$NO_DEPLOY" -eq 1 ]; then
+synchroniser_sources() {
     if [ -z "$CIBLE" ]; then
         if [ "$LOCAL_REPO" -eq 1 ]; then
             CIBLE="$SCRIPT_DIR"
@@ -225,52 +281,119 @@ if [ "$LOCAL_REPO" -eq 0 ] || [ "$SYNC_REMOTE" -eq 1 ] || [ "$MODE_CHECK" -eq 1 
     fi
     CIBLE="${CIBLE%/}"
 
-    for b in git python3; do
-        command -v "$b" >/dev/null 2>&1 || mourir "binaire requis absent : $b — installe-le puis relance."
-    done
+    local has_local=0
+    [ -f "$CIBLE/dev/dependencies.txt" ] && has_local=1
 
-    etape "Dépôt : $CIBLE"
-    if [ -d "$CIBLE/.git" ]; then
-        origine="$(git -C "$CIBLE" remote get-url origin 2>/dev/null || true)"
-        case "$origine" in
-            *"$DEPOT"*) ;;
-            *) mourir "$CIBLE n'est pas un clone de $DEPOT (origine : ${origine:-aucune})" ;;
-        esac
-
-        courante="$(git -C "$CIBLE" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-        if [ "$courante" != "$BRANCHE" ]; then
-            dire "  branche ${courante:-détachée} → $BRANCHE"
-            git -C "$CIBLE" checkout "$BRANCHE" >/dev/null 2>&1 \
-                || mourir "impossible de passer sur la branche $BRANCHE"
-        fi
-
-        avant="$(git -C "$CIBLE" rev-parse --short HEAD)"
-        if ! git -C "$CIBLE" -c advice.diverging=false pull --ff-only --autostash --quiet origin "$BRANCHE"; then
-            mourir "mise à jour impossible : le clone a des modifications locales divergentes (voir « git -C $CIBLE status »)"
-        fi
-        apres="$(git -C "$CIBLE" rev-parse --short HEAD)"
-        if [ "$avant" = "$apres" ]; then
-            dire "  déjà à jour ($apres)"
-        else
-            dire "  mis à jour : $avant → $apres"
-        fi
-    elif [ -e "$CIBLE" ] && [ -n "$(ls -A "$CIBLE" 2>/dev/null || true)" ]; then
-        mourir "$CIBLE existe, n'est pas vide et n'est pas un dépôt git — choisis un autre dossier avec --dir"
-    else
-        etape "Premier clone de $DEPOT"
-        mkdir -p "$(dirname "$CIBLE")"
-        git clone --branch "$BRANCHE" --quiet "$URL_GIT" "$CIBLE" \
-            || mourir "clone impossible (dépôt inaccessible ?)"
-        dire "  cloné dans $CIBLE"
+    local pure_local_action=0
+    if [ "${PRINT_DEPS:-0}" = "1" ] || [ "${DIFF_ONLY:-0}" = "1" ] || [ "${DO_BACKUP:-0}" = "1" ] \
+       || [ -n "${SNAPSHOTS_ACTION:-}" ] || [ -n "${HQ_ACTION:-}" ]; then
+        pure_local_action=1
     fi
 
-    VERSION="$(git -C "$CIBLE" describe --tags --always --dirty 2>/dev/null || echo inconnue)"
+    local try_remote=1
+    if [ "${OFFLINE_MODE:-0}" = "1" ] || [ "${AETHER_REEXEC:-0}" = "1" ]; then
+        try_remote=0
+    elif [ "$pure_local_action" -eq 1 ] && { [ "$LOCAL_REPO" -eq 1 ] || [ "$has_local" -eq 1 ]; }; then
+        try_remote=0
+    fi
+    if [ "$has_local" -eq 0 ] && [ "$LOCAL_REPO" -eq 0 ]; then
+        try_remote=1
+    fi
+
+    local distant_sha="" retard=0
+    if [ "$try_remote" -eq 1 ] && command -v git >/dev/null 2>&1; then
+        if command -v timeout >/dev/null 2>&1; then
+            distant_sha="$(GIT_TERMINAL_PROMPT=0 timeout 6 git ls-remote --heads "$URL_GIT" "$BRANCHE" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
+        else
+            distant_sha="$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$URL_GIT" "$BRANCHE" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
+        fi
+    fi
+
+    if [ -n "$distant_sha" ]; then
+        if [ -d "$CIBLE/.git" ]; then
+            local origine local_sha courante avant apres
+            origine="$(git -C "$CIBLE" remote get-url origin 2>/dev/null || true)"
+            case "$origine" in
+                *"$DEPOT"*)
+                    local_sha="$(git -C "$CIBLE" rev-parse HEAD 2>/dev/null || true)"
+                    if [ "$local_sha" != "$distant_sha" ] || [ "$SYNC_REMOTE" -eq 1 ]; then
+                        GIT_TERMINAL_PROMPT=0 git -C "$CIBLE" fetch --quiet origin "$BRANCHE" 2>/dev/null || true
+                        retard="$(git -C "$CIBLE" rev-list --count "HEAD..origin/$BRANCHE" 2>/dev/null || echo 0)"
+                        if [ "${retard:-0}" -gt 0 ] && [ "$MODE_CHECK" -eq 0 ]; then
+                            etape "Dépôt GitHub plus récent ($retard commit(s) d'avance) : mise à jour de $CIBLE"
+                            courante="$(git -C "$CIBLE" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+                            if [ "$courante" != "$BRANCHE" ]; then
+                                git -C "$CIBLE" checkout "$BRANCHE" >/dev/null 2>&1 || true
+                            fi
+                            avant="$(git -C "$CIBLE" rev-parse --short HEAD)"
+                            if git -C "$CIBLE" -c advice.diverging=false pull --ff-only --autostash --quiet origin "$BRANCHE"; then
+                                apres="$(git -C "$CIBLE" rev-parse --short HEAD)"
+                                dire "  mis à jour : $avant → $apres"
+                                SOURCES_MAJ=1
+                            else
+                                dire "⚠️  Mise à jour git impossible (modifications locales divergentes) : poursuite avec les sources locales ($CIBLE)."
+                            fi
+                        fi
+                    fi
+                    ;;
+                *)
+                    if [ "$SYNC_REMOTE" -eq 1 ]; then
+                        mourir "$CIBLE n'est pas un clone de $DEPOT (origine : ${origine:-aucune})"
+                    fi
+                    ;;
+            esac
+        elif [ "$MODE_CHECK" -eq 0 ] && { [ "$pure_local_action" -eq 0 ] || [ "$has_local" -eq 0 ]; }; then
+            # Aucune source git locale (ex. exécution via curl|bash ou copie depuis clé USB)
+            local clone_dest="$CIBLE"
+            if [ -e "$clone_dest" ] && [ -n "$(ls -A "$clone_dest" 2>/dev/null || true)" ]; then
+                clone_dest="$HOME/dev/aethershell"
+            fi
+            if [ -d "$clone_dest/.git" ]; then
+                etape "Mise à jour du clone existant : $clone_dest"
+                GIT_TERMINAL_PROMPT=0 git -C "$clone_dest" -c advice.diverging=false pull --ff-only --autostash --quiet origin "$BRANCHE" 2>/dev/null || true
+                if [ -f "$clone_dest/dev/dependencies.txt" ]; then
+                    CIBLE="$clone_dest"
+                    SOURCES_MAJ=1
+                fi
+            elif [ ! -e "$clone_dest" ] || [ -z "$(ls -A "$clone_dest" 2>/dev/null || true)" ]; then
+                etape "Récupération des sources depuis GitHub ($DEPOT)"
+                mkdir -p "$(dirname "$clone_dest")"
+                if GIT_TERMINAL_PROMPT=0 git clone --branch "$BRANCHE" --quiet "$URL_GIT" "$clone_dest" 2>/dev/null; then
+                    dire "  cloné dans $clone_dest"
+                    CIBLE="$clone_dest"
+                    SOURCES_MAJ=1
+                elif [ "$has_local" -eq 1 ] || [ "$LOCAL_REPO" -eq 1 ]; then
+                    [ "$has_local" -eq 0 ] && CIBLE="$SCRIPT_DIR"
+                    OFFLINE_FALLBACK=1
+                else
+                    mourir "clone impossible depuis $URL_GIT et aucune source locale trouvée."
+                fi
+            fi
+        fi
+    elif [ "$try_remote" -eq 1 ]; then
+        if [ "$has_local" -eq 1 ] || { [ "$LOCAL_REPO" -eq 1 ] && [ -f "$SCRIPT_DIR/dev/dependencies.txt" ]; }; then
+            [ "$has_local" -eq 0 ] && CIBLE="$SCRIPT_DIR"
+            OFFLINE_FALLBACK=1
+            echo "⚠️  Dépôt GitHub inaccessible (mode hors-ligne / clé USB) : poursuite de l'installation avec les sources locales ($CIBLE)."
+            echo "ℹ️  Note : si certaines dépendances manquent et ne peuvent pas être téléchargées maintenant,"
+            echo "    vous pourrez les installer plus tard depuis le panneau de configuration (onglet « Apps & Alertes »)."
+        else
+            mourir "aucune source locale trouvée dans $CIBLE et dépôt GitHub ($URL_GIT) inaccessible."
+        fi
+    fi
+
+    [ -f "$CIBLE/dev/dependencies.txt" ] || [ "$LOCAL_REPO" -eq 0 ] || CIBLE="$SCRIPT_DIR"
+    [ -f "$CIBLE/dev/dependencies.txt" ] || mourir "sources introuvables dans $CIBLE."
+
+    VERSION="$(git -C "$CIBLE" describe --tags --always --dirty 2>/dev/null || echo "locale")"
 
     if [ "$MODE_CHECK" -eq 1 ]; then
         dire ""
         dire "Dépôt        : $CIBLE"
         dire "Version      : $VERSION"
+        [ "${retard:-0}" -gt 0 ] && dire "GitHub       : $retard commit(s) d'avance disponibles sur $BRANCHE"
         dire "Distribution : ${DISTRO:-inconnue}"
+        dire "Profil       : $FORM_FACTOR ($FORM_TITLE)"
         for d in "$HOME/.config/quickshell" "$HOME/.config/hypr"; do
             if [ -d "$d" ]; then
                 dire "Déployé      : $d"
@@ -287,12 +410,31 @@ if [ "$LOCAL_REPO" -eq 0 ] || [ "$SYNC_REMOTE" -eq 1 ] || [ "$MODE_CHECK" -eq 1 
         exit 0
     fi
 
-    # En exécution via pipe (curl ... | bash), on force --deploy non interactif
+    # Ré-exécution propre depuis le disque après pipe (curl|bash) ou mise à jour GitHub
+    if [ "${AETHER_REEXEC:-0}" != "1" ] && { [ "$LOCAL_REPO" -eq 0 ] || [ "${SOURCES_MAJ:-0}" = "1" ]; } && [ -f "$CIBLE/install.sh" ]; then
+        if [ "$LOCAL_REPO" -eq 0 ]; then
+            local -a reexec_args=(--yes "--$FORM_FACTOR")
+            [ -n "$DISTRO" ] && reexec_args+=("--$DISTRO")
+            [ "${NO_BACKUP:-0}" = "1" ] && reexec_args+=(--no-backup)
+            [ "${INSTALL_DEPS_ONLY:-0}" = "1" ] && reexec_args+=(--install-deps)
+            if ( : </dev/tty ) 2>/dev/null; then
+                exec env AETHER_REEXEC=1 bash "$CIBLE/install.sh" "${reexec_args[@]}" </dev/tty
+            else
+                exec env AETHER_REEXEC=1 bash "$CIBLE/install.sh" "${reexec_args[@]}" </dev/null
+            fi
+        elif [ "${#ORIG_ARGS[@]}" -gt 0 ]; then
+            exec env AETHER_REEXEC=1 bash "$CIBLE/install.sh" "${ORIG_ARGS[@]}"
+        else
+            exec env AETHER_REEXEC=1 bash "$CIBLE/install.sh"
+        fi
+    fi
+
     DEV_DIR="$CIBLE/dev"
-    AUTO_DEPLOY=1
-else
-    DEV_DIR="$SCRIPT_DIR/dev"
-fi
+    [ "$LOCAL_REPO" -eq 0 ] && AUTO_DEPLOY=1
+    return 0
+}
+
+synchroniser_sources
 
 DEPS_FILE="$DEV_DIR/dependencies.txt"
 if [ -z "$DISTRO" ]; then
@@ -300,12 +442,14 @@ if [ -z "$DISTRO" ]; then
         DISTRO="fedora"
     elif [ -f "$BACKUP_DIR/backup_arch_hq.tar.gz" ]; then
         DISTRO="arch"
+    elif [ -f "$BACKUP_DIR/backup_debian_hq.tar.gz" ]; then
+        DISTRO="debian"
     fi
 fi
 
 if [ -z "$DISTRO" ]; then
     echo "❌ Distribution non reconnue (ID='${IDENT:-absent}')." >&2
-    echo "   Forcer la cible : $0 --arch   ou   $0 --fedora" >&2
+    echo "   Forcer la cible : $0 --arch | --fedora | --debian" >&2
     exit 2
 fi
 
@@ -319,6 +463,10 @@ case "$DISTRO" in
         DISTRO_TITLE="Arch Linux"
         PKG_MGR="pacman"
         ;;
+    debian)
+        DISTRO_TITLE="Debian / Ubuntu"
+        PKG_MGR="apt"
+        ;;
 esac
 # Sauvegardes : un nom par famille de distribution, sans rien qui nomme la machine.
 # HQ seulement : l'environnement Noctalia n'est plus utilise, et une sauvegarde qui
@@ -328,7 +476,7 @@ HQ_RETENTION=5
 
 # `--deps` : la liste que ce fichier donne pour la cible, sans rien toucher.
 if [ "${PRINT_DEPS:-0}" = "1" ]; then
-    deps_pour_cible "$DISTRO" || { echo "❌ $DEPS_FILE introuvable." >&2; exit 1; }
+    deps_pour_cible "$DISTRO" "$FORM_FACTOR" || { echo "❌ $DEPS_FILE introuvable." >&2; exit 1; }
     exit 0
 fi
 
@@ -518,41 +666,300 @@ rotate_backups() {
     done
 }
 
+bin_present() {
+    local bin="$1"
+    if command -v "$bin" >/dev/null 2>&1; then
+        return 0
+    fi
+    if [ "$bin" = "magick" ] && [ "$DISTRO" = "debian" ] && command -v convert >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 pkg_for_bin() {
     local bin="$1"
-    if [ "$PKG_MGR" = "dnf" ]; then
-        case "$bin" in
-            wpctl) echo "wireplumber" ;;
-            nmcli) echo "NetworkManager" ;;
-            powerprofilesctl) echo "power-profiles-daemon" ;;
-            monitor-sensor) echo "iio-sensor-proxy" ;;
-            magick) echo "ImageMagick" ;;
-            *) echo "$bin" ;;
-        esac
-    else
-        case "$bin" in
-            wpctl) echo "wireplumber" ;;
-            nmcli) echo "networkmanager" ;;
-            magick) echo "imagemagick" ;;
-            *) echo "$bin" ;;
-        esac
+    case "$PKG_MGR" in
+        dnf)
+            case "$bin" in
+                wpctl) echo "wireplumber" ;;
+                nmcli) echo "NetworkManager" ;;
+                powerprofilesctl) echo "power-profiles-daemon" ;;
+                monitor-sensor) echo "iio-sensor-proxy" ;;
+                magick) echo "ImageMagick" ;;
+                inotifywait) echo "inotify-tools" ;;
+                notify-send) echo "libnotify" ;;
+                pactl) echo "pulseaudio-utils" ;;
+                wl-copy) echo "wl-clipboard" ;;
+                bluetoothctl) echo "bluez" ;;
+                cc) echo "gcc" ;;
+                *) echo "$bin" ;;
+            esac
+            ;;
+        apt)
+            case "$bin" in
+                wpctl) echo "wireplumber" ;;
+                nmcli) echo "network-manager" ;;
+                powerprofilesctl) echo "power-profiles-daemon" ;;
+                monitor-sensor) echo "iio-sensor-proxy" ;;
+                magick) echo "imagemagick" ;;
+                inotifywait) echo "inotify-tools" ;;
+                notify-send) echo "libnotify-bin" ;;
+                pactl) echo "pulseaudio-utils" ;;
+                wl-copy) echo "wl-clipboard" ;;
+                bluetoothctl) echo "bluez" ;;
+                cc) echo "gcc" ;;
+                *) echo "$bin" ;;
+            esac
+            ;;
+        *)
+            case "$bin" in
+                wpctl) echo "wireplumber" ;;
+                nmcli) echo "networkmanager" ;;
+                powerprofilesctl) echo "power-profiles-daemon" ;;
+                monitor-sensor) echo "iio-sensor-proxy" ;;
+                magick) echo "imagemagick" ;;
+                inotifywait) echo "inotify-tools" ;;
+                notify-send) echo "libnotify" ;;
+                pactl) echo "libpulse" ;;
+                wl-copy) echo "wl-clipboard" ;;
+                bluetoothctl) echo "bluez-utils" ;;
+                cc) echo "gcc" ;;
+                matugen) echo "matugen-bin" ;;
+                *) echo "$bin" ;;
+            esac
+            ;;
+    esac
+}
+
+build_pwscope_if_ready() {
+    [ "${DRY_RUN:-0}" != "1" ] || return 0
+    [ -f "$DEV_DIR/core/pwscope_make.sh" ] || return 0
+    if command -v cc >/dev/null 2>&1 && pkg-config --exists libpipewire-0.3 2>/dev/null; then
+        sh "$DEV_DIR/core/pwscope_make.sh" >/dev/null 2>&1 || echo "⚠️ Compilation de pwscope ignorée/échouée."
     fi
 }
 
+install_arch_aur_helper() {
+    if command -v yay >/dev/null 2>&1; then echo "yay"; return 0; fi
+    if command -v paru >/dev/null 2>&1; then echo "paru"; return 0; fi
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "⚠️ Exécution en root : impossible de compiler yay automatiquement via makepkg." >&2
+        return 1
+    fi
+    local ans="n"
+    if [ "${YES_MODE:-0}" = "1" ]; then
+        ans="y"
+    elif [ -t 0 ]; then
+        read -p "Aucun assistant AUR (yay/paru) trouvé. Installer yay-bin automatiquement ? (o/n) : " ans
+    fi
+    case "$ans" in
+        o|O|y|Y)
+            local tmp_aur
+            tmp_aur="$(mktemp -d)"
+            local -a pflags=(--needed)
+            [ "${YES_MODE:-0}" = "1" ] && pflags+=(--noconfirm)
+            sudo pacman -S "${pflags[@]}" base-devel git
+            if git clone --depth 1 https://aur.archlinux.org/yay-bin.git "$tmp_aur/yay-bin"; then
+                if [ "${YES_MODE:-0}" = "1" ]; then
+                    (cd "$tmp_aur/yay-bin" && makepkg -si --noconfirm)
+                else
+                    (cd "$tmp_aur/yay-bin" && makepkg -si)
+                fi
+            fi
+            rm -rf "$tmp_aur"
+            command -v yay >/dev/null 2>&1 && { echo "yay"; return 0; }
+            ;;
+    esac
+    return 1
+}
+
+install_debian_extra_bins() {
+    local -a extras=("$@")
+    [ "${#extras[@]}" -gt 0 ] || return 0
+    mkdir -p "$HOME/.local/bin"
+
+    local item
+    local -a rust_tools=() manual_tools=()
+    for item in "${extras[@]}"; do
+        case "$item" in
+            hyprshot)
+                if command -v curl >/dev/null 2>&1; then
+                    echo "▶ Téléchargement de hyprshot dans $HOME/.local/bin/hyprshot..."
+                    if curl -fsSL "https://raw.githubusercontent.com/Gustash/Hyprshot/main/hyprshot" -o "$HOME/.local/bin/hyprshot"; then
+                        chmod +x "$HOME/.local/bin/hyprshot"
+                        echo "✅ hyprshot installé dans $HOME/.local/bin/hyprshot"
+                    else
+                        manual_tools+=("hyprshot")
+                    fi
+                else
+                    manual_tools+=("hyprshot")
+                fi
+                ;;
+            matugen|awww)
+                rust_tools+=("$item")
+                ;;
+            *)
+                manual_tools+=("$item")
+                ;;
+        esac
+    done
+
+    if [ "${#rust_tools[@]}" -gt 0 ]; then
+        if ! command -v cargo >/dev/null 2>&1; then
+            local ans_rust="n"
+            if [ "${YES_MODE:-0}" = "1" ]; then
+                ans_rust="y"
+            elif [ -t 0 ]; then
+                read -p "Installer cargo/rustc via apt pour compiler (${rust_tools[*]}) ? (o/n) : " ans_rust
+            fi
+            case "$ans_rust" in
+                o|O|y|Y) sudo apt-get install -y cargo rustc pkg-config liblz4-dev || true ;;
+            esac
+        fi
+        if command -v cargo >/dev/null 2>&1; then
+            for item in "${rust_tools[@]}"; do
+                echo "▶ Installation Cargo : $item..."
+                if [ "$item" = "awww" ]; then
+                    cargo install --git https://codeberg.org/LGFae/awww awww 2>/dev/null \
+                        || cargo install awww 2>/dev/null \
+                        || manual_tools+=("$item")
+                else
+                    cargo install "$item" || manual_tools+=("$item")
+                fi
+            done
+        else
+            manual_tools+=("${rust_tools[@]}")
+        fi
+    fi
+
+    if [ "${#manual_tools[@]}" -gt 0 ]; then
+        echo ""
+        echo "⚠️ Outils absents des dépôts APT standard (${manual_tools[*]}) :"
+        for item in "${manual_tools[@]}"; do
+            case "$item" in
+                quickshell) echo "   - quickshell : installer depuis OBS / dépôt tiers Debian-Ubuntu ou compiler depuis https://quickshell.org" ;;
+                hyprsunset) echo "   - hyprsunset : compiler depuis https://github.com/hyprwm/hyprsunset (cmake)" ;;
+                matugen)    echo "   - matugen    : 'cargo install matugen' ou binaire GitHub -> ~/.local/bin/matugen" ;;
+                awww)       echo "   - awww       : compiler depuis https://codeberg.org/LGFae/awww -> ~/.local/bin/awww" ;;
+                hyprshot)   echo "   - hyprshot   : copier le script dans ~/.local/bin/hyprshot" ;;
+                *)          echo "   - $item     : installer manuellement dans ~/.local/bin/" ;;
+            esac
+        done
+    fi
+}
+
+install_missing_dependencies() {
+    local -a req_pkgs=("$@")
+    local -A seen=()
+    local -a unique_pkgs=()
+    local p
+    for p in "${req_pkgs[@]}"; do
+        [ -n "$p" ] || continue
+        if [ -z "${seen[$p]:-}" ]; then
+            seen["$p"]=1
+            unique_pkgs+=("$p")
+        fi
+    done
+
+    case "$PKG_MGR" in
+        pacman)
+            local -a official_pkgs=("python-pillow" "python-numpy" "pipewire")
+            local -a aur_pkgs=()
+            for p in "${unique_pkgs[@]}"; do
+                if pacman -Si "$p" >/dev/null 2>&1; then
+                    official_pkgs+=("$p")
+                else
+                    aur_pkgs+=("$p")
+                fi
+            done
+            local -a pflags=(--needed)
+            [ "${YES_MODE:-0}" = "1" ] && pflags+=(--noconfirm)
+            if [ "${#official_pkgs[@]}" -gt 0 ]; then
+                echo "▶ Pacman (dépôts officiels) : ${official_pkgs[*]}"
+                sudo pacman -S "${pflags[@]}" "${official_pkgs[@]}" || return 1
+            fi
+            if [ "${#aur_pkgs[@]}" -gt 0 ]; then
+                echo "▶ Paquets AUR détectés : ${aur_pkgs[*]}"
+                local aur_helper=""
+                aur_helper="$(install_arch_aur_helper || true)"
+                if [ -n "$aur_helper" ]; then
+                    "$aur_helper" -S "${pflags[@]}" "${aur_pkgs[@]}" || return 1
+                else
+                    echo "⚠️ Assistant AUR absent : installe manuellement ${aur_pkgs[*]} avec yay/paru."
+                    return 1
+                fi
+            fi
+            ;;
+        dnf)
+            local need_copr=0
+            for p in "${unique_pkgs[@]}"; do
+                case "$p" in
+                    quickshell|matugen|awww|hyprshot|hyprsunset) need_copr=1 ;;
+                esac
+            done
+            if [ "$need_copr" -eq 1 ] && dnf copr --help >/dev/null 2>&1; then
+                local ans_copr="y"
+                if [ "${YES_MODE:-0}" != "1" ] && [ -t 0 ]; then
+                    read -p "Activer les dépôts COPR (errornointernet/quickshell, solopasha/hyprland) si nécessaires ? (o/n) [o] : " ans_copr
+                fi
+                case "${ans_copr:-o}" in
+                    o|O|y|Y|"")
+                        sudo dnf copr enable -y errornointernet/quickshell || true
+                        sudo dnf copr enable -y solopasha/hyprland || true
+                        ;;
+                esac
+            fi
+            sudo dnf install -y "${unique_pkgs[@]}" python3-pillow python3-numpy pipewire-devel || return 1
+            ;;
+        apt)
+            if grep -qi "ubuntu" /etc/os-release 2>/dev/null; then
+                if ! grep -qsE '^\s*(deb|Components).*universe' /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+                    echo "▶ Activation du dépôt Ubuntu 'universe'..."
+                    sudo apt-get update
+                    sudo apt-get install -y software-properties-common
+                    sudo add-apt-repository -y universe || true
+                fi
+            fi
+            sudo apt-get update
+            local -a apt_pkgs=("python3-venv" "python3-pip" "python3-pil" "python3-numpy" "libpipewire-0.3-dev" "curl" "git")
+            local -a non_apt_pkgs=()
+            for p in "${unique_pkgs[@]}"; do
+                if apt-cache show "$p" >/dev/null 2>&1; then
+                    apt_pkgs+=("$p")
+                else
+                    non_apt_pkgs+=("$p")
+                fi
+            done
+            if [ "${#apt_pkgs[@]}" -gt 0 ]; then
+                echo "▶ APT : ${apt_pkgs[*]}"
+                sudo apt-get install -y "${apt_pkgs[@]}" || return 1
+            fi
+            if [ "${#non_apt_pkgs[@]}" -gt 0 ]; then
+                install_debian_extra_bins "${non_apt_pkgs[@]}"
+            fi
+            ;;
+    esac
+    if [ "$FORM_FACTOR" = "laptop" ] && command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl enable --now power-profiles-daemon.service >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
 check_dependencies() {
-    echo "Checking dependencies for $DISTRO_TITLE..."
+    echo "Checking dependencies for $DISTRO_TITLE ($FORM_TITLE)..."
     if [ ! -f "$DEPS_FILE" ]; then
         echo "❌ Error: $DEPS_FILE not found."
         return 1
     fi
 
     local deps=()
-    mapfile -t deps < <(deps_pour_cible "$DISTRO")
+    mapfile -t deps < <(deps_pour_cible "$DISTRO" "$FORM_FACTOR")
     local missing=()
     local missing_pkgs=()
     for dep in "${deps[@]}"; do
         if [ -z "$dep" ]; then continue; fi
-        if ! command -v "$dep" &> /dev/null; then
+        if ! bin_present "$dep"; then
             missing+=("$dep")
             missing_pkgs+=("$(pkg_for_bin "$dep")")
         fi
@@ -570,25 +977,62 @@ check_dependencies() {
 
     if [ ${#missing[@]} -eq 0 ]; then
         echo "✅ All dependencies installed."
+        build_pwscope_if_ready
         return 0
     else
         echo "⚠️ Missing binaries: ${missing[*]} ($PKG_MGR packages: ${missing_pkgs[*]})"
-        if [ "${DRY_RUN:-0}" = "1" ] || [ ! -t 0 ] || [ "${AUTO_DEPLOY:-0}" = "1" ]; then
+        MISSING_DEPS_WARN=1
+        echo "ℹ️  Vous pourrez installer les dépendances manquantes ultérieurement depuis le panneau de configuration :"
+        echo "    SUPER + SHIFT + H  ➜  onglet « Apps & Alertes »  ➜  « Installer les paquets manquants »"
+
+        if [ "${OFFLINE_FALLBACK:-0}" = "1" ]; then
+            echo "⚠️  Mode hors-ligne / clé USB actif : poursuite de l'installation locale sans télécharger les paquets."
+            build_pwscope_if_ready
+            return 0
+        fi
+        if [ "${INSTALL_DEPS_ONLY:-0}" != "1" ] && { [ "${DRY_RUN:-0}" = "1" ] || [ ! -t 0 ] || [ "${AUTO_DEPLOY:-0}" = "1" ]; }; then
             echo "ℹ️ Déploiement non interactif : continuation malgré les binaires signalés."
             return 0
         fi
-        read -p "Do you want to try installing them now with $PKG_MGR? (y/n): " choice
-        if [ "$choice" == "y" ]; then
-            if [ "$PKG_MGR" = "dnf" ]; then
-                sudo dnf install -y "${missing_pkgs[@]}"
-            else
-                sudo pacman -S --needed "${missing_pkgs[@]}"
-            fi
-            return $?
-        else
-            read -p "Continue deployment anyway? (y/n): " cont
-            [ "$cont" == "y" ] && return 0 || return 1
+        local choice="n"
+        if [ "${INSTALL_DEPS_ONLY:-0}" = "1" ] && [ "${YES_MODE:-0}" = "1" ]; then
+            choice="y"
+        elif [ -t 0 ]; then
+            read -p "Voulez-vous installer les dépendances manquantes maintenant ($PKG_MGR) ? (o/n) : " choice
         fi
+        case "$choice" in
+            o|O|y|Y)
+                local rc=0
+                install_missing_dependencies "${missing_pkgs[@]}" || rc=$?
+                build_pwscope_if_ready
+                if [ "$rc" -ne 0 ] && [ "${INSTALL_DEPS_ONLY:-0}" != "1" ]; then
+                    echo "⚠️  L'installation des dépendances a échoué (réseau indisponible ?)."
+                    echo "ℹ️  Vous pourrez relancer l'installation depuis SUPER + SHIFT + H ➜ onglet « Apps & Alertes »."
+                    local cont_err="o"
+                    if [ "${YES_MODE:-0}" != "1" ] && [ -t 0 ]; then
+                        read -p "Continuer le déploiement des fichiers locaux malgré tout ? (o/n) [o] : " cont_err
+                    fi
+                    case "${cont_err:-o}" in
+                        o|O|y|Y|"") return 0 ;;
+                        *) return 1 ;;
+                    esac
+                fi
+                if [ "$rc" -eq 0 ]; then
+                    MISSING_DEPS_WARN=0
+                fi
+                return $rc
+                ;;
+            *)
+                if [ "${INSTALL_DEPS_ONLY:-0}" = "1" ]; then
+                    return 1
+                fi
+                read -p "Continue deployment anyway? (o/n): " cont
+                case "$cont" in
+                    o|O|y|Y|"") return 0 ;;
+                    *) return 1 ;;
+                esac
+                ;;
+        esac
     fi
 }
 
@@ -642,6 +1086,7 @@ create_fine_snapshot() {
 {
   "timestamp": "$stamp",
   "distro": "$DISTRO",
+  "form_factor": "$FORM_FACTOR",
   "origin": "$origin",
   "git_commit": "$git_rev",
   "files_hypr": $count_hypr,
@@ -1030,7 +1475,7 @@ preflight_diff() {
     # ── AFFICHAGE DU RAPPORT ────────────────────────────────────────────────
     echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
     echo -e "  ${C_CYAN}${C_BOLD}PRÉ-VOL : ANALYSE DES MODIFICATIONS (Dépôt ➜ Vivant)${C_RESET}"
-    echo -e "  Cible : ${DISTRO_TITLE} | Origine : ${origin} | Git : ${git_rev}"
+    echo -e "  Cible : ${DISTRO_TITLE} (${FORM_TITLE}) | Origine : ${origin} | Git : ${git_rev}"
     echo -e "${C_BOLD}══════════════════════════════════════════════════════════════════════════════${C_RESET}"
 
     if [ ${#list_preserved[@]} -gt 0 ]; then
@@ -1331,6 +1776,7 @@ ecrire_version_deployee() {
 # à jour ne voit aucune invite à chaque déploiement. L'empreinte est retenue
 # dans le cache, pas dans ~/.config/quickshell (que l'élagage nettoierait).
 installer_charge_limit() {
+    [ "$FORM_FACTOR" = "laptop" ] || return 0
     local dir="$DEV_DIR/charge-limit"
     [ -f "$dir/install.sh" ] || return 0
 
@@ -1358,7 +1804,7 @@ installer_charge_limit() {
 }
 
 deploy_new_env() {
-    echo "🚀 Deploying $DISTRO_TITLE..."
+    echo "🚀 Deploying $DISTRO_TITLE ($FORM_TITLE)..."
 
     mkdir -p "$CURRENT_HYPR"
     if [ ! -f "$MARKER" ]; then
@@ -1415,6 +1861,7 @@ deploy_new_env() {
     if [ -f "$CORE_DIR/app_index.py" ]; then
         python3 "$CORE_DIR/app_index.py" --quiet || true
     fi
+    build_pwscope_if_ready
 
     # Fichiers générés à partir des JSON préservés (app_vars.json, autostart.json) :
     # la copie ci-dessus peut poser la version du dépôt, on réécrit la vraie.
@@ -1568,15 +2015,21 @@ deploy_new_env() {
 
         if command -v systemctl >/dev/null 2>&1 \
            && systemctl --user cat quickshell.service >/dev/null 2>&1; then
-            # Tuer toute instance lancée hors de l'unité systemd (autostart
-            # Hyprland ou terminal) avant le restart : sinon `quickshell -n`
-            # voit le processus existant, quitte aussitôt (« An instance of this
-            # configuration is already running ») et laisse tourner l'ancien
-            # processus ou crée une double instance dont la plus ancienne capte
-            # les appels `quickshell ipc` en silence.
-            pkill -x quickshell 2>/dev/null || true
-            sleep 0.4
-            if systemctl --user restart quickshell.service; then
+            # Tuer d'éventuelles instances lancées hors unité systemd seulement si
+            # le service n'est pas actif : sinon `pkill -x quickshell` abattrait le
+            # service (et tout son CGroup) avant même `systemctl restart`.
+            if ! systemctl --user is-active --quiet quickshell.service; then
+                pkill -x quickshell 2>/dev/null || true
+                sleep 0.4
+            fi
+            if grep -q "quickshell.service" /proc/$$/cgroup 2>/dev/null \
+               && command -v systemd-run >/dev/null 2>&1; then
+                if systemd-run --user --quiet -- systemctl --user restart quickshell.service; then
+                    echo "  ↪ quickshell relancé (unité systemd, hors CGroup)"
+                else
+                    echo "  ⚠️  redémarrage de quickshell.service impossible"
+                fi
+            elif systemctl --user restart quickshell.service; then
                 echo "  ↪ quickshell relancé (unité systemd)"
             else
                 echo "  ⚠️  redémarrage de quickshell.service impossible"
@@ -1608,7 +2061,13 @@ deploy_new_env() {
 
     recharger_session
 
-    echo "✅ $DISTRO_TITLE deployment complete."
+    echo "✅ $DISTRO_TITLE ($FORM_TITLE) deployment complete."
+    if [ "${OFFLINE_FALLBACK:-0}" = "1" ] || [ "${MISSING_DEPS_WARN:-0}" = "1" ]; then
+        echo ""
+        echo "⚠️  Rappel (installation locale / dépendances manquantes) :"
+        echo "   Pensez à vérifier et installer les dépendances système une fois connecté via le panneau de configuration :"
+        echo "   SUPER + SHIFT + H  ➜  onglet « Apps & Alertes »  ➜  « Installer les paquets manquants »"
+    fi
 
     # Installation neuve : dire où sont les raccourcis. La barre est lancée par
     # l'autostart de Hyprland, pas par ce script — on laisse donc passer quelques
@@ -1712,6 +2171,11 @@ deploy_only() {
     deploy_new_env
 }
 
+if [ "${INSTALL_DEPS_ONLY:-0}" = "1" ]; then
+    check_dependencies
+    exit $?
+fi
+
 if [ "${AUTO_DEPLOY:-0}" = "1" ]; then
     if check_dependencies; then
         preflight_diff
@@ -1756,7 +2220,7 @@ inspecter_hq() {
 
 while true; do
     echo "------------------------------------------"
-    echo " $DISTRO_TITLE - ENVIRONMENT MANAGER"
+    echo " $DISTRO_TITLE ($FORM_TITLE) - ENVIRONMENT MANAGER"
     echo "------------------------------------------"
     echo "1 > Déployer avec sauvegarde automatique ($DISTRO)"
     echo "2 > Déployer sans sauvegarde (rapide / vivant déjà sauvegardé)"
@@ -1765,6 +2229,7 @@ while true; do
     echo "5 > Restaurer l'environnement complet (Archive HQ)"
     echo "6 > Snapshots fins : lister, inspecter ou restaurer un fichier"
     echo "7 > Inspecter une archive tarball (diff + extraire)"
+    echo "8 > Vérifier / installer les dépendances ($DISTRO_TITLE - $FORM_TITLE)"
     echo "q > Quit"
     echo "------------------------------------------"
     read -p "Choice: " choice
@@ -1809,6 +2274,10 @@ while true; do
         5) restore_hq && exit 0 ;;
         6) gerer_snapshots_menu ;;
         7) inspecter_hq ;;
+        8)
+            INSTALL_DEPS_ONLY=1 check_dependencies || true
+            read -p "Appuyer sur Entrée pour revenir au menu..." _
+            ;;
         q|Q) exit 0 ;;
         *) echo "Invalid choice." ;;
     esac

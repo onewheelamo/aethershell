@@ -177,6 +177,11 @@ def is_laptop_system():
     return bool(glob.glob("/sys/class/power_supply/BAT*"))
 
 
+def _distro_fichier():
+    """Retourne le profil matériel par défaut (portable -> fedora, tour -> arch)."""
+    return "fedora" if is_laptop_system() else "arch"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SECTION 3: KEYBOARD LAYOUT & FIRST-RUN ONBOARDING (input.lua & binds.lua)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -938,6 +943,8 @@ def get_primary_monitor(hostname=None):
     if not hostname:
         hostname = get_hostname()
     hw_path = os.path.join(HYPR_DIR, f"hardware-{hostname}.lua")
+    if not os.path.exists(hw_path):
+        hw_path = os.path.join(HYPR_DIR, "hardware-" + _distro_fichier() + ".lua")
     if os.path.exists(hw_path):
         try:
             with open(hw_path, "r") as f:

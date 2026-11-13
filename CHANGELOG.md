@@ -9,6 +9,19 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.7.03] — 2026-11-13
+
+### Ajouté
+
+- **Installation multi-distribution, profil `laptop`/`desktop` et mode hors-ligne** ([`install.sh`](install.sh), [`dev/dependencies.txt`](dev/dependencies.txt), [`dev/core/deps_install.py`](dev/core/deps_install.py), [`dev/hypr_modular/hyprland.lua`](dev/hypr_modular/hyprland.lua), [`dev/core/config_manager.py`](dev/core/config_manager.py)) :
+  - Support complet de Debian/Ubuntu (`apt`, activation automatique de `universe`, correspondances APT et gestion hors-APT dans `~/.local/bin`), Arch (`pacman` + assistant AUR `yay`/`paru`) et Fedora (`dnf` + COPR), avec `--install-deps`.
+  - Détection automatique `laptop` / `desktop` (`/sys/class/power_supply/BAT*`, DMI `chassis_type`, forçable par `--laptop`/`--desktop`), portées `#: laptop` / `#: desktop`, activation conditionnelle de `power-profiles-daemon` et de `charge-limit`, et sélection automatique du profil matériel Hyprland.
+  - Récupération automatique des sources depuis GitHub si absentes ou plus récentes, et repli hors-ligne / clé USB avec rappel vers l'onglet « Apps & Alertes ».
+
+### Corrigé
+
+- **Mise à jour et relance depuis le panneau de configuration** ([`dev/core/maj_terminal.sh`](dev/core/maj_terminal.sh), [`dev/core/maj_shell.py`](dev/core/maj_shell.py), [`install.sh`](install.sh)) : exécution du terminal de mise à jour hors du CGroup de `quickshell.service` (`systemd-run --user --scope`), échappement sûr du pipe dans `maj_terminal.sh`, passage de la commande à `| bash` dans `maj_shell.py` et relance propre de `quickshell.service`.
+
 ## [0.3.7.02] — 2026-11-13
 
 ### Modifié

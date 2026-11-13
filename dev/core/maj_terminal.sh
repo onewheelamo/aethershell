@@ -82,11 +82,19 @@ exit $CODE
 EOF
 chmod +x "$WRAPPER"
 
-COMMANDE_FINALE="$WRAPPER $CORPS"
+COMMANDE_FINALE="$(printf '%q %q' "$WRAPPER" "$CORPS")"
+
+lancer_hors_cgroup() {
+    if command -v systemd-run >/dev/null 2>&1 && systemctl --user is-system-running >/dev/null 2>&1; then
+        exec systemd-run --user --scope --quiet -- "$@"
+    else
+        exec "$@"
+    fi
+}
 
 case "$TERMINAL_CHOISI" in
-    ghostty|kitty|foot|alacritty) exec "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
-    konsole)                      exec konsole -e bash -lc "$COMMANDE_FINALE" ;;
-    xterm)                        exec xterm -e bash -lc "$COMMANDE_FINALE" ;;
-    *)                            exec "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+    ghostty|kitty|foot|alacritty) lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+    konsole)                      lancer_hors_cgroup konsole -e bash -lc "$COMMANDE_FINALE" ;;
+    xterm)                        lancer_hors_cgroup xterm -e bash -lc "$COMMANDE_FINALE" ;;
+    *)                            lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
 esac

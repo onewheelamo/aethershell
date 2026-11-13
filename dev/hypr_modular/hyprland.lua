@@ -4,25 +4,37 @@
 -- 1. Programmes par défaut (synchronisés avec core/app_vars.json)
 require("programs")
 
--- 2. Identification et chargement du matériel (par famille de distribution)
+-- 2. Identification et chargement du matériel (par famille de distribution / type de poste)
 --    Le nom de la machine ne sert à rien ici et n'a rien à faire dans un dépôt
---    partagé : ce qui distingue les deux configurations, c'est la distribution et
---    le matériel, pas le nom d'hôte.
+--    partagé : un portable (batterie présente) charge le profil portable
+--    (luminosité, Lid Switch, trackpad), quelle que soit la distribution (Arch,
+--    Fedora, Debian/Ubuntu) ; une tour charge le profil tour.
+local function has_battery()
+    for _, bat in ipairs({ "BAT0", "BAT1", "BATC", "BATT" }) do
+        local b = io.open("/sys/class/power_supply/" .. bat .. "/status", "r")
+        if b then
+            b:close()
+            return true
+        end
+    end
+    return false
+end
+
 local function detect_distro()
+    local ident = ""
     local f = io.open("/etc/os-release", "r")
     if f then
-        local ident = ""
         for ligne in f:lines() do
             local id = ligne:match("^ID=(.+)$")
             if id then ident = id:gsub('"', ""):lower() break end
         end
         f:close()
-        if ident == "fedora" or ident == "nobara" or ident == "bazzite" then
-            return "fedora"
-        end
-        if ident ~= "" then
-            return "arch"
-        end
+    end
+    if ident == "fedora" or ident == "nobara" or ident == "bazzite" or has_battery() then
+        return "fedora"
+    end
+    if ident ~= "" then
+        return "arch"
     end
     return nil
 end

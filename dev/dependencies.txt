@@ -3,9 +3,12 @@
 # Un binaire par ligne, contrôlé par `command -v`. Les commentaires sont libres.
 # Les portées remplacent les trois anciens fichiers de dépendances :
 #
-#   #: commun   → les deux familles de distribution
+#   #: commun   → tous les postes et toutes les distributions
+#   #: laptop   → PC portable seulement (batterie / châssis portable)
+#   #: desktop  → PC fixe / tour seulement
 #   #: arch     → Arch Linux seulement
 #   #: fedora   → Fedora seulement
+#   #: debian   → Debian / Ubuntu seulement
 #
 # Une ligne hors de toute portée est ignorée : un ajout en tête de fichier ne
 # peut donc pas se retrouver silencieusement dans la liste.
@@ -36,10 +39,23 @@ cc
 make
 pkg-config
 cava
-
-#: fedora
-# Portable seulement : luminosité, volume, profil d'énergie, capteur d'écran.
-brightnessctl
+# Contrôle audio PipeWire / WirePlumber (commun à tous les postes)
 wpctl
+
+#: laptop
+# PC portable seulement : luminosité écran, profils d'énergie, capteur d'orientation.
+brightnessctl
 powerprofilesctl
 monitor-sensor
+
+#: desktop
+# Paquets/binaires propres aux postes fixes (tours)
+
+#: arch
+# Paquets/binaires propres à Arch Linux
+
+#: fedora
+# Paquets/binaires propres à Fedora
+
+#: debian
+# Paquets/binaires propres à Debian / Ubuntu
