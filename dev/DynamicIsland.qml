@@ -196,7 +196,6 @@ Item {
         + clockDateRow.implicitWidth
         + rightApplets.implicitWidth
         + (Theme.showConfigButton ? 36 : 0)
-        + 32
         + Theme.padH * 3 + 28
     )
 
@@ -458,30 +457,6 @@ Item {
                     ile: "haut:fin"
                     include: ["systray", "workspaces", "minimise"]
                     anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            // Bouton d'ouverture du panneau complet de l'îlot (5 onglets)
-            Rectangle {
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
-                Layout.alignment: Qt.AlignVCenter
-                radius: Theme.globalRadius
-                color: islandPanelBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.24) : Qt.alpha(Theme.fg, 0.08)
-
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: "widgets"
-                    size: Theme.iconSm
-                    color: islandPanelBtnMa.containsMouse ? Theme.accent : Theme.fg
-                }
-
-                MouseArea {
-                    id: islandPanelBtnMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.ouvrirPanneau(0)
                 }
             }
 

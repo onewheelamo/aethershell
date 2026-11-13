@@ -57,6 +57,31 @@ Item {
         onExited: root.refreshTasks()
     }
 
+    function trouverProchainEvenement(eventsMap, isoToday, prefixSiFutur) {
+        if (!eventsMap) return ""
+        const todayList = eventsMap[isoToday] || []
+        if (todayList.length > 0) {
+            const ev = todayList[0]
+            return "Aujourd'hui · " + (ev.time ? (ev.time + " · ") : "") + String(ev.summary || "Événement")
+        }
+        const keys = Object.keys(eventsMap).sort()
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i]
+            if (k > isoToday && eventsMap[k] && eventsMap[k].length > 0) {
+                const ev = eventsMap[k][0]
+                const parts = k.split("-")
+                let dateLabel = k
+                if (parts.length === 3) {
+                    const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+                    dateLabel = Qt.formatDate(dt, "ddd d MMM")
+                }
+                return (prefixSiFutur ? "Prochain · " : "") + dateLabel + " · "
+                    + (ev.time ? (ev.time + " · ") : "") + String(ev.summary || "Événement")
+            }
+        }
+        return ""
+    }
+
     Process {
         id: calProc
         stdout: StdioCollector {
@@ -65,14 +90,37 @@ Item {
                     let d = JSON.parse(text.trim())
                     let now = new Date()
                     let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
-                    let evs = (d.events && d.events[iso]) ? d.events[iso] : []
-                    if (evs.length > 0) {
-                        let ev = evs[0]
-                        root.nextEventText = (ev.time ? (ev.time + " · ") : "") + String(ev.summary || "Événement")
-                    } else {
-                        root.nextEventText = "Aucun rendez-vous aujourd'hui"
+                    let found = root.trouverProchainEvenement(d.events, iso, true)
+                    if (found !== "") {
+                        root.nextEventText = found
+                    } else if (!calNextProc.running) {
+                        let nm = now.getMonth() + 2
+                        let ny = now.getFullYear()
+                        if (nm > 12) { nm = 1; ny += 1 }
+                        calNextProc.command = [
+                            "python3", Quickshell.shellPath("core/nextcloud_service.py"),
+                            "month", String(ny), String(nm)
+                        ]
+                        calNextProc.running = true
                     }
                 } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: calNextProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let d = JSON.parse(text.trim())
+                    let now = new Date()
+                    let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
+                    let found = root.trouverProchainEvenement(d.events, iso, true)
+                    root.nextEventText = found !== "" ? found : "Aucun événement à venir"
+                } catch (e) {
+                    root.nextEventText = "Aucun événement à venir"
+                }
             }
         }
     }
