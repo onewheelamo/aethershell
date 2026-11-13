@@ -225,11 +225,8 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: bgRect.radius
-            color: Theme.barBg
-            opacity: root.panelOpen
-                ? Math.min(1.0, Theme.shellOpacity + 0.18)
-                : (root.expanded ? Math.min(1.0, Theme.shellOpacity + 0.12) : Theme.shellOpacity)
-            Behavior on opacity { NumberAnimation { duration: 180 } }
+            color: root.panelOpen ? Theme.surfaceBg : Theme.barBg
+            Behavior on color { ColorAnimation { duration: 180 } }
         }
 
         border.color: (root.isCalendarOpen || root.panelOpen) ? Theme.accentMuted : Theme.accent
