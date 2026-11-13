@@ -25,10 +25,10 @@ Item {
     readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
                                                   * (verticale ? 1.45 : 1))
 
-    property bool wifiConnected: false
-    property string wifiSsid: ""
-    property int wifiSignal: 0
-    property string netType: "wifi"
+    property bool wifiConnected: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.connected) ? true : false
+    property string wifiSsid: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.ssid) ? String(Theme.systemInfo.wifi.ssid) : ""
+    property int wifiSignal: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.signal) ? Number(Theme.systemInfo.wifi.signal) : 0
+    property string netType: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.type) ? String(Theme.systemInfo.wifi.type) : "wifi"
 
     // État du panneau
     property var wifiNetworks: []
@@ -43,6 +43,15 @@ Item {
 
     implicitWidth: netRow.implicitWidth + Math.round(12 * echelle)
     implicitHeight: Math.max(22, Math.round(28 * echelle))
+
+    function synchroniserSystemInfo() {
+        const w = (Theme.systemInfo && Theme.systemInfo.wifi) || null
+        if (!w) return
+        root.wifiConnected = Boolean(w.connected)
+        root.wifiSsid = String(w.ssid || "")
+        root.wifiSignal = Number(w.signal || 0)
+        root.netType = String(w.type || "wifi")
+    }
 
     function signalIconFor(sig, connected) {
         if (!connected && sig <= 0) return "wifi-none"
@@ -89,17 +98,15 @@ Item {
 
     // Amorçage : l'état Bluetooth est lu une fois au démarrage, pour que le
     // panneau s'ouvre déjà rempli (sinon il est vide le temps d'un aller-retour).
-    Component.onCompleted: root.lireBluetooth()
+    Component.onCompleted: {
+        root.synchroniserSystemInfo()
+        root.lireBluetooth()
+    }
 
     Connections {
         target: Theme
         function onSystemInfoChanged() {
-            const w = (Theme.systemInfo && Theme.systemInfo.wifi) || null
-            if (!w) return
-            root.wifiConnected = Boolean(w.connected)
-            root.wifiSsid = String(w.ssid || "")
-            root.wifiSignal = Number(w.signal || 0)
-            root.netType = String(w.type || "wifi")
+            root.synchroniserSystemInfo()
         }
     }
 
