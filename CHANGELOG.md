@@ -2,12 +2,22 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
-### Convention de numérotation (`A.B.C.D`)
+### Convention de numérotation (`A.BB.CC.DD`)
 
-- **`x.x.x.y`** : corrections de bugs, correctifs mineurs.
-- **`x.x.y.x`** : ajout de nouvelles fonctionnalités.
-- **`x.y.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
-- **`y.x.x.x`** : version majeure (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
+- **`x.x.x.yy`** : corrections de bugs, correctifs mineurs.
+- **`x.x.yy.x`** : ajout de nouvelles fonctionnalités.
+- **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
+- **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
+
+## [0.3.7.01] — 2026-11-13
+
+### Corrigé
+
+- **Tâches de l'Îlot dynamique** ([`dev/core/todo_applet.py`](dev/core/todo_applet.py), [`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml)) :
+  - Ajout de l'option `--tous` utilisée par `IslandTabAlertes.qml` pour afficher les tâches ouvertes de **tous** les fichiers configurés dans `todo.json` (et plus seulement du fichier en `focus`), avec indication du nom de fichier source.
+  - `cocher()` ne déclenche le worker Hermes que pour la liste `shell` : cocher une tâche dans un autre fichier reste une coche locale sans blocage « hors périmètre ».
+- **Calendrier Nextcloud du panneau latéral** ([`dev/IslandSidePanel.qml`](dev/IslandSidePanel.qml)) : lecture de `res.days` dans la réponse de `nextcloud_service.py month`.
+- **Débordement dans Alertes & Tâches** ([`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml)) : ajout de `clip: true` et d'un `Flickable` sur la liste des tâches afin que les événements d'agenda et le bouton `Agenda →` ne dépassent plus du cadre lorsque des notifications sont affichées.
 
 ## [0.3.7.0] — 2026-11-13
 

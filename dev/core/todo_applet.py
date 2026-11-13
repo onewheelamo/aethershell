@@ -435,7 +435,10 @@ def cocher(identifiant, fait=True):
         return False, "ligne introuvable"
 
     demandes = [d for d in _lire_file() if d.get("id") != identifiant]
-    if fait and est_surveillance_active():
+    # Seule la liste « shell » est dans le périmètre du worker Hermes :
+    # cocher une tâche dans un autre fichier (homelab, liste perso…) reste
+    # une simple coche locale Markdown sans déclencher de blocage « hors périmètre ».
+    if fait and est_surveillance_active() and item.get("nom_fichier") == "shell":
         demandes.append({
             "id": identifiant,
             "fichier": item["fichier"],
@@ -654,7 +657,7 @@ def creer_fichier(nom_fichier, dossier, etiquette=""):
 # ── état pour la barre ────────────────────────────────────────────────────────
 def analyser(options=None):
     options = options or {}
-    choisi = focus(options)
+    choisi = "*" if options.get("tous") else focus(options)
     tout = items(choisi)
     file = _lire_file()
     attente = [d for d in file if d.get("etat") in ("attente", "en_cours")]
@@ -692,13 +695,18 @@ def analyser(options=None):
 
 
 def _options_cli(argv):
+    opts = {}
     for arg in argv[1:]:
-        if arg.startswith("--options="):
+        if arg == "--tous":
+            opts["tous"] = True
+        elif arg.startswith("--options="):
             try:
-                return json.loads(arg.split("=", 1)[1])
+                parsed = json.loads(arg.split("=", 1)[1])
+                if isinstance(parsed, dict):
+                    opts.update(parsed)
             except ValueError:
-                return {}
-    return {}
+                pass
+    return opts
 
 
 def main(argv):

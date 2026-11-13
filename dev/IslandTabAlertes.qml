@@ -19,7 +19,7 @@ Item {
 
     function refreshTasks() {
         if (!todoProc.running) {
-            todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py")]
+            todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "--tous"]
             todoProc.running = true
         }
         if (!calProc.running) {
@@ -38,7 +38,7 @@ Item {
         target: Theme
         function onTodoRevChanged() {
             if (!todoProc.running) {
-                todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py")]
+                todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "--tous"]
                 todoProc.running = true
             }
         }
@@ -281,7 +281,8 @@ Item {
         // Liste Notifications
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.notifCount === 0 ? 40 : 126
+            Layout.preferredHeight: Theme.notifCount === 0 ? 40 : 112
+            clip: true
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.25)
             border.width: 1
@@ -499,6 +500,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.30)
             border.width: 1
@@ -509,54 +511,74 @@ Item {
                 anchors.margins: 10
                 spacing: 6
 
-                Text {
-                    visible: root.todoItems.length === 0
-                    text: "Aucune tâche ouverte"
-                    font.family: Theme.fontUi
-                    font.pixelSize: Theme.textXs
-                    color: Qt.alpha(Theme.fg, 0.55)
-                }
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: width
+                    contentHeight: todoListCol.implicitHeight
+                    clip: true
 
-                Repeater {
-                    model: root.todoItems
-                    delegate: RowLayout {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        spacing: 8
+                    ColumnLayout {
+                        id: todoListCol
+                        width: parent.width
+                        spacing: 5
 
-                        Rectangle {
-                            Layout.preferredWidth: 16
-                            Layout.preferredHeight: 16
-                            radius: 4
-                            color: "transparent"
-                            border.width: 1.5
-                            border.color: Theme.accent
+                        Text {
+                            visible: root.todoItems.length === 0
+                            text: "Aucune tâche ouverte"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            color: Qt.alpha(Theme.fg, 0.55)
+                        }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    let tid = String(modelData.id || "")
-                                    if (tid !== "") {
-                                        todoActionProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "cocher", tid]
-                                        todoActionProc.running = true
+                        Repeater {
+                            model: root.todoItems
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Rectangle {
+                                    Layout.preferredWidth: 16
+                                    Layout.preferredHeight: 16
+                                    radius: 4
+                                    color: "transparent"
+                                    border.width: 1.5
+                                    border.color: Theme.accent
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            let tid = String(modelData.id || "")
+                                            if (tid !== "") {
+                                                todoActionProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "cocher", tid]
+                                                todoActionProc.running = true
+                                            }
+                                        }
                                     }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.texte || modelData.text || modelData.titre || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    color: Theme.fg
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    visible: String(modelData.nom_fichier || "") !== ""
+                                    text: String(modelData.nom_fichier || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    color: Qt.alpha(Theme.fg, 0.45)
                                 }
                             }
                         }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: String(modelData.texte || modelData.text || modelData.titre || "")
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: Theme.fg
-                            elide: Text.ElideRight
-                        }
                     }
                 }
-
-                Item { Layout.fillHeight: true }
 
                 Rectangle {
                     Layout.fillWidth: true
@@ -628,6 +650,7 @@ Item {
 
                     Text {
                         Layout.alignment: Qt.AlignBottom
+                        Layout.minimumWidth: implicitWidth
                         text: Theme.islandSidePanel === "calendar" ? "Agenda ×" : "Agenda →"
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs

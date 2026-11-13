@@ -1,8 +1,8 @@
 # Consignes du dépôt
 
-## Convention de numérotation des versions (`A.B.C.D`)
+## Convention de numérotation des versions (`A.BB.CC.DD`)
 
-- **`x.x.x.y`** : corrections de bugs et correctifs mineurs.
-- **`x.x.y.x`** : ajout de nouvelles fonctionnalités.
-- **`x.y.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
-- **`y.x.x.x`** : version majeure (peut être proposée en cas de changement suffisamment conséquent, mais la décision finale revient à l'utilisateur).
+- **`x.x.x.yy`** : corrections de bugs et correctifs mineurs.
+- **`x.x.yy.x`** : ajout de nouvelles fonctionnalités.
+- **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
+- **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (peut être proposée en cas de changement suffisamment conséquent, mais la décision finale revient à l'utilisateur).

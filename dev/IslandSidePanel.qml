@@ -263,7 +263,8 @@ Item {
                 root.calLoading = false
                 try {
                     const res = JSON.parse(text.trim())
-                    if (res && res.events) root.eventsByDay = res.events
+                    if (res && res.days) root.eventsByDay = res.days
+                    else if (res && res.events) root.eventsByDay = res.events
                     else if (res && typeof res === "object" && !res.error) root.eventsByDay = res
                     else root.eventsByDay = ({})
                 } catch (e) {
