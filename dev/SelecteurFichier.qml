@@ -128,28 +128,17 @@ Item {
             Keys.onEscapePressed: root.annulerEtFermer()
         }
 
-        Rectangle {
+        Item {
             id: carte
             anchors.fill: parent
 
-
-            radius: root.rayonCarte
-            color: "transparent"
-            border.color: Qt.alpha(Theme.accent, 0.35)
-            border.width: 1
-
-            FlouFond {
+            SurfaceFloutee {
                 anchors.fill: parent
-                rayon: carte.radius
-                // Pas de plancher : la surface vit dans la fenêtre `shell-config`,
-                // déjà floutée par le compositeur ; le verre interne suit le réglage.
-                intensite: Theme.shellFlouInterne
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: carte.radius
-                color: Theme.surfaceBg
+                rayon: root.rayonCarte
+                teinte: Theme.surfaceBg
+                bordureCouleur: Qt.alpha(Theme.accent, 0.35)
+                bordureLargeur: 1
+                actif: root.ouvert
             }
 
             MouseArea {

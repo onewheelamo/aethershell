@@ -27,6 +27,11 @@ Item {
     property string pendingConnectSsid: ""
     property string wifiStatusMsg: ""
     property bool wifiConnecting: false
+    property bool btPresent: false
+    property bool btOn: false
+    property var btDevices: []
+    property int btConnectedCount: 0
+    property bool btBusy: false
     property string homelabLine: ""
 
     readonly property var sysInfo: Theme.systemInfo || ({})
@@ -68,6 +73,14 @@ Item {
         if (!sysStatsProc.running) sysStatsProc.running = true
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
+        if (!btStateProc.running) btStateProc.running = true
+    }
+
+    function btCommand(args) {
+        if (btActionProc.running) return
+        root.btBusy = true
+        btActionProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py")].concat(args)
+        btActionProc.running = true
     }
 
     function scanWifi() {
@@ -93,18 +106,24 @@ Item {
             onStreamFinished: {
                 try {
                     let d = JSON.parse(text.trim())
-                    if (d.cpu) {
-                        root.cpuPct = Math.round(Number(d.cpu.pct || d.cpu.usage || 0))
-                        root.cpuTemp = Math.round(Number(d.cpu.temp || 0))
+                    let barres = (d.compact && Array.isArray(d.compact.barres)) ? d.compact.barres : []
+                    for (let i = 0; i < barres.length; i++) {
+                        let b = barres[i]
+                        if (b.cle === "cpu") root.cpuPct = Math.round(Number(b.valeur || 0))
+                        else if (b.cle === "ram") root.ramPct = Math.round(Number(b.valeur || 0))
+                        else if (b.cle === "gpu") root.gpuPct = Math.round(Number(b.valeur || 0))
+                        else if (b.cle === "temp") root.cpuTemp = Math.round(Number(b.valeur || 0))
                     }
-                    if (d.ram) {
-                        root.ramPct = Math.round(Number(d.ram.pct || 0))
-                        root.ramUsed = Number(d.ram.utilise_go || d.ram.used_gb || 0)
-                        root.ramTotal = Number(d.ram.total_go || d.ram.total_gb || 0)
+                    let det = d.detail || ({})
+                    if (det.ram) {
+                        root.ramUsed = Number(det.ram.utilisee_go || 0)
+                        root.ramTotal = Number(det.ram.totale_go || 0)
                     }
-                    if (d.gpu) {
-                        root.gpuPct = Math.round(Number(d.gpu.pct || 0))
-                        root.gpuTemp = Math.round(Number(d.gpu.temp || 0))
+                    if (det.gpu && det.gpu.temperature !== undefined) {
+                        root.gpuTemp = Math.round(Number(det.gpu.temperature || 0))
+                    }
+                    if (det.temp && det.temp.cpu !== undefined) {
+                        root.cpuTemp = Math.round(Number(det.temp.cpu || 0))
                     }
                 } catch (e) {}
             }
@@ -118,11 +137,19 @@ Item {
             onStreamFinished: {
                 try {
                     let d = JSON.parse(text.trim())
-                    let list = d.disques || d.disks || []
-                    if (list.length > 0) {
-                        let p = list[0]
-                        root.diskPct = Math.round(Number(p.pct || p.percent || 0))
-                        root.diskSummary = String(p.utilise || p.used || "") + " / " + String(p.total || "")
+                    let montages = (d.detail && Array.isArray(d.detail.montages)) ? d.detail.montages : []
+                    if (montages.length > 0) {
+                        let p = montages.find(m => String(m.montage) === "/home")
+                        if (!p) {
+                            p = montages.reduce((best, cur) =>
+                                (Number(cur.taille_go || 0) > Number(best.taille_go || 0)) ? cur : best,
+                                montages[0])
+                        }
+                        root.diskPct = Math.round(Number(p.pourcent || 0))
+                        root.diskSummary = Number(p.utilise_go || 0).toFixed(0) + " / " + Number(p.taille_go || 0).toFixed(0) + " Go"
+                    } else if (d.compact && Array.isArray(d.compact.barres) && d.compact.barres.length > 0) {
+                        root.diskPct = Math.round(Number(d.compact.barres[0].valeur || 0))
+                        root.diskSummary = String(d.compact.barres[0].texte || "--")
                     }
                 } catch (e) {}
             }
@@ -174,6 +201,30 @@ Item {
                     root.wifiStatusMsg = msg !== "" ? msg : "Clé requise ou échec de connexion"
                 }
             }
+        }
+    }
+
+    Process {
+        id: btStateProc
+        command: ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let d = JSON.parse(text.trim())
+                    root.btPresent = d.present === true
+                    root.btOn = d.allume === true
+                    root.btDevices = Array.isArray(d.appaires) ? d.appaires : []
+                    root.btConnectedCount = Array.isArray(d.connectes) ? d.connectes.length : 0
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: btActionProc
+        onExited: {
+            root.btBusy = false
+            if (!btStateProc.running) btStateProc.running = true
         }
     }
 
@@ -613,6 +664,130 @@ Item {
                     font.pixelSize: 10
                     color: root.wifiConnecting ? Theme.accent : Theme.error
                     elide: Text.ElideRight
+                }
+
+                // Séparateur Wi-Fi / Bluetooth
+                Rectangle {
+                    visible: root.btPresent
+                    Layout.fillWidth: true
+                    height: 1
+                    color: Qt.alpha(Theme.fg, 0.08)
+                }
+
+                // Bluetooth
+                RowLayout {
+                    visible: root.btPresent
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Icon {
+                        glyph: "bluetooth"
+                        size: Theme.iconMd
+                        color: root.btOn ? Theme.accent : Qt.alpha(Theme.fg, 0.5)
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.btOn
+                            ? ("Bluetooth" + (root.btConnectedCount > 0 ? (" · " + root.btConnectedCount + " connecté(s)") : " · Activé"))
+                            : "Bluetooth · Désactivé"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textSm
+                        font.weight: Font.DemiBold
+                        color: Theme.fg
+                        elide: Text.ElideRight
+                    }
+
+                    Rectangle {
+                        Layout.preferredHeight: 22
+                        Layout.preferredWidth: 50
+                        radius: 7
+                        color: root.btOn ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.1)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.btBusy ? "…" : (root.btOn ? "ON" : "OFF")
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Bold
+                            color: root.btOn ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.btCommand(["basculer"])
+                        }
+                    }
+                }
+
+                GridLayout {
+                    visible: root.btPresent && root.btOn && root.btDevices.length > 0
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: 6
+                    rowSpacing: 6
+
+                    Repeater {
+                        model: root.btDevices.slice(0, 4)
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool btConn: Boolean(modelData.connecte)
+
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 26
+                            radius: 7
+                            color: btConn
+                                ? Qt.alpha(Theme.accent, 0.24)
+                                : (btDevMa.containsMouse ? Qt.alpha(Theme.fg, 0.13) : Qt.alpha(Theme.fg, 0.07))
+                            border.width: btConn ? 1 : 0
+                            border.color: Theme.accent
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 5
+
+                                Icon {
+                                    glyph: "bluetooth"
+                                    size: 11
+                                    color: btConn ? Theme.accent : Qt.alpha(Theme.fg, 0.65)
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.nom || modelData.mac || "Appareil")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    font.weight: btConn ? Font.Bold : Font.Normal
+                                    color: btConn ? Theme.accent : Theme.fg
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            MouseArea {
+                                id: btDevMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    let mac = String(modelData.mac || "")
+                                    if (!mac) return
+                                    root.btCommand([btConn ? "deconnecter" : "connecter", mac])
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    visible: root.btPresent && root.btOn && root.btDevices.length === 0
+                    Layout.fillWidth: true
+                    text: "Aucun appareil Bluetooth appairé"
+                    font.family: Theme.fontUi
+                    font.pixelSize: 10
+                    color: Qt.alpha(Theme.fg, 0.5)
                 }
 
                 Item { Layout.fillHeight: true }

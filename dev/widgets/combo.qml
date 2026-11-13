@@ -29,8 +29,10 @@ Item {
     // composant (CalendrierCompact), la carte grandit et sa fenêtre suit.
     property bool ouvert: false
 
-    property var meteo: ({})
-    property bool loaded: false
+    property var meteoLocal: ({})
+    property bool loadedLocal: false
+    readonly property var meteo: root.cityOption === "" ? Theme.meteoData : meteoLocal
+    readonly property bool loaded: root.cityOption === "" ? Theme.meteoLoaded : loadedLocal
 
     readonly property bool ok: loaded && meteo && meteo.ok === true
     readonly property bool withSeconds: {
@@ -65,9 +67,12 @@ Item {
 
 
     function refresh(force) {
-        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
-        if (root.cityOption !== "")
-            args.push("--city", root.cityOption)
+        if (root.cityOption === "") {
+            Theme.rafraichirMeteo(force)
+            return
+        }
+        const args = ["python3", Quickshell.shellPath("core/weather_service.py"),
+                      "--city", root.cityOption]
         if (force)
             args.push("--force")
         proc.command = args
@@ -84,7 +89,7 @@ Item {
     Timer {
         interval: 600000
         repeat: true
-        running: true
+        running: root.cityOption !== ""
         onTriggered: root.refresh(false)
     }
 
@@ -93,11 +98,11 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    root.meteo = JSON.parse(text.trim())
+                    root.meteoLocal = JSON.parse(text.trim())
                 } catch (e) {
-                    root.meteo = { ok: false, error: "réponse illisible" }
+                    root.meteoLocal = { ok: false, error: "réponse illisible" }
                 }
-                root.loaded = true
+                root.loadedLocal = true
             }
         }
     }

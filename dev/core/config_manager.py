@@ -435,7 +435,11 @@ def build_shell_blur_block(enabled, alpha, popups, extra_namespaces=()):
 def apply_shell_blur(data=None):
     """Rewrite the shell-blur block of general.lua from style_vars.json, then reload Hyprland."""
     src = data if data is not None else load_json(STYLE_FILE)
-    enabled = bool(src.get("shell_blur_enabled", True))
+    flou_interne = float(src.get("shell_flou_interne", 0.0))
+    # B13 / P11 : quand le verre interne est opaque (>= 0.99), il recouvre
+    # totalement le flou compositeur : on coupe `shell-blur` côté Hyprland
+    # pour éviter une double passe GPU inutile.
+    enabled = bool(src.get("shell_blur_enabled", True)) and flou_interne < 0.99
     alpha = round(max(0.0, min(1.0, float(src.get("shell_blur_alpha", 0.3)))), 2)
     popups = bool(src.get("shell_blur_popups", True))
     widget_namespaces = [f"shell-widget-{w.get('id')}" for w in load_widgets()
@@ -819,8 +823,12 @@ def update_style_var(key, value):
         data[key] = max(0.0, min(1.0, float(value)))
     elif key == "shell_flou_interne":
         # Verre dépoli autonome des surfaces (MultiEffect) : 0 = éteint, 1 =
-        # opaque. Appliqué par Theme.qml, aucun fichier Hyprland à réécrire.
-        data[key] = round(max(0.0, min(1.0, float(value))), 2)
+        # opaque. À >= 0.99, désactive le flou compositeur redondant (B13/P11).
+        ancien = float(data.get(key, 0.0))
+        nouveau = round(max(0.0, min(1.0, float(value))), 2)
+        data[key] = nouveau
+        if (ancien >= 0.99) != (nouveau >= 0.99):
+            shell_blur_changed = True
     elif key == "depth_wallpaper":
         # Fond en profondeur (parallaxe au changement de bureau), rendu par
         # FondProfondeur.qml sur une couche `background`.

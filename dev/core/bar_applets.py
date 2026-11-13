@@ -81,7 +81,22 @@ def etat_utilisateur():
     return actifs
 
 
-def _entree(applet, choix=None):
+def _options_inactives():
+    data = _lire(ETAT, {})
+    opt = data.get("options_inactives") if isinstance(data, dict) else None
+    return opt if isinstance(opt, dict) else {}
+
+
+def _sauver(actifs, inactives=None):
+    if inactives is None:
+        inactives = _options_inactives()
+    charge = {"version": 1, "actifs": actifs}
+    if inactives:
+        charge["options_inactives"] = inactives
+    _ecrire(ETAT, charge)
+
+
+def _entree(applet, choix=None, opt_inactives=None):
     """Catalogue + choix de l'utilisateur, avec les valeurs par défaut."""
     choix = choix or {}
     entree = dict(applet)
@@ -98,7 +113,7 @@ def _entree(applet, choix=None):
     except (TypeError, ValueError):
         echelle = 100
     entree["text_scale"] = max(ECHELLE_MIN, min(ECHELLE_MAX, echelle))
-    entree["options"] = choix.get("options") or {}
+    entree["options"] = choix.get("options") or (opt_inactives or {}).get(applet["id"]) or {}
     return entree
 
 
@@ -121,7 +136,8 @@ def resoudre(ile=None):
 def etat_complet():
     """Ce que le panneau affiche : tout le catalogue, allumé ou non."""
     choix = etat_utilisateur()
-    return [_entree(a, choix.get(a["id"])) for a in catalogue()]
+    inactives = _options_inactives()
+    return [_entree(a, choix.get(a["id"]), inactives) for a in catalogue()]
 
 
 def _exiger(applet_id):
@@ -152,19 +168,23 @@ def activer(applet_id, ile=None):
     # s'allume dans le même geste, comme dans `placer()` — le panneau appelle
     # `placer`, mais un `activer` en ligne de commande doit se comporter pareil.
     _allumer_barre(ile)
+    inactives = _options_inactives()
     etat[applet_id] = {
         "ile": ile,
         "ordre": courant.get("ordre", applet.get("ordre", 100)),
         "text_scale": courant.get("text_scale", applet.get("text_scale", 100)),
-        "options": courant.get("options") or {},
+        "options": courant.get("options") or inactives.pop(applet_id, None) or {},
     }
-    _ecrire(ETAT, {"version": 1, "actifs": etat})
+    _sauver(etat, inactives)
 
 
 def desactiver(applet_id):
     etat = etat_utilisateur()
-    etat.pop(applet_id, None)
-    _ecrire(ETAT, {"version": 1, "actifs": etat})
+    inactives = _options_inactives()
+    ancien = etat.pop(applet_id, None)
+    if isinstance(ancien, dict) and ancien.get("options"):
+        inactives[applet_id] = ancien["options"]
+    _sauver(etat, inactives)
 
 
 # Une barre éteinte rendrait l'applet invisible : placer dans « bas » ou sur un
@@ -260,17 +280,22 @@ def option(applet_id, cle, valeur):
     gardée en chaîne : le panneau et le popup peuvent ainsi écrire une liste
     sans avoir à connaître le format.
     """
+    _exiger(applet_id)
     etat = etat_utilisateur()
-    if applet_id not in etat:
-        raise SystemExit(f"applet éteint : {applet_id}")
+    inactives = _options_inactives()
     try:
         valeur = json.loads(valeur)
     except ValueError:
         pass
-    options = etat[applet_id].get("options") or {}
-    options[str(cle)] = valeur
-    etat[applet_id]["options"] = options
-    _ecrire(ETAT, {"version": 1, "actifs": etat})
+    if applet_id in etat:
+        options = etat[applet_id].get("options") or {}
+        options[str(cle)] = valeur
+        etat[applet_id]["options"] = options
+    else:
+        options = inactives.get(applet_id) or {}
+        options[str(cle)] = valeur
+        inactives[applet_id] = options
+    _sauver(etat, inactives)
 
 
 def main(argv):

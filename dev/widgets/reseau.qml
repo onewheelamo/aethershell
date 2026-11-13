@@ -22,8 +22,8 @@ Item {
         return 1.0
     }
 
-    property var reseau: ({})
-    property bool charge: false
+    readonly property var reseau: Theme.reseauData
+    readonly property bool charge: Theme.reseauCharge
 
     readonly property bool connecte: reseau && reseau.connecte === true
     readonly property string ssid: String(reseau.ssid || reseau.connexion || reseau.interface || "")
@@ -50,32 +50,10 @@ Item {
     }
 
     function rafraichir() {
-        proc.command = ["python3", Quickshell.shellPath("core/reseau_widget.py")]
-        proc.running = true
+        Theme.metriquesActif = true
     }
 
-    Component.onCompleted: rafraichir()
-
-    Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        onTriggered: root.rafraichir()
-    }
-
-    Process {
-        id: proc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    root.reseau = JSON.parse(text.trim())
-                } catch (e) {
-                    root.reseau = ({})
-                }
-                root.charge = true
-            }
-        }
-    }
+    Component.onCompleted: Theme.metriquesActif = true
 
     // Largeur **fixe** : un ping qui passe de 6 à 1200 ms, ou un débit qui passe de
     // « 1 ko/s » à « 12,3 Mo/s », ne doit pas redimensionner la carte sous le

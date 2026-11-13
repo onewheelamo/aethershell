@@ -173,13 +173,6 @@ Item {
         }
     }
 
-    Timer {
-        interval: 10000
-        repeat: true
-        running: true
-        onTriggered: root.rafraichir()
-    }
-
     Component.onCompleted: root.rafraichir()
 
     // Sonde de diagnostic, comme `shell notifTargets` : elle dit ce que la

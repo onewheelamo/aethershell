@@ -319,130 +319,55 @@ Item {
             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
             // 5a : surface unique derrière les trois groupes
-            Rectangle {
+            SurfaceFloutee {
                 id: capsuleBg
                 visible: Theme.barStyle !== "island" && Theme.barMerged && !Theme.barGapsTransparent
                 anchors.fill: parent
-                radius: Theme.pillRadius
-                // Teinte au-dessus du verre : peinte sous le FlouFond, elle laissait
-                // le fond d'écran traverser à mesure qu'on montait le flou interne.
-                color: "transparent"
-                FlouFond {
-                    anchors.fill: parent
-                    rayon: Theme.pillRadius
-                    intensite: Theme.shellFlouInterne
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.pillRadius
-                    color: Theme.barBg
-                }
-                border.color: Theme.accent
-                border.width: Theme.barBorder ? 1 : 0
-
-                Behavior on color { ColorAnimation { duration: 180 } }
-                Behavior on border.color { ColorAnimation { duration: 180 } }
+                rayon: Theme.pillRadius
+                teinte: Theme.barBg
+                bordureCouleur: Theme.accent
+                bordureLargeur: Theme.barBorder ? 1 : 0
             }
 
             // 5c : capsule découpée — option « espaces entre les îlots en
             // transparence » (Theme.barGapsTransparent, clé bar_gaps_transparent).
-            //
-            // Le fond n'est peint que sous les trois zones ; les deux espaces
-            // entre elles ne sont plus peints du tout. Transparent ne veut pas
-            // dire flouté : l'alpha 0 tombe sous le seuil `ignore_alpha` de la
-            // règle de flou de general.lua, donc le mur derrière s'y voit net.
-            //
-            // Ce n'est pas un retour aux trois îlots indépendants : un seul
-            // conteneur, une seule mise en page, les mêmes ancres, et les deux
-            // vides sont des régions nommées qui gardent leur géométrie
-            // (slotGauche / slotDroit) — c'est là que se posera l'animation de
-            // lecture média.
-            //
-            // L'arrondi est celui du panneau (global_radius, via pillRadius) sur
-            // les bords extérieurs *et* intérieurs : les deux rives d'un espace
-            // ont la même courbe, la barre ne se coupe pas à angle droit.
-            Rectangle {
+            SurfaceFloutee {
                 id: zoneGauche
                 visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: 0
                 width: Math.max(1, leftLoader.x + leftLoader.width)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
-                radius: Theme.pillRadius
-                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
-                // surface que le FlouFond, elle laissait le fond d'écran traverser.
-                color: "transparent"
-                FlouFond {
-                    anchors.fill: parent
-                    rayon: Theme.pillRadius
-                    intensite: Theme.shellFlouInterne
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.pillRadius
-                    color: Theme.barBg
-                }
-                border.color: Theme.accent
-                border.width: Theme.barBorder ? 1 : 0
-
-                Behavior on color { ColorAnimation { duration: 180 } }
-                Behavior on border.color { ColorAnimation { duration: 180 } }
+                rayon: Theme.pillRadius
+                teinte: Theme.barBg
+                bordureCouleur: Theme.accent
+                bordureLargeur: Theme.barBorder ? 1 : 0
             }
 
-            Rectangle {
+            SurfaceFloutee {
                 id: zoneCentre
                 visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: centerLoader.x
                 width: Math.max(1, centerLoader.width)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
-                radius: Theme.pillRadius
-                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
-                // surface que le FlouFond, elle laissait le fond d'écran traverser.
-                color: "transparent"
-                FlouFond {
-                    anchors.fill: parent
-                    rayon: Theme.pillRadius
-                    intensite: Theme.shellFlouInterne
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.pillRadius
-                    color: Theme.barBg
-                }
-                border.color: Theme.accent
-                border.width: Theme.barBorder ? 1 : 0
-
-                Behavior on color { ColorAnimation { duration: 180 } }
-                Behavior on border.color { ColorAnimation { duration: 180 } }
+                rayon: Theme.pillRadius
+                teinte: Theme.barBg
+                bordureCouleur: Theme.accent
+                bordureLargeur: Theme.barBorder ? 1 : 0
             }
 
-            Rectangle {
+            SurfaceFloutee {
                 id: zoneDroite
                 visible: Theme.barStyle !== "island" && Theme.barMerged && Theme.barGapsTransparent
                 x: rightLoader.x
                 width: Math.max(1, parent.width - rightLoader.x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
-                radius: Theme.pillRadius
-                // Teinte au-dessus du verre (voir plus haut) : peinte sur la même
-                // surface que le FlouFond, elle laissait le fond d'écran traverser.
-                color: "transparent"
-                FlouFond {
-                    anchors.fill: parent
-                    rayon: Theme.pillRadius
-                    intensite: Theme.shellFlouInterne
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.pillRadius
-                    color: Theme.barBg
-                }
-                border.color: Theme.accent
-                border.width: Theme.barBorder ? 1 : 0
-
-                Behavior on color { ColorAnimation { duration: 180 } }
-                Behavior on border.color { ColorAnimation { duration: 180 } }
+                rayon: Theme.pillRadius
+                teinte: Theme.barBg
+                bordureCouleur: Theme.accent
+                bordureLargeur: Theme.barBorder ? 1 : 0
             }
 
             // Les deux espaces transparents, en tant que régions. Rien n'y est
@@ -1169,7 +1094,7 @@ Item {
                     y: -(Number(widgetWindow.w.y) || 0)
                     width: widgetWindow.screen ? widgetWindow.screen.width : 1920
                     height: widgetWindow.screen ? widgetWindow.screen.height : 1080
-                    source: Theme.depthMaskPath !== "" ? "file://" + Theme.depthMaskPath : ""
+                    source: carteWidget.layer.enabled ? "file://" + Theme.depthMaskPath : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     cache: true
@@ -1179,7 +1104,7 @@ Item {
                     id: masqueWidget
                     sourceItem: masqueImage
                     hideSource: true
-                    live: true
+                    live: carteWidget.layer.enabled
                 }
 
                 // Clic milieu : les réglages de ce widget. Déclaré avant les

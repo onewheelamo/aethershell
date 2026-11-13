@@ -86,6 +86,8 @@ Item {
     // panneau restait vide alors que l'historique contenait bien les entrées.
     property var archive: []
 
+    onOuvertChanged: if (ouvert) historiqueFile.reload()
+
     FileView {
         id: historiqueFile
         path: {
@@ -94,7 +96,7 @@ Item {
                              : (Quickshell.env("HOME") ? String(Quickshell.env("HOME")) + "/.cache" : "")
             return base + "/quickshell/notifications-history.jsonl"
         }
-        watchChanges: true
+        watchChanges: root.ouvert
         onFileChanged: reload()
         // `text()` non qualifié ne résout pas ici : le repli restait donc vide en
         // silence, alors que le fichier contenait bien des entrées.

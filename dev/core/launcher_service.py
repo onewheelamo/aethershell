@@ -340,6 +340,29 @@ def _rg():
     return shutil.which("rg") or ""
 
 
+INDEX_FICHIERS_TTL = 300
+
+
+def _lister_fichiers(rg):
+    """Liste des fichiers sous HOME, avec cache disque 5 min pour éviter un scan rg à chaque touche."""
+    index = CACHE / "fichiers_index.txt"
+    try:
+        if index.exists() and (time.time() - index.stat().st_mtime) < INDEX_FICHIERS_TTL:
+            return index.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        pass
+    sortie = borne([rg, "--files", str(HOME)], timeout=4.0)
+    if sortie:
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            tmp = CACHE / f"fichiers_index.{os.getpid()}.tmp"
+            tmp.write_text(sortie, encoding="utf-8")
+            os.replace(tmp, index)
+        except OSError:
+            pass
+    return sortie.splitlines()
+
+
 def fichiers(texte, limite=LIMITE_DEFAUT):
     q = texte.strip().lstrip("/").strip()
     if q == "":
@@ -350,9 +373,8 @@ def fichiers(texte, limite=LIMITE_DEFAUT):
     # Sans --hidden : les dossiers cachés (~/.cache, ~/.cargo, ~/.local/share)
     # noieraient les résultats — 642 000 fichiers au lieu de 31 000, et les
     # premiers résultats seraient des README de caches.
-    sortie = borne([rg, "--files", str(HOME)], timeout=4.0)
     tries = []
-    for ligne in sortie.splitlines():
+    for ligne in _lister_fichiers(rg):
         if ligne == "":
             continue
         chemin = ligne
@@ -409,7 +431,7 @@ def contenu(texte, limite=6):
     base = (f"{shlex.quote(rg)} -n --no-heading --max-count 1 -i -F {shlex.quote(q)} "
             f"{exclusions}")
     commande = (f"{{ {base} {doc_globs} {pre_option} {shlex.quote(str(HOME))} "
-                f"2>/dev/null | head -c 300000 ; "
+                f"2>/dev/null | head -c 300000 ; echo '' ; "
                 f"{base} -g '!*.pdf' -g '!*.docx' -g '!*.odt' -g '!*.odp' "
                 f"{shlex.quote(str(HOME))} 2>/dev/null | head -c 300000 ; }}")
     sortie = borne_etat(["sh", "-c", commande], timeout=12.0)

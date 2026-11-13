@@ -29,8 +29,10 @@ Item {
     // Renseigné par main.qml : identité de l'entrée dans widgets.json.
     property string widgetId: ""
 
-    property var meteo: ({})
-    property bool loaded: false
+    property var meteoLocal: ({})
+    property bool loadedLocal: false
+    readonly property var meteo: root.cityOption === "" ? Theme.meteoData : meteoLocal
+    readonly property bool loaded: root.cityOption === "" ? Theme.meteoLoaded : loadedLocal
 
     readonly property bool ok: loaded && meteo && meteo.ok === true
     // Ville propre au widget (`widget_set meteo-1 city Lyon`) ; sinon le service
@@ -47,9 +49,12 @@ Item {
     implicitHeight: contentCol.implicitHeight
 
     function refresh(force) {
-        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
-        if (root.cityOption !== "")
-            args.push("--city", root.cityOption)
+        if (root.cityOption === "") {
+            Theme.rafraichirMeteo(force)
+            return
+        }
+        const args = ["python3", Quickshell.shellPath("core/weather_service.py"),
+                      "--city", root.cityOption]
         if (force)
             args.push("--force")
         proc.command = args
@@ -72,7 +77,7 @@ Item {
     Timer {
         interval: 600000
         repeat: true
-        running: true
+        running: root.cityOption !== ""
         onTriggered: root.refresh(false)
     }
 
@@ -81,11 +86,11 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    root.meteo = JSON.parse(text.trim())
+                    root.meteoLocal = JSON.parse(text.trim())
                 } catch (e) {
-                    root.meteo = { ok: false, error: "réponse illisible" }
+                    root.meteoLocal = { ok: false, error: "réponse illisible" }
                 }
-                root.loaded = true
+                root.loadedLocal = true
             }
         }
     }

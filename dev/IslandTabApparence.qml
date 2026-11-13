@@ -11,8 +11,20 @@ import "."
 Item {
     id: root
 
+    property bool themesExpanded: false
+    readonly property var tousThemes: (Theme.paletteNoms && Theme.paletteNoms.length > 0)
+        ? Theme.paletteNoms : ["dynamic", "catppuccin"]
+    readonly property var themesAffiches: themesExpanded
+        ? tousThemes : tousThemes.slice(0, 6)
+
     Process {
         id: cfgProc
+    }
+
+    Process {
+        id: themesScanProc
+        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        running: true
     }
 
     function runStyle(key, val) {
@@ -21,13 +33,24 @@ Item {
     }
 
     function applyPreset(name) {
-        cfgProc.command = ["python3", Quickshell.shellPath("core/theme_manager.py"), "preset", String(name)]
-        cfgProc.running = true
+        const nom = String(name)
+        Theme.activeTheme = nom
+        Quickshell.execDetached(["python3", Quickshell.shellPath("core/theme_manager.py"), nom])
     }
 
-    ColumnLayout {
+    Flickable {
+        id: flick
         anchors.fill: parent
-        spacing: 10
+        clip: true
+        contentWidth: width
+        contentHeight: mainCol.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+
+        ColumnLayout {
+            id: mainCol
+            width: flick.width
+            height: Math.max(flick.height, implicitHeight)
+            spacing: 10
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -63,33 +86,36 @@ Item {
             color: Qt.alpha(Theme.fg, 0.65)
         }
 
-        RowLayout {
+        Flow {
             Layout.fillWidth: true
             spacing: 6
 
             Repeater {
-                model: [
-                    { id: "catppuccin", label: "Catppuccin" },
-                    { id: "tokyonight", label: "TokyoNight" },
-                    { id: "gruvbox", label: "Gruvbox" },
-                    { id: "nord", label: "Nord" },
-                    { id: "dracula", label: "Dracula" }
-                ]
+                model: root.themesAffiches
                 delegate: Rectangle {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 28
+                    required property string modelData
+                    readonly property bool active: Theme.activeTheme === modelData
+                    readonly property string libelle: String(Theme.paletteEtiquettes[modelData]
+                                                              || modelData.replace(/^kde-/, ""))
+                    width: Math.max(82, Math.floor((mainCol.width - 12) / 3))
+                    height: 28
                     radius: 8
-                    color: preMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.4)
+                    color: active ? Qt.alpha(Theme.accent, 0.28)
+                         : (preMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.65) : Qt.alpha(Theme.surfaceVariant, 0.4))
                     border.width: 1
-                    border.color: Qt.alpha(Theme.fg, 0.1)
+                    border.color: active ? Theme.accent : Qt.alpha(Theme.fg, 0.1)
 
                     Text {
                         anchors.centerIn: parent
-                        text: parent.modelData.label
+                        width: parent.width - 10
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        text: parent.libelle
+                        font.capitalization: Font.Capitalize
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs
-                        color: Theme.fg
+                        font.weight: parent.active ? Font.Bold : Font.Normal
+                        color: parent.active ? Theme.accent : Theme.fg
                     }
 
                     MouseArea {
@@ -97,9 +123,37 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.applyPreset(parent.modelData.id)
+                        onClicked: root.applyPreset(parent.modelData)
                     }
                 }
+            }
+        }
+
+        Rectangle {
+            visible: root.tousThemes.length > 6
+            Layout.fillWidth: true
+            Layout.preferredHeight: 24
+            radius: 6
+            color: moreMa.containsMouse ? Qt.alpha(Theme.accent, 0.16) : Qt.alpha(Theme.surfaceVariant, 0.25)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            Text {
+                anchors.centerIn: parent
+                text: root.themesExpanded
+                    ? "▴ Réduire les thèmes"
+                    : "▾ Afficher tous les thèmes (" + root.tousThemes.length + ")"
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+                color: Qt.alpha(Theme.fg, 0.8)
+            }
+
+            MouseArea {
+                id: moreMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.themesExpanded = !root.themesExpanded
             }
         }
 
@@ -319,6 +373,7 @@ Item {
                     Theme.configPanelVisible = true
                 }
             }
+        }
         }
     }
 }

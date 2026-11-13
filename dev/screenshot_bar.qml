@@ -66,23 +66,17 @@ Item {
     implicitWidth: barWidth
     implicitHeight: pill.height
 
-    Rectangle {
+    Item {
         id: pill
         width: root.barWidth
         height: stack.implicitHeight + root.pad * 2
-        radius: 22
-        color: root.surfaceColor
-        border.color: Qt.alpha(Theme.accent, 0.22)
-        border.width: 1
 
-        // Verre dépoli autonome, comme le panneau et les îlots de la barre :
-        // l'opacité suit `shell_opacity` (surfaceColor) et le flou suit
-        // `shell_flou_interne`. Sans lui, la pastille gardait 0,88 en dur et ne
-        // réagissait à aucun des deux réglages.
-        FlouFond {
+        SurfaceFloutee {
             anchors.fill: parent
-            rayon: parent.radius
-            intensite: Theme.shellFlouInterne
+            rayon: 22
+            teinte: root.surfaceColor
+            bordureCouleur: Qt.alpha(Theme.accent, 0.22)
+            bordureLargeur: 1
         }
 
         Column {

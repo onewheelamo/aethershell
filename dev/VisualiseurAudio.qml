@@ -285,7 +285,7 @@ Singleton {
     // s'arrête) — seuls un flux nouveau ou un changement d'état valent réveil.
     Process {
         id: surveille
-        running: true
+        running: racine.actif
         command: ["pactl", "subscribe"]
         stdout: SplitParser {
             onRead: ligne => {

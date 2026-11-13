@@ -32,11 +32,20 @@ Item {
 
     Component.onCompleted: root.rafraichir()
 
+    // Veille événementielle sur la base cliphist (P2) : remplace le sondage 15 s.
     Timer {
-        interval: 15000
-        running: true
-        repeat: true
+        id: clipDebounce
+        interval: 150
+        repeat: false
         onTriggered: root.rafraichir()
+    }
+
+    FileView {
+        path: (Quickshell.env("XDG_CACHE_HOME") || ((Quickshell.env("HOME") || "") + "/.cache")) + "/cliphist/db"
+        watchChanges: true
+        preload: false
+        printErrors: false
+        onFileChanged: clipDebounce.restart()
     }
 
     Process {

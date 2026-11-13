@@ -466,7 +466,9 @@ rotate_snapshots() {
     mapfile -t old_snaps < <(find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "latest" -printf "%T@ %p\n" 2>/dev/null | sort -nr | tail -n +$((HQ_RETENTION + 1)) | awk '{print $2}')
     for s in "${old_snaps[@]}"; do
         if [ -n "$s" ] && [ -d "$s" ]; then
-            rm -rf "$s"
+            case "$s" in
+                "$SNAPSHOT_DIR/"*) rm -rf -- "$s" ;;
+            esac
         fi
     done
 }

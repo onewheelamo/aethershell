@@ -88,27 +88,14 @@ Rectangle {
         searchInput.forceActiveFocus()
     }
 
-    // Verre dépoli autonome : inactif tant que Theme.shellFlouInterne vaut 0.
-    FlouFond {
+    // Surface floutée unifiée (FlouFond → Theme.surfaceBg)
+    SurfaceFloutee {
         id: fondFlou
         anchors.fill: parent
         rayon: root.radius
-        intensite: Theme.shellFlouInterne
-    }
-
-    Connections {
-        target: Theme
-        function onConfigPanelVisibleChanged() {
-            if (Theme.configPanelVisible) fondFlou.rafraichir()
-        }
-    }
-
-    // Teinte par-dessus le verre : c'est elle qui donne sa couleur à la surface.
-    // Ordre voulu : fond d'écran flouté (FlouFond) → teinte du thème → contenu.
-    Rectangle {
-        anchors.fill: parent
-        radius: root.radius
-        color: Theme.surfaceBg
+        teinte: Theme.surfaceBg
+        bordureLargeur: 0
+        actif: Theme.configPanelVisible
     }
 
     // Thème du greeter sélectionné dans l'onglet Connexion. Porté ici parce que

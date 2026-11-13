@@ -5,6 +5,21 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.2] — 2026-11-13
+
+### Ajouté
+
+- **Bluetooth & thèmes dynamiques dans l'Îlot dynamique** ([`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml)) : activation/désactivation Bluetooth et grille des périphériques appairés dans *Système & Réseau* (`core/bluetooth_service.py`) ; synchronisation des schémas de couleurs (`~/.local/share/color-schemes` et `/usr/share/color-schemes` via `themes_scan.py --sync`) avec liste dynamique à 6 thèmes + tiroir dépliable et mode `Matugen` (`dynamic`) dans *Apparence*.
+- **Surface unifiée & démon de métriques** ([`dev/SurfaceFloutee.qml`](dev/SurfaceFloutee.qml), [`dev/core/metriques_daemon.py`](dev/core/metriques_daemon.py)) : composant unique de rendu de surface pour l'ensemble du shell (panneau de config, îlot, popups, barre, tiroir de notifications, barre de capture, sélecteurs) et démon persistant `metriques_daemon.py` (`SplitParser` dans `Theme.qml`) supprimant les lancements Python en boucle toutes les 2–3 s sur les widgets système/réseau.
+
+### Modifié
+
+- **Rendu verre & passage en flux d'événements** ([`dev/SurfaceFloutee.qml`](dev/SurfaceFloutee.qml), [`dev/OngletApparence.qml`](dev/OngletApparence.qml), [`dev/VolumeApplet.qml`](dev/VolumeApplet.qml), [`dev/widgets/presse_papiers.qml`](dev/widgets/presse_papiers.qml), [`dev/widgets/usb.qml`](dev/widgets/usb.qml), [`dev/MinimiseApplet.qml`](dev/MinimiseApplet.qml), [`dev/core/launcher_service.py`](dev/core/launcher_service.py)) : suppression du flou interne (`FlouFond`) pour laisser uniquement le flou compositeur Hyprland (`shell-blur`, montrant les fenêtres derrière les surfaces), remplacement des minuteurs de sondage par `pactl subscribe`, `FileView` sur `cliphist/db`, `udevadm monitor` et `Hyprland.rawEvent`, déduplication des sondes météo dans `Theme.qml`, et cache disque 300 s (`fichiers_index.txt`) dans `launcher_service.py`.
+
+### Corrigé
+
+- **Correctifs `bug_report.md` & ergonomie** ([`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/core/bar_applets.py`](dev/core/bar_applets.py), [`dev/deploy.sh`](dev/deploy.sh), [`dev/NotifsApplet.qml`](dev/NotifsApplet.qml)) : lecture du contrat `compact.barres` / `detail` dans *Système & Réseau* (CPU/RAM/GPU/disques) avec sélection par défaut de `/home`, persistance des options d'applets même désactivés (`options_inactives`, débloquant le choix des montages disques), correction de l'appel `theme_manager.py` et surbrillance exclusive du thème actif, `watchChanges: root.ouvert` sur `NotifsApplet.qml`, garde de chemin `$SNAPSHOT_DIR/` sur `rotate_snapshots()` dans `deploy.sh`, et retrait des propriétés mortes / replis en dur (`Theme.qml`, `FlouFond.qml`).
+
 ## [0.3.1] — 2026-11-13
 
 ### Ajouté

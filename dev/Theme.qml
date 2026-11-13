@@ -215,7 +215,6 @@ QtObject {
     // Pre-computed translucent surfaces matching shellOpacity (surfaces Quickshell)
     readonly property color surfaceBg: Qt.alpha(surface, shellOpacity)
     readonly property color surfaceVariantBg: Qt.alpha(surfaceVariant, Math.min(1.0, shellOpacity + 0.08))
-    readonly property color panelBg: Qt.alpha(bg, shellOpacity)
     // Verre dépoli autonome (FlouFond.qml) : 0 = éteint. Au-dessus de ~0,7
     // d'opacité il ne sert à rien — Hyprland floute déjà derrière la couche et
     // laisser voir les fenêtres est voulu. En dessous, il rend le texte lisible
@@ -511,7 +510,7 @@ QtObject {
         if (typeof data.selecteur_radius === "number") root.selecteurRadius = data.selecteur_radius
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
-        if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = Math.max(0, Math.min(1, data.shell_flou_interne))
+        if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = 0.0
         if (typeof data.shell_flou_taille === "number") root.shellFlouTaille = Math.max(1, Math.min(96, data.shell_flou_taille))
         if (typeof data.shell_flou_passes === "number") root.shellFlouPasses = Math.max(1, Math.min(8, data.shell_flou_passes))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
@@ -683,13 +682,6 @@ QtObject {
     property var barAppletsActifs: ({})
     property int barAppletsRev: 0
 
-    readonly property var barIles: [
-        "haut:debut", "haut:milieu", "haut:fin",
-        "bas:debut", "bas:milieu", "bas:fin",
-        "cote-gauche:debut", "cote-gauche:milieu", "cote-gauche:fin",
-        "cote-droite:debut", "cote-droite:milieu", "cote-droite:fin"
-    ]
-
     readonly property var barAnciens: ({
         "gauche": "haut:debut", "centre": "haut:milieu", "droite": "haut:fin",
         "haut-gauche": "haut:debut", "haut-centre": "haut:milieu", "haut-droite": "haut:fin",
@@ -837,6 +829,90 @@ QtObject {
         repeat: true
         running: root.shellFlouInterne > 0.01
         onTriggered: root.rafraichirWallpaper()
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Météo partagée (weather_service.py — évite 3 sondes concurrentes)
+    // ────────────────────────────────────────────────────────────────────────
+    property var meteoData: ({})
+    property string meteoStatut: ""
+    property bool meteoLoaded: false
+    property bool meteoActif: false
+
+    property Process meteoProc: Process {
+        command: ["python3", Quickshell.shellPath("core/weather_service.py")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.meteoLoaded = true
+                try {
+                    const d = JSON.parse(String(text).trim())
+                    if (d && d.ok) {
+                        root.meteoData = d
+                        root.meteoStatut = ""
+                    } else {
+                        root.meteoData = ({})
+                        root.meteoStatut = String((d && d.error) || "météo indisponible")
+                    }
+                } catch (e) {
+                    root.meteoData = ({})
+                    root.meteoStatut = "réponse météo illisible"
+                }
+            }
+        }
+    }
+
+    function rafraichirMeteo(force) {
+        meteoActif = true
+        if (meteoProc.running) return
+        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
+        if (force) args.push("--force")
+        meteoProc.command = args
+        meteoProc.running = true
+    }
+
+    property Timer meteoTimer: Timer {
+        interval: 600000
+        repeat: true
+        running: root.meteoActif
+        onTriggered: root.rafraichirMeteo(false)
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Démon de métriques partagé (P1 : supprime les lancements python3 2s/3s)
+    // ────────────────────────────────────────────────────────────────────────
+    property var systemeData: ({})
+    property bool systemeCharge: false
+    property var reseauData: ({})
+    property bool reseauCharge: false
+    property bool metriquesActif: false
+
+    property Process metriquesDaemonProc: Process {
+        running: root.metriquesActif
+        command: ["python3", Quickshell.shellPath("core/metriques_daemon.py"), "2"]
+        stdout: SplitParser {
+            onRead: line => {
+                const s = String(line || "").trim()
+                if (!s) return
+                try {
+                    const d = JSON.parse(s)
+                    if (d && d.systeme) {
+                        root.systemeData = d.systeme
+                        root.systemeCharge = true
+                    }
+                    if (d && d.reseau) {
+                        root.reseauData = d.reseau
+                        root.reseauCharge = true
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    property Timer metriquesGardeTimer: Timer {
+        interval: 10000
+        repeat: true
+        running: root.metriquesActif && !root.metriquesDaemonProc.running
+        onTriggered: root.metriquesDaemonProc.running = true
     }
 
     // ────────────────────────────────────────────────────────────────────────

@@ -56,36 +56,18 @@ Item {
                 : ((root.cote === "cote-gauche" || root.cote === "cote-droite") ? 0 : -8 * (1.0 - root.animProg))
         }
 
-        Rectangle {
+        SurfaceFloutee {
             anchors.fill: parent
-            radius: root.rayon
-            color: "transparent"
-            clip: true
-
-            FlouFond {
-                anchors.fill: parent
-                rayon: root.rayon
-                intensite: Theme.shellFlouInterne
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: root.rayon
-                color: Theme.surfaceBg
-            }
+            rayon: root.rayon
+            teinte: Theme.surfaceBg
+            bordureCouleur: root.bordureCouleur
+            bordureLargeur: root.bordureLargeur
+            actif: root.actif
         }
 
         Item {
             id: contentSlot
             anchors.fill: parent
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            radius: root.rayon
-            color: "transparent"
-            border.color: root.bordureCouleur
-            border.width: root.bordureLargeur
         }
     }
 }

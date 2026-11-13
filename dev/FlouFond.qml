@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Window
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -46,23 +47,64 @@ Item {
     // avec repli sur le dossier de fonds si awww ne répond pas.
     readonly property string fond: Theme.wallpaperCourant || fondDeRepli()
 
-    // Position de la fenêtre sur l'écran (0,0 pour la barre) et taille de
-    // l'écran : c'est ce qui recale le fond redessiné sur le vrai.
-    property point origineEcran: Qt.point(0, 0)
+    // Position de la fenêtre sur l'écran (calculée automatiquement pour
+    // PanelWindow et PopupWindow, avec possibilité de surcharge via
+    // `origineEcran`) et taille de l'écran : recale le fond sur le vrai.
+    property point origineEcran: Qt.point(-1, -1)
     readonly property size ecran: Qt.size(racine.Screen.width, racine.Screen.height)
+    readonly property point origineEcranAuto: {
+        if (origineEcran.x >= 0 && origineEcran.y >= 0)
+            return origineEcran
+        const win = racine.Window.window
+        if (!win) return Qt.point(0, 0)
+        // PopupWindow : positionné par anchor.rect relatif à anchor.window
+        if (win.anchor && win.anchor.rect !== undefined) {
+            let ax = win.anchor.rect.x || 0
+            let ay = win.anchor.rect.y || 0
+            const aw = win.anchor.window
+            if (aw && aw.anchors) {
+                if (aw.anchors.bottom && !aw.anchors.top)
+                    ay += racine.ecran.height - aw.height - (aw.margins ? aw.margins.bottom : 0)
+                else if (aw.anchors.top)
+                    ay += (aw.margins ? aw.margins.top : 0)
+                if (aw.anchors.right && !aw.anchors.left)
+                    ax += racine.ecran.width - aw.width - (aw.margins ? aw.margins.right : 0)
+                else if (aw.anchors.left)
+                    ax += (aw.margins ? aw.margins.left : 0)
+            }
+            return Qt.point(ax, ay)
+        }
+        // PanelWindow : déduit des ancres et marges de la couche
+        if (win.anchors) {
+            let px = 0
+            let py = 0
+            if (win.anchors.bottom && !win.anchors.top)
+                py = racine.ecran.height - win.height - (win.margins ? win.margins.bottom : 0)
+            else if (win.anchors.top && !win.anchors.bottom)
+                py = (win.margins ? win.margins.top : 0)
+            if (win.anchors.right && !win.anchors.left)
+                px = racine.ecran.width - win.width - (win.margins ? win.margins.right : 0)
+            else if (win.anchors.left && !win.anchors.right)
+                px = (win.margins ? win.margins.left : 0)
+            return Qt.point(px, py)
+        }
+        return Qt.point(0, 0)
+    }
     readonly property point positionEcran: {
+        // Dépendances explicites pour recalculer lors des animations/déplacements
+        const _dep = racine.x + racine.y + racine.width + racine.height + (racine.visible ? 1 : 0)
         const p = racine.mapToItem(null, 0, 0)
-        return Qt.point(Math.round(p.x + origineEcran.x), Math.round(p.y + origineEcran.y))
+        const orig = racine.origineEcranAuto
+        return Qt.point(Math.round(p.x + orig.x), Math.round(p.y + orig.y))
     }
 
     readonly property bool actif: intensite > 0.01 && fond !== ""
     visible: actif
     opacity: intensite
 
-    // Repli : premier fichier image du dossier de fonds du thème.
+    // Repli : aucun fichier codé en dur (neutralité inter-machines).
     function fondDeRepli() {
-        const dir = Theme.wallpaperDir || ""
-        return dir !== "" ? dir.replace(/\/?$/, "/") + "wallhaven-zy2doj.png" : ""
+        return ""
     }
 
     // ── Fond recadré à l'écran, quand il existe ───────────────────────────────
@@ -95,7 +137,7 @@ Item {
     Image {
         id: imageEcran
         anchors.fill: parent
-        source: (racine.cheminEcran !== "" && !racine.ecranIndisponible)
+        source: (racine.actif && racine.cheminEcran !== "" && !racine.ecranIndisponible)
                 ? "file://" + racine.cheminEcran : ""
         // La fenêtre du fond à montrer se choisit par `sourceClipRect`, pas en
         // déplaçant l'image : MultiEffect aligne la texture de sa source sur son
@@ -136,7 +178,7 @@ Item {
     Image {
         id: image
         anchors.fill: parent
-        source: racine.fond !== "" ? "file://" + racine.fond : ""
+        source: (racine.actif && !racine.ecranPret && racine.fond !== "") ? "file://" + racine.fond : ""
         sourceSize: Qt.size(racine.ecran.width, racine.ecran.height)
         readonly property point coin: Qt.point(
             Math.max(0, Math.min(racine.ecran.width - width, racine.positionEcran.x)),

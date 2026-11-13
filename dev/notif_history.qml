@@ -60,10 +60,12 @@ Item {
     }
 
     // ── lecture de l'historique ─────────────────────────────────────────────
+    onVisibleChanged: if (visible) historyFile.reload()
+
     FileView {
         id: historyFile
         path: root.cacheDir + "/quickshell/notifications-history.jsonl"
-        watchChanges: true
+        watchChanges: root.visible
         onFileChanged: reload()
         onTextChanged: root.parseHistory(text())
     }
@@ -271,7 +273,7 @@ Item {
             }
         }
 
-        Rectangle {
+        Item {
             id: drawer
             width: root.drawerWidth
             height: parent.height - 28
@@ -280,23 +282,16 @@ Item {
             // 14 px du bord une fois posé ; à reveal = 0 le tiroir est entièrement
             // sorti à droite (marge négative de sa propre largeur).
             anchors.rightMargin: 14 - (1 - historyWindow.reveal) * (width + 20)
-            radius: Theme.globalRadius
-            color: root.surfaceColor
 
-            // Même verre que le panneau de configuration : opacité par
-            // `surfaceColor` (qui suit `shell_opacity`), flou par
-            // `shell_flou_interne`. Le tiroir gardait 0,92 en dur, sans flou.
-            // `FlouFond` ne redessine que le **fond d'écran** : il ne montre
-            // jamais les fenêtres. Le flou derrière le tiroir — celui qui compte
-            // quand une fenêtre est sous lui — vient du compositeur, par
-            // `layer_rule` sur le namespace `shell-notif-history`
-            // (`SHELL_BLUR_NAMESPACES`) ; le verre interne reste pour le cas
-            // « bureau nu », à l'intensité du réglage, comme le panneau.
-            FlouFond {
+            // Surface floutée unifiée (FlouFond → root.surfaceColor → bordure)
+            SurfaceFloutee {
                 id: verre
                 anchors.fill: parent
-                rayon: parent.radius
-                intensite: Theme.shellFlouInterne
+                rayon: Theme.globalRadius
+                teinte: root.surfaceColor
+                bordureCouleur: Qt.alpha(Theme.accent, 0.22)
+                bordureLargeur: 1
+                actif: root.visible
             }
 
             // Sans cette surface, un clic sur une carte (hors titre, croix ou
@@ -306,8 +301,6 @@ Item {
                 anchors.fill: parent
                 acceptedButtons: Qt.AllButtons
             }
-            border.color: Qt.alpha(Theme.accent, 0.22)
-            border.width: 1
 
             Column {
                 anchors.fill: parent

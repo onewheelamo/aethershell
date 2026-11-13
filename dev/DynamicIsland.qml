@@ -208,32 +208,16 @@ Item {
         }
     }
 
-    // Fond en pilule élégante avec bordure subtile et flou d'arrière-plan
-    Rectangle {
+    // Fond en pilule élégante avec surface floutée unifiée (identique à config_panel / PanneauSurface)
+    SurfaceFloutee {
         id: bgRect
         anchors.fill: parent
-        radius: root.panelOpen ? Math.max(Theme.pillRadius, 18) : Theme.pillRadius
-        Behavior on radius { NumberAnimation { duration: Math.max(80, Theme.panelAnimDuration - 20); easing.type: Easing.OutCubic } }
-        color: "transparent"
-
-        FlouFond {
-            anchors.fill: parent
-            rayon: bgRect.radius
-            intensite: Theme.shellFlouInterne
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            radius: bgRect.radius
-            color: root.panelOpen ? Theme.surfaceBg : Theme.barBg
-            Behavior on color { ColorAnimation { duration: 180 } }
-        }
-
-        border.color: (root.isCalendarOpen || root.panelOpen) ? Theme.accentMuted : Theme.accent
-        border.width: Theme.barBorder ? 1 : 0
-
-        Behavior on color { ColorAnimation { duration: 180 } }
-        Behavior on border.color { ColorAnimation { duration: 180 } }
+        rayon: root.panelOpen ? Math.max(Theme.pillRadius, 18) : Theme.pillRadius
+        Behavior on rayon { NumberAnimation { duration: Math.max(80, Theme.panelAnimDuration - 20); easing.type: Easing.OutCubic } }
+        teinte: root.panelOpen ? Theme.surfaceBg : Theme.barBg
+        bordureCouleur: (root.isCalendarOpen || root.panelOpen) ? Theme.accentMuted : Theme.accent
+        bordureLargeur: Theme.barBorder ? 1 : 0
+        actif: root.panelOpen
     }
 
     // ──────────────────────────────────────────────────────────────────────

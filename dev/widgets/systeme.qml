@@ -25,8 +25,8 @@ Item {
         return 1.0
     }
 
-    property var donnees: ({})
-    property bool charge: false
+    readonly property var donnees: Theme.systemeData
+    readonly property bool charge: Theme.systemeCharge
 
     readonly property var barres: {
         if (donnees && donnees.compact && donnees.compact.barres)
@@ -110,34 +110,10 @@ Item {
     }
 
     function rafraichir(force) {
-        proc.command = force
-            ? ["python3", Quickshell.shellPath("core/systeme_applet.py"), "--force"]
-            : ["python3", Quickshell.shellPath("core/systeme_applet.py")]
-        proc.running = true
+        Theme.metriquesActif = true
     }
 
-    Component.onCompleted: rafraichir(false)
-
-    Timer {
-        interval: 3000
-        running: true
-        repeat: true
-        onTriggered: root.rafraichir(false)
-    }
-
-    Process {
-        id: proc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    root.donnees = JSON.parse(text.trim())
-                } catch (e) {
-                    root.donnees = ({})
-                }
-                root.charge = true
-            }
-        }
-    }
+    Component.onCompleted: Theme.metriquesActif = true
 
     implicitWidth: colonne.implicitWidth
     implicitHeight: colonne.implicitHeight

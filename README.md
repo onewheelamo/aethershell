@@ -4,7 +4,7 @@
 
 Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une barre en îlots, de panneaux modulaires, de widgets de bureau et d'outils du quotidien, écrit en QML/Qt et animé par [Quickshell](https://quickshell.org).
 
-> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.2.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
+> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.3.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
 
 ---
 
@@ -14,7 +14,8 @@ Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuel
 
 * **Barre principale & capsule modulaire** : deux modes au choix, configurables à chaud :
   * *Classique* : disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune avec transparence ajustable des séparations et panneaux morphés (`PanneauSurface`) respectant le verre et les bordures de la barre.
-  * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive à 3 états — compacte au repos (heure, mini-lecteur, OSD intégré), étendue au survol (applets, contrôles MPRIS, date/calendrier) et déployée au clic en **panneau morphé à 5 onglets** (*Contrôles*, *Média & Son*, *Alertes & Tâches*, *Système & Réseau*, *Apparence*).
+  * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive à 3 états — compacte au repos (heure, mini-lecteur, OSD intégré), étendue au survol (applets, contrôles MPRIS, date/calendrier) et déployée au clic en **panneau morphé à 5 onglets** (*Contrôles*, *Média & Son*, *Alertes & Tâches*, *Système & Réseau* avec Wi-Fi/Bluetooth/télémétrie, *Apparence* avec liste dynamique de schémas de couleurs).
+* **Surfaces unifiées & économie CPU** : rendu verre unifié via [`SurfaceFloutee.qml`](dev/SurfaceFloutee.qml) reposant sur le flou compositeur Hyprland (`shell-blur`), démon persistant [`metriques_daemon.py`](dev/core/metriques_daemon.py) et veilles événementielles (`pactl subscribe`, `udevadm monitor`, `FileView`, `Hyprland.rawEvent`).
 * **Barres annexes optionnelles** : support d'une barre basse et de barres latérales verticales suivant la même logique de composants.
 * **Panneau de configuration unifié** : accessible en un raccourci (`SUPER + H`) ou par clic milieu sur n'importe quel applet. Il permet d'ajuster l'apparence (palettes, flous, rayons, opacité), les applications préférées, les écrans, la minuterie de veille (`hypridle`), le démarrage automatique et les secrets locaux, avec application à chaud sans redémarrer la session.
 * **Widgets de bureau ancrables** : des blocs déplaçables (tâches, surveillance système, météo, musique, horloge, agent...) configurables et filtrables par bureau virtuel (clic milieu pour restreindre un widget à un ou plusieurs workspaces).

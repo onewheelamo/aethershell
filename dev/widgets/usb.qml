@@ -38,13 +38,24 @@ Item {
 
     Component.onCompleted: rafraichir()
 
-    // Le noyau ne prévient pas quand on branche une clé : demi-minute suffit à
-    // ce qu'un disque apparaisse sans scruter le disque en continu.
+    // Veille noyau udev (P2) : remplace le sondage 30 s.
     Timer {
-        interval: 30000
-        running: true
-        repeat: true
+        id: usbDebounce
+        interval: 400
+        repeat: false
         onTriggered: root.rafraichir()
+    }
+
+    Process {
+        id: usbMonitor
+        command: ["udevadm", "monitor", "--udev", "--subsystem-match=block", "--subsystem-match=usb"]
+        running: true
+        stdout: SplitParser {
+            onRead: line => {
+                if (String(line).indexOf("UDEV") >= 0)
+                    usbDebounce.restart()
+            }
+        }
     }
 
     Process {

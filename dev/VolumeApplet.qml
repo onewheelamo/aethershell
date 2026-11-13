@@ -70,13 +70,21 @@ Item {
         }
     }
 
-    // Timer au repos : 10 s suffisent en filet de sécurité si un programme
-    // change le volume sans passer par les touches matérielles ou la molette
+    // Veille événementielle PulseAudio/PipeWire (P2) : remplace le sondage 10 s.
     Timer {
-        interval: 10000
-        running: true
-        repeat: true
+        id: volumeEventDebounce
+        interval: 80
+        repeat: false
         onTriggered: root.lire()
+    }
+
+    Process {
+        id: volumeSubscribe
+        command: ["sh", "-c", "LC_ALL=C pactl subscribe 2>/dev/null | grep --line-buffered -E \"Event '(change|new|remove)' on (sink|source|server)\""]
+        running: true
+        stdout: SplitParser {
+            onRead: _ => volumeEventDebounce.restart()
+        }
     }
 
     // « Volume: 0.50 » ou « Volume: 0.50 [MUTED] ».

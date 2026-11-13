@@ -20,44 +20,15 @@ Item {
         return (v >= 60 && v <= 160) ? v / 100 : 1.0
     }
 
-    property var meteo: ({})
-    property string statut: ""
+    readonly property var meteo: Theme.meteoData
+    readonly property string statut: Theme.meteoStatut
 
     function rafraichir() {
-        if (!proc.running) proc.running = true
+        Theme.rafraichirMeteo(false)
     }
 
     onOuvertChanged: if (ouvert) rafraichir()
     Component.onCompleted: rafraichir()
-
-    Timer {
-        interval: 600000
-        running: true
-        repeat: true
-        onTriggered: root.rafraichir()
-    }
-
-    Process {
-        id: proc
-        command: ["python3", Quickshell.shellPath("core/weather_service.py")]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(String(text).trim())
-                    if (d && d.ok) {
-                        root.meteo = d
-                        root.statut = ""
-                    } else {
-                        root.meteo = ({})
-                        root.statut = String((d && d.error) || "météo indisponible")
-                    }
-                } catch (e) {
-                    root.meteo = ({})
-                    root.statut = "réponse illisible"
-                }
-            }
-        }
-    }
 
     readonly property string glyphe: {
         const i = String(root.meteo.icon || "").toLowerCase()
