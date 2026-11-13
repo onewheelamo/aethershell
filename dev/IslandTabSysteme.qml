@@ -191,6 +191,7 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 10
 
             Text {
                 Layout.fillWidth: true
@@ -199,6 +200,46 @@ Item {
                 font.pixelSize: Theme.textMd
                 font.weight: Font.Bold
                 color: Theme.fg
+            }
+
+            Rectangle {
+                Layout.preferredHeight: 24
+                Layout.preferredWidth: cfgBtnRow.implicitWidth + 16
+                radius: 8
+                color: cfgBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.24) : Qt.alpha(Theme.surfaceVariant, 0.45)
+                border.width: 1
+                border.color: cfgBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.5) : Qt.alpha(Theme.fg, 0.12)
+
+                RowLayout {
+                    id: cfgBtnRow
+                    anchors.centerIn: parent
+                    spacing: 5
+
+                    Icon {
+                        glyph: "cog"
+                        size: 12
+                        color: cfgBtnMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
+                    }
+
+                    Text {
+                        text: "Configuration"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        font.weight: Font.Medium
+                        color: cfgBtnMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
+                    }
+                }
+
+                MouseArea {
+                    id: cfgBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Theme.islandPanelOpen = false
+                        Theme.configPanelVisible = true
+                    }
+                }
             }
 
             Text {
