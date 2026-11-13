@@ -380,22 +380,26 @@ Item {
 
                     Repeater {
                         model: [
-                            { glyph: "lock", tip: "Verrouiller", cmd: ["loginctl", "lock-session"] },
-                            { glyph: "camera", tip: "Capture", cmd: ["__screenshot__"] },
-                            { glyph: "power", tip: "Veille", cmd: ["systemctl", "suspend"] }
+                            { glyph: "lock", tip: "Verrouiller", cmd: ["loginctl", "lock-session"], danger: false },
+                            { glyph: "weather-night", tip: "Veille", cmd: ["systemctl", "suspend"], danger: false },
+                            { glyph: "power", tip: "Éteindre", cmd: ["systemctl", "poweroff"], danger: true }
                         ]
                         delegate: Rectangle {
                             required property var modelData
                             Layout.preferredWidth: 32
                             Layout.preferredHeight: 32
                             radius: 8
-                            color: sessMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
+                            color: sessMa.containsMouse
+                                ? Qt.alpha(modelData.danger ? Theme.error : Theme.accent, 0.25)
+                                : Qt.alpha(Theme.fg, 0.08)
 
                             Icon {
                                 anchors.centerIn: parent
                                 glyph: parent.modelData.glyph
                                 size: Theme.iconSm
-                                color: sessMa.containsMouse ? Theme.accent : Theme.fg
+                                color: sessMa.containsMouse
+                                    ? (parent.modelData.danger ? Theme.error : Theme.accent)
+                                    : Theme.fg
                             }
 
                             MouseArea {
@@ -405,12 +409,8 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     Theme.islandPanelOpen = false
-                                    if (parent.modelData.cmd[0] === "__screenshot__") {
-                                        Theme.screenshotPickerVisible = true
-                                    } else {
-                                        actionProc.command = parent.modelData.cmd
-                                        actionProc.running = true
-                                    }
+                                    actionProc.command = parent.modelData.cmd
+                                    actionProc.running = true
                                 }
                             }
                         }
