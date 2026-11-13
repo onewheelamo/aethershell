@@ -12,7 +12,9 @@ A desktop environment for [Hyprland](https://hyprland.org), featuring an island-
 
 Rather than a simple bar theme, AetherShell brings together the visual and utility components of the graphical session:
 
-* **Main Bar & Modular Capsule**: a three-island layout (left, center, right) enclosed in a shared capsule. The gaps between islands can be made transparent to reveal the clean wallpaper while preserving a unified container.
+* **Main Bar & Modular Capsule**: two switchable modes, configurable on the fly:
+  * *Classic*: a three-island layout (left, center, right) enclosed in a shared capsule with customizable separation transparency.
+  * *Dynamic Island*: a single interactive central pill, compact at rest (time and subtle media controls), expanding automatically with smooth animation during volume/brightness adjustments (integrated OSD) and expanding on hover (applets, full MPRIS playback controls, and calendar).
 * **Optional Secondary Bars**: support for a bottom bar and vertical side bars following the same component architecture.
 * **Unified Configuration Panel**: accessible via a hotkey (`SUPER + H`) or by middle-clicking any applet. Allows tuning appearance (palettes, blurs, corner radii, opacity), favorite applications, displays, idle timeout (`hypridle`), autostart, and local secrets, with live hot-reloading without restarting the session.
 * **Dockable Desktop Widgets**: draggable blocks (tasks, system monitor, weather, music, clock, agent...) configurable and filterable by virtual workspace (middle-click to restrict a widget to one or more workspaces).

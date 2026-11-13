@@ -12,7 +12,9 @@ Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une
 
 Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuels et utilitaires de la session graphique :
 
-* **Barre principale & capsule modulaire** : une disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune. Les séparations entre les îlots peuvent être rendues transparentes pour laisser transparaître le fond d'écran net tout en maintenant un conteneur unifié.
+* **Barre principale & capsule modulaire** : deux modes au choix, configurables à chaud :
+  * *Classique* : disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune avec transparence ajustable des séparations.
+  * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive unique, compacte au repos (heure et mini-lecteur discret), s'élargissant automatiquement avec une animation fluide lors des réglages de volume/luminosité (OSD intégré) et s'étendant au survol (applets, contrôles MPRIS complets et calendrier).
 * **Barres annexes optionnelles** : support d'une barre basse et de barres latérales verticales suivant la même logique de composants.
 * **Panneau de configuration unifié** : accessible en un raccourci (`SUPER + H`) ou par clic milieu sur n'importe quel applet. Il permet d'ajuster l'apparence (palettes, flous, rayons, opacité), les applications préférées, les écrans, la minuterie de veille (`hypridle`), le démarrage automatique et les secrets locaux, avec application à chaud sans redémarrer la session.
 * **Widgets de bureau ancrables** : des blocs déplaçables (tâches, surveillance système, météo, musique, horloge, agent...) configurables et filtrables par bureau virtuel (clic milieu pour restreindre un widget à un ou plusieurs workspaces).
