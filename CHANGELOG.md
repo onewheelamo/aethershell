@@ -18,7 +18,7 @@ montée de mineure peut demander une adaptation des réglages.
 
 ### Corrigé
 
-- **Correctifs `bug_report.md` & ergonomie** ([`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/core/bar_applets.py`](dev/core/bar_applets.py), [`dev/deploy.sh`](dev/deploy.sh), [`dev/NotifsApplet.qml`](dev/NotifsApplet.qml)) : lecture du contrat `compact.barres` / `detail` dans *Système & Réseau* (CPU/RAM/GPU/disques) avec sélection par défaut de `/home`, persistance des options d'applets même désactivés (`options_inactives`, débloquant le choix des montages disques), correction de l'appel `theme_manager.py` et surbrillance exclusive du thème actif, `watchChanges: root.ouvert` sur `NotifsApplet.qml`, garde de chemin `$SNAPSHOT_DIR/` sur `rotate_snapshots()` dans `deploy.sh`, et retrait des propriétés mortes / replis en dur (`Theme.qml`, `FlouFond.qml`).
+- **Fiabilité & ergonomie** ([`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/core/bar_applets.py`](dev/core/bar_applets.py), [`dev/deploy.sh`](dev/deploy.sh), [`dev/NotifsApplet.qml`](dev/NotifsApplet.qml)) : lecture du contrat `compact.barres` / `detail` dans *Système & Réseau* (CPU/RAM/GPU/disques) avec sélection par défaut de `/home`, persistance des options d'applets même désactivés (`options_inactives`, débloquant le choix des montages disques), correction de l'appel `theme_manager.py` et surbrillance exclusive du thème actif, `watchChanges: root.ouvert` sur `NotifsApplet.qml`, garde de chemin `$SNAPSHOT_DIR/` sur `rotate_snapshots()` dans `deploy.sh`, et retrait des propriétés mortes / replis en dur (`Theme.qml`, `FlouFond.qml`).
 
 ## [0.3.1] — 2026-11-13
 
