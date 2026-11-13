@@ -399,6 +399,13 @@ def set_brightness(pct):
 
 def get_wifi_networks(rescan=True):
     rescan_flag = "auto" if rescan else "no"
+    known_out = run_cmd(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"])
+    known_ssids = set()
+    for line in known_out.splitlines():
+        parts = _split_nmcli(line, 1)
+        if len(parts) == 2 and parts[1] == "802-11-wireless":
+            known_ssids.add(_unescape_nmcli(parts[0]))
+
     output = run_cmd(["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "--rescan", rescan_flag])
     by_ssid = {}
 
@@ -425,6 +432,7 @@ def get_wifi_networks(rescan=True):
                 "in_use": in_use or (existing["in_use"] if existing else False),
                 "security": security or "Ouvert",
                 "secured": secured,
+                "known": ssid in known_ssids,
             }
 
     networks = list(by_ssid.values())

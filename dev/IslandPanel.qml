@@ -181,17 +181,6 @@ Item {
                                 : (tabMa.containsMouse ? Qt.alpha(Theme.fg, 0.07) : "transparent")
                             Behavior on color { ColorAnimation { duration: 140 } }
 
-                            // Liseré vertical d'accent à gauche
-                            Rectangle {
-                                visible: parent.active
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 3
-                                height: 20
-                                radius: 1.5
-                                color: Theme.accent
-                            }
-
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12

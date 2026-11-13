@@ -23,10 +23,46 @@ Item {
 
     property var wifiNetworks: []
     property bool scanning: false
+    property string passwordSsid: ""
+    property string pendingConnectSsid: ""
+    property string wifiStatusMsg: ""
+    property bool wifiConnecting: false
     property string homelabLine: ""
 
     readonly property var sysInfo: Theme.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
+
+    function signalIconFor(sig) {
+        let s = Number(sig || 0)
+        if (s >= 80) return "wifi-full"
+        if (s >= 60) return "wifi-high"
+        if (s >= 40) return "wifi-medium"
+        if (s >= 15) return "wifi-low"
+        return "wifi-none"
+    }
+
+    function connectWifi(ssid, pwd) {
+        if (!ssid || wifiConnectProc.running) return
+        root.pendingConnectSsid = ssid
+        root.wifiConnecting = true
+        root.wifiStatusMsg = "Connexion à " + ssid + "…"
+        wifiConnectProc.command = [
+            "python3", Quickshell.shellPath("core/system_service.py"),
+            "wifi_connect", String(ssid), String(pwd || "")
+        ]
+        wifiConnectProc.running = true
+    }
+
+    Connections {
+        target: Theme
+        function onIslandPanelOpenChanged() {
+            if (!Theme.islandPanelOpen) {
+                root.passwordSsid = ""
+                root.wifiStatusMsg = ""
+                Theme.islandNeedsKeyboard = false
+            }
+        }
+    }
 
     function refreshTelemetry() {
         if (!sysStatsProc.running) sysStatsProc.running = true
@@ -111,6 +147,34 @@ Item {
 
     Process {
         id: wifiConnectProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.wifiConnecting = false
+                let ok = false
+                let msg = ""
+                let ssid = root.pendingConnectSsid
+                try {
+                    let d = JSON.parse(text.trim())
+                    ok = Boolean(d.success)
+                    msg = String(d.message || "")
+                    if (d.ssid) ssid = String(d.ssid)
+                } catch (e) {}
+                if (ok) {
+                    root.passwordSsid = ""
+                    Theme.islandNeedsKeyboard = false
+                    root.wifiStatusMsg = ""
+                    wifiPassInput.text = ""
+                    if (wifiScanProc.running) wifiScanProc.running = false
+                    wifiScanProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi", "--no-rescan"]
+                    wifiScanProc.running = true
+                } else {
+                    root.passwordSsid = ssid
+                    Theme.islandNeedsKeyboard = true
+                    wifiPassInput.forceActiveFocus()
+                    root.wifiStatusMsg = msg !== "" ? msg : "Clé requise ou échec de connexion"
+                }
+            }
+        }
     }
 
     Process {
@@ -359,43 +423,196 @@ Item {
                     }
                 }
 
-                RowLayout {
+                GridLayout {
                     visible: root.wifiNetworks.length > 0
                     Layout.fillWidth: true
-                    spacing: 6
+                    columns: 2
+                    columnSpacing: 6
+                    rowSpacing: 6
 
                     Repeater {
                         model: root.wifiNetworks
                         delegate: Rectangle {
                             required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 24
-                            radius: 6
-                            color: modelData.active ? Qt.alpha(Theme.accent, 0.24) : Qt.alpha(Theme.fg, 0.08)
+                            readonly property bool isSelectedForPwd: root.passwordSsid === String(modelData.ssid || "")
+                            readonly property bool isConnected: Boolean(modelData.in_use)
 
-                            Text {
-                                anchors.centerIn: parent
-                                width: parent.width - 8
-                                horizontalAlignment: Text.AlignHCenter
-                                text: String(modelData.ssid || "?")
-                                font.family: Theme.fontUi
-                                font.pixelSize: 10
-                                color: modelData.active ? Theme.accent : Theme.fg
-                                elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 28
+                            radius: 7
+                            color: isConnected
+                                ? Qt.alpha(Theme.accent, 0.24)
+                                : (isSelectedForPwd ? Qt.alpha(Theme.accent, 0.14) : (netChipMa.containsMouse ? Qt.alpha(Theme.fg, 0.13) : Qt.alpha(Theme.fg, 0.07)))
+                            border.width: (isConnected || isSelectedForPwd) ? 1 : 0
+                            border.color: isConnected ? Theme.accent : Theme.accentMuted
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 5
+
+                                Icon {
+                                    glyph: root.signalIconFor(modelData.signal)
+                                    size: 13
+                                    color: isConnected
+                                        ? Theme.accent
+                                        : (Number(modelData.signal || 0) >= 60 ? Theme.success : (Number(modelData.signal || 0) >= 30 ? Theme.warn : Theme.error))
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.ssid || "?")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    font.weight: isConnected ? Font.Bold : Font.Normal
+                                    color: isConnected ? Theme.accent : Theme.fg
+                                    elide: Text.ElideRight
+                                }
+
+                                Icon {
+                                    visible: Boolean(modelData.secured) && !isConnected && !Boolean(modelData.known)
+                                    glyph: "lock"
+                                    size: 10
+                                    color: Qt.alpha(Theme.fg, 0.6)
+                                }
+
+                                Text {
+                                    text: (modelData.signal !== undefined ? modelData.signal : 0) + "%"
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: 10
+                                    color: isConnected ? Theme.accent : Qt.alpha(Theme.fg, 0.65)
+                                }
                             }
 
                             MouseArea {
+                                id: netChipMa
                                 anchors.fill: parent
+                                hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    if (!modelData.active && modelData.ssid) {
-                                        wifiConnectProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi_connect", String(modelData.ssid)]
-                                        wifiConnectProc.running = true
+                                    let ssid = String(modelData.ssid || "")
+                                    if (!ssid || isConnected) return
+                                    if (!Boolean(modelData.secured) || Boolean(modelData.known)) {
+                                        root.passwordSsid = ""
+                                        Theme.islandNeedsKeyboard = false
+                                        root.connectWifi(ssid, "")
+                                    } else {
+                                        if (root.passwordSsid === ssid) {
+                                            root.passwordSsid = ""
+                                            Theme.islandNeedsKeyboard = false
+                                        } else {
+                                            root.passwordSsid = ssid
+                                            root.wifiStatusMsg = ""
+                                            wifiPassInput.text = ""
+                                            Theme.islandNeedsKeyboard = true
+                                            wifiPassInput.forceActiveFocus()
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                }
+
+                // Champ clé Wi-Fi si réseau inconnu / protégé
+                Rectangle {
+                    visible: root.passwordSsid !== ""
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 32
+                    radius: 7
+                    color: Qt.alpha(Theme.bg, 0.55)
+                    border.width: 1
+                    border.color: Theme.accentMuted
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 6
+                        spacing: 6
+
+                        Icon {
+                            glyph: "lock"
+                            size: 12
+                            color: Theme.accent
+                        }
+
+                        TextInput {
+                            id: wifiPassInput
+                            Layout.fillWidth: true
+                            color: Theme.fg
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            echoMode: TextInput.Password
+                            clip: true
+                            selectByMouse: true
+                            Keys.onReturnPressed: root.connectWifi(root.passwordSsid, text)
+                            Keys.onEnterPressed: root.connectWifi(root.passwordSsid, text)
+                            Keys.onEscapePressed: {
+                                root.passwordSsid = ""
+                                Theme.islandNeedsKeyboard = false
+                            }
+
+                            Text {
+                                visible: parent.text === ""
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Clé pour " + root.passwordSsid + "…"
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                color: Qt.alpha(Theme.fg, 0.45)
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredHeight: 22
+                            Layout.preferredWidth: 26
+                            radius: 5
+                            color: Qt.alpha(Theme.accent, 0.25)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "→"
+                                font.pixelSize: 12
+                                font.weight: Font.Bold
+                                color: Theme.accent
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.connectWifi(root.passwordSsid, wifiPassInput.text)
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredHeight: 22
+                            Layout.preferredWidth: 22
+                            radius: 5
+                            color: Qt.alpha(Theme.fg, 0.1)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✕"
+                                font.pixelSize: 10
+                                color: Qt.alpha(Theme.fg, 0.75)
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.passwordSsid = ""
+                                    Theme.islandNeedsKeyboard = false
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    visible: root.wifiStatusMsg !== ""
+                    Layout.fillWidth: true
+                    text: root.wifiStatusMsg
+                    font.family: Theme.fontUi
+                    font.pixelSize: 10
+                    color: root.wifiConnecting ? Theme.accent : Theme.error
+                    elide: Text.ElideRight
                 }
 
                 Item { Layout.fillHeight: true }
