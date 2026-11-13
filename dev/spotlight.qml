@@ -366,6 +366,25 @@ Item {
             }
         }
 
+        // Alias intégré pour ouvrir le panneau de configuration (SUPER + SHIFT + H)
+        const motsConfig = ["config", "configuration", "reglages", "réglages", "parametres", "paramètres", "aethershell"]
+        let scoreConfig = -1
+        for (let k = 0; k < motsConfig.length; ++k) {
+            const mot = motsConfig[k]
+            if (mot.indexOf(needle) === 0) {
+                scoreConfig = Math.max(scoreConfig, 96 - mot.length)
+            } else if (mot.indexOf(needle) >= 0) {
+                scoreConfig = Math.max(scoreConfig, 55 - mot.length)
+            }
+        }
+        if (scoreConfig >= 0) {
+            const eCfg = root.entry("alias", "Config — Panneau de réglages", "SUPER + SHIFT + H",
+                                    "", "alias")
+            eCfg.action = "open-config"
+            eCfg.glyph = "cog"
+            scored.push({ entry: eCfg, score: scoreConfig })
+        }
+
         for (let i = 0; i < root.appIndex.length; ++i) {
             const app = root.appIndex[i]
             const low = String(app.name).toLowerCase()
@@ -421,6 +440,9 @@ Item {
             root.query = arg
             searchInput.text = arg
             searchInput.cursorPosition = arg.length
+            return true
+        case "open-config":
+            Theme.configPanelVisible = true
             return true
         case "copy":
             if (entry.kind === "presse")
@@ -807,6 +829,7 @@ Item {
 
                                 Text {
                                     anchors.centerIn: parent
+                                    visible: !modelData.glyph && iconImg.status !== Image.Ready
                                     text: modelData.sym !== undefined
                                           ? String(modelData.sym)
                                           : (modelData.kind === "cmd"
@@ -817,7 +840,16 @@ Item {
                                     font.bold: true
                                 }
 
+                                Icon {
+                                    anchors.centerIn: parent
+                                    visible: Boolean(modelData.glyph)
+                                    glyph: String(modelData.glyph || "")
+                                    size: 16
+                                    color: root.sel === index ? Theme.bg : Theme.accent
+                                }
+
                                 Image {
+                                    id: iconImg
                                     anchors.centerIn: parent
                                     // Une vignette de presse-papiers est une image réelle :
                                     // à 18 px on ne distingue qu'une tache de couleur. Les

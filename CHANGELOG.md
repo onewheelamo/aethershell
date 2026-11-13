@@ -5,6 +5,16 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.3] — 2026-11-13
+
+### Ajouté
+
+- **Raccourci Îlot dynamique & alias Spotlight** ([`dev/hypr_modular/binds.lua`](dev/hypr_modular/binds.lua), [`dev/spotlight.qml`](dev/spotlight.qml)) : ajout du raccourci `SUPER + H` pour déployer/fermer le panneau étendu de l'Îlot dynamique (`toggleIslandPanel`) et ajout de l'alias intégré *Config — Panneau de réglages* (avec icône `cog` via `Icon.qml`) dans Spotlight sur les mots-clés `config`, `réglages`, `paramètres` ou `aethershell`.
+
+### Modifié
+
+- **Raccourci du panneau de configuration** ([`dev/hypr_modular/binds.lua`](dev/hypr_modular/binds.lua), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/OngletBarres.qml`](dev/OngletBarres.qml), [`dev/first_run.qml`](dev/first_run.qml), [`dev/deploy.sh`](dev/deploy.sh), [`README.md`](README.md), [`docs/README.md`](docs/README.md)) : passage du raccourci d'ouverture du panneau de configuration de `SUPER + H` à `SUPER + SHIFT + H`.
+
 ## [0.3.2] — 2026-11-13
 
 ### Ajouté

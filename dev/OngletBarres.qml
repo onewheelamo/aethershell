@@ -428,7 +428,7 @@ CollapsibleSection {
 
                 Text {
                     anchors.centerIn: parent
-                    text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+H)"
+                    text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+SHIFT+H)"
                     color: Theme.showConfigButton ? Theme.bg : Theme.fg
                     font.pixelSize: Theme.textXs
                     font.bold: true

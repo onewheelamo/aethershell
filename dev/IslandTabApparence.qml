@@ -356,7 +356,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: "⚙️  Ouvrir tous les réglages (SUPER+H)"
+                text: "⚙️  Ouvrir tous les réglages (SUPER+SHIFT+H)"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textSm
                 font.weight: Font.Bold

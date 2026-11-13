@@ -103,7 +103,8 @@ hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(music_player), { description = "musiq
 
 --: Shell
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleSpotlight"), { description = "lanceur" })  -- essentiel
-hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
+hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleIslandPanel"), { description = "panneau étendu de l'îlot" })  -- essentiel
+hl.bind(mainMod .. " + SHIFT + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
 hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleCheatsheet"), { description = "raccourcis" })  -- essentiel
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("quickshell ipc -n call shell showNotifHistory"), { description = "historique des notifications" })

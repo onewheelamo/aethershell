@@ -917,7 +917,7 @@ Item {
 
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
-                                    text: "SUPER + H"
+                                    text: "SUPER + SHIFT + H"
                                     color: Theme.accent
                                     font.pixelSize: Theme.textXl
                                     font.bold: true
@@ -939,7 +939,7 @@ Item {
 
                     Text {
                         width: parent.width
-                        text: "SUPER + H  →  panneau de réglages\n"
+                        text: "SUPER + SHIFT + H  →  panneau de réglages\n"
                             + "SUPER + MAJ + S  →  captures d'écran et vidéos\n"
                             + "SUPER + MAJ + N  →  historique des notifications"
                         color: Qt.alpha(Theme.fg, 0.85)

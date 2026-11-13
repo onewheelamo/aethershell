@@ -1469,13 +1469,14 @@ deploy_new_env() {
     # même si le terminal est fermé entre-temps.
     if [ "$premiere_fois" = "1" ]; then
         echo "   SUPER + K   tous les raccourcis"
-        echo "   SUPER + H   panneau de réglages"
+        echo "   SUPER + H   panneau étendu de l'îlot"
+        echo "   SUPER + SHIFT + H   panneau de réglages"
         echo "   SUPER + S   captures d'écran et vidéos"
         echo "   SUPER + SHIFT + S   région copiée au presse-papiers"
         systemd-run --user --collect --quiet --on-active=8 --unit="qs-welcome-$$" \
             notify-send -a "Installation" \
                 "AetherShell est prêt" \
-                "SUPER + K : tous les raccourcis — SUPER + H : réglages — SUPER + SHIFT + S : captures d'écran" \
+                "SUPER + K : tous les raccourcis — SUPER + H : îlot — SUPER + SHIFT + H : réglages — SUPER + SHIFT + S : captures" \
             >/dev/null 2>&1 || true
     fi
 }
