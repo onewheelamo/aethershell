@@ -286,6 +286,7 @@ Item {
                 }
             }
         }
+        }
 
         // Séparateur vertical + panneau latéral droit (ajout de tâche / agenda)
         Rectangle {

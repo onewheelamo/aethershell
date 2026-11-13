@@ -5,6 +5,12 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.6] — 2026-11-13
+
+### Corrigé
+
+- **Panneau étendu de l'Îlot dynamique** ([`dev/IslandPanel.qml`](dev/IslandPanel.qml), [`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml)) : ajout de l'accolade fermante manquante sur `ColumnLayout` dans `IslandPanel.qml` (qui empêchait le chargement du panneau étendu et laissait une surface vide) et remplacement de `Theme.iconXs` par `12` sur les icônes de `IslandTabAlertes.qml`.
+
 ## [0.3.5] — 2026-11-13
 
 ### Ajouté

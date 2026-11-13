@@ -189,7 +189,7 @@ Item {
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         glyph: Theme.doNotDisturb ? "bell-off" : "bell"
-                        size: Theme.iconXs
+                        size: 12
                         color: Theme.doNotDisturb ? Theme.accent : Theme.fg
                     }
 
@@ -579,7 +579,7 @@ Item {
 
                             Icon {
                                 glyph: "calendar"
-                                size: Theme.iconXs
+                                size: 12
                                 color: Qt.alpha(Theme.fg, 0.55)
                             }
 
@@ -602,7 +602,7 @@ Item {
 
                                 Icon {
                                     glyph: "calendar"
-                                    size: Theme.iconXs
+                                    size: 12
                                     color: Theme.accent
                                 }
 
