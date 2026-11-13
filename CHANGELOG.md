@@ -5,6 +5,22 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.1] — 2026-11-13
+
+### Ajouté
+
+- **Îlot dynamique façon tiroir Android & personnalisation** ([`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/AppletRow.qml`](dev/AppletRow.qml), [`dev/OngletBarres.qml`](dev/OngletBarres.qml), [`dev/Theme.qml`](dev/Theme.qml)) : ouverture du panneau au clic sur l'îlot (heure/date incluse), filtrage de la barre étendue sur `systray`, `workspaces` et `minimise` (retrait du lecteur et des applets redondants), et curseur de vitesse d'animation du panneau (`panel_anim_duration`) dans l'onglet *Barres & Applets*.
+- **Aperçu du prochain événement & raccourci Configuration** ([`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml), [`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml)) : affichage du prochain événement à venir dans *Alertes & Tâches* lorsqu'aucun événement n'est prévu sur la journée, et ajout d'un bouton *Configuration* dans l'en-tête de *Système & Réseau*.
+- **Wi-Fi complet dans *Système & Réseau*** ([`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml), [`dev/core/system_service.py`](dev/core/system_service.py)) : force du signal (icône dynamique + pourcentage), surbrillance du réseau connecté (`in_use`), détection des réseaux connus (`nmcli connection show`) et champ de saisie inline de clé pour les réseaux protégés inconnus.
+
+### Modifié
+
+- **Ergonomie & rendu visuel du panneau et de la barre** ([`dev/IslandPanel.qml`](dev/IslandPanel.qml), [`dev/IslandTabControles.qml`](dev/IslandTabControles.qml), [`dev/main.qml`](dev/main.qml), [`dev/SystrayApplet.qml`](dev/SystrayApplet.qml)) : suppression du bouton « rectangles » dans la barre étendue et du liseré vertical des onglets ; dans *Contrôles*, le bouton d'alimentation éteint désormais la machine (`systemctl poweroff`) avec une icône lune (`weather-night`) dédiée à la mise en veille ; extension du visualiseur audio jusqu'aux bords en mode `island` et retour des icônes du systray en couleur native.
+
+### Corrigé
+
+- **Fluidité, flou, notifications et visualiseur** ([`dev/main.qml`](dev/main.qml), [`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/IslandTabMedia.qml`](dev/IslandTabMedia.qml), [`dev/NotifService.qml`](dev/NotifService.qml)) : suppression des saccades à l'ouverture (hauteur Wayland pré-dimensionnée, préchargement asynchrone de `IslandPanel.qml`, sous-processus différés), application de la même règle de flou que le panneau de configuration (`Theme.surfaceBg` sans double multiplication d'opacité), fermeture du panneau au clic sur une notification (`openNotifTarget`), icône `cog` sur *Système & Réseau*, et bascule fonctionnelle du visualiseur via `core/bar_applets.py`.
+
 ## [0.3.0] — 2026-11-13
 
 ### Ajouté
