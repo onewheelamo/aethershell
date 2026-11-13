@@ -123,15 +123,20 @@ def lua_ident(alias):
 def load_json(path):
     if not os.path.exists(path):
         return {}
-    with open(path, "r") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"config_manager: lecture impossible de {path} ({exc})", file=sys.stderr)
+        return {}
 
 
 def save_json(path, data):
     tmp_path = f"{path}.tmp.{os.getpid()}"
     try:
-        with open(tmp_path, "w") as f:
-            json.dump(data, f, indent=4)
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)
@@ -145,10 +150,10 @@ def save_json(path, data):
 
 
 def run_cmd(cmd):
+    if not isinstance(cmd, (list, tuple)):
+        raise TypeError("run_cmd attend une liste d'arguments (pas de shell=True)")
     try:
-        if isinstance(cmd, list):
-            return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8").strip()
-        return subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        return subprocess.check_output(list(cmd), stderr=subprocess.DEVNULL).decode("utf-8").strip()
     except Exception:
         return ""
 

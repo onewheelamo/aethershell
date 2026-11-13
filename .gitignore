@@ -5,6 +5,7 @@
 *.old
 *.swp
 *.kate-swp
+*.verrou
 *~
 
 # Python cache & logs

@@ -650,9 +650,8 @@ QtObject {
                 root.paletteImportees = cles
                 root.etiquettesImportees = labels
             } catch (e) {
-                // Absent au tout premier démarrage : le scan du shell le crée.
-                root.paletteImportees = []
-                root.etiquettesImportees = ({})
+                // Lecture concurrente ou fichier absent : on conserve le catalogue précédent.
+                console.warn("Theme.qml: lecture palette_cache.json ignorée :", e)
             }
         }
     }

@@ -405,7 +405,7 @@ def contenu(texte, limite=6):
                          for g in ("*.pdf", "*.docx", "*.odt", "*.odp"))
     pre_option = (f"--pre {shlex.quote(str(pre))} --pre-glob '*.pdf' "
                   f"--pre-glob '*.docx' --pre-glob '*.odt' --pre-glob '*.odp'")
-    base = (f"{rg} -n --no-heading --max-count 1 -i -F {shlex.quote(q)} "
+    base = (f"{shlex.quote(rg)} -n --no-heading --max-count 1 -i -F {shlex.quote(q)} "
             f"{exclusions}")
     commande = (f"{{ {base} {doc_globs} {pre_option} {shlex.quote(str(HOME))} "
                 f"2>/dev/null | head -c 300000 ; "

@@ -340,54 +340,64 @@ def _reecrire(chemin, identifiant, transformation):
     """Remplace la ligne de l'item `identifiant`. `transformation(ligne, item)`
     rend la nouvelle ligne, ou None pour laisser tel quel.
 
-    Verrou exclusif et écriture atomique : l'applet et l'agent peuvent écrire le
-    même fichier, et un fichier tronqué perdrait des items.
+    Verrou exclusif sur un fichier voisin et écriture atomique (tmp + os.replace) :
+    l'applet et l'agent peuvent écrire le même fichier, et un fichier tronqué
+    perdrait des items.
     """
-    with open(chemin, "r+", encoding="utf-8") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
-        contenu = f.read()
-        lignes = contenu.splitlines(keepends=True)
-        items_vus = []
-        section = ""
-        cible = None
-        for numero, ligne in enumerate(lignes):
-            sec = SECTION.match(ligne.rstrip("\n"))
-            if sec:
-                section = sec.group("titre").strip()
-                continue
-            m = ITEM.match(ligne.rstrip("\n"))
-            if not m:
-                continue
-            titre = _titre_brut(m.group("reste"))
-            if not titre:
-                continue
-            if _identifiant(chemin, titre) == identifiant:
-                cible = (numero, m, titre)
-                break
-        if cible is None:
-            fcntl.flock(f, fcntl.LOCK_UN)
-            return False
-        numero, m, titre = cible
-        nouvelle = transformation(lignes[numero].rstrip("\n"), m, titre, lignes, numero)
-        if nouvelle is None:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    verrou_chemin = chemin + ".verrou"
+    with open(verrou_chemin, "w", encoding="utf-8") as verrou:
+        fcntl.flock(verrou, fcntl.LOCK_EX)
+        try:
+            with open(chemin, "r", encoding="utf-8") as f:
+                contenu = f.read()
+            lignes = contenu.splitlines(keepends=True)
+            section = ""
+            cible = None
+            for numero, ligne in enumerate(lignes):
+                sec = SECTION.match(ligne.rstrip("\n"))
+                if sec:
+                    section = sec.group("titre").strip()
+                    continue
+                m = ITEM.match(ligne.rstrip("\n"))
+                if not m:
+                    continue
+                titre = _titre_brut(m.group("reste"))
+                if not titre:
+                    continue
+                if _identifiant(chemin, titre) == identifiant:
+                    cible = (numero, m, titre)
+                    break
+            if cible is None:
+                return False
+            numero, m, titre = cible
+            nouvelle = transformation(lignes[numero].rstrip("\n"), m, titre, lignes, numero)
+            if nouvelle is None:
+                return True
+            lignes[numero] = nouvelle + "\n"
+            # Comparer le contenu entier, pas la seule ligne de l'item : une
+            # transformation peut aussi insérer ou retirer des lignes autour (la
+            # raison d'un blocage, par exemple). Comparer la ligne seule faisait
+            # sortir ici sans écrire, et la raison disparaissait.
+            nouveau = "".join(lignes)
+            if nouveau == contenu:
+                return True
+            tmp = f"{chemin}.tmp.{os.getpid()}"
+            try:
+                with open(tmp, "w", encoding="utf-8") as tf:
+                    tf.write(nouveau)
+                    tf.flush()
+                    os.fsync(tf.fileno())
+                os.replace(tmp, chemin)
+            except Exception:
+                if os.path.exists(tmp):
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+                raise
             return True
-        lignes[numero] = nouvelle + "\n"
-        # Comparer le contenu entier, pas la seule ligne de l'item : une
-        # transformation peut aussi insérer ou retirer des lignes autour (la
-        # raison d'un blocage, par exemple). Comparer la ligne seule faisait
-        # sortir ici sans écrire, et la raison disparaissait.
-        nouveau = "".join(lignes)
-        if nouveau == contenu:
-            fcntl.flock(f, fcntl.LOCK_UN)
-            return True
-        f.seek(0)
-        f.truncate()
-        f.write(nouveau)
-        f.flush()
-        os.fsync(f.fileno())
-        fcntl.flock(f, fcntl.LOCK_UN)
-    return True
+        finally:
+            fcntl.flock(verrou, fcntl.LOCK_UN)
 
 
 def _retirer_alerte(lignes, numero):

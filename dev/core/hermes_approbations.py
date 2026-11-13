@@ -76,11 +76,13 @@ class Serveur:
 
     # ── une connexion entrante ───────────────────────────────────────────────
     def traiter(self, conn):
+        conn.settimeout(30.0)
         fichier = conn.makefile("rw", encoding="utf-8", newline="\n")
         try:
             ligne = fichier.readline()
             if not ligne:
                 return
+            conn.settimeout(None)
             message = json.loads(ligne)
             role = message.get("role")
 
@@ -89,7 +91,9 @@ class Serveur:
             elif role == "verdict":
                 self.verdict(message)
             elif role == "liste":
-                fichier.write(json.dumps({"approbations": list(self.attente.values())},
+                with self.verrou:
+                    liste = [dict(d) for d in self.attente.values()]
+                fichier.write(json.dumps({"approbations": liste},
                                          ensure_ascii=False) + "\n")
                 fichier.flush()
         except (json.JSONDecodeError, OSError):
@@ -200,6 +204,16 @@ class Serveur:
         racine().mkdir(parents=True, exist_ok=True)
         chemin = chemin_socket()
         if chemin.exists():
+            vivante = False
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sonde:
+                    sonde.settimeout(0.5)
+                    sonde.connect(str(chemin))
+                    vivante = True
+            except OSError:
+                pass
+            if vivante:
+                raise SystemExit("hermes_approbations : une instance écoute déjà sur ce socket")
             chemin.unlink()               # socket périmée d'une session précédente
         self.publier()
 

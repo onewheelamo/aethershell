@@ -28,10 +28,10 @@ CONSERVATION_PCT = 60
 
 
 def run_cmd(cmd):
+    if not isinstance(cmd, (list, tuple)):
+        raise TypeError("run_cmd attend une liste d'arguments (pas de shell=True)")
     try:
-        if isinstance(cmd, list):
-            return subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8").strip()
-        return subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        return subprocess.check_output(list(cmd), stderr=subprocess.DEVNULL).decode("utf-8").strip()
     except Exception:
         return ""
 
