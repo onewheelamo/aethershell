@@ -5,7 +5,7 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
-## [Non publié]
+## [0.2.2] — 2026-11-13
 
 ### Ajouté
 
@@ -449,6 +449,7 @@ notifications, capture, et les services Python qui les alimentent.
 - Veille planifiée qui cochait les étapes du fichier de tâches ; la coche est désormais
   manuelle ou faite à la demande.
 
+[0.2.2]: https://github.com/onewheelamo/aethershell/releases/tag/v0.2.2
 [0.2.1]: https://github.com/onewheelamo/aethershell/releases/tag/v0.2.1
 [0.2.0]: https://github.com/onewheelamo/aethershell/releases/tag/v0.2.0
 [0.1.5]: https://github.com/onewheelamo/aethershell/releases/tag/v0.1.5
