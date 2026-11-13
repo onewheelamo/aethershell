@@ -141,7 +141,9 @@ Item {
     height: Theme.barHeight
 
     // Largeur dynamique animée selon l'état
-    readonly property real compactWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
+    readonly property real osdWidth: Math.max(160, osdRow.implicitWidth + Theme.padH * 2 + 16)
+    readonly property real compactRestWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
+    readonly property real compactWidth: Theme.osdVisible ? osdWidth : compactRestWidth
     readonly property real expandedWidth: Math.max(460, leftApplets.implicitWidth + (root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth) + rightApplets.implicitWidth + Theme.padH * 3 + 28)
 
     width: expanded ? expandedWidth : compactWidth
@@ -193,6 +195,7 @@ Item {
 
         // 1. OSD actif : affiche le volume / luminosité dans la pilule
         Row {
+            id: osdRow
             anchors.centerIn: parent
             spacing: 8
             visible: Theme.osdVisible
