@@ -833,7 +833,7 @@ QtObject {
     }
 
     property Timer wallpaperSondeTimer: Timer {
-        interval: 15000
+        interval: 60000
         repeat: true
         running: root.shellFlouInterne > 0.01
         onTriggered: root.rafraichirWallpaper()

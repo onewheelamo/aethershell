@@ -56,11 +56,42 @@ def _lire_stat():
     return sum(valeurs), valeurs[3] + (valeurs[4] if len(valeurs) > 4 else 0)
 
 
+def _sauver_etat_cpu(total, idle, maintenant):
+    tmp = f"{ETAT_CPU}.tmp.{os.getpid()}"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"total": total, "idle": idle, "ts": maintenant}, f)
+        os.replace(tmp, ETAT_CPU)
+    except OSError:
+        if os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
 def cpu_pourcent():
     try:
-        total1, idle1 = _lire_stat()
-        time.sleep(ECHANTILLON)
+        maintenant = time.monotonic()
         total2, idle2 = _lire_stat()
+        total1 = idle1 = None
+        try:
+            with open(ETAT_CPU, "r", encoding="utf-8") as f:
+                prev = json.load(f)
+            ts_prev = float(prev.get("ts", 0))
+            if 0 < (maintenant - ts_prev) <= 30.0:
+                total1 = int(prev["total"])
+                idle1 = int(prev["idle"])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+
+        if total1 is None or (total2 - total1) <= 0:
+            total1, idle1 = total2, idle2
+            time.sleep(ECHANTILLON)
+            total2, idle2 = _lire_stat()
+            maintenant = time.monotonic()
+
+        _sauver_etat_cpu(total2, idle2, maintenant)
         dt, di = total2 - total1, idle2 - idle1
         if dt <= 0:
             return None
