@@ -141,7 +141,7 @@ Item {
     height: Theme.barHeight
 
     // Largeur dynamique animée selon l'état
-    readonly property real compactWidth: Math.max(220, compactContentRow.implicitWidth + Theme.padH * 2)
+    readonly property real compactWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
     readonly property real expandedWidth: Math.max(460, leftApplets.implicitWidth + (root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth) + rightApplets.implicitWidth + Theme.padH * 3 + 28)
 
     width: expanded ? expandedWidth : compactWidth
