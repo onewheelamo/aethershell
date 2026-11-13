@@ -1,6 +1,5 @@
 //@ pragma UseQApplication
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
@@ -1065,47 +1064,6 @@ Item {
                 color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
                 border.width: widgetWindow.w.border === false ? 0 : 1
                 border.color: Qt.alpha(Theme.accent, 0.16)
-
-                // Masque de profondeur appliqué au widget lui-même (option
-                // `widgets_multieffect`, **en attente** — rendu pas encore juste :
-                // alignement du masque et sens de l'inversion à reprendre). Le
-                // code reste en place comme base de travail ; tant que la clé
-                // n'est pas posée à la main dans style_vars.json, il ne s'active
-                // jamais et le calque plein écran fait le travail.
-                layer.enabled: Theme.widgetsMultieffect && Theme.depthMask
-                                 && Theme.depthMaskPath !== ""
-                layer.effect: MultiEffect {
-                    maskEnabled: true
-                    maskSource: masqueWidget
-                    // Le masque porte l'alpha du décor **proche** : on inverse
-                    // pour effacer la carte là où ce premier plan est présent.
-                    maskInverted: true
-                    maskThresholdMin: 0.15
-                    maskSpreadAtMin: 0.08
-                }
-
-                // Le masque, cadré comme le fond (awww recadre en « crop ») et
-                // aligné sur l'écran : la surface du widget commence à (x, y), donc
-                // l'image pleine taille se décale d'autant. `ShaderEffectSource`
-                // avec `hideSource` la rend sans la dessiner.
-                Image {
-                    id: masqueImage
-                    x: -(Number(widgetWindow.w.x) || 0)
-                    y: -(Number(widgetWindow.w.y) || 0)
-                    width: widgetWindow.screen ? widgetWindow.screen.width : 1920
-                    height: widgetWindow.screen ? widgetWindow.screen.height : 1080
-                    source: carteWidget.layer.enabled ? "file://" + Theme.depthMaskPath : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: true
-                }
-
-                ShaderEffectSource {
-                    id: masqueWidget
-                    sourceItem: masqueImage
-                    hideSource: true
-                    live: carteWidget.layer.enabled
-                }
 
                 // Clic milieu : les réglages de ce widget. Déclaré avant les
                 // autres surfaces de la carte, donc dessous : le glissement

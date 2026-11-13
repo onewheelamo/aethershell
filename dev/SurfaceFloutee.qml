@@ -20,8 +20,6 @@ Item {
     property int bordureLargeur: Theme.barBorder ? 1 : 0
     property bool actif: true
 
-    function rafraichir() {}
-
     Rectangle {
         anchors.fill: parent
         radius: root.rayon

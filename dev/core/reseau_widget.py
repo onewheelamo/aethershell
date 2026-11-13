@@ -26,6 +26,7 @@ import time
 ETAT = os.path.join(os.path.expanduser("~"), ".cache", "quickshell", "reseau_etat.json")
 CACHE = os.path.join(os.path.expanduser("~"), ".cache", "quickshell", "reseau_cache.json")
 DELAI = 3
+_MEM_ETAT_TRAFIC = None
 
 
 def _run(cmd, timeout=DELAI):
@@ -116,8 +117,9 @@ def _vpn():
     return ""
 
 
-def _trafic(dev):
-    """Débits instantanés, calculés entre deux appels (état gardé sur disque)."""
+def _trafic(dev, persister=True):
+    """Débits instantanés, calculés entre deux appels (mémoire ou disque)."""
+    global _MEM_ETAT_TRAFIC
     try:
         with open(f"/sys/class/net/{dev}/statistics/rx_bytes") as f:
             rx = int(f.read().strip())
@@ -128,11 +130,14 @@ def _trafic(dev):
 
     maintenant = time.time()
     precedent = None
-    try:
-        with open(ETAT, "r", encoding="utf-8") as f:
-            precedent = json.load(f)
-    except (OSError, ValueError):
-        precedent = None
+    if not persister:
+        precedent = _MEM_ETAT_TRAFIC
+    else:
+        try:
+            with open(ETAT, "r", encoding="utf-8") as f:
+                precedent = json.load(f)
+        except (OSError, ValueError):
+            precedent = None
 
     infos = {"rx_total_go": round(rx / 1e9, 1), "tx_total_go": round(tx / 1e9, 1)}
     if precedent and precedent.get("dev") == dev:
@@ -141,12 +146,16 @@ def _trafic(dev):
             infos["rx_ko_s"] = max(0, round((rx - int(precedent.get("rx", 0))) / ecart / 1024))
             infos["tx_ko_s"] = max(0, round((tx - int(precedent.get("tx", 0))) / ecart / 1024))
 
-    try:
-        os.makedirs(os.path.dirname(ETAT), exist_ok=True)
-        with open(ETAT, "w", encoding="utf-8") as f:
-            json.dump({"dev": dev, "rx": rx, "tx": tx, "ts": maintenant}, f)
-    except OSError:
-        pass
+    nouvel_etat = {"dev": dev, "rx": rx, "tx": tx, "ts": maintenant}
+    if persister:
+        try:
+            os.makedirs(os.path.dirname(ETAT), exist_ok=True)
+            with open(ETAT, "w", encoding="utf-8") as f:
+                json.dump(nouvel_etat, f)
+        except OSError:
+            pass
+    else:
+        _MEM_ETAT_TRAFIC = nouvel_etat
     return infos
 
 
@@ -162,7 +171,7 @@ def _latence(passerelle):
     return round(float(m.group(1))) if m else None
 
 
-def analyser():
+def analyser(persister=True):
     dev, nature, connexion = _interface_active()
     if not dev:
         return {"ok": True, "connecte": False}
@@ -172,7 +181,7 @@ def analyser():
     if nature == "wifi":
         infos.update(_wifi(dev))
     infos.update(_adresse(dev))
-    infos.update(_trafic(dev))
+    infos.update(_trafic(dev, persister=persister))
     vpn = _vpn()
     if vpn:
         infos["vpn"] = vpn

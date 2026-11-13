@@ -59,10 +59,7 @@ Rectangle {
     id: root
     width: 740
     height: parent ? parent.height : 600
-    // La couleur passe dans une couche **au-dessus** du verre (voir plus bas) :
-    // peinte ici, elle passait sous le `FlouFond`, et monter le flou interne
-    // faisait ressortir le fond d'écran à travers la teinte — couleurs saturées
-    // dès 70 %.
+    // Fond transparent : le rendu verre + teinte est porté par SurfaceFloutee.
     color: "transparent"
     radius: Theme.globalRadius
     border.color: Theme.accent
@@ -88,7 +85,7 @@ Rectangle {
         searchInput.forceActiveFocus()
     }
 
-    // Surface floutée unifiée (FlouFond → Theme.surfaceBg)
+    // Surface floutée unifiée (SurfaceFloutee → Theme.surfaceBg)
     SurfaceFloutee {
         id: fondFlou
         anchors.fill: parent

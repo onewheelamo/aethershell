@@ -49,10 +49,6 @@ Item {
         return String(reseau.ssid || reseau.connexion || "")
     }
 
-    function rafraichir() {
-        Theme.metriquesActif = true
-    }
-
     Component.onCompleted: Theme.metriquesActif = true
 
     // Largeur **fixe** : un ping qui passe de 6 à 1200 ms, ou un débit qui passe de

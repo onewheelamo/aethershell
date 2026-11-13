@@ -433,9 +433,15 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
+                    Icon {
+                        glyph: "microphone"
+                        size: Theme.iconSm
+                        color: root.micMuted ? Theme.error : Theme.fg
+                    }
+
                     Text {
                         Layout.fillWidth: true
-                        text: root.micMuted ? "🎙️ Micro : Muet" : "🎙️ Micro : Actif"
+                        text: root.micMuted ? "Micro : Muet" : "Micro : Actif"
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs
                         color: root.micMuted ? Theme.error : Theme.fg

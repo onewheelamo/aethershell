@@ -286,21 +286,75 @@ Item {
         return { kind: kind, name: name, exec: exec, icon: icon, tag: tag }
     }
 
-    // Icône d'un alias : le nom de la commande n'est pas forcément celui de l'icône.
-    // « ghostty » installe son icône sous « com.mitchellh.ghostty », donc
-    // `image://icon/ghostty` ne rend rien. On cherche donc l'entrée du même binaire
-    // dans app_index.json (qui porte le nom d'icône du fichier .desktop).
+    // Icône d'un alias : le nom de la commande n'est pas forcément celui de l'icône
+    // (ex. ghostty -> com.mitchellh.ghostty, code -> code-oss / com.visualstudio.code.oss,
+    // zen-browser -> Zen Browser / /opt/.../zen-bin). On résout donc l'entrée
+    // correspondante dans app_index.json par binaire, icône, nom ou préfixe.
+    function extractCmdToken(cmd) {
+        const parts = String(cmd || "").trim().replace(/^["']|["']$/g, "").split(/\s+/)
+        let i = 0
+        if (i < parts.length && root.baseLower(parts[i]) === "env") {
+            i++
+            while (i < parts.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(parts[i]))
+                i++
+        }
+        if (i < parts.length && root.baseLower(parts[i]) === "flatpak" && parts[i + 1] === "run") {
+            for (let j = i + 2; j < parts.length; ++j) {
+                if (!parts[j].startsWith("-"))
+                    return parts[j]
+            }
+        }
+        return i < parts.length ? parts[i] : ""
+    }
+
+    function baseLower(pathOrName) {
+        const s = String(pathOrName || "").trim().replace(/^["']|["']$/g, "")
+        const idx = s.lastIndexOf("/")
+        return (idx >= 0 ? s.substring(idx + 1) : s).toLowerCase()
+    }
+
+    function normKey(s) {
+        return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+    }
+
     function iconForCommand(cmd) {
-        const bin = String(cmd || "").trim().split(/\s+/)[0]
-        if (bin === "") return ""
-        const target = bin.toLowerCase()
+        const tok = root.extractCmdToken(cmd)
+        if (tok === "") return ""
+        const target = root.baseLower(tok)
+        const targetNorm = root.normKey(target)
+
+        let bestIcon = ""
+        let bestRank = 999
+
         for (let i = 0; i < root.appIndex.length; ++i) {
             const app = root.appIndex[i]
-            const appBin = String(app.exec || "").trim().split(/\s+/)[0].toLowerCase()
-            if (appBin === target && app.icon)
-                return String(app.icon)
+            const icon = String(app.icon || "").trim()
+            if (icon === "") continue
+
+            const appExec = String(app.exec || "").trim()
+            const appBin = root.baseLower(root.extractCmdToken(appExec))
+            const iconBase = root.baseLower(icon)
+            const nameNorm = root.normKey(app.name)
+
+            let rank = 999
+            if (appBin === target) {
+                // Préférer l'entrée sans arguments supplémentaires (ex. /usr/bin/thunar vs thunar --bulk-rename)
+                rank = appExec.split(/\s+/).length === 1 ? 0 : 1
+            } else if (iconBase === target || nameNorm === targetNorm) {
+                rank = 2
+            } else if (appBin.startsWith(target + "-") || target.startsWith(appBin + "-")) {
+                rank = 3
+            } else if (iconBase.endsWith("." + target) || root.normKey(iconBase) === targetNorm) {
+                rank = 4
+            }
+
+            if (rank < bestRank) {
+                bestRank = rank
+                bestIcon = icon
+                if (rank === 0) break
+            }
         }
-        return bin
+        return bestIcon !== "" ? bestIcon : target
     }
 
     function build() {
@@ -339,8 +393,13 @@ Item {
         // Champ vide : les lancements récents, si l'historique est activé.
         if (q === "") {
             root.results = Theme.launchHistory
-                    ? root.history.slice(0, root.maxResults).map(h => root.entry(
-                          "recent", h.name, h.exec, h.icon || "", "récent"))
+                    ? root.history.slice(0, root.maxResults).map(h => {
+                          const hasAlias = root.aliases && root.aliases[h.name] !== undefined
+                          const cmd = hasAlias ? String(root.aliases[h.name]) : h.exec
+                          const ic = hasAlias ? root.iconForCommand(cmd)
+                                              : (h.icon || root.iconForCommand(cmd))
+                          return root.entry("recent", h.name, cmd, ic, "récent")
+                      })
                     : []
             root.sel = 1
             return

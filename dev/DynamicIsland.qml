@@ -380,17 +380,19 @@ Item {
             anchors.rightMargin: Theme.padH
             spacing: 12
 
-            // Côté Gauche : Workspaces / Programmes minimisés / Systray uniquement
+            // Côté Gauche : Workspaces / Programmes minimisés / Systray / Batterie
             Item {
                 Layout.preferredWidth: leftApplets.implicitWidth
                 Layout.fillHeight: true
                 AppletRow {
                     id: leftApplets
                     ile: "haut:debut"
-                    include: ["systray", "workspaces", "minimise"]
+                    include: ["systray", "workspaces", "minimise", "luminosite"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
+
+            Item { Layout.fillWidth: true }
 
             // Centre : Horloge + Date (clic -> panneau étendu ; plus de lecteur dans la barre déployée)
             Item {
@@ -429,14 +431,16 @@ Item {
                 }
             }
 
-            // Côté Droit : Systray / Workspaces / Programmes minimisés uniquement
+            Item { Layout.fillWidth: true }
+
+            // Côté Droit : Systray / Batterie / Workspaces / Programmes minimisés
             Item {
                 Layout.preferredWidth: rightApplets.implicitWidth
                 Layout.fillHeight: true
                 AppletRow {
                     id: rightApplets
                     ile: "haut:fin"
-                    include: ["systray", "workspaces", "minimise"]
+                    include: ["systray", "workspaces", "minimise", "luminosite"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }

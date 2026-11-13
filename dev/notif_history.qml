@@ -20,11 +20,8 @@ import Quickshell.Wayland
 // l'entrée. Une cible de type « action » n'est pas rouvrable (il faudrait le
 // client) : son titre reste du texte.
 //
-// Le tiroir prend son verre du composant interne (`FlouFond`) et non d'une règle
-// de flou sur son namespace : sa fenêtre est plein écran (elle porte le capteur
-// de clic extérieur), donc une `layer_rule` flouterait tout l'écran. `FlouFond`
-// redessine le fond d'écran **dans** la surface et ne floute que le tiroir, avec
-// la même intensité que le panneau de configuration.
+// Le tiroir utilise `SurfaceFloutee` (teinte + bordure) sur une fenêtre plein
+// écran portant le capteur de clic extérieur.
 // ────────────────────────────────────────────────────────────────────────────
 Item {
     id: root
@@ -283,7 +280,7 @@ Item {
             // sorti à droite (marge négative de sa propre largeur).
             anchors.rightMargin: 14 - (1 - historyWindow.reveal) * (width + 20)
 
-            // Surface floutée unifiée (FlouFond → root.surfaceColor → bordure)
+            // Surface floutée unifiée (SurfaceFloutee → root.surfaceColor → bordure)
             SurfaceFloutee {
                 id: verre
                 anchors.fill: parent

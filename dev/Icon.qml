@@ -136,6 +136,7 @@ Item {
         "stop": "\u{F04DB}",            // md-stop (arrêter l'enregistrement)
         "history": "\u{F02DA}",         // md-history (historique des notifications)
         "wallet": "\u{F0584}",          // md-wallet (solde d'API, widget DeepSeek)
-        "bell": "\u{F009A}"
+        "bell": "\u{F009A}",
+        "microphone": "\u{F036C}"       // md-microphone
     })
 }

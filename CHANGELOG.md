@@ -5,6 +5,22 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.4] — 2026-11-13
+
+### Ajouté
+
+- **Batterie dans l'Îlot dynamique** ([`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml)) : affichage de l'applet batterie/luminosité dans l'îlot étendu au survol (avec centrage de l'horloge et alignement du groupe droit) et carte dédiée de gestion de la charge batterie (`Santé 80 %` / `Charge 100 %` via `core/system_service.py`) sur laptop dans l'onglet *Système & Réseau* entre les jauges matérielles et le réseau.
+
+### Corrigé
+
+- **Icônes des alias dans Spotlight** ([`dev/spotlight.qml`](dev/spotlight.qml)) : résolution complète des icônes de programmes depuis `app_index.json` (gestion des chemins complets, `env`, `flatpak run`, variantes de binaire comme `code` → `code-oss` / `zen-browser` → `zen-bin`, lanceur principal sans arguments) et réapplication dynamique sur les entrées d'alias dans l'historique des lancements récents après ajout ou modification dans le panneau de configuration.
+- **Démon de métriques sans écritures disque & caches** ([`dev/core/metriques_daemon.py`](dev/core/metriques_daemon.py), [`dev/core/systeme_applet.py`](dev/core/systeme_applet.py), [`dev/core/reseau_widget.py`](dev/core/reseau_widget.py), [`dev/IslandTabSysteme.qml`](dev/IslandTabSysteme.qml)) : conservation des deltas CPU/réseau en mémoire dans le démon (`persister=False`), déplacement du cache CPU vers `~/.cache/quickshell/systeme_cpu_cache.json` et réutilisation de `Theme.systemeData` dans l'onglet *Système & Réseau* lorsque le démon est actif.
+- **Ergonomie & conventions QML** ([`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml), [`dev/IslandTabMedia.qml`](dev/IslandTabMedia.qml), [`dev/Icon.qml`](dev/Icon.qml), [`dev/Theme.qml`](dev/Theme.qml)) : hauteur explicite du `Flow` des thèmes, scan `themes_scan.py --sync` différé à l'ouverture de l'onglet Apparence, sonde `awww query` conditionnée à `depthWallpaper`, et remplacement des derniers emojis par des glyphes monochromes `Icon.qml`.
+
+### Supprimé
+
+- **Nettoyage du code mort** ([`dev/SurfaceFloutee.qml`](dev/SurfaceFloutee.qml), [`dev/Theme.qml`](dev/Theme.qml), [`dev/main.qml`](dev/main.qml), [`dev/CalqueProfondeur.qml`](dev/CalqueProfondeur.qml), [`dev/core/config_manager.py`](dev/core/config_manager.py), [`dev/core/parallaxe_layers.py`](dev/core/parallaxe_layers.py), [`dev/widgets/systeme.qml`](dev/widgets/systeme.qml), [`dev/widgets/reseau.qml`](dev/widgets/reseau.qml)) : suppression de `FlouFond.qml`, des résidus `shell_flou_*` (y compris la génération de `fond-ecran.png`), du mode expérimental abandonné `widgets_multieffect` et du `MouseArea` inactif sur le widget Système.
+
 ## [0.3.3] — 2026-11-13
 
 ### Ajouté

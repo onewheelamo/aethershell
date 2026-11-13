@@ -109,10 +109,6 @@ Item {
         return Theme.accent
     }
 
-    function rafraichir(force) {
-        Theme.metriquesActif = true
-    }
-
     Component.onCompleted: Theme.metriquesActif = true
 
     implicitWidth: colonne.implicitWidth
@@ -121,12 +117,6 @@ Item {
     Column {
         id: colonne
         spacing: 7
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.rafraichir(true)
-        }
 
         Repeater {
             model: root.lignes

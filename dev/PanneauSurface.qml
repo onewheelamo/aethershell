@@ -5,7 +5,7 @@ import "."
 // SURFACE DE PANNEAU MORPHÉE (PanneauSurface.qml)
 // ══════════════════════════════════════════════════════════════════════
 // Décoration unifiée pour tous les panneaux dérivés de la barre :
-// - Flou interne (FlouFond) + teinte Theme.barBg + opacité Theme.shellOpacity
+// - Surface floutée unifiée (SurfaceFloutee) + teinte Theme.barBg + opacité Theme.shellOpacity
 // - Bordure Theme.accent / Theme.barBorder + arrondi Theme.pillRadius
 // - Animation d'extension fluide depuis le bord de la barre porteuse
 // ══════════════════════════════════════════════════════════════════════

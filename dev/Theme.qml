@@ -215,17 +215,6 @@ QtObject {
     // Pre-computed translucent surfaces matching shellOpacity (surfaces Quickshell)
     readonly property color surfaceBg: Qt.alpha(surface, shellOpacity)
     readonly property color surfaceVariantBg: Qt.alpha(surfaceVariant, Math.min(1.0, shellOpacity + 0.08))
-    // Verre dépoli autonome (FlouFond.qml) : 0 = éteint. Au-dessus de ~0,7
-    // d'opacité il ne sert à rien — Hyprland floute déjà derrière la couche et
-    // laisser voir les fenêtres est voulu. En dessous, il rend le texte lisible
-    // sans dépendre de la passe de flou du compositeur.
-    property real shellFlouInterne: 0.0
-    // Rayon et « passes » du flou **des surfaces** (le verre interne).
-    // Hyprland ne règle size/passes qu'en global, fenêtres comprises :
-    // ces deux-là ne concernent que `FlouFond`. Les valeurs par défaut
-    // reproduisent l'ancien rendu figé (48 px, 3 passes → 0,84).
-    property int shellFlouTaille: 48
-    property int shellFlouPasses: 3
     // Fond de bureau en profondeur (FondProfondeur.qml) : parallaxe des calques
     // au changement de bureau. Faux par défaut, le fond d'écran du démon reste
     // intact tant qu'on ne l'allume pas.
@@ -245,18 +234,7 @@ QtObject {
     property bool userLocationSet: false
 
     property bool depthMask: false
-    // Rendu du masque quand il est actif : `false` = un calque plein écran
-    // (une copie du fond, peu coûteuse) ; `true` = un MultiEffect par widget de
-    // bureau, qui découpe le widget lui-même — plus juste, plus cher.
-    //
-    // EN ATTENTE : le rendu par widget n'était pas juste (alignement et sens du
-    // masque à reprendre). Aucune bascule dans le panneau ; la clé se pose à la
-    // main dans style_vars.json pour reprendre le travail. Le code est conservé
-    // comme base : `layer.effect` dans main.qml, masque publié par
-    // CalqueProfondeur.qml, clé acceptée par config_manager.py.
-    property bool widgetsMultieffect: false
-    // Chemin du masque courant, publié par CalqueProfondeur.qml : les widgets le
-    // lisent pour le MultiEffect, et n'ont donc pas à relancer l'inférence.
+    // Chemin du masque courant, publié par CalqueProfondeur.qml.
     property string depthMaskPath: ""
     property int depthMaskSeuil: 30
     property int depthMaskAdouci: 8
@@ -510,9 +488,6 @@ QtObject {
         if (typeof data.selecteur_radius === "number") root.selecteurRadius = data.selecteur_radius
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
-        if (typeof data.shell_flou_interne === "number") root.shellFlouInterne = 0.0
-        if (typeof data.shell_flou_taille === "number") root.shellFlouTaille = Math.max(1, Math.min(96, data.shell_flou_taille))
-        if (typeof data.shell_flou_passes === "number") root.shellFlouPasses = Math.max(1, Math.min(8, data.shell_flou_passes))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
         if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion
         if (typeof data.panel_anim_duration === "number") root.panelAnimDuration = Math.max(80, Math.min(500, Math.round(data.panel_anim_duration)))
@@ -526,7 +501,6 @@ QtObject {
             root.userLocationSet = false
         }
         if (typeof data.depth_mask === "boolean") root.depthMask = data.depth_mask
-        if (typeof data.widgets_multieffect === "boolean") root.widgetsMultieffect = data.widgets_multieffect
         if (typeof data.depth_mask_seuil === "number") root.depthMaskSeuil = data.depth_mask_seuil
         if (typeof data.depth_mask_adouci === "number") root.depthMaskAdouci = data.depth_mask_adouci
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
@@ -805,13 +779,12 @@ QtObject {
     // ────────────────────────────────────────────────────────────────────────
     // Fond d'écran courant partagé (awww query)
     // ────────────────────────────────────────────────────────────────────────
-    // Une seule sonde pour toutes les surfaces `FlouFond`, afin d'éviter N
-    // sous-processus au démarrage et de propager tout changement de fond.
+    // Sonde partagée pour `FondProfondeur`, déclenchée uniquement quand actif.
     property string wallpaperCourant: ""
 
     property Process wallpaperSondeProc: Process {
         command: ["awww", "query"]
-        running: true
+        running: root.depthWallpaper
         stdout: StdioCollector {
             onStreamFinished: {
                 const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
@@ -822,13 +795,6 @@ QtObject {
 
     function rafraichirWallpaper() {
         if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
-    }
-
-    property Timer wallpaperSondeTimer: Timer {
-        interval: 60000
-        repeat: true
-        running: root.shellFlouInterne > 0.01
-        onTriggered: root.rafraichirWallpaper()
     }
 
     // ────────────────────────────────────────────────────────────────────────

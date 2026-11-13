@@ -33,7 +33,8 @@ from applet_contrat import compact, presenter, sortir
 
 ICI = Path(__file__).resolve().parent
 CACHE = ICI / "systeme_applet_cache.json"
-ETAT_CPU = ICI / "systeme_applet_cpu.json"
+ETAT_CPU = Path(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))) / "quickshell" / "systeme_cpu_cache.json"
+_MEM_ETAT_CPU = None
 CACHE_TTL = 3          # s : quatre appels rapprochés ne doivent pas refaire nvidia-smi
 ECHANTILLON = 0.2      # s
 
@@ -59,6 +60,7 @@ def _lire_stat():
 def _sauver_etat_cpu(total, idle, maintenant):
     tmp = f"{ETAT_CPU}.tmp.{os.getpid()}"
     try:
+        ETAT_CPU.parent.mkdir(parents=True, exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"total": total, "idle": idle, "ts": maintenant}, f)
         os.replace(tmp, ETAT_CPU)
@@ -70,20 +72,29 @@ def _sauver_etat_cpu(total, idle, maintenant):
                 pass
 
 
-def cpu_pourcent():
+def cpu_pourcent(persister=True):
+    global _MEM_ETAT_CPU
     try:
         maintenant = time.monotonic()
         total2, idle2 = _lire_stat()
         total1 = idle1 = None
-        try:
-            with open(ETAT_CPU, "r", encoding="utf-8") as f:
-                prev = json.load(f)
-            ts_prev = float(prev.get("ts", 0))
-            if 0 < (maintenant - ts_prev) <= 30.0:
-                total1 = int(prev["total"])
-                idle1 = int(prev["idle"])
-        except (OSError, ValueError, KeyError, TypeError):
-            pass
+        if not persister:
+            prev = _MEM_ETAT_CPU
+        else:
+            prev = None
+            try:
+                with open(ETAT_CPU, "r", encoding="utf-8") as f:
+                    prev = json.load(f)
+            except (OSError, ValueError):
+                prev = None
+        if isinstance(prev, dict):
+            try:
+                ts_prev = float(prev.get("ts", 0))
+                if 0 < (maintenant - ts_prev) <= 30.0:
+                    total1 = int(prev["total"])
+                    idle1 = int(prev["idle"])
+            except (ValueError, KeyError, TypeError):
+                pass
 
         if total1 is None or (total2 - total1) <= 0:
             total1, idle1 = total2, idle2
@@ -91,7 +102,10 @@ def cpu_pourcent():
             total2, idle2 = _lire_stat()
             maintenant = time.monotonic()
 
-        _sauver_etat_cpu(total2, idle2, maintenant)
+        if persister:
+            _sauver_etat_cpu(total2, idle2, maintenant)
+        else:
+            _MEM_ETAT_CPU = {"total": total2, "idle": idle2, "ts": maintenant}
         dt, di = total2 - total1, idle2 - idle1
         if dt <= 0:
             return None
@@ -194,8 +208,8 @@ def _barre(cle, valeur, texte):
     }
 
 
-def analyser(options=None, force=False):
-    if not force:
+def analyser(options=None, force=False, persister=True):
+    if not force and persister:
         try:
             lu = json.loads(CACHE.read_text(encoding="utf-8"))
             if 0 <= time.time() - float(lu.get("ts", 0)) < CACHE_TTL:
@@ -208,7 +222,7 @@ def analyser(options=None, force=False):
 
     for cle in MESURES:
         if cle == "cpu":
-            v = cpu_pourcent()
+            v = cpu_pourcent(persister=persister)
             if v is not None:
                 barres.append(_barre(cle, v, f"{v:.0f}%"))
         elif cle == "ram":
@@ -238,10 +252,11 @@ def analyser(options=None, force=False):
         "detail": detail,
         "mesures": [b["cle"] for b in barres],
     }
-    try:
-        CACHE.write_text(json.dumps(donnees, ensure_ascii=False), encoding="utf-8")
-    except OSError:
-        pass
+    if persister:
+        try:
+            CACHE.write_text(json.dumps(donnees, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
     return _filtrer(donnees, options)
 
 

@@ -169,13 +169,25 @@ Item {
                 border.width: 1
                 border.color: Theme.doNotDisturb ? Theme.accent : "transparent"
 
-                Text {
+                Row {
                     id: dndLbl
                     anchors.centerIn: parent
-                    text: Theme.doNotDisturb ? "🔕 N.P.D. ON" : "🔔 N.P.D."
-                    font.family: Theme.fontUi
-                    font.pixelSize: Theme.textXs
-                    color: Theme.doNotDisturb ? Theme.accent : Theme.fg
+                    spacing: 4
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: Theme.doNotDisturb ? "bell-off" : "bell"
+                        size: Theme.iconXs
+                        color: Theme.doNotDisturb ? Theme.accent : Theme.fg
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Theme.doNotDisturb ? "N.P.D. ON" : "N.P.D."
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: Theme.doNotDisturb ? Theme.accent : Theme.fg
+                    }
                 }
 
                 MouseArea {
@@ -453,14 +465,25 @@ Item {
                         Layout.fillWidth: true
                         spacing: 3
 
-                        Text {
+                        RowLayout {
                             visible: root.upcomingEvents.length === 0
                             Layout.fillWidth: true
-                            text: "📅 Aucun événement à venir"
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: Qt.alpha(Theme.fg, 0.55)
-                            elide: Text.ElideRight
+                            spacing: 6
+
+                            Icon {
+                                glyph: "calendar"
+                                size: Theme.iconXs
+                                color: Qt.alpha(Theme.fg, 0.55)
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Aucun événement à venir"
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                color: Qt.alpha(Theme.fg, 0.55)
+                                elide: Text.ElideRight
+                            }
                         }
 
                         Repeater {
@@ -470,8 +493,14 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 6
 
+                                Icon {
+                                    glyph: "calendar"
+                                    size: Theme.iconXs
+                                    color: Theme.accent
+                                }
+
                                 Text {
-                                    text: "📅 " + String(modelData.dateLabel || "")
+                                    text: String(modelData.dateLabel || "")
                                     font.family: Theme.fontUi
                                     font.pixelSize: 10
                                     font.weight: Font.DemiBold

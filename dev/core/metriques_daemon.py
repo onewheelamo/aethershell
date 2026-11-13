@@ -38,11 +38,11 @@ def main(argv: list[str]) -> int:
         debut = time.monotonic()
         charge = {}
         try:
-            charge["systeme"] = systeme_applet.analyser(force=True)
+            charge["systeme"] = systeme_applet.analyser(force=True, persister=False)
         except Exception:
             charge["systeme"] = {"ok": False}
         try:
-            charge["reseau"] = reseau_widget.analyser()
+            charge["reseau"] = reseau_widget.analyser(persister=False)
         except Exception:
             charge["reseau"] = {"ok": False}
         try:

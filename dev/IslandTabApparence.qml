@@ -24,7 +24,13 @@ Item {
     Process {
         id: themesScanProc
         command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
-        running: true
+        running: false
+    }
+
+    onVisibleChanged: {
+        if (visible && Theme.islandPanelOpen && Theme.islandPanelTab === 4 && !themesScanProc.running) {
+            themesScanProc.running = true
+        }
     }
 
     function runStyle(key, val) {
@@ -88,6 +94,7 @@ Item {
 
         Flow {
             Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
             spacing: 6
 
             Repeater {
@@ -165,13 +172,25 @@ Item {
             border.width: 1
             border.color: Qt.alpha(Theme.accent, 0.3)
 
-            Text {
+            Row {
                 anchors.centerIn: parent
-                text: "🖼️  Changer de fond d'écran (SUPER+W)"
-                font.family: Theme.fontUi
-                font.pixelSize: Theme.textXs
-                font.weight: Font.DemiBold
-                color: Theme.fg
+                spacing: 6
+
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "image"
+                    size: Theme.iconSm
+                    color: Theme.fg
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Changer de fond d'écran (SUPER+W)"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    font.weight: Font.DemiBold
+                    color: Theme.fg
+                }
             }
 
             MouseArea {
@@ -354,13 +373,25 @@ Item {
             border.width: 1
             border.color: Theme.accent
 
-            Text {
+            Row {
                 anchors.centerIn: parent
-                text: "⚙️  Ouvrir tous les réglages (SUPER+SHIFT+H)"
-                font.family: Theme.fontUi
-                font.pixelSize: Theme.textSm
-                font.weight: Font.Bold
-                color: fullCfgMa.containsMouse ? Theme.bg : Theme.fg
+                spacing: 6
+
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "cog"
+                    size: Theme.iconSm
+                    color: fullCfgMa.containsMouse ? Theme.bg : Theme.fg
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Ouvrir tous les réglages (SUPER+SHIFT+H)"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textSm
+                    font.weight: Font.Bold
+                    color: fullCfgMa.containsMouse ? Theme.bg : Theme.fg
+                }
             }
 
             MouseArea {

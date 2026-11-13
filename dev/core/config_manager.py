@@ -435,11 +435,7 @@ def build_shell_blur_block(enabled, alpha, popups, extra_namespaces=()):
 def apply_shell_blur(data=None):
     """Rewrite the shell-blur block of general.lua from style_vars.json, then reload Hyprland."""
     src = data if data is not None else load_json(STYLE_FILE)
-    flou_interne = float(src.get("shell_flou_interne", 0.0))
-    # B13 / P11 : quand le verre interne est opaque (>= 0.99), il recouvre
-    # totalement le flou compositeur : on coupe `shell-blur` côté Hyprland
-    # pour éviter une double passe GPU inutile.
-    enabled = bool(src.get("shell_blur_enabled", True)) and flou_interne < 0.99
+    enabled = bool(src.get("shell_blur_enabled", True))
     alpha = round(max(0.0, min(1.0, float(src.get("shell_blur_alpha", 0.3)))), 2)
     popups = bool(src.get("shell_blur_popups", True))
     widget_namespaces = [f"shell-widget-{w.get('id')}" for w in load_widgets()
@@ -751,15 +747,6 @@ def update_style_var(key, value):
         data[key] = round(max(0.3, min(1.0, float(value))), 2)
     elif key == "shell_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
-    elif key == "shell_flou_taille":
-        # Rayon du flou des surfaces (le `blurMax` de MultiEffect, en pixels).
-        # Hyprland ne sait pas régler size/passes par couche : le verre interne
-        # est le seul endroit où « taille » et « passes » peuvent différer de
-        # ceux des fenêtres. Plancher à 1 : en dessous de 8 px le flou reste
-        # lisible et c'est là qu'on distingue les petits rayons.
-        data[key] = max(1, min(96, int(float(value))))
-    elif key == "shell_flou_passes":
-        data[key] = max(1, min(8, int(float(value))))
     elif key == "bar_border":
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "viz_fps":
@@ -821,14 +808,6 @@ def update_style_var(key, value):
         data[key] = max(1, min(8, int(float(value))))
     elif key == "blur_vibrancy":
         data[key] = max(0.0, min(1.0, float(value)))
-    elif key == "shell_flou_interne":
-        # Verre dépoli autonome des surfaces (MultiEffect) : 0 = éteint, 1 =
-        # opaque. À >= 0.99, désactive le flou compositeur redondant (B13/P11).
-        ancien = float(data.get(key, 0.0))
-        nouveau = round(max(0.0, min(1.0, float(value))), 2)
-        data[key] = nouveau
-        if (ancien >= 0.99) != (nouveau >= 0.99):
-            shell_blur_changed = True
     elif key == "depth_wallpaper":
         # Fond en profondeur (parallaxe au changement de bureau), rendu par
         # FondProfondeur.qml sur une couche `background`.
@@ -855,10 +834,6 @@ def update_style_var(key, value):
         # Cadenas des widgets de bureau : vrai = le bind de placement ne prend
         # plus (SUPER + SHIFT + clic), ce qui évite de déplacer un widget par
         # accident. Lu par Theme.qml (widgetsLocked) et gardé dans main.qml.
-        data[key] = str(value).lower() in ("true", "1", "yes")
-    elif key == "widgets_multieffect":
-        # Masque de profondeur rendu par un MultiEffect par widget au lieu du
-        # calque plein écran. Booléen relu par Theme.qml (widgetsMultieffect).
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "first_run_completed":
         data[key] = str(value).lower() in ("true", "1", "yes")
@@ -1962,9 +1937,6 @@ def get_full_config_state():
         "shell_blur_enabled": bool(style_data.get("shell_blur_enabled", True)),
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.3)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
-        "shell_flou_interne": float(style_data.get("shell_flou_interne", 0.0)),
-        "shell_flou_taille": int(style_data.get("shell_flou_taille", 48)),
-        "shell_flou_passes": int(style_data.get("shell_flou_passes", 3)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
         "panel_accordion": bool(style_data.get("panel_accordion", True)),
         "user_location_ville": str(style_data.get("user_location_ville", "") or ""),

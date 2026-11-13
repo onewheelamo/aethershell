@@ -44,7 +44,6 @@ inspirations/
 
 # caches des services (valeurs relues, jamais des sources)
 dev/core/*_cache.json
-dev/core/systeme_applet_cpu.json
 
 # Notes locales (journal + reste à faire) — ne partent pas sur GitHub
 RESTE_A_FAIRE.md

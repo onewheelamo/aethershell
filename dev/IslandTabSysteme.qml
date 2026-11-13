@@ -36,6 +36,15 @@ Item {
 
     readonly property var sysInfo: Theme.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
+    readonly property var batInfo: sysInfo.battery || ({})
+    readonly property bool isLaptop: Boolean(batInfo && batInfo.present)
+    property bool batLimit80: Boolean(batInfo && batInfo.limit_80)
+    readonly property int batPlafond: Number((batInfo && batInfo.limit_pct) || 80)
+    readonly property int batPct: Math.round(Number((batInfo && batInfo.percent) || 0))
+    readonly property bool batCharging: Boolean(batInfo && batInfo.charging)
+    readonly property string batStatus: String((batInfo && batInfo.status) || "")
+
+    onBatInfoChanged: batLimit80 = Boolean(batInfo && batInfo.limit_80)
 
     function signalIconFor(sig) {
         let s = Number(sig || 0)
@@ -69,11 +78,47 @@ Item {
         }
     }
 
+    function appliquerSysteme(d) {
+        if (!d || d.ok !== true) return
+        let barres = (d.compact && Array.isArray(d.compact.barres)) ? d.compact.barres : []
+        for (let i = 0; i < barres.length; i++) {
+            let b = barres[i]
+            if (b.cle === "cpu") root.cpuPct = Math.round(Number(b.valeur || 0))
+            else if (b.cle === "ram") root.ramPct = Math.round(Number(b.valeur || 0))
+            else if (b.cle === "gpu") root.gpuPct = Math.round(Number(b.valeur || 0))
+            else if (b.cle === "temp") root.cpuTemp = Math.round(Number(b.valeur || 0))
+        }
+        let det = d.detail || ({})
+        if (det.ram) {
+            root.ramUsed = Number(det.ram.utilisee_go || 0)
+            root.ramTotal = Number(det.ram.totale_go || 0)
+        }
+        if (det.gpu && det.gpu.temperature !== undefined) {
+            root.gpuTemp = Math.round(Number(det.gpu.temperature || 0))
+        }
+        if (det.temp && det.temp.cpu !== undefined) {
+            root.cpuTemp = Math.round(Number(det.temp.cpu || 0))
+        }
+    }
+
+    Connections {
+        target: Theme
+        function onSystemeDataChanged() {
+            if (root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 3 && Theme.metriquesActif)
+                root.appliquerSysteme(Theme.systemeData)
+        }
+    }
+
     function refreshTelemetry() {
-        if (!sysStatsProc.running) sysStatsProc.running = true
+        if (Theme.metriquesActif && Theme.systemeData && Theme.systemeData.ok) {
+            root.appliquerSysteme(Theme.systemeData)
+        } else if (!sysStatsProc.running) {
+            sysStatsProc.running = true
+        }
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
         if (!btStateProc.running) btStateProc.running = true
+        Theme.rafraichirSystemInfo()
     }
 
     function btCommand(args) {
@@ -105,26 +150,7 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    let d = JSON.parse(text.trim())
-                    let barres = (d.compact && Array.isArray(d.compact.barres)) ? d.compact.barres : []
-                    for (let i = 0; i < barres.length; i++) {
-                        let b = barres[i]
-                        if (b.cle === "cpu") root.cpuPct = Math.round(Number(b.valeur || 0))
-                        else if (b.cle === "ram") root.ramPct = Math.round(Number(b.valeur || 0))
-                        else if (b.cle === "gpu") root.gpuPct = Math.round(Number(b.valeur || 0))
-                        else if (b.cle === "temp") root.cpuTemp = Math.round(Number(b.valeur || 0))
-                    }
-                    let det = d.detail || ({})
-                    if (det.ram) {
-                        root.ramUsed = Number(det.ram.utilisee_go || 0)
-                        root.ramTotal = Number(det.ram.totale_go || 0)
-                    }
-                    if (det.gpu && det.gpu.temperature !== undefined) {
-                        root.gpuTemp = Math.round(Number(det.gpu.temperature || 0))
-                    }
-                    if (det.temp && det.temp.cpu !== undefined) {
-                        root.cpuTemp = Math.round(Number(det.temp.cpu || 0))
-                    }
+                    root.appliquerSysteme(JSON.parse(text.trim()))
                 } catch (e) {}
             }
         }
@@ -226,6 +252,11 @@ Item {
             root.btBusy = false
             if (!btStateProc.running) btStateProc.running = true
         }
+    }
+
+    Process {
+        id: batLimitProc
+        onExited: Theme.rafraichirSystemInfo()
     }
 
     Process {
@@ -406,6 +437,117 @@ Item {
                 title: "Disque /"
                 metric: root.diskSummary + " (" + root.diskPct + " %)"
                 pct: root.diskPct
+            }
+        }
+
+        // Gestion de la charge de la batterie (uniquement sur laptop)
+        Rectangle {
+            visible: root.isLaptop
+            Layout.fillWidth: true
+            Layout.preferredHeight: 46
+            radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
+            color: Qt.alpha(Theme.surfaceVariant, 0.34)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 10
+
+                Icon {
+                    glyph: root.batCharging ? "battery-charging" : "battery-70"
+                    size: 16
+                    color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Text {
+                            text: "Batterie · " + root.batPct + " %"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Bold
+                            color: Theme.fg
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: {
+                                let st = root.batStatus.toLowerCase()
+                                if (root.batCharging) return "En charge"
+                                if (st === "not charging") return "Branchée (limite)"
+                                if (st === "full") return "Pleine"
+                                return "Sur batterie"
+                            }
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            color: Qt.alpha(Theme.fg, 0.62)
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 4
+                        radius: 2
+                        color: Qt.alpha(Theme.fg, 0.12)
+
+                        Rectangle {
+                            width: parent.width * Math.max(0, Math.min(1, root.batPct / 100))
+                            height: parent.height
+                            radius: 2
+                            color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
+                            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredHeight: 26
+                    Layout.preferredWidth: batLimRow.implicitWidth + 16
+                    radius: 8
+                    color: root.batLimit80
+                        ? (batLimMa.containsMouse ? Qt.alpha(Theme.accent, 0.34) : Qt.alpha(Theme.accent, 0.22))
+                        : (batLimMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.7) : Qt.alpha(Theme.surfaceVariant, 0.45))
+                    border.width: 1
+                    border.color: root.batLimit80 ? Qt.alpha(Theme.accent, 0.6) : Qt.alpha(Theme.fg, 0.14)
+
+                    RowLayout {
+                        id: batLimRow
+                        anchors.centerIn: parent
+                        spacing: 5
+
+                        Text {
+                            text: root.batLimit80 ? ("Santé " + root.batPlafond + " %") : "Charge 100 %"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Medium
+                            color: root.batLimit80 ? Theme.accent : Theme.fg
+                        }
+                    }
+
+                    MouseArea {
+                        id: batLimMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (batLimitProc.running) return
+                            let nextLim = root.batLimit80 ? 100 : 80
+                            root.batLimit80 = !root.batLimit80
+                            batLimitProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
+                            batLimitProc.running = true
+                        }
+                    }
+                }
             }
         }
 
