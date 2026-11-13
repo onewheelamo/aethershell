@@ -484,8 +484,8 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 vizCmdProc.command = [
-                                    "python3", Quickshell.shellPath("core/config_manager.py"),
-                                    "applet_toggle", "visualiseur", root.vizActif ? "false" : "true"
+                                    "python3", Quickshell.shellPath("core/bar_applets.py"),
+                                    root.vizActif ? "desactiver" : "activer", "visualiseur"
                                 ]
                                 vizCmdProc.running = true
                             }

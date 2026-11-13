@@ -30,7 +30,7 @@ Item {
         { idx: 0, glyph: "widgets", label: "Contrôles",        src: "IslandTabControles.qml" },
         { idx: 1, glyph: "music",   label: "Média & Son",      src: "IslandTabMedia.qml" },
         { idx: 2, glyph: "bell",    label: "Alertes & Tâches", src: "IslandTabAlertes.qml" },
-        { idx: 3, glyph: "monitor", label: "Système & Réseau", src: "IslandTabSysteme.qml" },
+        { idx: 3, glyph: "cog",     label: "Système & Réseau", src: "IslandTabSysteme.qml" },
         { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
     ]
 
