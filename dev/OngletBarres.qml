@@ -327,6 +327,34 @@ CollapsibleSection {
             }
         }
         Row {
+            id: panelAnimDurationRow
+            objectName: "panelAnimDurationRow"
+            width: parent.width
+            spacing: 8
+
+            Text {
+                width: 160
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Vitesse d'animation :"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+            }
+
+            Slider {
+                anchors.verticalCenter: parent.verticalCenter
+                value: Theme.panelAnimDuration
+                minimumValue: 80
+                maximumValue: 500
+                stepSize: 20
+                suffix: " ms"
+                onValueModified: newVal => {
+                    Theme.panelAnimDuration = newVal
+                    root.runConfigCmd(["style", "panel_anim_duration", String(newVal)])
+                }
+            }
+        }
+        Row {
             id: barGapsRow   // ancre de recherche
             objectName: "barGapsRow"
             width: parent.width

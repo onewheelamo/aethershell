@@ -36,7 +36,7 @@ Item {
         property: "animProg"
         from: 0.0
         to: 1.0
-        duration: 210
+        duration: Theme.panelAnimDuration
         easing.type: Easing.OutCubic
     }
 

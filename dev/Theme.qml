@@ -65,6 +65,7 @@ QtObject {
     property bool islandPanelOpen: false
     property int islandPanelTab: 0
     property bool islandNeedsKeyboard: false
+    property int panelAnimDuration: 240
     onBarStyleChanged: {
         if (barStyle !== "island") {
             islandPanelOpen = false
@@ -515,6 +516,7 @@ QtObject {
         if (typeof data.shell_flou_passes === "number") root.shellFlouPasses = Math.max(1, Math.min(8, data.shell_flou_passes))
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
         if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion
+        if (typeof data.panel_anim_duration === "number") root.panelAnimDuration = Math.max(80, Math.min(500, Math.round(data.panel_anim_duration)))
         if (typeof data.user_location_ville === "string") root.userLocationVille = data.user_location_ville
         if (typeof data.user_location_tz === "string") root.userLocationTz = data.user_location_tz
         if (typeof data.user_location_lat === "number" && typeof data.user_location_lon === "number") {

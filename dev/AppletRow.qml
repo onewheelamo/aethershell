@@ -7,12 +7,18 @@ import Quickshell
 Item {
     id: root
     property string ile: "haut:fin"
+    property var include: []
     property var exclude: []
     readonly property var applets: {
         if (root.ile === "") return []
         let list = Theme.appletsPourIle(root.ile)
-        if (!root.exclude || root.exclude.length === 0) return list
-        return list.filter(function(a) { return root.exclude.indexOf(a.id) === -1 })
+        if (root.include && root.include.length > 0) {
+            list = list.filter(function(a) { return root.include.indexOf(a.id) !== -1 })
+        }
+        if (root.exclude && root.exclude.length > 0) {
+            list = list.filter(function(a) { return root.exclude.indexOf(a.id) === -1 })
+        }
+        return list
     }
 
     implicitWidth: ligne.implicitWidth

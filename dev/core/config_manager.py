@@ -775,6 +775,8 @@ def update_style_var(key, value):
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
         data[key] = max(28, min(60, int(float(value))))
+    elif key == "panel_anim_duration":
+        data[key] = max(80, min(500, int(float(value))))
     elif key in ("bar_gaps_out_h", "bar_gaps_out_v", "bar_gaps_out"):
         # Marge extérieure des quatre barres : `_h` pour les côtés (gauche/droite),
         # `_v` pour le haut et le bas. `bar_gaps_out` est l'ancienne clé unique,
@@ -1921,6 +1923,7 @@ def get_full_config_state():
         "shell_opacity": float(style_data.get("shell_opacity", 0.7)),
         "cheatsheet_opacity": float(style_data.get("cheatsheet_opacity", 0.88)),
         "bar_style": str(style_data.get("bar_style", "classic")),
+        "panel_anim_duration": int(style_data.get("panel_anim_duration", 240)),
         "bar_border": bool(style_data.get("bar_border", True)),
         "bar_gaps_transparent": bool(style_data.get("bar_gaps_transparent", False)),
         "viz_fps": int(style_data.get("viz_fps", 30)),
