@@ -451,10 +451,10 @@ Item {
             Item {
                 id: slotGauche
                 x: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? Math.max(0, dynamicIslandLoader.x - width - 12)
+                    ? 0
                     : zoneGauche.x + zoneGauche.width
                 width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? Math.min(160, Math.max(0, dynamicIslandLoader.x - 24))
+                    ? Math.max(0, dynamicIslandLoader.x - 12)
                     : Math.max(0, zoneCentre.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
@@ -466,7 +466,7 @@ Item {
                     ? dynamicIslandLoader.x + dynamicIslandLoader.width + 12
                     : zoneCentre.x + zoneCentre.width
                 width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? Math.min(160, Math.max(0, barContainer.width - x - 12))
+                    ? Math.max(0, barContainer.width - x)
                     : Math.max(0, zoneDroite.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
