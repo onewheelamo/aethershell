@@ -32,6 +32,7 @@ HomelabPopup 1.0 HomelabPopup.qml
 PressePapiersPopup 1.0 PressePapiersPopup.qml
 BarExtra 1.0 bar_extra.qml
 LuminositeApplet 1.0 LuminositeApplet.qml
+BatterieApplet 1.0 BatterieApplet.qml
 GestionEnergieApplet 1.0 GestionEnergieApplet.qml
 Visualiseur 1.0 Visualiseur.qml
 singleton VisualiseurAudio 1.0 VisualiseurAudio.qml

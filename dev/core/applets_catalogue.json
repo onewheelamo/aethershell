@@ -138,13 +138,24 @@
     },
     {
       "id": "luminosite",
-      "nom": "Luminosité & batterie",
-      "description": "Niveau de batterie et luminosité ; clic pour les réglages d'énergie",
+      "nom": "Luminosité",
+      "description": "Luminosité d'écran et mode nuit ; clic pour le curseur, molette pour ajuster",
       "categorie": "Session & énergie",
       "genre": "qml",
       "composant": "LuminositeApplet.qml",
       "ile": "haut:fin",
       "ordre": 55,
+      "text_scale": 100
+    },
+    {
+      "id": "batterie",
+      "nom": "Batterie",
+      "description": "Niveau de batterie et limite de charge à 80 % (portables)",
+      "categorie": "Session & énergie",
+      "genre": "qml",
+      "composant": "BatterieApplet.qml",
+      "ile": "haut:fin",
+      "ordre": 56,
       "text_scale": 100
     },
     {

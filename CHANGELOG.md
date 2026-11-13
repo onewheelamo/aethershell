@@ -1,9 +1,29 @@
 # Journal des modifications
 
-Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versionnage
-sémantique. Tant que le format des fichiers de configuration (`style_vars.json`,
-`bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
-montée de mineure peut demander une adaptation des réglages.
+Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
+
+### Convention de numérotation (`A.B.C.D`)
+
+- **`x.x.x.y`** : corrections de bugs, correctifs mineurs.
+- **`x.x.y.x`** : ajout de nouvelles fonctionnalités.
+- **`x.y.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
+- **`y.x.x.x`** : version majeure (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
+
+## [0.3.7.0] — 2026-11-13
+
+### Ajouté
+
+- **Séparation des applets Batterie & Luminosité** ([`dev/BatterieApplet.qml`](dev/BatterieApplet.qml), [`dev/LuminositeApplet.qml`](dev/LuminositeApplet.qml), [`dev/core/applets_catalogue.json`](dev/core/applets_catalogue.json), [`dev/core/bar_applets.json`](dev/core/bar_applets.json), [`dev/DynamicIsland.qml`](dev/DynamicIsland.qml)) :
+  - Nouvel applet dédié **Batterie** (`batterie`, masqué sur machine fixe) avec jauge et interrupteur de limite de charge à 80 %.
+  - L'applet **Luminosité** (`luminosite`) se concentre sur la luminosité (curseur interactif dans le popup et molette sur la barre) et le mode nuit.
+- **Contrôle rapide de charge à 80 %** ([`dev/IslandTabControles.qml`](dev/IslandTabControles.qml)) : tuile *Charge max 80 %* sur laptop synchronisée avec `Theme.systemInfo` et rafraîchissement immédiat.
+- **Nouveau fichier de tâches avec sélecteur de dossier** ([`dev/IslandSidePanel.qml`](dev/IslandSidePanel.qml), [`dev/core/todo_applet.py`](dev/core/todo_applet.py)) : bouton `+ Nouveau` dans *FICHIER CIBLE* avec sélecteur de dossier (`SelecteurDossier`) et sous-commande `creer_fichier`.
+- **Fermeture au clavier** ([`dev/main.qml`](dev/main.qml), [`dev/DynamicIsland.qml`](dev/DynamicIsland.qml)) : la touche `Échap` ferme désormais le panneau étendu de l'Îlot dynamique.
+- **Convention de versions `A.B.C.D`** ([`AGENTS.md`](AGENTS.md), [`dev/core/maj_shell.py`](dev/core/maj_shell.py)) : documentation de la numérotation à 4 segments et prise en charge dans `numeros()`.
+
+### Corrigé
+
+- **Transitions de fond d'écran `perfil`** ([`dev/core/wallfx_maps.py`](dev/core/wallfx_maps.py), [`dev/WallpaperFx.qml`](dev/WallpaperFx.qml)) : génération effective des cartes `perfil` (silhouette, distance signée et propagation extérieure) via le modèle ONNX de profondeur, avec repli sur `contagio` uniquement lorsqu'aucun sujet distinct n'est détecté.
 
 ## [0.3.6] — 2026-11-13
 

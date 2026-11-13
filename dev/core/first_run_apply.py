@@ -35,7 +35,7 @@ import bar_applets as ba  # noqa: E402
 PLACEMENT_BARRE = (
     ("debut", ["workspaces"]),
     ("milieu", ["horloge"]),
-    ("fin", ["systray", "reseau", "volume", "luminosite", "alimentation"]),
+    ("fin", ["systray", "reseau", "volume", "luminosite", "batterie", "alimentation"]),
 )
 
 

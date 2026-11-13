@@ -23,6 +23,33 @@ Item {
     property string selectedTodoFile: ""
     property bool todoBusy: false
     property string todoStatus: ""
+    property bool newFileOpen: false
+    property string newFileDir: Quickshell.env("HOME") || "/home"
+
+    function defaultNewFileDir() {
+        const cur = root.todoFiles.find(f => String(f.nom || "") === root.selectedTodoFile) || root.todoFiles[0]
+        if (cur && cur.chemin) {
+            const p = String(cur.chemin)
+            const idx = p.lastIndexOf("/")
+            if (idx > 0) return p.substring(0, idx)
+        }
+        return Quickshell.env("HOME") || "/home"
+    }
+
+    function createNewTodoFile() {
+        const nom = newFileNameInput.text.trim()
+        if (nom === "" || todoCreateFileProc.running) {
+            if (nom === "") root.todoStatus = "Nom du fichier requis"
+            return
+        }
+        root.todoBusy = true
+        root.todoStatus = ""
+        todoCreateFileProc.command = [
+            "python3", Quickshell.shellPath("core/todo_applet.py"),
+            "creer_fichier", nom, root.newFileDir
+        ]
+        todoCreateFileProc.running = true
+    }
 
     // ── État calendrier ───────────────────────────────────────────────────
     property int monthOffset: 0
@@ -121,6 +148,8 @@ Item {
         if (mode === "todo-add") {
             todoTitleInput.text = ""
             todoDetailInput.text = ""
+            newFileNameInput.text = ""
+            newFileOpen = false
             todoStatus = ""
             if (!todoFilesProc.running) todoFilesProc.running = true
             focusTimer.restart()
@@ -161,6 +190,43 @@ Item {
                     root.todoFiles = []
                 }
             }
+        }
+    }
+
+    Process {
+        id: todoCreateFileProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.todoBusy = false
+                try {
+                    const res = JSON.parse(text.trim())
+                    if (res.ok) {
+                        if (Array.isArray(res.fichiers)) root.todoFiles = res.fichiers
+                        if (res.nom) root.selectedTodoFile = String(res.nom)
+                        newFileNameInput.text = ""
+                        root.newFileOpen = false
+                        root.todoStatus = ""
+                        Theme.todoRev += 1
+                    } else {
+                        root.todoStatus = String(res.message || "Erreur")
+                    }
+                } catch (e) {
+                    root.todoStatus = "Réponse illisible"
+                }
+            }
+        }
+        onExited: code => {
+            root.todoBusy = false
+            if (code !== 0 && root.todoStatus === "") root.todoStatus = "Échec de création"
+        }
+    }
+
+    SelecteurDossier {
+        id: dossierSelector
+        titre: "Dossier du fichier de tâches"
+        chemin: root.newFileDir
+        onAccepte: c => {
+            if (c && c !== "") root.newFileDir = c
         }
     }
 
@@ -358,7 +424,7 @@ Item {
             }
 
             ColumnLayout {
-                visible: root.todoFiles.length > 1
+                visible: root.todoFiles.length > 0 || root.newFileOpen
                 Layout.fillWidth: true
                 spacing: 6
 
@@ -401,6 +467,160 @@ Item {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.selectedTodoFile = nom
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 24
+                        width: newFileBtnLbl.implicitWidth + 14
+                        radius: 7
+                        color: root.newFileOpen ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.3)
+                        border.width: 1
+                        border.color: root.newFileOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.22)
+
+                        Text {
+                            id: newFileBtnLbl
+                            anchors.centerIn: parent
+                            text: root.newFileOpen ? "✕ Nouveau" : "+ Nouveau"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Medium
+                            color: root.newFileOpen ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.newFileOpen = !root.newFileOpen
+                                if (root.newFileOpen) {
+                                    root.newFileDir = root.defaultNewFileDir()
+                                    newFileNameInput.forceActiveFocus()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Création rapide d'un nouveau fichier Markdown + sélecteur de dossier
+                Rectangle {
+                    visible: root.newFileOpen
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: newFileCol.implicitHeight + 16
+                    radius: 8
+                    color: Qt.alpha(Theme.surfaceVariant, 0.28)
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.accent, 0.35)
+
+                    ColumnLayout {
+                        id: newFileCol
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 6
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 28
+                                radius: 6
+                                color: Qt.alpha(Theme.bg, 0.5)
+                                border.width: 1
+                                border.color: newFileNameInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                                TextInput {
+                                    id: newFileNameInput
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    color: Theme.fg
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    clip: true
+                                    onActiveFocusChanged: Theme.islandNeedsKeyboard = activeFocus || todoTitleInput.activeFocus || todoDetailInput.activeFocus
+                                    Keys.onReturnPressed: root.createNewTodoFile()
+                                    Keys.onEnterPressed: root.createNewTodoFile()
+                                    Keys.onEscapePressed: root.newFileOpen = false
+
+                                    Text {
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: "nom-fichier.md"
+                                        color: Qt.alpha(Theme.fg, 0.38)
+                                        font: newFileNameInput.font
+                                        visible: newFileNameInput.text.length === 0
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: createFileLbl.implicitWidth + 14
+                                Layout.preferredHeight: 28
+                                radius: 6
+                                color: Theme.accent
+                                opacity: root.todoBusy ? 0.5 : 1.0
+
+                                Text {
+                                    id: createFileLbl
+                                    anchors.centerIn: parent
+                                    text: "Créer"
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    font.weight: Font.Bold
+                                    color: Theme.bg
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    enabled: !root.todoBusy
+                                    onClicked: root.createNewTodoFile()
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: root.newFileDir
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                color: Qt.alpha(Theme.fg, 0.7)
+                                elide: Text.ElideMiddle
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: pickDirLbl.implicitWidth + 12
+                                Layout.preferredHeight: 24
+                                radius: 6
+                                color: Qt.alpha(Theme.surfaceVariant, 0.55)
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.fg, 0.16)
+
+                                Text {
+                                    id: pickDirLbl
+                                    anchors.centerIn: parent
+                                    text: "Dossier…"
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    color: Theme.fg
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        dossierSelector.chemin = root.newFileDir
+                                        dossierSelector.ouvert = true
+                                    }
+                                }
                             }
                         }
                     }

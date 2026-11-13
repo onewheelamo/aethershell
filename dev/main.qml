@@ -293,7 +293,7 @@ Item {
         // passe Wi-Fi y a besoin du clavier.
         WlrLayershell.keyboardFocus: (Theme.activePopup === "applet:reseau"
                                       || Theme.activePopup === "calendar"
-                                      || (Theme.barStyle === "island" && Theme.islandPanelOpen && Theme.islandNeedsKeyboard))
+                                      || (Theme.barStyle === "island" && Theme.islandPanelOpen))
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-bar"

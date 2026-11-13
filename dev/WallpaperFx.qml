@@ -219,7 +219,7 @@ Scope {
 
     Timer {
         id: watchdog
-        interval: 2500
+        interval: 5000
         onTriggered: {
             const n = root.newPath || root.pendingNew
             const loading = (root.phase === "loading" || root.phase === "mapping")

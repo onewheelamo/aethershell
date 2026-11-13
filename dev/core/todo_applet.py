@@ -576,6 +576,81 @@ def ajouter(titre, detail="", fichier_nom=None):
     return True, f"ajoutée dans {cible['nom']}"
 
 
+def creer_fichier(nom_fichier, dossier, etiquette=""):
+    """Crée un fichier Markdown dans `dossier` et l'ajoute à la liste `todo.json`."""
+    fname = os.path.basename(str(nom_fichier or "").strip())
+    if not fname or fname in (".", ".."):
+        return False, "nom de fichier vide ou invalide", None
+    if not fname.lower().endswith(".md"):
+        fname = fname + ".md"
+
+    dossier_exp = os.path.abspath(_chemin(dossier))
+    if not dossier_exp:
+        return False, "dossier invalide", None
+    try:
+        os.makedirs(dossier_exp, exist_ok=True)
+    except OSError as e:
+        return False, f"impossible de créer le dossier : {e}", None
+
+    chemin = os.path.join(dossier_exp, fname)
+    nom_aff = str(etiquette or "").strip() or os.path.splitext(fname)[0]
+
+    if not os.path.isfile(chemin):
+        try:
+            with open(chemin, "w", encoding="utf-8") as f:
+                f.write(f"# {nom_aff}\n\n")
+        except OSError as e:
+            return False, f"impossible de créer le fichier : {e}", None
+
+    donnees = {}
+    if os.path.isfile(CONFIG):
+        try:
+            with open(CONFIG, "r", encoding="utf-8") as f:
+                donnees = json.load(f)
+            if not isinstance(donnees, dict):
+                donnees = {"fichiers": donnees}
+        except (OSError, ValueError):
+            donnees = dict(DEFAUT)
+    else:
+        donnees = dict(DEFAUT)
+
+    liste = donnees.get("fichiers")
+    if not isinstance(liste, list):
+        liste = list(DEFAUT["fichiers"])
+
+    cible_real = os.path.realpath(chemin)
+    noms_existants = set()
+    deja = None
+    for e in liste:
+        if isinstance(e, str):
+            p = _chemin(e)
+            n = os.path.basename(p)
+        else:
+            p = _chemin(e.get("chemin"))
+            n = str(e.get("nom") or os.path.basename(p))
+        noms_existants.add(n)
+        if p and os.path.realpath(p) == cible_real:
+            deja = n
+
+    if deja is None:
+        base_nom = nom_aff
+        idx = 2
+        while nom_aff in noms_existants:
+            nom_aff = f"{base_nom} ({idx})"
+            idx += 1
+        liste.append({"chemin": chemin, "nom": nom_aff})
+        donnees["fichiers"] = liste
+        os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
+        tmp = CONFIG + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(donnees, f, ensure_ascii=False, indent=4)
+        os.replace(tmp, CONFIG)
+    else:
+        nom_aff = deja
+
+    return True, f"fichier {nom_aff} prêt", {"nom": nom_aff, "chemin": chemin, "fichiers": fichiers()}
+
+
 # ── état pour la barre ────────────────────────────────────────────────────────
 def analyser(options=None):
     options = options or {}
@@ -658,6 +733,14 @@ def main(argv):
         fichier_nom = argv[4] if len(argv) > 4 else None
         ok, message = ajouter(argv[2], detail, fichier_nom)
         print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))
+        return 0 if ok else 1
+    if action == "creer_fichier" and len(argv) > 3:
+        etiquette = argv[4] if len(argv) > 4 else ""
+        ok, message, info = creer_fichier(argv[2], argv[3], etiquette)
+        out = {"ok": ok, "message": message}
+        if info:
+            out.update(info)
+        print(json.dumps(out, ensure_ascii=False))
         return 0 if ok else 1
     if action == "demandes":
         print(json.dumps({"demandes": _lire_file()}, ensure_ascii=False, indent=1))

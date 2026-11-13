@@ -174,9 +174,12 @@ def interroger_github():
 
 
 def numeros(version: str):
-    """« v0.1.5-3-gabc » → (0, 1, 5). None si la version n'est pas chiffrée."""
-    trouve = re.search(r"(\d+)\.(\d+)\.(\d+)", version or "")
-    return tuple(int(groupe) for groupe in trouve.groups()) if trouve else None
+    """« v0.1.5-3-gabc » → (0, 1, 5, 0), « v0.3.6.1 » → (0, 3, 6, 1)."""
+    trouve = re.search(r"(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?", version or "")
+    if not trouve:
+        return None
+    a, b, c, d = trouve.groups()
+    return (int(a), int(b), int(c), int(d) if d is not None else 0)
 
 
 # ── État ─────────────────────────────────────────────────────────────────────

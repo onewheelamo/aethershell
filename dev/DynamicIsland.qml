@@ -117,6 +117,7 @@ Item {
             expanded = true
             pretGrab = false
             delaiGrab.restart()
+            panelContainer.forceActiveFocus()
         } else {
             delaiGrab.stop()
             pretGrab = false
@@ -388,7 +389,7 @@ Item {
                 AppletRow {
                     id: leftApplets
                     ile: "haut:debut"
-                    include: ["systray", "workspaces", "minimise", "luminosite"]
+                    include: ["systray", "workspaces", "minimise", "luminosite", "batterie"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -441,7 +442,7 @@ Item {
                 AppletRow {
                     id: rightApplets
                     ile: "haut:fin"
-                    include: ["systray", "workspaces", "minimise", "luminosite"]
+                    include: ["systray", "workspaces", "minimise", "luminosite", "batterie"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -483,6 +484,8 @@ Item {
         id: panelContainer
         anchors.fill: parent
         clip: true
+        focus: root.panelOpen
+        Keys.onEscapePressed: Theme.islandPanelOpen = false
         opacity: root.panelOpen ? 1.0 : 0.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }

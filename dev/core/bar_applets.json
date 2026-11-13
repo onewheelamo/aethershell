@@ -67,6 +67,12 @@
             "text_scale": 100,
             "options": {}
         },
+        "batterie": {
+            "ile": "haut:fin",
+            "ordre": 62,
+            "text_scale": 100,
+            "options": {}
+        },
         "notifications": {
             "ile": "haut:fin",
             "ordre": 10,

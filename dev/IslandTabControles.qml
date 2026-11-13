@@ -69,6 +69,12 @@ Item {
                 initDelayTimer.restart()
             }
         }
+        function onSystemInfoChanged() {
+            if (root.batInfo) {
+                root.batLimit80 = Boolean(root.batInfo.limit_80)
+                root.batPlafond = Number(root.batInfo.limit_pct || 80)
+            }
+        }
     }
 
     Component.onCompleted: {
@@ -129,6 +135,22 @@ Item {
 
     Process {
         id: actionProc
+        property string sortie: ""
+        stdout: StdioCollector {
+            onStreamFinished: actionProc.sortie = text.trim()
+        }
+        onExited: code => {
+            let motif = ""
+            try {
+                const d = JSON.parse(actionProc.sortie)
+                if (d && d.error) motif = String(d.error)
+            } catch (e) {}
+            if (code !== 0 && motif !== "") {
+                Quickshell.execDetached(["notify-send", "-a", "AetherShell", "-u", "normal", "Réglage non appliqué", motif])
+            }
+            actionProc.sortie = ""
+            Theme.rafraichirSystemInfo()
+        }
     }
 
     Process {
@@ -336,15 +358,16 @@ Item {
 
             QuickTile {
                 glyphName: root.isLaptop ? "battery" : "cog"
-                title: root.isLaptop ? ("Limite " + root.batPlafond + " %") : "Configuration"
+                title: root.isLaptop ? "Charge max 80 %" : "Configuration"
                 subtitle: root.isLaptop
-                    ? (root.batLimit80 ? "Santé batterie active" : "Charge complète (100 %)")
+                    ? (root.batLimit80 ? ("Activée (plafond " + root.batPlafond + " %)") : "Désactivée (charge 100 %)")
                     : "Ouvrir les réglages"
                 active: root.isLaptop ? root.batLimit80 : false
                 onToggled: {
                     if (root.isLaptop) {
                         let nextLim = root.batLimit80 ? 100 : 80
                         root.batLimit80 = !root.batLimit80
+                        root.batPlafond = nextLim
                         actionProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
                         actionProc.running = true
                     } else {
