@@ -340,7 +340,12 @@ Item {
         service.forgetNotif(entry)
         if (service.latestToast && String(service.latestToast.id) === String(entry.id))
             service.latestToast = null
-        if (closeCentre) Theme.activePopup = ""
+        if (typeof closeCentre === "function") {
+            closeCentre()
+        } else if (closeCentre) {
+            Theme.activePopup = ""
+            Theme.islandPanelOpen = false
+        }
         return true
     }
 
