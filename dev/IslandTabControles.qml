@@ -55,7 +55,25 @@ Item {
         }
     }
 
-    Component.onCompleted: rafraichirEtats()
+    Timer {
+        id: initDelayTimer
+        interval: Theme.panelAnimDuration + 30
+        repeat: false
+        onTriggered: root.rafraichirEtats()
+    }
+
+    Connections {
+        target: Theme
+        function onIslandPanelOpenChanged() {
+            if (Theme.islandPanelOpen && Theme.islandPanelTab === 0) {
+                initDelayTimer.restart()
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        if (Theme.islandPanelOpen) initDelayTimer.restart()
+    }
 
     Process {
         id: wifiCheckProc

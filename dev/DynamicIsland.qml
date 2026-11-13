@@ -503,7 +503,8 @@ Item {
         Loader {
             id: islandPanelLoader
             anchors.fill: parent
-            active: root.panelOpen || root.height > Theme.barHeight + 20
+            active: true
+            asynchronous: true
             source: "IslandPanel.qml"
             onLoaded: {
                 if (!item) return

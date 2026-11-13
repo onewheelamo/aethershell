@@ -282,7 +282,9 @@ Item {
         // Les deux constantes valaient pour une marge de 8 px (8 + 6 et 8 + 2) :
         // elles suivent la marge **verticale** (`bar_gaps_out_v`) — le haut de
         // l'écran n'a que faire de la marge latérale.
-        implicitHeight: Math.max(barContainer.height, (Theme.barStyle === "island" && dynamicIslandLoader.item) ? dynamicIslandLoader.item.height : 0) + Theme.gutterV + 6
+        readonly property bool islandTallSurface: Theme.barStyle === "island"
+            && (Theme.islandPanelOpen || (dynamicIslandLoader.item && dynamicIslandLoader.item.height > Theme.barHeight + 2))
+        implicitHeight: (islandTallSurface ? 420 : barContainer.height) + Theme.gutterV + 6
         exclusionMode: ExclusionMode.Normal
         exclusiveZone: Theme.barHeight + Theme.gutterV + 2
         color: "transparent"
