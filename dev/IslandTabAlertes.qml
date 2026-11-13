@@ -13,6 +13,7 @@ Item {
 
     property var todoItems: []
     property int todoOpenCount: 0
+    property bool todoSurveillance: false
     property var upcomingEvents: []
     property var _curMonthDays: ({})
 
@@ -33,12 +34,23 @@ Item {
 
     Component.onCompleted: refreshTasks()
 
+    Connections {
+        target: Theme
+        function onTodoRevChanged() {
+            if (!todoProc.running) {
+                todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py")]
+                todoProc.running = true
+            }
+        }
+    }
+
     Process {
         id: todoProc
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     let d = JSON.parse(text.trim())
+                    root.todoSurveillance = Boolean(d.surveillance)
                     let items = d.taches || d.items || []
                     let open = []
                     for (let i = 0; i < items.length; i++) {
@@ -381,12 +393,107 @@ Item {
         }
 
         // Section Tâches & Agenda
-        Text {
-            text: "TÂCHES (" + root.todoOpenCount + ") & AGENDA"
-            font.family: Theme.fontUi
-            font.pixelSize: Theme.textXs
-            font.weight: Font.Bold
-            color: Qt.alpha(Theme.fg, 0.65)
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                Layout.fillWidth: true
+                text: "TÂCHES (" + root.todoOpenCount + ") & AGENDA"
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+                font.weight: Font.Bold
+                color: Qt.alpha(Theme.fg, 0.65)
+            }
+
+            // Taquet surveillance Hermès
+            Rectangle {
+                Layout.preferredHeight: 22
+                Layout.preferredWidth: hermesRow.implicitWidth + 12
+                radius: 6
+                color: root.todoSurveillance
+                    ? Qt.alpha(Theme.accent, 0.22)
+                    : (hermesMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.7) : Qt.alpha(Theme.surfaceVariant, 0.45))
+                border.width: 1
+                border.color: root.todoSurveillance ? Qt.alpha(Theme.accent, 0.55) : Qt.alpha(Theme.fg, 0.14)
+
+                Row {
+                    id: hermesRow
+                    anchors.centerIn: parent
+                    spacing: 6
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Hermès"
+                        font.family: Theme.fontUi
+                        font.pixelSize: 10
+                        font.weight: root.todoSurveillance ? Font.DemiBold : Font.Normal
+                        color: root.todoSurveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                    }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 24
+                        height: 13
+                        radius: 7
+                        color: root.todoSurveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.22)
+
+                        Rectangle {
+                            width: 9
+                            height: 9
+                            radius: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: root.todoSurveillance ? 13 : 2
+                            color: root.todoSurveillance ? Theme.bg : Theme.fg
+                            Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: hermesMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (todoActionProc.running) return
+                        root.todoSurveillance = !root.todoSurveillance
+                        todoActionProc.command = [
+                            "python3", Quickshell.shellPath("core/todo_applet.py"),
+                            "surveillance", root.todoSurveillance ? "on" : "off"
+                        ]
+                        todoActionProc.running = true
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                radius: 6
+                color: Theme.islandSidePanel === "todo-add"
+                    ? Theme.accent
+                    : (addTodoMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.45))
+                border.width: 1
+                border.color: Theme.islandSidePanel === "todo-add" ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "+"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textSm
+                    font.weight: Font.Bold
+                    color: Theme.islandSidePanel === "todo-add" ? Theme.bg : (addTodoMa.containsMouse ? Theme.accent : Theme.fg)
+                }
+
+                MouseArea {
+                    id: addTodoMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.islandSidePanel = (Theme.islandSidePanel === "todo-add" ? "" : "todo-add")
+                }
+            }
         }
 
         Rectangle {
@@ -521,19 +628,17 @@ Item {
 
                     Text {
                         Layout.alignment: Qt.AlignBottom
-                        text: "Agenda ↗"
+                        text: Theme.islandSidePanel === "calendar" ? "Agenda ×" : "Agenda →"
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs
-                        color: calLinkMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        font.weight: Theme.islandSidePanel === "calendar" ? Font.Bold : Font.Normal
+                        color: (Theme.islandSidePanel === "calendar" || calLinkMa.containsMouse) ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
                         MouseArea {
                             id: calLinkMa
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Theme.islandPanelOpen = false
-                                Theme.activePopup = "calendar"
-                            }
+                            onClicked: Theme.islandSidePanel = (Theme.islandSidePanel === "calendar" ? "" : "calendar")
                         }
                     }
                 }

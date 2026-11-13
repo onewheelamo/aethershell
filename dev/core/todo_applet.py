@@ -514,6 +514,68 @@ def prendre(identifiant):
     return etat == "prise", etat
 
 
+def ajouter(titre, detail="", fichier_nom=None):
+    """Ajoute une nouvelle tâche `- [ ] <titre>` dans le fichier Markdown cible."""
+    titre = str(titre or "").strip().replace("\r", " ").replace("\n", " ")
+    if not titre:
+        return False, "titre vide"
+
+    liste = fichiers()
+    if not liste:
+        return False, "aucun fichier configuré"
+
+    cible = None
+    if fichier_nom:
+        for f in liste:
+            if f["nom"] == fichier_nom or f["chemin"] == fichier_nom:
+                cible = f
+                break
+    if cible is None:
+        nom_focus = focus()
+        if nom_focus:
+            for f in liste:
+                if f["nom"] == nom_focus:
+                    cible = f
+                    break
+    if cible is None:
+        cible = liste[0]
+
+    chemin = cible["chemin"]
+    os.makedirs(os.path.dirname(chemin), exist_ok=True)
+    verrou_chemin = chemin + ".verrou"
+    with open(verrou_chemin, "a+", encoding="utf-8") as verrou:
+        fcntl.flock(verrou, fcntl.LOCK_EX)
+        try:
+            contenu = ""
+            if os.path.isfile(chemin):
+                with open(chemin, "r", encoding="utf-8") as f:
+                    contenu = f.read()
+            bloc = f"- [ ] {titre}\n"
+            for ligne_det in str(detail or "").splitlines():
+                ligne_det = ligne_det.strip()
+                if ligne_det:
+                    bloc += f"      {ligne_det}\n"
+            prefixe = "" if (not contenu or contenu.endswith("\n")) else "\n"
+            nouveau = contenu + prefixe + bloc
+            tmp = f"{chemin}.tmp.{os.getpid()}"
+            try:
+                with open(tmp, "w", encoding="utf-8") as tf:
+                    tf.write(nouveau)
+                    tf.flush()
+                    os.fsync(tf.fileno())
+                os.replace(tmp, chemin)
+            except Exception:
+                if os.path.exists(tmp):
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+                raise
+        finally:
+            fcntl.flock(verrou, fcntl.LOCK_UN)
+    return True, f"ajoutée dans {cible['nom']}"
+
+
 # ── état pour la barre ────────────────────────────────────────────────────────
 def analyser(options=None):
     options = options or {}
@@ -589,6 +651,12 @@ def main(argv):
         return 0 if ok else 1
     if action == "bloquer" and len(argv) > 3:
         ok, message = bloquer(argv[2], argv[3])
+        print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))
+        return 0 if ok else 1
+    if action == "ajouter" and len(argv) > 2:
+        detail = argv[3] if len(argv) > 3 else ""
+        fichier_nom = argv[4] if len(argv) > 4 else None
+        ok, message = ajouter(argv[2], detail, fichier_nom)
         print(json.dumps({"ok": ok, "message": message}, ensure_ascii=False))
         return 0 if ok else 1
     if action == "demandes":

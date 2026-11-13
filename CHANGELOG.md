@@ -5,6 +5,16 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.5] — 2026-11-13
+
+### Ajouté
+
+- **Panneaux latéraux de l'Îlot dynamique** ([`dev/IslandSidePanel.qml`](dev/IslandSidePanel.qml), [`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/IslandPanel.qml`](dev/IslandPanel.qml), [`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml), [`dev/core/todo_applet.py`](dev/core/todo_applet.py)) :
+  - Bouton `+` sur la ligne **« TÂCHES (…) & AGENDA »** ouvrant un panneau latéral droit (`340 px`) pour créer une nouvelle tâche (`todo_applet.py ajouter <titre> [detail] [fichier]`, choix du fichier cible et rafraîchissement instantané).
+  - Bouton **« Agenda → »** ouvrant le calendrier mensuel et les événements Nextcloud dans ce même panneau latéral au lieu d'un popup séparé.
+  - Animation synchronisée sur `Theme.panelAnimDuration` (`Easing.OutCubic`) maintenant l'ensemble centré horizontalement.
+- **Taquet de surveillance Hermès** ([`dev/IslandTabAlertes.qml`](dev/IslandTabAlertes.qml)) : bascule directe de la surveillance des tâches par Hermès (`todo_applet.py surveillance <on|off>`) depuis l'en-tête *Tâches & Agenda*.
+
 ## [0.3.4] — 2026-11-13
 
 ### Ajouté

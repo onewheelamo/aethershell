@@ -48,6 +48,7 @@ WallpaperFx 1.0 WallpaperFx.qml
 PanneauSurface 1.0 PanneauSurface.qml
 SurfaceFloutee 1.0 SurfaceFloutee.qml
 IslandPanel 1.0 IslandPanel.qml
+IslandSidePanel 1.0 IslandSidePanel.qml
 IslandTabControles 1.0 IslandTabControles.qml
 IslandTabMedia 1.0 IslandTabMedia.qml
 IslandTabAlertes 1.0 IslandTabAlertes.qml

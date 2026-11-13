@@ -64,11 +64,20 @@ QtObject {
     // État du panneau étendu de l'Îlot dynamique (Phase 3)
     property bool islandPanelOpen: false
     property int islandPanelTab: 0
+    property string islandSidePanel: ""
+    property int todoRev: 0
     property bool islandNeedsKeyboard: false
     property int panelAnimDuration: 240
+    onIslandPanelOpenChanged: {
+        if (!islandPanelOpen) {
+            islandSidePanel = ""
+            islandNeedsKeyboard = false
+        }
+    }
     onBarStyleChanged: {
         if (barStyle !== "island") {
             islandPanelOpen = false
+            islandSidePanel = ""
             islandNeedsKeyboard = false
         }
     }
@@ -1153,7 +1162,10 @@ QtObject {
             if (root.barStyle !== "island") return
             root.activePopup = ""
             root.islandPanelOpen = !root.islandPanelOpen
-            if (!root.islandPanelOpen) root.islandNeedsKeyboard = false
+            if (!root.islandPanelOpen) {
+                root.islandSidePanel = ""
+                root.islandNeedsKeyboard = false
+            }
         }
         function openIslandPanel(tabIndex: int) {
             if (root.barStyle !== "island") return

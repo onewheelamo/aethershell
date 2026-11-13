@@ -34,9 +34,14 @@ Item {
         { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
     ]
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
         spacing: 0
+
+        ColumnLayout {
+            Layout.preferredWidth: 680
+            Layout.fillHeight: true
+            spacing: 0
 
         // ── En-tête permanent du panneau (hauteur = Theme.barHeight) ─────
         Item {
@@ -280,6 +285,23 @@ Item {
                     }
                 }
             }
+        }
+
+        // Séparateur vertical + panneau latéral droit (ajout de tâche / agenda)
+        Rectangle {
+            visible: sidePanel.visible
+            Layout.preferredWidth: 1
+            Layout.fillHeight: true
+            color: Qt.alpha(Theme.fg, 0.12)
+        }
+
+        IslandSidePanel {
+            id: sidePanel
+            Layout.preferredWidth: 340
+            Layout.fillHeight: true
+            visible: opacity > 0.02
+            opacity: Theme.islandSidePanel !== "" ? 1.0 : 0.0
+            Behavior on opacity { NumberAnimation { duration: Theme.panelAnimDuration; easing.type: Easing.OutCubic } }
         }
     }
 }

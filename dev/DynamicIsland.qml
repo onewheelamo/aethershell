@@ -199,7 +199,8 @@ Item {
         + Theme.padH * 3 + 28
     )
 
-    width: panelOpen ? 680 : (expanded ? expandedWidth : compactWidth)
+    readonly property int sidePanelWidth: (panelOpen && Theme.islandSidePanel !== "") ? 340 : 0
+    width: panelOpen ? (680 + sidePanelWidth) : (expanded ? expandedWidth : compactWidth)
 
     Behavior on width {
         NumberAnimation {
@@ -481,6 +482,7 @@ Item {
     Item {
         id: panelContainer
         anchors.fill: parent
+        clip: true
         opacity: root.panelOpen ? 1.0 : 0.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
