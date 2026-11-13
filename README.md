@@ -31,22 +31,22 @@ Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuel
 ### Installer ou mettre à jour en une ligne
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash
 ```
 
 [`install.sh`](install.sh) fait tout : il lit la distribution dans `/etc/os-release`
 (Arch ou Fedora), clone le dépôt ou le met à jour en avance rapide s'il est déjà là,
-puis lance `dev/deploy.sh`, qui sauvegarde l'environnement avant de déployer. La même
+sauvegarde l'environnement avant de déployer, puis déploie le shell. La même
 ligne sert à la première pose comme à toutes les mises à jour.
 
 Options : `--dir CHEMIN` (défaut : `$AETHERSHELL_DIR`, sinon `~/dev/quickshell_todo`
 s'il existe, sinon `~/dev/aethershell`), `--arch` / `--fedora` pour forcer la cible
 au lieu de la lire dans `/etc/os-release`, `--branche NOM`, `--check` (état seul,
 sans rien déployer), `--no-deploy`, `--help`. Avec le lien, elles passent après
-`sh -s --` :
+`bash -s --` :
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh -s -- --check
+curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash -s -- --check
 ```
 
 Le panneau suit la même version que le script : « Écrans & Système » → « Mise à jour
@@ -58,36 +58,34 @@ son cache, donc ouvrir le panneau ne sort pas sur le réseau.
 
 ### Déploiement à la main
 
-Le déploiement est piloté par le script [`dev/deploy.sh`](dev/deploy.sh), compatible avec **Arch Linux** et **Fedora** (détection automatique par `/etc/os-release`) :
+Le déploiement est piloté par [`install.sh`](install.sh), compatible avec **Arch Linux** et **Fedora** (détection automatique par `/etc/os-release`) :
 
 ```sh
-cd dev
-
 # Inspecter les dépendances nécessaires sans rien installer
-./deploy.sh --deps
+./install.sh --deps
 
 # Analyse comparative pré-vol (Dépôt ➜ Vivant) sans modification
-./deploy.sh --diff
+./install.sh --diff
 
 # Déploiement complet avec sauvegarde préalable (tarball + snapshot fin)
-./deploy.sh --arch    # ou ./deploy.sh --fedora
+./install.sh --arch    # ou ./install.sh --fedora
 
 # Déploiement rapide sans nouvelle sauvegarde (quand l'état est déjà archivé)
-./deploy.sh --deploy-only
+./install.sh --deploy-only
 ```
 
 ### Protection stricte des données locales
 Le déploiement ne remplace jamais aveuglément les fichiers vivants :
 * **États locaux protégés** : `style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`, `todo.json`, `secrets.json`, etc. ne sont jamais écrasés s'ils existent déjà sur la machine cible.
 * **Configuration Hyprland personnalisée** : `binds.lua`, `input.lua`, `general.lua` et les profils matériels restent maîtres. En cas de différence avec le dépôt, une copie comparative `.upstream` est générée sans toucher au fichier actif.
-* **Filet de sécurité granulaire** : chaque déploiement crée une archive `.tar.gz` de secours et un snapshot décompressé miroir sous `~/.config/backups_env/snapshots/<horodatage>/` avec table d'empreintes sha256 (`manifest.json`), permettant de restaurer un seul fichier en cas de besoin (`./deploy.sh --restore-file <chemin>`).
+* **Filet de sécurité granulaire** : chaque déploiement crée une archive `.tar.gz` de secours et un snapshot décompressé miroir sous `~/.config/backups_env/snapshots/<horodatage>/` avec table d'empreintes sha256 (`manifest.json`), permettant de restaurer un seul fichier en cas de besoin (`./install.sh --restore-file <chemin>`).
 
 ---
 
 ### Installer chez quelqu'un d'autre
 
 Rien dans le dépôt ne nomme un utilisateur, un dossier personnel ou une machine :
-AetherShell s'installe sous n'importe quel compte, et `./deploy.sh` écrit toujours
+AetherShell s'installe sous n'importe quel compte, et `./install.sh` écrit toujours
 dans le `$HOME` de la personne qui le lance.
 
 Les chemins se composent donc avec une variable, jamais en dur :
@@ -119,6 +117,7 @@ avertissement. Une ligne peut porter une dérogation explicite — `neutralite:o
 ## 4. Organisation du projet
 
 ```
+install.sh            # Script unifié : installation, mise à jour, pré-vol, déploiement et sauvegardes
 dev/
 ├── core/             # Services Python (réseau, disques, tâches, Hermes, lister_fichiers...)
 ├── widgets/          # Composants de bureau (horloge, todo, système, météo...)
@@ -126,7 +125,6 @@ dev/
 ├── hyprquickpaper/   # Moteur de fond d'écran et gestion de palette
 ├── sddm/             # Scripts et helpers pour l'écran de connexion SDDM
 ├── systemd/          # Définitions des unités utilisateur (quickshell.service...)
-├── deploy.sh         # Gestionnaire de déploiement, pré-vol et sauvegardes
 └── *.qml             # Surfaces Quickshell (barre, panneau, popups, sélecteurs...)
 ```
 

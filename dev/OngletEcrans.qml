@@ -42,10 +42,10 @@ Column {
     // ── Mise à jour du shell ─────────────────────────────────────────────────
     // Une seule ligne sert à installer **et** à mettre à jour, comme pour Ollama :
     //
-    //   curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh
+    //   curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash
     //
     // `core/maj_shell.py` compare la version déployée (`core/version.json`, écrit
-    // par `deploy.sh`) au dernier tag publié sur GitHub. Il ne sort sur le réseau
+    // par `install.sh`) au dernier tag publié sur GitHub. Il ne sort sur le réseau
     // qu'une fois toutes les `intervalleMin` minutes — 280 par défaut — et le
     // minuteur ci-dessous ne fait que lui redemander l'état : le cache répond.
     // L'intervalle est publié par le script, pour n'avoir qu'une constante.
@@ -57,7 +57,7 @@ Column {
     property string majCopie: ""
     property int intervalleMin: 280
     property bool majOccupe: false
-    property string majCommande: "curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh"
+    property string majCommande: "curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash"
 
     readonly property bool majDisponible: majEtat === "disponible"
     readonly property string majResume: majLocale === ""

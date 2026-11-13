@@ -9,6 +9,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.7.02] — 2026-11-13
+
+### Modifié
+
+- **Script unique d'installation et déploiement** ([`install.sh`](install.sh), [`README.md`](README.md), [`docs/README.md`](docs/README.md), [`dev/OngletEcrans.qml`](dev/OngletEcrans.qml), [`dev/sddm/setup.sh`](dev/sddm/setup.sh)) : fusion de `dev/deploy.sh` dans [`install.sh`](install.sh) à la racine du dépôt, suppression de `dev/deploy.sh` et mise à jour de la documentation (`| bash`, `./install.sh`).
+
 ## [0.3.7.01] — 2026-11-13
 
 ### Corrigé

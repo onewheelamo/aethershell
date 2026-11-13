@@ -268,7 +268,7 @@ fi
 if [ "$DEPLOY" = "1" ]; then
     step "backend du panneau"
     if [ ! -d "$QS/core" ]; then
-        echo "  ⚠ $QS/core absent : déployer d'abord la coquille (bash dev/deploy.sh --$DEPLOY_TARGET)"
+        echo "  ⚠ $QS/core absent : déployer d'abord la coquille (bash install.sh --$DEPLOY_TARGET)"
     elif cmp -s "$DEV/core/greeter_manager.py" "$QS/core/greeter_manager.py"; then
         echo "  greeter_manager.py : déjà à jour"
     else
@@ -278,7 +278,7 @@ if [ "$DEPLOY" = "1" ]; then
     if [ ! -f "$QS/GreeterTab.qml" ]; then
         echo "  ⚠ GreeterTab.qml absent du déploiement : l'onglet Connexion n'existera pas"
     elif ! cmp -s "$DEV/GreeterTab.qml" "$QS/GreeterTab.qml"; then
-        echo "  ⚠ GreeterTab.qml diffère du dépôt : bash dev/deploy.sh --$DEPLOY_TARGET (déploiement complet)"
+        echo "  ⚠ GreeterTab.qml diffère du dépôt : bash install.sh --$DEPLOY_TARGET (déploiement complet)"
     fi
 fi
 

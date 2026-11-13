@@ -30,37 +30,35 @@ Rather than a simple bar theme, AetherShell brings together the visual and utili
 ### One-Line Install or Update
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash
 ```
 
-[`install.sh`](../install.sh) handles everything: it detects the distribution from `/etc/os-release` (Arch or Fedora), clones the repository or fast-forwards it if already present, then launches `dev/deploy.sh`, which backs up the environment before deploying. The exact same command serves for initial installation and subsequent updates.
+[`install.sh`](../install.sh) handles everything: it detects the distribution from `/etc/os-release` (Arch or Fedora), clones the repository or fast-forwards it if already present, backs up the environment, and deploys the shell. The exact same command serves for initial installation and subsequent updates.
 
-Options: `--dir PATH` (default: `$AETHERSHELL_DIR`, otherwise `~/dev/quickshell_todo` if present, otherwise `~/dev/aethershell`), `--arch` / `--fedora` to override the target instead of reading `/etc/os-release`, `--branche NAME`, `--check` (status only, without deploying), `--no-deploy`, `--help`. With the one-line curl command, pass them after `sh -s --`:
+Options: `--dir PATH` (default: `$AETHERSHELL_DIR`, otherwise `~/dev/quickshell_todo` if present, otherwise `~/dev/aethershell`), `--arch` / `--fedora` to override the target instead of reading `/etc/os-release`, `--branche NAME`, `--check` (status only, without deploying), `--no-deploy`, `--help`. With the one-line curl command, pass them after `bash -s --`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | sh -s -- --check
+curl -fsSL https://raw.githubusercontent.com/onewheelamo/aethershell/master/install.sh | bash -s -- --check
 ```
 
 The panel tracks the same version as the script: "Displays & System" → "Shell Updates" displays the deployed version, the version published on GitHub, and available actions (check now, update in a terminal, copy the one-liner for another machine). `core/version.json` is written on every deployment, and `core/maj_shell.py` queries GitHub only once every **280 minutes** — between checks, it serves from cache, avoiding unnecessary network calls when opening the panel.
 
 ### Manual Deployment
 
-Deployment is handled by the [`dev/deploy.sh`](../dev/deploy.sh) script, compatible with **Arch Linux** and **Fedora** (auto-detected via `/etc/os-release`):
+Deployment is handled by [`install.sh`](../install.sh), compatible with **Arch Linux** and **Fedora** (auto-detected via `/etc/os-release`):
 
 ```sh
-cd dev
-
 # Check required dependencies without installing anything
-./deploy.sh --deps
+./install.sh --deps
 
 # Pre-flight diff analysis (Repository ➜ Live system) without modifications
-./deploy.sh --diff
+./install.sh --diff
 
 # Full deployment with prior backup (tarball + fine-grained snapshot)
-./deploy.sh --arch    # or ./deploy.sh --fedora
+./install.sh --arch    # or ./install.sh --fedora
 
 # Fast deployment without new backup (when the state is already archived)
-./deploy.sh --deploy-only
+./install.sh --deploy-only
 ```
 
 ### Strict Protection of Local Data
@@ -68,13 +66,13 @@ cd dev
 Deployment never blindly replaces live files:
 * **Protected local states**: `style_vars.json`, `bar_applets.json`, `widgets.json`, `autostart.json`, `todo.json`, `secrets.json`, etc. are never overwritten if they already exist on the target machine.
 * **Custom Hyprland configuration**: `binds.lua`, `input.lua`, `general.lua`, and hardware profiles remain authoritative. In case of differences with the repository, a comparative `.upstream` copy is created without touching the active file.
-* **Granular safety net**: each deployment creates a backup `.tar.gz` archive and an uncompressed mirror snapshot under `~/.config/backups_env/snapshots/<timestamp>/` with a SHA-256 fingerprint table (`manifest.json`), enabling single-file restoration when needed (`./deploy.sh --restore-file <path>`).
+* **Granular safety net**: each deployment creates a backup `.tar.gz` archive and an uncompressed mirror snapshot under `~/.config/backups_env/snapshots/<timestamp>/` with a SHA-256 fingerprint table (`manifest.json`), enabling single-file restoration when needed (`./install.sh --restore-file <path>`).
 
 ---
 
 ### Multi-User and Multi-Machine Support
 
-Nothing in the repository hardcodes a username, personal folder, or machine hostname: AetherShell installs under any user account, and `./deploy.sh` always writes to the `$HOME` of the user running it.
+Nothing in the repository hardcodes a username, personal folder, or machine hostname: AetherShell installs under any user account, and `./install.sh` always writes to the `$HOME` of the user running it.
 
 Paths are constructed using variables, never hardcoded:
 
@@ -101,6 +99,7 @@ Paths are constructed using variables, never hardcoded:
 ## 4. Project Structure
 
 ```
+install.sh            # Unified script: install, update, pre-flight checks, deployment, and backups
 dev/
 ├── core/             # Python services (network, disks, tasks, Hermes, file listing...)
 ├── widgets/          # Desktop components (clock, todo, system, weather...)
@@ -108,7 +107,6 @@ dev/
 ├── hyprquickpaper/   # Wallpaper engine and palette management
 ├── sddm/             # Scripts and helpers for SDDM login screen
 ├── systemd/          # User systemd units (quickshell.service...)
-├── deploy.sh         # Deployment manager, pre-flight checks, and backups
 └── *.qml             # Quickshell surfaces (bar, panel, popups, selectors...)
 ```
 
