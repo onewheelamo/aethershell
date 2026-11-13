@@ -448,7 +448,6 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    alignment: Qt.AlignTop
 
                     ColumnLayout {
                         Layout.fillWidth: true
