@@ -64,31 +64,31 @@ Item {
     implicitWidth: cote
     implicitHeight: cote
 
-    Process {
-        running: true
-        command: ["sh", "-c", "cat /proc/sys/kernel/hostname"]
-        stdout: StdioCollector {
-            onStreamFinished: root.hote = text.trim()
-        }
-    }
-
     function relire() {
         Theme.rafraichirSystemInfo()
     }
 
+    function synchroniserSystemInfo() {
+        const d = Theme.systemInfo || ({})
+        if (!Theme.systemInfoPret && Object.keys(d).length === 0) return
+        if (d.hostname) root.hote = String(d.hostname)
+        root.batPresente = Boolean(d.has_battery)
+        if (d.battery) {
+            root.batPourcent = Number(d.battery.level || 0)
+            root.batEtat = String(d.battery.status || "")
+            root.batLimite = Boolean(d.battery.limit_80)
+            root.batPlafond = Number(d.battery.limit_pct || 80)
+        }
+        root.briPresente = Boolean(d.has_backlight)
+        if (typeof d.brightness === "number") root.briPourcent = d.brightness
+    }
+
+    Component.onCompleted: root.synchroniserSystemInfo()
+
     Connections {
         target: Theme
         function onSystemInfoChanged() {
-            const d = Theme.systemInfo || ({})
-            root.batPresente = Boolean(d.has_battery)
-            if (d.battery) {
-                root.batPourcent = Number(d.battery.level || 0)
-                root.batEtat = String(d.battery.status || "")
-                root.batLimite = Boolean(d.battery.limit_80)
-                root.batPlafond = Number(d.battery.limit_pct || 80)
-            }
-            root.briPresente = Boolean(d.has_backlight)
-            if (typeof d.brightness === "number") root.briPourcent = d.brightness
+            root.synchroniserSystemInfo()
         }
     }
 
@@ -179,10 +179,9 @@ Item {
             id: carte
             anchors.fill: parent
             implicitHeight: colonne.implicitHeight + 32
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
+            color: "transparent"
+            radius: Theme.pillRadius
+            border.width: 0
 
             Column {
                 id: colonne

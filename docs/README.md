@@ -13,8 +13,8 @@ A desktop environment for [Hyprland](https://hyprland.org), featuring an island-
 Rather than a simple bar theme, AetherShell brings together the visual and utility components of the graphical session:
 
 * **Main Bar & Modular Capsule**: two switchable modes, configurable on the fly:
-  * *Classic*: a three-island layout (left, center, right) enclosed in a shared capsule with customizable separation transparency.
-  * *Dynamic Island*: a single interactive central pill, compact at rest (time and subtle media controls), expanding automatically with smooth animation during volume/brightness adjustments (integrated OSD) and expanding on hover (applets, full MPRIS playback controls, and calendar).
+  * *Classic*: a three-island layout (left, center, right) enclosed in a shared capsule with customizable separation transparency and morphed bar-aligned panels (`PanneauSurface`).
+  * *Dynamic Island*: a single 3-state interactive central pill — compact at rest (time, mini-player, integrated OSD), expanded on hover (applets, full MPRIS controls, calendar), and morphed on click into a **5-tab interactive panel** (*Controls*, *Media & Sound*, *Alerts & Tasks*, *System & Network*, *Appearance*).
 * **Optional Secondary Bars**: support for a bottom bar and vertical side bars following the same component architecture.
 * **Unified Configuration Panel**: accessible via a hotkey (`SUPER + H`) or by middle-clicking any applet. Allows tuning appearance (palettes, blurs, corner radii, opacity), favorite applications, displays, idle timeout (`hypridle`), autostart, and local secrets, with live hot-reloading without restarting the session.
 * **Dockable Desktop Widgets**: draggable blocks (tasks, system monitor, weather, music, clock, agent...) configurable and filterable by virtual workspace (middle-click to restrict a widget to one or more workspaces).
@@ -126,6 +126,7 @@ AetherShell did not emerge in a vacuum: it builds upon bricks, concepts, and cod
 | [To Do](https://github.com/noctalia-dev/community-plugins/tree/main/todo) | **nightwatch75** | Initial inspiration for decoupling the bar applet and desktop widget for task lists. |
 | [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | **tordex** | On-demand system monitoring principle (process spawned only when the view is opened). |
 | [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | **noctalia** | Visual immersion concept for islands using depth maps (Depth Anything V2). |
+| [WallpaperFx.qml (`pocket-dots`)](https://github.com/diegoMalagrida/pocket-dots) | **diegoMalagrida** | Shader-based wallpaper transitions (`WallpaperFx.qml` / `wallfx.frag`: organic 4 px cell spread and seamless `awww` handover). |
 | **Quickshell & Hyprland** | **outfoxxed & vaxerski** | For these two major projects that make building a modern, performant Wayland shell possible. |
 
 ---

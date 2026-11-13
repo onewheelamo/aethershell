@@ -187,7 +187,7 @@ Item {
 
     Process {
         id: valeurs
-        command: ["python3", Quickshell.shellPath("core/systeme_applet.py"), "--force"]
+        command: ["python3", Quickshell.shellPath("core/systeme_applet.py")]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

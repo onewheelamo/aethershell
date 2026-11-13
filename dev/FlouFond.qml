@@ -42,9 +42,9 @@ Item {
     // figé à 48 px). Plafonné à 160 px : au-delà, la surface coûte plus
     // qu'elle ne gagne, et le texte bave.
     property int flouMax: Math.min(160, Math.round(Theme.shellFlouTaille * Theme.shellFlouPasses / 3))
-    // Chemin du fond d'écran courant : lu au démarrage auprès d'awww, avec un
-    // repli sur le dossier de fonds si le démon ne répond pas.
-    property string fond: ""
+    // Chemin du fond d'écran courant : partagé par `Theme.wallpaperCourant`,
+    // avec repli sur le dossier de fonds si awww ne répond pas.
+    readonly property string fond: Theme.wallpaperCourant || fondDeRepli()
 
     // Position de la fenêtre sur l'écran (0,0 pour la barre) et taille de
     // l'écran : c'est ce qui recale le fond redessiné sur le vrai.
@@ -58,20 +58,6 @@ Item {
     readonly property bool actif: intensite > 0.01 && fond !== ""
     visible: actif
     opacity: intensite
-
-    // awww (fork de swww) tient le fond courant ; `awww query` le dit par écran.
-    Process {
-        id: sonde
-        command: ["awww", "query"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
-                if (m) racine.fond = m[1]
-                else racine.fond = racine.fondDeRepli()
-            }
-        }
-    }
 
     // Repli : premier fichier image du dossier de fonds du thème.
     function fondDeRepli() {
@@ -209,6 +195,6 @@ Item {
     }
 
     function rafraichir() {
-        if (!sonde.running) sonde.running = true
+        Theme.rafraichirWallpaper()
     }
 }

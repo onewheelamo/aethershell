@@ -99,20 +99,7 @@ Singleton {
         target: Theme
         function onVizSensibiliteChanged() { racine.rearmer() }
         function onVizLissageChanged() { racine.rearmer() }
-    }
-
-    // ── registre : quels applets sont allumés, et avec quelles options ──────
-    // `onLoaded` et non `onTextChanged` : FileView charge en asynchrone, donc
-    // au `Component.onCompleted` le texte est encore vide. C'est le motif de
-    // Theme.qml (styleFile) — sans lui, l'applet restait vu comme éteint au
-    // démarrage et le moteur ne démarrait jamais.
-    FileView {
-        id: registre
-        path: Quickshell.shellPath("core/bar_applets.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: racine.lireRegistre()
+        function onBarAppletsRevChanged() { racine.lireRegistre() }
     }
 
     // ── flux audio présents : qui joue, et est-ce un navigateur ? ───────────
@@ -172,17 +159,13 @@ Singleton {
 
     function lireRegistre() {
         try {
-            // `text()` est une méthode du FileView : dans une fonction du
-            // singleton, il faut la qualifier (`registre.text()`), sinon
-            // ReferenceError silencieuse au premier chargement.
-            const d = JSON.parse(registre.text())
-            const entrees = (d && d.actifs) ? d.actifs : {}
+            const entrees = Theme.barAppletsActifs || ({})
             const moi = entrees["visualiseur"] || null
             racine.actif = moi !== null
-            const opt = (moi && moi.options) ? moi.options : {}
+            const opt = (moi && moi.options) ? moi.options : ({})
             const s = String(opt.style || "onde")
             racine.style = (s === "barres") ? "barres" : "onde"
-            racine.barre = String(moi.ile || "haut:milieu").split(":")[0] || "haut"
+            racine.barre = moi ? (String(moi.ile || "haut:milieu").split(":")[0] || "haut") : "haut"
             racine.ignorerNavigateurs = opt.ignorer_navigateurs !== false
         } catch (e) {
             racine.actif = false

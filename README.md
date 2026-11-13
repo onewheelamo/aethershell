@@ -13,8 +13,8 @@ Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une
 Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuels et utilitaires de la session graphique :
 
 * **Barre principale & capsule modulaire** : deux modes au choix, configurables à chaud :
-  * *Classique* : disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune avec transparence ajustable des séparations.
-  * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive unique, compacte au repos (heure et mini-lecteur discret), s'élargissant automatiquement avec une animation fluide lors des réglages de volume/luminosité (OSD intégré) et s'étendant au survol (applets, contrôles MPRIS complets et calendrier).
+  * *Classique* : disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune avec transparence ajustable des séparations et panneaux morphés (`PanneauSurface`) respectant le verre et les bordures de la barre.
+  * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive à 3 états — compacte au repos (heure, mini-lecteur, OSD intégré), étendue au survol (applets, contrôles MPRIS, date/calendrier) et déployée au clic en **panneau morphé à 5 onglets** (*Contrôles*, *Média & Son*, *Alertes & Tâches*, *Système & Réseau*, *Apparence*).
 * **Barres annexes optionnelles** : support d'une barre basse et de barres latérales verticales suivant la même logique de composants.
 * **Panneau de configuration unifié** : accessible en un raccourci (`SUPER + H`) ou par clic milieu sur n'importe quel applet. Il permet d'ajuster l'apparence (palettes, flous, rayons, opacité), les applications préférées, les écrans, la minuterie de veille (`hypridle`), le démarrage automatique et les secrets locaux, avec application à chaud sans redémarrer la session.
 * **Widgets de bureau ancrables** : des blocs déplaçables (tâches, surveillance système, météo, musique, horloge, agent...) configurables et filtrables par bureau virtuel (clic milieu pour restreindre un widget à un ou plusieurs workspaces).
@@ -143,6 +143,7 @@ AetherShell n'est pas né dans le vide : il emprunte des briques, des concepts e
 | [To Do](https://github.com/noctalia-dev/community-plugins/tree/main/todo) | **nightwatch75** | Inspiration initiale pour le découplage entre l'applet de barre et le widget de bureau pour les listes de tâches. |
 | [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | **tordex** | Principe de surveillance système à la demande (processus lancé uniquement lorsque la vue est ouverte). |
 | [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | **noctalia** | Concept d'immersion visuelle des îlots via masques de profondeur (Depth Anything V2). |
+| [WallpaperFx.qml (`pocket-dots`)](https://github.com/diegoMalagrida/pocket-dots) | **diegoMalagrida** | Transitions de fond d'écran par shader (`WallpaperFx.qml` / `wallfx.frag` : propagation organique en cellules 4 px et passage de relais sans accroc avec `awww`). |
 | **Quickshell & Hyprland** | **outfoxxed & vaxerski** | Pour ces deux projets majeurs qui rendent possible la construction d'un shell Wayland moderne et performant. |
 
 ---

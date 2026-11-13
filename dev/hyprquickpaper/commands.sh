@@ -36,6 +36,14 @@ if [ -z "$WALLPAPER" ] || [ ! -f "$WALLPAPER" ]; then
 fi
 [ -z "$WALLPAPER" ] && exit 1
 
+OLD_WALLPAPER=""
+if [ -f "$HOME/.cache/quickshell/hyprquickpaper/.current" ]; then
+    OLD_WALLPAPER="$(cat "$HOME/.cache/quickshell/hyprquickpaper/.current" 2>/dev/null || true)"
+fi
+if [ -z "$OLD_WALLPAPER" ] && command -v awww >/dev/null 2>&1; then
+    OLD_WALLPAPER="$(awww query 2>/dev/null | sed -n 's/.*image: //p' | head -n 1)"
+fi
+
 mkdir -p "$HOME/.cache/quickshell/hyprquickpaper"
 echo "$WALLPAPER" > "$HOME/.cache/quickshell/hyprquickpaper/.current"
 
@@ -44,7 +52,13 @@ echo "$WALLPAPER" > "$HOME/.cache/quickshell/hyprquickpaper/.current"
 if pgrep -x noctalia > /dev/null 2>&1 && command -v noctalia &> /dev/null; then
     noctalia msg wallpaper-set "$WALLPAPER" 2>/dev/null || true
 elif command -v awww &> /dev/null; then
-    awww img "$WALLPAPER" -t grow --transition-duration 1
+    if [ -n "$OLD_WALLPAPER" ] && [ "$OLD_WALLPAPER" != "$WALLPAPER" ] && [ -f "$OLD_WALLPAPER" ] \
+       && command -v quickshell >/dev/null 2>&1 \
+       && [ "$(quickshell ipc -n call wallfx transition "$OLD_WALLPAPER" "$WALLPAPER" 2>/dev/null || true)" = "ok" ]; then
+        :
+    else
+        awww img "$WALLPAPER" -t grow --transition-duration 1
+    fi
 elif command -v swww &> /dev/null; then
     swww img "$WALLPAPER" -t grow --transition-duration 1
 elif command -v hyprpaper &> /dev/null; then

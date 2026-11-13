@@ -12,6 +12,9 @@ import Quickshell.Wayland
 Item {
     id: root
 
+    // Transitions de fond d'écran par shader (inspiré de diegoMalagrida/pocket-dots)
+    WallpaperFx { id: wallpaperFx }
+
     // Fond de bureau en profondeur (parallaxe au changement de bureau). Déclaré
     // ici mais inerte tant que Theme.depthWallpaper est faux.
     FondProfondeur {
@@ -279,19 +282,26 @@ Item {
         // Les deux constantes valaient pour une marge de 8 px (8 + 6 et 8 + 2) :
         // elles suivent la marge **verticale** (`bar_gaps_out_v`) — le haut de
         // l'écran n'a que faire de la marge latérale.
-        implicitHeight: barContainer.height + Theme.gutterV + 6
-        exclusionMode: ExclusionMode.Auto
-        exclusiveZone: barContainer.height + Theme.gutterV + 2
+        implicitHeight: Math.max(barContainer.height, (Theme.barStyle === "island" && dynamicIslandLoader.item) ? dynamicIslandLoader.item.height : 0) + Theme.gutterV + 6
+        exclusionMode: ExclusionMode.Normal
+        exclusiveZone: Theme.barHeight + Theme.gutterV + 2
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Top
         // Le panneau réseau est celui de l'applet « reseau » depuis la mise en
         // modularité : c'est sa clé qu'il faut reconnaître, la saisie du mot de
         // passe Wi-Fi y a besoin du clavier.
         WlrLayershell.keyboardFocus: (Theme.activePopup === "applet:reseau"
-                                      || Theme.activePopup === "calendar")
+                                      || Theme.activePopup === "calendar"
+                                      || (Theme.barStyle === "island" && Theme.islandPanelOpen && Theme.islandNeedsKeyboard))
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-bar"
+
+        Region {
+            id: islandInputMask
+            item: dynamicIslandLoader.item
+        }
+        mask: (Theme.barStyle === "island" && dynamicIslandLoader.item) ? islandInputMask : null
 
         Item {
             id: barContainer
@@ -438,9 +448,11 @@ Item {
             // animations s'y ancrent (ids volontairement stables).
             Item {
                 id: slotGauche
-                x: zoneGauche.x + zoneGauche.width
+                x: (Theme.barStyle === "island" && dynamicIslandLoader.item)
+                    ? Math.max(0, dynamicIslandLoader.x - width - 12)
+                    : zoneGauche.x + zoneGauche.width
                 width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? Math.max(0, dynamicIslandLoader.x - x)
+                    ? Math.min(160, Math.max(0, dynamicIslandLoader.x - 24))
                     : Math.max(0, zoneCentre.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
@@ -449,9 +461,11 @@ Item {
             Item {
                 id: slotDroit
                 x: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? dynamicIslandLoader.x + dynamicIslandLoader.width
+                    ? dynamicIslandLoader.x + dynamicIslandLoader.width + 12
                     : zoneCentre.x + zoneCentre.width
-                width: Math.max(0, zoneDroite.x - x)
+                width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
+                    ? Math.min(160, Math.max(0, barContainer.width - x - 12))
+                    : Math.max(0, zoneDroite.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
             }
@@ -477,7 +491,7 @@ Item {
             // d'en dessous. Déclaré avant les îlots, donc dessous.
             MouseArea {
                 anchors.fill: parent
-                enabled: Theme.barMerged
+                enabled: Theme.barStyle !== "island" && Theme.barMerged
             }
 
             // LEFT ISLAND: Launcher + Workspaces
@@ -516,7 +530,7 @@ Item {
                 visible: Theme.barStyle === "island"
                 active: Theme.barStyle === "island"
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.top: parent.top
                 source: "DynamicIsland.qml"
             }
 
@@ -532,7 +546,7 @@ Item {
             // En mode « espaces transparents », le vide sépare déjà les zones :
             // le trait flotterait dans la transparence, il est masqué.
             Rectangle {
-                visible: Theme.barMerged && !Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && !Theme.barGapsTransparent
                 width: 1
                 height: Theme.barHeight * 0.4
                 x: leftLoader.x + leftLoader.width - Math.round(Theme.padH / 2)
@@ -541,7 +555,7 @@ Item {
                 opacity: 0.09
             }
             Rectangle {
-                visible: Theme.barMerged && !Theme.barGapsTransparent
+                visible: Theme.barStyle !== "island" && Theme.barMerged && !Theme.barGapsTransparent
                 width: 1
                 height: Theme.barHeight * 0.4
                 x: rightLoader.x + Math.round(Theme.padH / 2) - 1
@@ -550,6 +564,13 @@ Item {
                 opacity: 0.09
             }
         }
+    }
+
+    // Service permanent de notifications (D-Bus, toasts, historique, crochets IPC),
+    // actif quel que soit le style de barre (classic ou island).
+    NotifService {
+        id: notifService
+        anchorItem: barContainer
     }
 
     // OSD overlay (volume / brightness): temporary centered pill, auto-hides

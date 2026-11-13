@@ -61,6 +61,16 @@ QtObject {
     property bool barBorder: true
     // Style d'agencement de la barre : "classic" (3 îlots) ou "island" (îlot central dynamique)
     property string barStyle: "classic"
+    // État du panneau étendu de l'Îlot dynamique (Phase 3)
+    property bool islandPanelOpen: false
+    property int islandPanelTab: 0
+    property bool islandNeedsKeyboard: false
+    onBarStyleChanged: {
+        if (barStyle !== "island") {
+            islandPanelOpen = false
+            islandNeedsKeyboard = false
+        }
+    }
     // ── Visualiseur audio (style_vars) ──────────────────────────────────────
     // Réglages de capture et de dessin ; l'applet choisit son rendu (onde ou
     // barres) dans sa propre option, ces valeurs-ci valent pour les deux.
@@ -800,6 +810,35 @@ QtObject {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Fond d'écran courant partagé (awww query)
+    // ────────────────────────────────────────────────────────────────────────
+    // Une seule sonde pour toutes les surfaces `FlouFond`, afin d'éviter N
+    // sous-processus au démarrage et de propager tout changement de fond.
+    property string wallpaperCourant: ""
+
+    property Process wallpaperSondeProc: Process {
+        command: ["awww", "query"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
+                if (m) root.wallpaperCourant = m[1]
+            }
+        }
+    }
+
+    function rafraichirWallpaper() {
+        if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
+    }
+
+    property Timer wallpaperSondeTimer: Timer {
+        interval: 15000
+        repeat: true
+        running: root.shellFlouInterne > 0.01
+        onTriggered: root.rafraichirWallpaper()
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // Icônes de remplacement pour les items du systray
     // ────────────────────────────────────────────────────────────────────────
     // Certains items SNI ne publient aucune image (IconPixmap vide, IconName
@@ -1066,6 +1105,18 @@ QtObject {
         // Permet de piloter les popups pour les tests : ipc call shell togglePopup calendar
         function togglePopup(name: string) {
             root.togglePopup(name)
+        }
+        function toggleIslandPanel() {
+            if (root.barStyle !== "island") return
+            root.activePopup = ""
+            root.islandPanelOpen = !root.islandPanelOpen
+            if (!root.islandPanelOpen) root.islandNeedsKeyboard = false
+        }
+        function openIslandPanel(tabIndex: int) {
+            if (root.barStyle !== "island") return
+            root.activePopup = ""
+            root.islandPanelTab = Math.max(0, Math.min(4, tabIndex))
+            root.islandPanelOpen = true
         }
         function toggleSpotlight() {
             root.spotlightVisible = !root.spotlightVisible

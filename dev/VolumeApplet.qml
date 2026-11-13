@@ -169,10 +169,9 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
+            color: "transparent"
+            radius: Theme.pillRadius
+            border.width: 0
 
             Column {
                 id: colonne

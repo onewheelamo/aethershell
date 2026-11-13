@@ -314,12 +314,13 @@ Item {
         implicitHeight: Math.ceil(texteTitre.implicitHeight + Theme.space2 * 2)
         color: "transparent"
 
+        bordureCouleur: Qt.alpha(Theme.accent, 0.55)
+
         Rectangle {
             anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Qt.alpha(Theme.accent, 0.55)
-            border.width: 1
+            color: "transparent"
+            radius: Theme.pillRadius
+            border.width: 0
 
             Text {
                 id: texteTitre

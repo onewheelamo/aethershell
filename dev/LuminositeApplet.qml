@@ -70,14 +70,6 @@ Item {
     implicitWidth: rangee.implicitWidth
     implicitHeight: rangee.implicitHeight
 
-    Process {
-        running: true
-        command: ["sh", "-c", "cat /proc/sys/kernel/hostname"]
-        stdout: StdioCollector {
-            onStreamFinished: root.hote = text.trim()
-        }
-    }
-
     function lire() {
         Theme.rafraichirSystemInfo()
     }
@@ -122,7 +114,10 @@ Item {
         Theme.activePopup = ""
     }
 
-    Component.onCompleted: root.lireNuit()
+    Component.onCompleted: {
+        root.synchroniserSystemInfo()
+        root.lireNuit()
+    }
 
     // État du mode nuit.
     Timer {
@@ -169,22 +164,28 @@ Item {
         }
     }
 
+    function synchroniserSystemInfo() {
+        const d = Theme.systemInfo || ({})
+        if (!Theme.systemInfoPret && Object.keys(d).length === 0) return
+        if (d.hostname) root.hote = String(d.hostname)
+        root.batPresente = Boolean(d.has_battery)
+        if (d.battery) {
+            root.batPourcent = Number(d.battery.level || 0)
+            const st = String(d.battery.status || "")
+            root.batEtat = st
+            root.batCharge = (st === "Charging" || st === "Full")
+            root.batLimite = Boolean(d.battery.limit_80)
+            root.batPlafond = Number(d.battery.limit_pct || 80)
+        }
+        root.briPresente = Boolean(d.has_backlight)
+        if (typeof d.brightness === "number") root.briPourcent = d.brightness
+        root.pret = Theme.systemInfoPret
+    }
+
     Connections {
         target: Theme
         function onSystemInfoChanged() {
-            const d = Theme.systemInfo || ({})
-            root.batPresente = Boolean(d.has_battery)
-            if (d.battery) {
-                root.batPourcent = Number(d.battery.level || 0)
-                const st = String(d.battery.status || "")
-                root.batEtat = st
-                root.batCharge = (st === "Charging" || st === "Full")
-                root.batLimite = Boolean(d.battery.limit_80)
-                root.batPlafond = Number(d.battery.limit_pct || 80)
-            }
-            root.briPresente = Boolean(d.has_backlight)
-            if (typeof d.brightness === "number") root.briPourcent = d.brightness
-            root.pret = Theme.systemInfoPret
+            root.synchroniserSystemInfo()
         }
     }
 
@@ -271,10 +272,9 @@ Item {
             id: carte
             anchors.fill: parent
             implicitHeight: colonne.implicitHeight + 32
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
+            color: "transparent"
+            radius: Theme.pillRadius
+            border.width: 0
 
             Column {
                 id: colonne

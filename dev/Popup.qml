@@ -41,6 +41,9 @@ PopupWindow {
     // aux applets à texte ; la cloche et le wifi, dont l'item est plus court,
     // se posent quelques pixels trop haut et le rattrapent ici.
     property int ecart: 0
+    property color bordureCouleur: Theme.accent
+    property int bordureLargeur: Theme.barBorder ? 1 : 0
+    default property alias contenu: surfaceMorph.contenu
 
     color: "transparent"
 
@@ -58,4 +61,13 @@ PopupWindow {
     anchor.margins.left: (String(ile || "").split(":")[0] === "cote-gauche") ? ecart : 14
     anchor.margins.right: (String(ile || "").split(":")[0] === "cote-droite") ? ecart : 14
     anchor.adjustment: PopupAdjustment.All
+
+    PanneauSurface {
+        id: surfaceMorph
+        anchors.fill: parent
+        ile: fenetre.ile
+        actif: fenetre.visible
+        bordureCouleur: fenetre.bordureCouleur
+        bordureLargeur: fenetre.bordureLargeur
+    }
 }

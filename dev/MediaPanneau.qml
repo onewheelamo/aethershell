@@ -165,12 +165,10 @@ Item {
         color: "transparent"
         visible: panneau.ouvert && player !== null && panneau.ancre !== null
 
-        Rectangle {
+        PanneauSurface {
             anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
+            ile: panneau.ileAncre
+            actif: fenetre.visible
 
             Column {
                 id: mediaCol

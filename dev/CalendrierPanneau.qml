@@ -378,13 +378,11 @@ Item {
         visible: panneau.ouvert && panneau.ancre !== null
         grabFocus: visible && panneau.addingEvent
 
-        Rectangle {
+        PanneauSurface {
             id: calContainer
             anchors.fill: parent
-            color: Theme.surfaceBg
-            radius: Theme.globalRadius
-            border.color: Theme.accent
-            border.width: 1
+            ile: panneau.ileAncre
+            actif: fenetre.visible
 
             Column {
                 id: calMainCol

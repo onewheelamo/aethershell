@@ -151,6 +151,42 @@ Item {
         }
     }
 
+    // Cache LRU borné (20 entrées, TTL 8 s) pour éviter de relancer Python
+    // lors des retours arrière de frappe.
+    property var queryCache: ({})
+    property var queryCacheOrder: []
+    property string lastRequestedQuery: ""
+
+    function cacheGet(cle) {
+        const e = root.queryCache[cle]
+        if (!e) return null
+        if (Date.now() - e.ts > 8000) return null
+        return e.data
+    }
+
+    function cachePut(cle, data) {
+        const copy = Object.assign({}, root.queryCache)
+        const order = root.queryCacheOrder.filter(k => k !== cle)
+        order.push(cle)
+        copy[cle] = { ts: Date.now(), data: data }
+        while (order.length > 20) {
+            const oldest = order.shift()
+            delete copy[oldest]
+        }
+        root.queryCacheOrder = order
+        root.queryCache = copy
+    }
+
+    Connections {
+        target: Theme
+        function onSpotlightVisibleChanged() {
+            if (!Theme.spotlightVisible) {
+                root.queryCache = ({})
+                root.queryCacheOrder = []
+            }
+        }
+    }
+
     // Une pause de frappe avant d'appeler le service : sans elle, chaque touche
     // lance un python et les processus s'empilent derrière la frappe suivante.
     Timer {
@@ -160,11 +196,23 @@ Item {
         onTriggered: {
             if (root.prefixSym === "" || root.prefixSym === ">")
                 return
+            const hit = root.cacheGet(root.query)
+            if (hit) {
+                root.recherche = false
+                root.serviceKind = String(hit.kind || "")
+                root.serviceResults = hit.results || []
+                root.rechercheCoupee = hit.interrompu === true
+                root.results = root.serviceResults
+                root.sel = 0
+                root.majApercu()
+                return
+            }
             // La requête précédente n'a plus d'intérêt : sans ça, les recherches
             // s'empilent et la pilule répond avec deux secondes de retard.
             if (svc.running)
                 svc.running = false
             root.recherche = true
+            root.lastRequestedQuery = root.query
             svc.command = ["python3", Quickshell.shellPath("core/launcher_service.py"),
                            "--query", root.query, "--limit", String(root.maxResults)]
             svc.running = true
@@ -182,6 +230,8 @@ Item {
                     root.serviceKind = String(d.kind || "")
                     root.serviceResults = d.results || []
                     root.rechercheCoupee = d.interrompu === true
+                    if (root.lastRequestedQuery !== "")
+                        root.cachePut(root.lastRequestedQuery, d)
                 } catch (e) {
                     root.serviceKind = ""
                     root.serviceResults = []

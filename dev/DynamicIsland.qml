@@ -32,12 +32,9 @@ Item {
         }
     }
 
-    property var currentTime: new Date()
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: root.currentTime = new Date()
+    SystemClock {
+        id: clock
+        precision: SystemClock.Minutes
     }
 
     property bool isHovered: islandMouseArea.containsMouse || extraMouseArea.containsMouse
@@ -108,19 +105,62 @@ Item {
     onMediaArtistChanged: Theme.mediaArtist = mediaArtist
 
     readonly property bool isCalendarOpen: Theme.activePopup === "calendar"
+    readonly property bool isPopupOpen: Theme.activePopup !== ""
+    readonly property bool panelOpen: Theme.islandPanelOpen
+    readonly property string etat: panelOpen ? "panneau" : (expanded ? "etendu_barre" : "compact")
+
+    // Attrapeur de focus Hyprland armé à +150 ms à l'ouverture du panneau
+    property bool pretGrab: false
+    onPanelOpenChanged: {
+        if (panelOpen) {
+            retractTimer.stop()
+            expanded = true
+            pretGrab = false
+            delaiGrab.restart()
+        } else {
+            delaiGrab.stop()
+            pretGrab = false
+            Theme.islandNeedsKeyboard = false
+            if (!isHovered && !isPopupOpen) retractTimer.restart()
+        }
+    }
+
+    Timer {
+        id: delaiGrab
+        interval: 150
+        repeat: false
+        onTriggered: if (root.panelOpen) root.pretGrab = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.panelOpen && root.pretGrab
+        windows: (root.QsWindow && root.QsWindow.window) ? [root.QsWindow.window] : []
+        onCleared: {
+            if (root.panelOpen) {
+                Theme.islandPanelOpen = false
+                Theme.islandNeedsKeyboard = false
+            }
+        }
+    }
+
+    function ouvrirPanneau(tabIdx) {
+        Theme.activePopup = ""
+        if (tabIdx !== undefined) Theme.islandPanelTab = tabIdx
+        Theme.islandPanelOpen = true
+    }
 
     // Délai de rétractation (160 ms) pour une navigation fluide sans sursauts
-    property bool expanded: isHovered || isCalendarOpen
+    property bool expanded: isHovered || isPopupOpen || panelOpen
     onIsHoveredChanged: {
-        if (isHovered || isCalendarOpen) {
+        if (isHovered || isPopupOpen || panelOpen) {
             retractTimer.stop()
             expanded = true
         } else {
             retractTimer.restart()
         }
     }
-    onIsCalendarOpenChanged: {
-        if (isCalendarOpen) {
+    onIsPopupOpenChanged: {
+        if (isPopupOpen || panelOpen) {
             retractTimer.stop()
             expanded = true
         } else if (!isHovered) {
@@ -133,20 +173,34 @@ Item {
         interval: 160
         repeat: false
         onTriggered: {
-            if (!root.isHovered && !root.isCalendarOpen) root.expanded = false
+            if (!root.isHovered && !root.isPopupOpen && !root.panelOpen) root.expanded = false
         }
     }
 
-    implicitHeight: Theme.barHeight
-    height: Theme.barHeight
+    implicitHeight: panelOpen ? 420 : Theme.barHeight
+    height: panelOpen ? 420 : Theme.barHeight
+    Behavior on height {
+        NumberAnimation {
+            duration: 240
+            easing.type: Easing.OutCubic
+        }
+    }
 
     // Largeur dynamique animée selon l'état
     readonly property real osdWidth: Math.max(160, osdRow.implicitWidth + Theme.padH * 2 + 16)
     readonly property real compactRestWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
     readonly property real compactWidth: Theme.osdVisible ? osdWidth : compactRestWidth
-    readonly property real expandedWidth: Math.max(460, leftApplets.implicitWidth + (root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth) + rightApplets.implicitWidth + Theme.padH * 3 + 28)
+    readonly property real expandedWidth: Math.max(
+        460,
+        leftApplets.implicitWidth
+        + (root.isMediaActive ? mediaDetailRow.implicitWidth : clockDateRow.implicitWidth)
+        + rightApplets.implicitWidth
+        + (Theme.showConfigButton ? 36 : 0)
+        + 32
+        + Theme.padH * 3 + 28
+    )
 
-    width: expanded ? expandedWidth : compactWidth
+    width: panelOpen ? 680 : (expanded ? expandedWidth : compactWidth)
 
     Behavior on width {
         NumberAnimation {
@@ -159,24 +213,27 @@ Item {
     Rectangle {
         id: bgRect
         anchors.fill: parent
-        radius: Theme.pillRadius
+        radius: root.panelOpen ? Math.max(Theme.pillRadius, 18) : Theme.pillRadius
+        Behavior on radius { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         color: "transparent"
 
         FlouFond {
             anchors.fill: parent
-            rayon: Theme.pillRadius
+            rayon: bgRect.radius
             intensite: Theme.shellFlouInterne
         }
 
         Rectangle {
             anchors.fill: parent
-            radius: Theme.pillRadius
+            radius: bgRect.radius
             color: Theme.barBg
-            opacity: root.expanded ? Math.min(1.0, Theme.shellOpacity + 0.12) : Theme.shellOpacity
+            opacity: root.panelOpen
+                ? Math.min(1.0, Theme.shellOpacity + 0.18)
+                : (root.expanded ? Math.min(1.0, Theme.shellOpacity + 0.12) : Theme.shellOpacity)
             Behavior on opacity { NumberAnimation { duration: 180 } }
         }
 
-        border.color: root.isCalendarOpen ? Theme.accentMuted : Theme.accent
+        border.color: (root.isCalendarOpen || root.panelOpen) ? Theme.accentMuted : Theme.accent
         border.width: Theme.barBorder ? 1 : 0
 
         Behavior on color { ColorAnimation { duration: 180 } }
@@ -188,8 +245,11 @@ Item {
     // ──────────────────────────────────────────────────────────────────────
     Item {
         id: compactContainer
-        anchors.fill: parent
-        opacity: root.expanded ? 0.0 : 1.0
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: Theme.barHeight
+        opacity: (root.expanded || root.panelOpen) ? 0.0 : 1.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
@@ -243,7 +303,7 @@ Item {
 
             // Horloge principale sans glyphe
             Text {
-                text: Qt.formatDateTime(root.currentTime, "hh:mm")
+                text: Qt.formatTime(clock.date, "HH:mm")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.textSm
                 font.weight: Font.Bold
@@ -318,8 +378,11 @@ Item {
     // ──────────────────────────────────────────────────────────────────────
     Item {
         id: expandedContainer
-        anchors.fill: parent
-        opacity: root.expanded ? 1.0 : 0.0
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: Theme.barHeight
+        opacity: (root.expanded && !root.panelOpen) ? 1.0 : 0.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
@@ -330,13 +393,14 @@ Item {
             anchors.rightMargin: Theme.padH
             spacing: 12
 
-            // Côté Gauche : Workspaces / Lanceur
+            // Côté Gauche : Workspaces / Lanceur (musique exclue car intégrée au centre)
             Item {
                 Layout.preferredWidth: leftApplets.implicitWidth
                 Layout.fillHeight: true
                 AppletRow {
                     id: leftApplets
                     ile: "haut:debut"
+                    exclude: ["musique"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -355,7 +419,7 @@ Item {
                     spacing: 8
 
                     Text {
-                        text: Qt.formatDateTime(root.currentTime, "hh:mm")
+                        text: Qt.formatTime(clock.date, "HH:mm")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.textSm
                         font.weight: Font.Bold
@@ -364,7 +428,7 @@ Item {
                     }
 
                     Text {
-                        text: Qt.formatDateTime(root.currentTime, "ddd d MMM")
+                        text: Qt.formatDate(clock.date, "ddd d MMM")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.textSm
                         font.weight: Font.Medium
@@ -471,6 +535,85 @@ Item {
                     exclude: ["musique"]
                     anchors.verticalCenter: parent.verticalCenter
                 }
+            }
+
+            // Bouton d'ouverture du panneau complet de l'îlot (5 onglets)
+            Rectangle {
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                Layout.alignment: Qt.AlignVCenter
+                radius: Theme.globalRadius
+                color: islandPanelBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.24) : Qt.alpha(Theme.fg, 0.08)
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "widgets"
+                    size: Theme.iconSm
+                    color: islandPanelBtnMa.containsMouse ? Theme.accent : Theme.fg
+                }
+
+                MouseArea {
+                    id: islandPanelBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(0)
+                }
+            }
+
+            // Bouton d'accès rapide au panneau de configuration
+            Rectangle {
+                visible: Theme.showConfigButton
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                Layout.alignment: Qt.AlignVCenter
+                radius: Theme.globalRadius
+                color: Theme.configPanelVisible
+                    ? Theme.accent
+                    : (islandGearMa.containsMouse ? Theme.surfaceVariant : "transparent")
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "cog"
+                    size: Theme.iconMd
+                    color: Theme.configPanelVisible ? Theme.bg : Theme.fg
+                    opacityLevel: 1
+                }
+
+                MouseArea {
+                    id: islandGearMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.configPanelVisible = !Theme.configPanelVisible
+                }
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // CONTENU PANNEAU ÉTENDU (ÉTAT 3 : 680 × 420 px, RAIL 5 ONGLETS)
+    // ──────────────────────────────────────────────────────────────────────
+    Item {
+        id: panelContainer
+        anchors.fill: parent
+        opacity: root.panelOpen ? 1.0 : 0.0
+        visible: opacity > 0.05
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+        Loader {
+            id: islandPanelLoader
+            anchors.fill: parent
+            active: root.panelOpen || root.height > Theme.barHeight + 20
+            source: "IslandPanel.qml"
+            onLoaded: {
+                if (!item) return
+                item.clockDate = Qt.binding(() => clock.date)
+                item.activePlayer = Qt.binding(() => root.activePlayer)
+                item.validPlayers = Qt.binding(() => root.validPlayers)
+                item.isPlaying = Qt.binding(() => root.isPlaying)
+                item.mediaTitle = Qt.binding(() => root.mediaTitle)
+                item.isMediaActive = Qt.binding(() => root.isMediaActive)
             }
         }
     }

@@ -45,3 +45,12 @@ SelecteurDossier 1.0 SelecteurDossier.qml
 SelecteurFichier 1.0 SelecteurFichier.qml
 PreviewBarLayout 1.0 PreviewBarLayout.qml
 DynamicIsland 1.0 DynamicIsland.qml
+WallpaperFx 1.0 WallpaperFx.qml
+PanneauSurface 1.0 PanneauSurface.qml
+IslandPanel 1.0 IslandPanel.qml
+IslandTabControles 1.0 IslandTabControles.qml
+IslandTabMedia 1.0 IslandTabMedia.qml
+IslandTabAlertes 1.0 IslandTabAlertes.qml
+IslandTabSysteme 1.0 IslandTabSysteme.qml
+IslandTabApparence 1.0 IslandTabApparence.qml
+NotifService 1.0 NotifService.qml

@@ -47,8 +47,8 @@ PanelWindow {
     // calques d'un cran. Hors animation continue, le fond ne bouge pas seul.
     readonly property int bureau: Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
 
-    // Fond courant, lu auprès d'awww : c'est lui qui choisit le jeu de calques.
-    property string fondCourant: ""
+    // Fond courant, partagé par Theme (`awww query`).
+    readonly property string fondCourant: Theme.wallpaperCourant
     // Le dossier de fonds vient de style_vars sous forme « $HOME/Images/… » :
     // QML ne développe pas les variables, on les résout ici.
     readonly property string racineFonds: {
@@ -78,28 +78,6 @@ PanelWindow {
                                            && proche.status === Image.Ready
 
     onNomFondChanged: fenetre.repli = false
-
-    Process {
-        id: sondeFond
-        command: ["awww", "query"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
-                if (m) fenetre.fondCourant = m[1]
-            }
-        }
-    }
-
-    // awww ne prévient pas quand le fond change : on le lui redemande, mais
-    // seulement quand l'option est active. 30 s de latence, pour deux mille
-    // interrogations par jour au lieu de dizaines de milliers.
-    Timer {
-        interval: 30000
-        repeat: true
-        running: Theme.depthWallpaper
-        onTriggered: if (!sondeFond.running) sondeFond.running = true
-    }
 
     // ── Génération automatique des calques ────────────────────────────────
     // Le jeu manquant est produit par le shell lui-même, depuis le fichier du

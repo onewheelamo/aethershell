@@ -5,6 +5,23 @@ sémantique. Tant que le format des fichiers de configuration (`style_vars.json`
 `bar_applets.json`, `widgets.json`) n'est pas figé, les versions restent en `0.x` : une
 montée de mineure peut demander une adaptation des réglages.
 
+## [0.3.0] — 2026-11-13
+
+### Ajouté
+
+- **Panneau morphé à 3 états et 5 onglets pour l'Îlot dynamique** ([`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/IslandPanel.qml`](dev/IslandPanel.qml), `dev/IslandTab*.qml`) : extension animée (`compact` → `etendu_barre` → `panneau` `680 × 420 px`) avec rail vertical gauche à 5 onglets (*Contrôles rapides*, *Média & Son*, *Alertes & Tâches*, *Système & Réseau*, *Apparence*), `HyprlandFocusGrab` (+150 ms) et commandes IPC `toggleIslandPanel` / `openIslandPanel`.
+- **Décoration et morphing unifiés pour les panneaux de barre** ([`dev/PanneauSurface.qml`](dev/PanneauSurface.qml), [`dev/Popup.qml`](dev/Popup.qml), [`dev/CalendrierPanneau.qml`](dev/CalendrierPanneau.qml), [`dev/MediaPanneau.qml`](dev/MediaPanneau.qml)) : animation d'ouverture depuis le bord de la barre porteuse avec verre dépoli (`FlouFond`), `Theme.barBg`, `Theme.shellOpacity`, `Theme.pillRadius` et bordure `Theme.accent` / `Theme.barBorder`.
+- **Transitions de fond d'écran par shader (`WallpaperFx`)** ([`dev/WallpaperFx.qml`](dev/WallpaperFx.qml), [`dev/shaders/wallfx.frag`](dev/shaders/wallfx.frag), [`dev/core/wallfx_maps.py`](dev/core/wallfx_maps.py), [`dev/hyprquickpaper/commands.sh`](dev/hyprquickpaper/commands.sh)) : propagation organique en cellules 4 px (`contagio`) et passage de relais sans accroc avec `awww`, inspiré de `diegoMalagrida/pocket-dots` (cité dans [`README.md`](README.md) et [`docs/README.md`](docs/README.md)).
+- **Service de notifications persistant** ([`dev/NotifService.qml`](dev/NotifService.qml), [`dev/main.qml`](dev/main.qml)) : extraction de `NotificationServer` et de l'historique hors de `island_right.qml` pour garantir la réception des notifications au boot en mode `classic` comme en mode `island`.
+
+### Modifié
+
+- **Optimisations de performance & centralisation** ([`dev/Theme.qml`](dev/Theme.qml), [`dev/FlouFond.qml`](dev/FlouFond.qml), [`dev/FondProfondeur.qml`](dev/FondProfondeur.qml), [`dev/VisualiseurAudio.qml`](dev/VisualiseurAudio.qml), [`dev/spotlight.qml`](dev/spotlight.qml), [`dev/SystemePopup.qml`](dev/SystemePopup.qml)) : sonde unique `Theme.wallpaperCourant` (`awww query`), `SystemClock` dans `DynamicIsland`, suppression du dernier `FileView` redondant sur `bar_applets.json`, retrait de `--force` à l'ouverture de `SystemePopup`, cache LRU borné (20 entrées / TTL 8 s) dans `spotlight.qml` et lecture partagée de `Theme.systemInfo.hostname`.
+
+### Corrigé
+
+- **Stabilisation de l'Îlot dynamique & applets** ([`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/main.qml`](dev/main.qml), [`dev/SystrayApplet.qml`](dev/SystrayApplet.qml), [`dev/LuminositeApplet.qml`](dev/LuminositeApplet.qml), [`dev/GestionEnergieApplet.qml`](dev/GestionEnergieApplet.qml), [`dev/island_right.qml`](dev/island_right.qml)) : maintien d'expansion lorsqu'un popup est ouvert, masque d'entrée Wayland (`Region`) pour éviter l'interception de clics hors pilule, suppression des séparateurs fantômes, dédoublonnage `musique`, exposition du bouton Réglages, correction `trayMa.containsMouse`, bornage du visualiseur (`160 px` max) et initialisation synchrone de `Theme.systemInfo`.
+
 ## [0.2.2] — 2026-11-13
 
 ### Ajouté

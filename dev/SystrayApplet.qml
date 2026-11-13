@@ -105,7 +105,7 @@ Item {
                             saturation: -1.0
                             brightness: 0.15
                             contrast: 0.1
-                            opacity: trayDelegate.hovered ? 1.0 : 0.82
+                            opacity: trayMa.containsMouse ? 1.0 : 0.82
                         }
 
                         MouseArea {

@@ -833,6 +833,11 @@ preflight_diff() {
     fi
 
     # 5. Hyprquickpaper
+    if [ -d "$DEV_DIR/shaders" ]; then
+        mkdir -p "$QS_DIR/shaders"
+        cp -f "$DEV_DIR/shaders/"* "$QS_DIR/shaders/" 2>/dev/null || true
+    fi
+
     if [ -d "$DEV_DIR/hyprquickpaper" ]; then
         for f in "$DEV_DIR/hyprquickpaper"/*; do
             [ -f "$f" ] || continue
@@ -1338,6 +1343,11 @@ deploy_new_env() {
     if [ "$absents_scripts" -gt 0 ]; then
         echo "  ⚠️  $absents_scripts script(s) manquant(s) : l'applet échouera à l'usage"
         return 1
+    fi
+
+    if [ -d "$DEV_DIR/shaders" ]; then
+        mkdir -p "$QS_DIR/shaders"
+        cp -f "$DEV_DIR/shaders/"* "$QS_DIR/shaders/" 2>/dev/null || true
     fi
 
     if [ -d "$DEV_DIR/hyprquickpaper" ]; then
