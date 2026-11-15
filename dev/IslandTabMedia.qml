@@ -2,35 +2,25 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Services.Mpris
 import "."
 
 // ══════════════════════════════════════════════════════════════════════
-// ONGLET 2 DE L'ÎLOT : MÉDIA & SON (icône music)
+// ONGLET 2 DE L'ÎLOT : AFFICHAGE & SON (icône monitor)
 // ══════════════════════════════════════════════════════════════════════
 
 Item {
     id: root
 
-    property var activePlayer: null
-    property var validPlayers: []
-    property int selectedPlayerIndex: 0
+    property var monitorsList: []
+    property string primaryMonitor: ""
+    property string selectedMonitorName: ""
 
-    readonly property var currentPlayer: {
-        if (validPlayers && validPlayers.length > 0) {
-            let idx = Math.max(0, Math.min(validPlayers.length - 1, selectedPlayerIndex))
-            return validPlayers[idx]
+    readonly property var selectedMonitor: {
+        for (let i = 0; i < monitorsList.length; i++) {
+            if (monitorsList[i].name === selectedMonitorName) return monitorsList[i]
         }
-        return activePlayer
+        return monitorsList.length > 0 ? monitorsList[0] : null
     }
-
-    readonly property bool isPlaying: currentPlayer ? (currentPlayer.playbackState === MprisPlaybackState.Playing) : false
-    readonly property string trackTitle: currentPlayer ? (currentPlayer.trackTitle || "Aucun titre") : ""
-    readonly property string trackArtist: currentPlayer ? (currentPlayer.trackArtist || "") : ""
-    readonly property string trackAlbum: currentPlayer ? (currentPlayer.trackAlbum || "") : ""
-    readonly property string artUrl: currentPlayer ? (currentPlayer.trackArtUrl || "") : ""
-    readonly property real posSec: currentPlayer ? Number(currentPlayer.position || 0) : 0
-    readonly property real lenSec: currentPlayer ? Number(currentPlayer.length || 0) : 0
 
     property var sinks: []
     property string defaultSink: ""
@@ -42,11 +32,8 @@ Item {
         return a ? Boolean(a.enabled !== false) : false
     }
 
-    function fmtTime(sec) {
-        let s = Math.max(0, Math.floor(sec || 0))
-        let m = Math.floor(s / 60)
-        let r = s % 60
-        return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0")
+    function refreshDisplay() {
+        if (!displayStateProc.running) displayStateProc.running = true
     }
 
     function refreshAudio() {
@@ -54,18 +41,39 @@ Item {
         if (!micCheckProc.running) micCheckProc.running = true
     }
 
-    Component.onCompleted: refreshAudio()
+    Component.onCompleted: {
+        refreshDisplay()
+        refreshAudio()
+    }
 
-    // Rafraîchit la position de lecture chaque seconde tant que le média joue
-    Timer {
-        interval: 1000
-        running: root.visible && root.isPlaying && root.currentPlayer !== null
-        repeat: true
-        onTriggered: {
-            if (root.currentPlayer && root.currentPlayer.positionChanged) {
-                root.currentPlayer.positionChanged()
+    Process {
+        id: displayStateProc
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "state"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    const disp = d.display || ({})
+                    const list = disp.monitors || []
+                    root.monitorsList = list
+                    root.primaryMonitor = String(disp.primary || "")
+                    if (list.length > 0) {
+                        let found = false
+                        for (let i = 0; i < list.length; i++) {
+                            if (list[i].name === root.selectedMonitorName) { found = true; break }
+                        }
+                        if (!found) {
+                            root.selectedMonitorName = root.primaryMonitor !== "" ? root.primaryMonitor : list[0].name
+                        }
+                    }
+                } catch (e) {}
             }
         }
+    }
+
+    Process {
+        id: displayCmdProc
+        onExited: root.refreshDisplay()
     }
 
     Process {
@@ -119,46 +127,27 @@ Item {
         anchors.fill: parent
         spacing: 10
 
-        // En-tête + sélecteur de lecteur si multiple
+        // En-tête
         RowLayout {
             Layout.fillWidth: true
 
             Text {
                 Layout.fillWidth: true
-                text: "MÉDIA & SON"
+                text: "AFFICHAGE & SON"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textMd
                 font.weight: Font.Bold
                 color: Theme.fg
             }
 
-            Rectangle {
-                visible: root.validPlayers && root.validPlayers.length > 1
-                Layout.preferredHeight: 24
-                Layout.preferredWidth: playerSwitchText.implicitWidth + 16
-                radius: 8
-                color: Qt.alpha(Theme.accent, 0.16)
-                border.width: 1
-                border.color: Qt.alpha(Theme.accent, 0.35)
-
-                Text {
-                    id: playerSwitchText
-                    anchors.centerIn: parent
-                    text: (root.currentPlayer && root.currentPlayer.identity ? root.currentPlayer.identity : "Lecteur") + " ⇄"
-                    font.family: Theme.fontUi
-                    font.pixelSize: Theme.textXs
-                    color: Theme.accent
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (root.validPlayers.length > 0) {
-                            root.selectedPlayerIndex = (root.selectedPlayerIndex + 1) % root.validPlayers.length
-                        }
-                    }
-                }
+            Text {
+                visible: root.selectedMonitor !== null
+                text: root.selectedMonitor
+                    ? (root.selectedMonitor.width + "×" + root.selectedMonitor.height + " · " + root.selectedMonitor.refreshRate + " Hz")
+                    : ""
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+                color: Theme.accent
             }
         }
 
@@ -168,175 +157,177 @@ Item {
             color: Qt.alpha(Theme.fg, 0.1)
         }
 
-        // Carte MPRIS
+        // Carte Écran principal & Résolution
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: root.currentPlayer ? 104 : 54
+            Layout.preferredHeight: 112
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.35)
             border.width: 1
             border.color: Qt.alpha(Theme.fg, 0.08)
 
-            Text {
-                visible: !root.currentPlayer
-                anchors.centerIn: parent
-                text: "Aucun média en cours de lecture"
-                font.family: Theme.fontUi
-                font.pixelSize: Theme.textSm
-                color: Qt.alpha(Theme.fg, 0.55)
-            }
-
-            RowLayout {
-                visible: root.currentPlayer !== null
+            ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 12
+                spacing: 8
 
-                // Pochette
-                Rectangle {
-                    Layout.preferredWidth: 78
-                    Layout.preferredHeight: 78
-                    radius: 10
-                    color: Qt.alpha(Theme.accent, 0.15)
-                    clip: true
+                // Ligne 1 : Écrans & choix de l'écran principal
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
 
-                    Image {
-                        anchors.fill: parent
-                        source: root.artUrl
-                        fillMode: Image.PreserveAspectCrop
-                        visible: root.artUrl !== ""
+                    Text {
+                        text: "Écran :"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        font.weight: Font.Bold
+                        color: Qt.alpha(Theme.fg, 0.7)
                     }
 
-                    Icon {
-                        visible: root.artUrl === ""
-                        anchors.centerIn: parent
-                        glyph: "music"
-                        size: 28
+                    Repeater {
+                        model: root.monitorsList
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool sel: root.selectedMonitorName === modelData.name
+                            readonly property bool prim: Boolean(modelData.is_primary)
+                            Layout.preferredHeight: 24
+                            Layout.preferredWidth: monLbl.implicitWidth + 16
+                            radius: 7
+                            color: sel ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
+                            border.width: 1
+                            border.color: sel ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
+
+                            Text {
+                                id: monLbl
+                                anchors.centerIn: parent
+                                text: (parent.prim ? "★ " : "") + parent.modelData.name
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                font.weight: parent.sel ? Font.Bold : Font.Normal
+                                color: parent.sel ? Theme.accent : Theme.fg
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.selectedMonitorName = parent.modelData.name
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Rectangle {
+                        visible: root.selectedMonitor !== null && !Boolean(root.selectedMonitor.is_primary)
+                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: primBtnLbl.implicitWidth + 16
+                        radius: 7
+                        color: primBtnMa.containsMouse ? Theme.accent : Qt.alpha(Theme.accent, 0.18)
+                        border.width: 1
+                        border.color: Theme.accent
+
+                        Text {
+                            id: primBtnLbl
+                            anchors.centerIn: parent
+                            text: "Définir principal"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Bold
+                            color: primBtnMa.containsMouse ? Theme.bg : Theme.accent
+                        }
+
+                        MouseArea {
+                            id: primBtnMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (!root.selectedMonitor) return
+                                displayCmdProc.command = [
+                                    "python3", Quickshell.shellPath("core/config_manager.py"),
+                                    "monitor_primary", root.selectedMonitor.name
+                                ]
+                                displayCmdProc.running = true
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: root.selectedMonitor !== null && Boolean(root.selectedMonitor.is_primary)
+                        text: "Principal"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        font.weight: Font.Bold
                         color: Theme.accent
                     }
                 }
 
-                ColumnLayout {
+                // Ligne 2 : Choix de la résolution
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: 6
 
                     Text {
-                        Layout.fillWidth: true
-                        text: root.trackTitle
-                        font.family: Theme.fontUi
-                        font.pixelSize: Theme.textMd
-                        font.weight: Font.Bold
-                        color: Theme.fg
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: root.trackArtist + (root.trackAlbum ? (" · " + root.trackAlbum) : "")
+                        text: "Résolution :"
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs
+                        font.weight: Font.Bold
                         color: Qt.alpha(Theme.fg, 0.7)
-                        elide: Text.ElideRight
                     }
 
-                    // Barre de progression
-                    RowLayout {
+                    Flickable {
                         Layout.fillWidth: true
-                        spacing: 6
+                        Layout.preferredHeight: 26
+                        contentWidth: modesRow.implicitWidth
+                        contentHeight: 26
+                        clip: true
+                        flickableDirection: Flickable.HorizontalFlick
 
-                        Text {
-                            text: root.fmtTime(root.posSec)
-                            font.family: Theme.fontUi
-                            font.pixelSize: 10
-                            color: Qt.alpha(Theme.fg, 0.6)
-                        }
+                        Row {
+                            id: modesRow
+                            spacing: 6
 
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 14
-                            Rectangle {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: parent.width
-                                height: 4
-                                radius: 2
-                                color: Qt.alpha(Theme.fg, 0.15)
+                            Repeater {
+                                model: root.selectedMonitor ? (root.selectedMonitor.availableModes || []) : []
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    readonly property string curMode: root.selectedMonitor
+                                        ? (root.selectedMonitor.width + "x" + root.selectedMonitor.height + "@" + root.selectedMonitor.refreshRate + "Hz")
+                                        : ""
+                                    readonly property bool activeMode: modelData === curMode
+                                    width: modeLbl.implicitWidth + 14
+                                    height: 24
+                                    radius: 7
+                                    color: activeMode
+                                        ? Theme.accent
+                                        : (modeMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06))
 
-                                Rectangle {
-                                    width: root.lenSec > 0 ? parent.width * Math.min(1, root.posSec / root.lenSec) : 0
-                                    height: parent.height
-                                    radius: 2
-                                    color: Theme.accent
+                                    Text {
+                                        id: modeLbl
+                                        anchors.centerIn: parent
+                                        text: parent.modelData
+                                        font.family: Theme.fontUi
+                                        font.pixelSize: Theme.text2xs
+                                        font.weight: parent.activeMode ? Font.Bold : Font.Normal
+                                        color: parent.activeMode ? Theme.bg : Theme.fg
+                                    }
+
+                                    MouseArea {
+                                        id: modeMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (!root.selectedMonitor) return
+                                            const sc = String(root.selectedMonitor.scale || 1)
+                                            displayCmdProc.command = [
+                                                "python3", Quickshell.shellPath("core/config_manager.py"),
+                                                "monitor_mode", root.selectedMonitor.name, parent.modelData, sc
+                                            ]
+                                            displayCmdProc.running = true
+                                        }
+                                    }
                                 }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                enabled: root.currentPlayer && root.currentPlayer.canSeek && root.lenSec > 0
-                                onClicked: mouse => {
-                                    let target = (mouse.x / width) * root.lenSec
-                                    root.currentPlayer.position = target
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: root.fmtTime(root.lenSec)
-                            font.family: Theme.fontUi
-                            font.pixelSize: 10
-                            color: Qt.alpha(Theme.fg, 0.6)
-                        }
-                    }
-
-                    // Contrôles de transport
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 18
-
-                        Text {
-                            text: "⏮"
-                            font.family: Theme.fontUi
-                            font.pixelSize: 15
-                            color: prevM.containsMouse ? Theme.accent : Theme.fg
-                            MouseArea {
-                                id: prevM
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.currentPlayer) root.currentPlayer.previous()
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.preferredWidth: 32
-                            Layout.preferredHeight: 26
-                            radius: 8
-                            color: Theme.accent
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.isPlaying ? "⏸" : "▶"
-                                font.family: Theme.fontUi
-                                font.pixelSize: 13
-                                color: Theme.bg
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.currentPlayer) root.currentPlayer.togglePlaying()
-                            }
-                        }
-
-                        Text {
-                            text: "⏭"
-                            font.family: Theme.fontUi
-                            font.pixelSize: 15
-                            color: nextM.containsMouse ? Theme.accent : Theme.fg
-                            MouseArea {
-                                id: nextM
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.currentPlayer) root.currentPlayer.next()
                             }
                         }
                     }

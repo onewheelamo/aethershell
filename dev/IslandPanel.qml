@@ -28,11 +28,123 @@ Item {
 
     readonly property var tabsModel: [
         { idx: 0, glyph: "widgets", label: "Contrôles",        src: "IslandTabControles.qml" },
-        { idx: 1, glyph: "music",   label: "Média & Son",      src: "IslandTabMedia.qml" },
+        { idx: 1, glyph: "monitor", label: "Affichage & Son",  src: "IslandTabMedia.qml" },
         { idx: 2, glyph: "bell",    label: "Alertes & Tâches", src: "IslandTabAlertes.qml" },
         { idx: 3, glyph: "cog",     label: "Système & Réseau", src: "IslandTabSysteme.qml" },
         { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
     ]
+
+    // Navigation clavier (submap Hyprland aether-nav)
+    property string navZone: "rail" // "rail" | "contenu"
+    property int navIndex: 0
+    property var navFocusRect: ({ x: 0, y: 0, w: 0, h: 0, visible: false })
+
+    function collectFocusables(item, out) {
+        if (!item || !item.visible) return
+        let ch = item.children
+        if (!ch) return
+        for (let i = 0; i < ch.length; i++) {
+            let c = ch[i]
+            if (!c || !c.visible) continue
+            let isMouseArea = (typeof c.clicked === "function") && c.hasOwnProperty("containsMouse")
+            if (isMouseArea && c.enabled && c.width > 6 && c.height > 6) {
+                let p = c.mapToItem(contentArea, 0, 0)
+                if (p.x >= -4 && p.y >= -4 && p.x < contentArea.width && p.y < contentArea.height) {
+                    out.push({ item: c, x: p.x, y: p.y, w: c.width, h: c.height })
+                }
+            }
+            collectFocusables(c, out)
+        }
+    }
+
+    function getFocusables() {
+        let out = []
+        if (tabLoader.item) collectFocusables(tabLoader.item, out)
+        out.sort(function(a, b) {
+            if (Math.abs(a.y - b.y) > 16) return a.y - b.y
+            return a.x - b.x
+        })
+        return out
+    }
+
+    function syncFocusRect() {
+        if (!Theme.islandNavActive || root.navZone !== "contenu") {
+            root.navFocusRect = { x: 0, y: 0, w: 0, h: 0, visible: false }
+            return
+        }
+        let list = getFocusables()
+        if (list.length === 0) {
+            root.navFocusRect = { x: 0, y: 0, w: 0, h: 0, visible: false }
+            return
+        }
+        let idx = Math.max(0, Math.min(list.length - 1, root.navIndex))
+        root.navIndex = idx
+        let f = list[idx]
+        root.navFocusRect = { x: f.x, y: f.y, w: f.w, h: f.h, visible: true }
+    }
+
+    function handleNav(action) {
+        let list = getFocusables()
+        if (action === "gauche" || action === "left") {
+            if (root.navZone === "rail") {
+                Theme.islandPanelTab = (Theme.islandPanelTab - 1 + root.tabsModel.length) % root.tabsModel.length
+            } else if (list.length > 0) {
+                root.navIndex = (root.navIndex - 1 + list.length) % list.length
+            }
+        } else if (action === "droite" || action === "right") {
+            if (root.navZone === "rail") {
+                Theme.islandPanelTab = (Theme.islandPanelTab + 1) % root.tabsModel.length
+            } else if (list.length > 0) {
+                root.navIndex = (root.navIndex + 1) % list.length
+            }
+        } else if (action === "haut" || action === "up") {
+            if (root.navZone === "rail" && list.length > 0) {
+                root.navZone = "contenu"
+                root.navIndex = 0
+            } else if (root.navZone === "contenu" && list.length > 0) {
+                root.navIndex = (root.navIndex - 1 + list.length) % list.length
+            }
+        } else if (action === "bas" || action === "down") {
+            if (root.navZone === "contenu") {
+                if (list.length > 0 && root.navIndex < list.length - 1) {
+                    root.navIndex += 1
+                } else {
+                    root.navZone = "rail"
+                }
+            }
+        } else if (action === "valider" || action === "enter") {
+            if (root.navZone === "rail" && list.length > 0) {
+                root.navZone = "contenu"
+                root.navIndex = 0
+            } else if (root.navZone === "contenu" && list.length > 0) {
+                let idx = Math.max(0, Math.min(list.length - 1, root.navIndex))
+                let target = list[idx].item
+                if (target && typeof target.clicked === "function") {
+                    target.clicked(null)
+                }
+            }
+        }
+        Qt.callLater(root.syncFocusRect)
+    }
+
+    Connections {
+        target: Theme
+        function onIslandNavActiveChanged() {
+            if (Theme.islandNavActive) {
+                root.navZone = "rail"
+                root.navIndex = 0
+            }
+            Qt.callLater(root.syncFocusRect)
+        }
+        function onIslandPanelTabChanged() {
+            root.navIndex = 0
+            Qt.callLater(root.syncFocusRect)
+        }
+    }
+
+    Component.onCompleted: {
+        Theme.islandNavHook = root.handleNav
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -90,6 +202,23 @@ Item {
                 Item {
                     visible: !root.isMediaActive
                     Layout.fillWidth: true
+                }
+
+                // Infos compactes (Batterie · Alertes)
+                Text {
+                    visible: root.isLaptop
+                    text: Math.round(Number((root.batInfo && root.batInfo.percent) || 0)) + "%"
+                          + ((root.batInfo && root.batInfo.charging) ? " ⚡" : "")
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    color: Qt.alpha(Theme.fg, 0.65)
+                }
+
+                Text {
+                    text: Theme.notifCount + " alerte" + (Theme.notifCount > 1 ? "s" : "") + (Theme.doNotDisturb ? " · N.P.D." : "")
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    color: Qt.alpha(Theme.fg, 0.65)
                 }
 
                 // Bouton réglages complets
@@ -156,131 +285,115 @@ Item {
             color: Qt.alpha(Theme.fg, 0.12)
         }
 
-        // ── Corps : Rail vertical gauche (164 px) + Contenu onglet ──────
-        RowLayout {
+        // ── Corps : Contenu onglet pleine largeur + Rail horizontal en bas ──
+        Item {
+            id: contentArea
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            clip: true
 
-            // Rail vertical gauche
-            Item {
-                Layout.preferredWidth: 164
-                Layout.fillHeight: true
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
-
-                    Repeater {
-                        model: root.tabsModel
-                        delegate: Rectangle {
-                            required property var modelData
-                            readonly property bool active: Theme.islandPanelTab === modelData.idx
-
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            radius: 10
-                            color: active
-                                ? Qt.alpha(Theme.accent, 0.20)
-                                : (tabMa.containsMouse ? Qt.alpha(Theme.fg, 0.07) : "transparent")
-                            Behavior on color { ColorAnimation { duration: 140 } }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 8
-                                spacing: 10
-
-                                Icon {
-                                    glyph: parent.parent.modelData.glyph
-                                    size: Theme.iconMd
-                                    color: parent.parent.active ? Theme.accent : Qt.alpha(Theme.fg, 0.78)
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: parent.parent.modelData.label
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: Theme.textSm
-                                    font.weight: parent.parent.active ? Font.Bold : Font.Medium
-                                    color: parent.parent.active ? Theme.fg : Qt.alpha(Theme.fg, 0.82)
-                                    elide: Text.ElideRight
-                                }
-                            }
-
-                            MouseArea {
-                                id: tabMa
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Theme.islandNeedsKeyboard = false
-                                    Theme.islandPanelTab = parent.modelData.idx
-                                }
-                            }
-                        }
+            Loader {
+                id: tabLoader
+                anchors.fill: parent
+                anchors.margins: 14
+                source: {
+                    let idx = Math.max(0, Math.min(root.tabsModel.length - 1, Theme.islandPanelTab))
+                    return root.tabsModel[idx].src
+                }
+                onLoaded: {
+                    if (!item) return
+                    if (Theme.islandPanelTab === 0) {
+                        item.activePlayer = Qt.binding(() => root.activePlayer)
+                        item.validPlayers = Qt.binding(() => root.validPlayers)
                     }
-
-                    Item { Layout.fillHeight: true }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 1
-                        color: Qt.alpha(Theme.fg, 0.1)
-                    }
-
-                    // Pied de rail : infos rapides
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 4
-                        Layout.rightMargin: 4
-                        spacing: 3
-
-                        Text {
-                            visible: root.isLaptop
-                            text: "Batterie : " + Math.round(Number((root.batInfo && root.batInfo.percent) || 0)) + " %"
-                                  + ((root.batInfo && root.batInfo.charging) ? " ⚡" : "")
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: Qt.alpha(Theme.fg, 0.7)
-                        }
-
-                        Text {
-                            text: "Alertes  : " + Theme.notifCount + (Theme.doNotDisturb ? " (N.P.D.)" : "")
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: Qt.alpha(Theme.fg, 0.7)
-                        }
-                    }
+                    Qt.callLater(root.syncFocusRect)
                 }
             }
 
-            // Séparateur vertical rail / contenu
             Rectangle {
-                Layout.preferredWidth: 1
-                Layout.fillHeight: true
-                color: Qt.alpha(Theme.fg, 0.12)
+                id: navFocusOverlay
+                z: 50
+                visible: Theme.islandNavActive && root.navZone === "contenu" && root.navFocusRect.visible
+                x: root.navFocusRect.x
+                y: root.navFocusRect.y
+                width: root.navFocusRect.w
+                height: root.navFocusRect.h
+                radius: Math.max(6, Theme.cornerRadius - 4)
+                color: Qt.alpha(Theme.accent, 0.08)
+                border.width: 2
+                border.color: Theme.accent
+                Behavior on x { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+                Behavior on y { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+                Behavior on width { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+                Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
             }
+        }
 
-            // Zone de contenu à droite
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+        // Séparateur horizontal au-dessus du rail d'onglets
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: Qt.alpha(Theme.fg, 0.12)
+        }
 
-                Loader {
-                    id: tabLoader
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    source: {
-                        let idx = Math.max(0, Math.min(root.tabsModel.length - 1, Theme.islandPanelTab))
-                        return root.tabsModel[idx].src
-                    }
-                    onLoaded: {
-                        if (!item) return
-                        if (Theme.islandPanelTab === 1) {
-                            item.activePlayer = Qt.binding(() => root.activePlayer)
-                            item.validPlayers = Qt.binding(() => root.validPlayers)
+        // Rail horizontal d'onglets en bas du panneau
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 46
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                anchors.topMargin: 5
+                anchors.bottomMargin: 5
+                spacing: 6
+
+                Repeater {
+                    model: root.tabsModel
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property bool active: Theme.islandPanelTab === modelData.idx
+
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: 10
+                        border.width: (Theme.islandNavActive && root.navZone === "rail" && active) ? 2 : 0
+                        border.color: Theme.accent
+                        color: active ? Qt.alpha(Theme.accent, 0.20) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 140 } }
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            width: Math.min(parent.width - 12, implicitWidth)
+                            spacing: 6
+
+                            Icon {
+                                glyph: parent.parent.modelData.glyph
+                                size: Theme.iconSm
+                                color: parent.parent.active ? Theme.accent : Qt.alpha(Theme.fg, 0.78)
+                            }
+
+                            Text {
+                                Layout.maximumWidth: 98
+                                text: parent.parent.modelData.label
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                font.weight: parent.parent.active ? Font.Bold : Font.Medium
+                                color: parent.parent.active ? Theme.fg : Qt.alpha(Theme.fg, 0.82)
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            id: tabMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Theme.islandNeedsKeyboard = false
+                                Theme.islandPanelTab = parent.modelData.idx
+                            }
                         }
                     }
                 }

@@ -104,6 +104,7 @@ hl.bind(mainMod .. " + M", hl.dsp.exec_cmd(music_player), { description = "musiq
 --: Shell
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleSpotlight"), { description = "lanceur" })  -- essentiel
 hl.bind(mainMod .. " + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleIslandPanel"), { description = "panneau étendu de l'îlot" })  -- essentiel
+hl.bind(mainMod .. " + ALT + H", hl.dsp.exec_cmd("quickshell ipc -n call shell nav ouvrir && hyprctl dispatch 'hl.dsp.submap(\"aether-nav\")'"), { description = "navigation clavier îlot" })
 hl.bind(mainMod .. " + SHIFT + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
 hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleCheatsheet"), { description = "raccourcis" })  -- essentiel
@@ -125,6 +126,7 @@ hl.bind("Escape", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/greeter_preview
 -- Sélection de zone ou de fenêtre, presse-papier et fichier.
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh"), { description = "capture d'écran ou vidéo" })
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("hyprshot -m region --clipboard-only"), { description = "capture de région, copiée au presse-papiers" })
+hl.bind(mainMod .. " + ALT + S", hl.dsp.exec_cmd("$HOME/.config/quickshell/core/screenshot.sh full"), { description = "capture d'écran immédiate" })
 
 --: Média
 -- Touches multimédia audio.
@@ -138,3 +140,23 @@ hl.bind("XF86AudioNext",        hl.dsp.exec_cmd("playerctl next"),              
 hl.bind("XF86AudioPause",       hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
 hl.bind("XF86AudioPlay",        hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
 hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("playerctl previous"),                               { locked = true })
+
+--: Navigation clavier dans l'Îlot dynamique (submap aether-nav)
+-- Entrée : SUPER + ALT + H (depuis le bloc Shell ci-dessus)
+-- Sortie garantie : Échap ou Q appelle toujours submap reset même si quickshell ne répond pas.
+hl.define_submap("aether-nav", function()
+    hl.bind("Left",        hl.dsp.exec_cmd("quickshell ipc -n call shell nav gauche"), { description = "nav îlot gauche" })
+    hl.bind("H",           hl.dsp.exec_cmd("quickshell ipc -n call shell nav gauche"), { description = "nav îlot gauche" })
+    hl.bind("Right",       hl.dsp.exec_cmd("quickshell ipc -n call shell nav droite"), { description = "nav îlot droite" })
+    hl.bind("L",           hl.dsp.exec_cmd("quickshell ipc -n call shell nav droite"), { description = "nav îlot droite" })
+    hl.bind("Up",          hl.dsp.exec_cmd("quickshell ipc -n call shell nav haut"),   { description = "nav îlot haut" })
+    hl.bind("K",           hl.dsp.exec_cmd("quickshell ipc -n call shell nav haut"),   { description = "nav îlot haut" })
+    hl.bind("Down",        hl.dsp.exec_cmd("quickshell ipc -n call shell nav bas"),    { description = "nav îlot bas" })
+    hl.bind("J",           hl.dsp.exec_cmd("quickshell ipc -n call shell nav bas"),    { description = "nav îlot bas" })
+    hl.bind("Tab",         hl.dsp.exec_cmd("quickshell ipc -n call shell nav onglet_suiv"), { description = "onglet suivant" })
+    hl.bind("SHIFT + Tab", hl.dsp.exec_cmd("quickshell ipc -n call shell nav onglet_prec"), { description = "onglet précédent" })
+    hl.bind("Return",      hl.dsp.exec_cmd("quickshell ipc -n call shell nav valider"), { description = "valider" })
+    hl.bind("space",       hl.dsp.exec_cmd("quickshell ipc -n call shell nav valider"), { description = "valider" })
+    hl.bind("Escape",      hl.dsp.exec_cmd("quickshell ipc -n call shell nav fermer ; hyprctl dispatch 'hl.dsp.submap(\"reset\")'"), { description = "fermer nav îlot" })
+    hl.bind("Q",           hl.dsp.exec_cmd("quickshell ipc -n call shell nav fermer ; hyprctl dispatch 'hl.dsp.submap(\"reset\")'"), { description = "fermer nav îlot" })
+end)

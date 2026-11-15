@@ -28,7 +28,8 @@ Column {
         "donnees_localisation": secLocalisation,
         "quickshell_calendrier": secCalendrier,
         "widgets_homelab": secHomelab,
-        "taches_fichiers": secTaches
+        "taches_fichiers": secTaches,
+        "planka_kanban": secPlanka
     })
 
     readonly property var cibles: ({
@@ -1122,6 +1123,251 @@ CollapsibleSection {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.runConfigCmd(["todo_surveillance"])
                 }
+            }
+        }
+    }
+}
+
+// ── Serveur Kanban (Planka) : URL + jeton API rangés dans core/secrets.json ──
+CollapsibleSection {
+    id: secPlanka
+    objectName: "secPlanka"
+    title: "Serveur Kanban (Planka)"
+    summary: {
+        const u = root.apiKeys && root.apiKeys["planka.url"] && root.apiKeys["planka.url"].present
+        const k = root.apiKeys && root.apiKeys["planka.api_key"] && root.apiKeys["planka.api_key"].present
+        if (u && k) return "configuré"
+        if (u || k) return "incomplet"
+        return "non configuré"
+    }
+    icon: "lock"
+    expanded: root.sectionOpen("planka_kanban", false)
+    onToggled: expanded => {
+        root.setPanelSection("planka_kanban", expanded)
+        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("planka_kanban")
+    }
+
+    Column {
+        width: parent.width
+        spacing: 10
+
+        Text {
+            width: parent.width
+            text: "URL et jeton API (`X-Api-Key`) de ton serveur Planka, rangés dans core/secrets.json (mode 600) pour les applets et widgets de tâches."
+            color: Qt.alpha(Theme.fg, 0.6)
+            font.pixelSize: Theme.textXs
+            wrapMode: Text.WordWrap
+        }
+
+        // 1. URL du serveur Planka
+        Column {
+            width: parent.width
+            spacing: 4
+
+            Text {
+                text: "URL du serveur"
+                color: Theme.fg
+                font.pixelSize: Theme.textXs
+                font.bold: true
+            }
+
+            Row {
+                width: parent.width
+                spacing: 10
+
+                Rectangle {
+                    width: parent.width - 130
+                    height: 32
+                    color: Theme.bg
+                    radius: Theme.globalRadius
+                    border.color: plankaUrlChamp.activeFocus ? Theme.accent : Theme.surfaceVariant
+                    border.width: 1
+
+                    TextInput {
+                        id: plankaUrlChamp
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        clip: true
+                        onAccepted: {
+                            root.plankaSetSecret("url", text)
+                            text = ""
+                        }
+
+                        Text {
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                            visible: parent.text === ""
+                            text: {
+                                const info = root.apiKeys ? root.apiKeys["planka.url"] : null
+                                return (info && info.present)
+                                    ? "configurée (…" + (info.tail || "") + ") — saisir pour remplacer"
+                                    : "https://planka.exemple.tld"
+                            }
+                            color: Qt.alpha(Theme.fg, 0.4)
+                            font.pixelSize: Theme.textXs
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 120
+                    height: 32
+                    color: plankaUrlBtn.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+                    radius: Theme.globalRadius
+                    border.color: Theme.accent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Enregistrer"
+                        color: plankaUrlBtn.containsMouse ? Theme.bg : Theme.accent
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: plankaUrlBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.plankaSetSecret("url", plankaUrlChamp.text)
+                            plankaUrlChamp.text = ""
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Jeton API Planka
+        Column {
+            width: parent.width
+            spacing: 4
+
+            Text {
+                text: "Jeton API"
+                color: Theme.fg
+                font.pixelSize: Theme.textXs
+                font.bold: true
+            }
+
+            Row {
+                width: parent.width
+                spacing: 10
+
+                Rectangle {
+                    width: parent.width - 130
+                    height: 32
+                    color: Theme.bg
+                    radius: Theme.globalRadius
+                    border.color: plankaKeyChamp.activeFocus ? Theme.accent : Theme.surfaceVariant
+                    border.width: 1
+
+                    TextInput {
+                        id: plankaKeyChamp
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        echoMode: TextInput.Password
+                        color: Theme.fg
+                        font.pixelSize: Theme.textXs
+                        clip: true
+                        onAccepted: {
+                            root.plankaSetSecret("api_key", text)
+                            text = ""
+                        }
+
+                        Text {
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                            visible: parent.text === ""
+                            text: {
+                                const info = root.apiKeys ? root.apiKeys["planka.api_key"] : null
+                                return (info && info.present)
+                                    ? "présent (…" + (info.tail || "") + ") — saisir pour remplacer"
+                                    : "coller le jeton API Planka"
+                            }
+                            color: Qt.alpha(Theme.fg, 0.4)
+                            font.pixelSize: Theme.textXs
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 120
+                    height: 32
+                    color: plankaKeyBtn.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+                    radius: Theme.globalRadius
+                    border.color: Theme.accent
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Enregistrer"
+                        color: plankaKeyBtn.containsMouse ? Theme.bg : Theme.accent
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: plankaKeyBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.plankaSetSecret("api_key", plankaKeyChamp.text)
+                            plankaKeyChamp.text = ""
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Test de connexion
+        Row {
+            width: parent.width
+            spacing: 12
+
+            Rectangle {
+                width: 170
+                height: 30
+                radius: Theme.globalRadius
+                color: plankaTestBtn.containsMouse ? Theme.accentMuted : Theme.surfaceVariant
+                border.color: Theme.accent
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Tester la connexion"
+                    color: plankaTestBtn.containsMouse ? Theme.bg : Theme.accent
+                    font.pixelSize: Theme.textXs
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: plankaTestBtn
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.testerPlanka()
+                }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.plankaTestEtat !== ""
+                text: root.plankaTestEtat
+                color: root.plankaTestEtat.indexOf("Connecté") === 0 || root.plankaTestEtat.indexOf("Connexion réussie") === 0
+                    ? Theme.accent
+                    : Qt.alpha(Theme.fg, 0.78)
+                font.pixelSize: Theme.textXs
             }
         }
     }

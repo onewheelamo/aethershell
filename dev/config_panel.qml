@@ -1569,6 +1569,37 @@ Rectangle {
         }))
     }
 
+    property string plankaTestEtat: ""
+
+    Process {
+        id: plankaTestProc
+        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "planka_test"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const res = JSON.parse(text.trim())
+                    root.plankaTestEtat = String(res.message || (res.ok ? "Connecté" : "Échec"))
+                } catch (e) {
+                    root.plankaTestEtat = "Réponse invalide"
+                }
+            }
+        }
+    }
+
+    function plankaSetSecret(nom, valeur) {
+        const v = String(valeur || "").trim()
+        if (v === "") return
+        root.plankaTestEtat = ""
+        homelabSecretFile.setText(JSON.stringify({
+            section: "planka", nom: String(nom), valeur: v
+        }))
+    }
+
+    function testerPlanka() {
+        root.plankaTestEtat = "Test en cours…"
+        plankaTestProc.running = true
+    }
+
     // `provider` est une entrée de core/llm_providers.json : sa référence de clé
     // (« section.nom ») dit où ranger la valeur dans secrets.json.
     function enregistrerCleApi(provider, champ) {
@@ -2315,6 +2346,9 @@ Rectangle {
             }
         } else if (root.selecteurFichierCible === "install_theme_colors") {
             root.installerThemeCouleur(chemin)
+        } else if (root.selecteurFichierCible === "lock_bg_image") {
+            root.runConfigCmd(["style", "lock_bg_image", String(chemin)])
+            root.runConfigCmd(["style", "lock_bg_mode", "image"])
         }
         root.selecteurFichierCible = ""
     }

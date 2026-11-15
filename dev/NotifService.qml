@@ -29,7 +29,11 @@ Item {
     readonly property bool toastVisible: latestToast !== null
         && Theme.activePopup === ""
         && !Theme.notifHistoryVisible
+        && !Theme.islandPanelOpen
         && Theme.quietNotifApps.indexOf(latestToast ? latestToast.appName : "") < 0
+
+    onLatestToastChanged: Theme.notifToast = latestToast
+    onToastVisibleChanged: Theme.notifToastVisible = toastVisible
 
     function clampPopupX(item, relX, popupW) {
         const win = item ? item.QsWindow.window : null
@@ -123,7 +127,7 @@ Item {
         id: toastTimer
         interval: 4500
         repeat: false
-        running: service.toastVisible
+        running: service.toastVisible && !Theme.notifToastHovered
         onTriggered: service.latestToast = null
     }
 
@@ -372,7 +376,9 @@ Item {
             invoke: function (e, ident) { service.invokeNotifAction(e, ident) },
             actions: function (e) { return service.notifActions(e) },
             hasTarget: function (e) { return service.notifHasTarget(e) },
-            setQuiet: function (nom, muet) { service.setToastQuiet(nom, muet) }
+            setQuiet: function (nom, muet) { service.setToastQuiet(nom, muet) },
+            dismissToast: function () { service.latestToast = null },
+            quietToast: function () { service.quietToastSource() }
         })
 
         Theme.notifTargetsHook = function() {
@@ -439,7 +445,7 @@ Item {
         implicitWidth: 300
         implicitHeight: toastCol.implicitHeight + 20
         color: "transparent"
-        visible: service.toastVisible && service.anchorItem !== null
+        visible: Theme.barStyle !== "island" && service.toastVisible && service.anchorItem !== null
 
         Rectangle {
             anchors.fill: parent

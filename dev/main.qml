@@ -378,7 +378,7 @@ Item {
                     ? 0
                     : zoneGauche.x + zoneGauche.width
                 width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? Math.max(0, dynamicIslandLoader.x - 12)
+                    ? Math.max(0, dynamicIslandLoader.x)
                     : Math.max(0, zoneCentre.x - x)
                 anchors.verticalCenter: parent.verticalCenter
                 height: Theme.barHeight
@@ -387,7 +387,7 @@ Item {
             Item {
                 id: slotDroit
                 x: (Theme.barStyle === "island" && dynamicIslandLoader.item)
-                    ? dynamicIslandLoader.x + dynamicIslandLoader.width + 12
+                    ? dynamicIslandLoader.x + dynamicIslandLoader.width
                     : zoneCentre.x + zoneCentre.width
                 width: (Theme.barStyle === "island" && dynamicIslandLoader.item)
                     ? Math.max(0, barContainer.width - x)
@@ -866,7 +866,7 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     Loader {
         id: assistantPremierLancement
-        active: !Theme.firstRunCompleted
+        active: !Theme.firstRunCompleted || Theme.showKeyboardOnboarding
         source: "first_run.qml"
     }
 

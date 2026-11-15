@@ -53,6 +53,9 @@ QtObject {
     // Opacité des surfaces Quickshell (barre, OSD, panneau, popups)
     property real shellOpacity: 0.7
     property string kbLayout: "fr"
+    property string lockBgMode: "solid"
+    property string lockBgColor: ""
+    property string lockBgImage: ""
     property bool firstRunCompleted: true
     property bool showKeyboardOnboarding: false
     property bool showConfigButton: true
@@ -67,11 +70,19 @@ QtObject {
     property string islandSidePanel: ""
     property int todoRev: 0
     property bool islandNeedsKeyboard: false
+    property bool islandNavActive: false
+    property var islandNavHook: null
+    onIslandNavActiveChanged: {
+        if (!islandNavActive) {
+            Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.submap(\"reset\")"])
+        }
+    }
     property int panelAnimDuration: 240
     onIslandPanelOpenChanged: {
         if (!islandPanelOpen) {
             islandSidePanel = ""
             islandNeedsKeyboard = false
+            islandNavActive = false
         }
     }
     onBarStyleChanged: {
@@ -79,6 +90,7 @@ QtObject {
             islandPanelOpen = false
             islandSidePanel = ""
             islandNeedsKeyboard = false
+            islandNavActive = false
         }
     }
     // ── Visualiseur audio (style_vars) ──────────────────────────────────────
@@ -333,6 +345,9 @@ QtObject {
     property var notifList: []
     property var notifArchive: []
     property var notifOps: ({})
+    property var notifToast: null
+    property bool notifToastVisible: false
+    property bool notifToastHovered: false
 
     // Ouvre le panneau de configuration sur une section précise. Le clic milieu
     // d'un applet passe par ici (`Theme.openConfigSection`), comme l'IPC : une
@@ -546,6 +561,9 @@ QtObject {
         if (typeof data.blur_passes === "number") root.blurPasses = Math.max(1, Math.min(8, data.blur_passes))
         if (typeof data.blur_vibrancy === "number") root.blurVibrancy = Math.max(0, Math.min(1, data.blur_vibrancy))
         if (typeof data.kb_layout === "string") root.kbLayout = data.kb_layout
+        if (typeof data.lock_bg_mode === "string") root.lockBgMode = data.lock_bg_mode
+        if (typeof data.lock_bg_color === "string") root.lockBgColor = data.lock_bg_color
+        if (typeof data.lock_bg_image === "string") root.lockBgImage = data.lock_bg_image
         if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
         if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
@@ -1172,6 +1190,44 @@ QtObject {
             root.activePopup = ""
             root.islandPanelTab = Math.max(0, Math.min(4, tabIndex))
             root.islandPanelOpen = true
+        }
+        function nav(action: string): string {
+            if (root.barStyle !== "island") return "not_island"
+            const a = String(action || "").toLowerCase()
+            if (a === "ouvrir" || a === "open") {
+                root.activePopup = ""
+                root.islandNavActive = true
+                root.islandPanelOpen = true
+                return "ok"
+            }
+            if (a === "fermer" || a === "close") {
+                root.islandPanelOpen = false
+                root.islandSidePanel = ""
+                root.islandNeedsKeyboard = false
+                root.islandNavActive = false
+                return "ok"
+            }
+            if (!root.islandPanelOpen) {
+                root.activePopup = ""
+                root.islandPanelOpen = true
+            }
+            root.islandNavActive = true
+            if (a === "onglet_suiv" || a === "tab_next") {
+                root.islandPanelTab = (root.islandPanelTab + 1) % 5
+                return "ok"
+            }
+            if (a === "onglet_prec" || a === "tab_prev") {
+                root.islandPanelTab = (root.islandPanelTab + 4) % 5
+                return "ok"
+            }
+            if (root.islandNavHook) {
+                root.islandNavHook(a)
+                return "ok"
+            }
+            return "no_hook"
+        }
+        function navState(): bool {
+            return root.islandNavActive
         }
         function toggleSpotlight() {
             root.spotlightVisible = !root.spotlightVisible

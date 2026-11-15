@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Mpris
 import "."
 
 // ══════════════════════════════════════════════════════════════════════
@@ -10,6 +11,15 @@ import "."
 
 Item {
     id: root
+
+    property var activePlayer: null
+    property var validPlayers: []
+
+    readonly property var currentPlayer: activePlayer ? activePlayer : ((validPlayers && validPlayers.length > 0) ? validPlayers[0] : null)
+    readonly property bool isPlaying: currentPlayer ? (currentPlayer.playbackState === MprisPlaybackState.Playing) : false
+    readonly property string trackTitle: currentPlayer ? (currentPlayer.trackTitle || "Aucun titre") : "Aucun média"
+    readonly property string trackArtist: currentPlayer ? (currentPlayer.trackArtist || "") : ""
+    readonly property string artUrl: currentPlayer ? (currentPlayer.trackArtUrl || "") : ""
 
     // ── État local synchronisé avec les services système ──────────────
     readonly property var sysInfo: Theme.systemInfo || ({})
@@ -173,7 +183,7 @@ Item {
         signal chevronClicked()
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 54
+        Layout.preferredHeight: 50
         radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
         color: active
             ? Qt.alpha(Theme.accent, tileMa.containsMouse ? 0.28 : 0.20)
@@ -261,9 +271,165 @@ Item {
         }
     }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
         spacing: 12
+
+        // ── Mini lecteur musique à gauche des contrôles rapides ───────────
+        Rectangle {
+            Layout.preferredWidth: 186
+            Layout.fillHeight: true
+            radius: Math.max(12, Math.round(Theme.pillRadius * 0.7))
+            color: Qt.alpha(Theme.surfaceVariant, 0.34)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "LECTURE"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    font.weight: Font.Bold
+                    color: Theme.accent
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Item { Layout.fillHeight: true }
+
+                VinylArt {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 104
+                    Layout.preferredHeight: 104
+                    artUrl: root.artUrl
+                    playing: root.isPlaying
+                    iconSize: 32
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Theme.islandPanelTab = 1
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.trackTitle
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textSm
+                        font.weight: Font.Bold
+                        color: root.currentPlayer ? Theme.fg : Qt.alpha(Theme.fg, 0.55)
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        visible: root.trackArtist !== ""
+                        Layout.fillWidth: true
+                        text: root.trackArtist
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                    }
+                }
+
+                // Boutons Précédent / Lecture-Pause / Suivant
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 8
+
+                    Rectangle {
+                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: 32
+                        radius: 16
+                        color: prevMiniMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06)
+                        opacity: root.currentPlayer && root.currentPlayer.canGoPrevious ? 1.0 : 0.4
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: "previous"
+                            size: Theme.iconSm
+                            color: Theme.fg
+                        }
+
+                        MouseArea {
+                            id: prevMiniMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: root.currentPlayer !== null && Boolean(root.currentPlayer.canGoPrevious)
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (root.currentPlayer) root.currentPlayer.previous()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredWidth: 38
+                        Layout.preferredHeight: 38
+                        radius: 19
+                        color: playMiniMa.containsMouse ? Theme.accent : Qt.alpha(Theme.accent, 0.24)
+                        opacity: root.currentPlayer ? 1.0 : 0.45
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: root.isPlaying ? "pause" : "play"
+                            size: Theme.iconMd
+                            color: playMiniMa.containsMouse ? Theme.bg : Theme.accent
+                        }
+
+                        MouseArea {
+                            id: playMiniMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: root.currentPlayer !== null
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (root.currentPlayer) root.currentPlayer.togglePlaying()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: 32
+                        radius: 16
+                        color: nextMiniMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06)
+                        opacity: root.currentPlayer && root.currentPlayer.canGoNext ? 1.0 : 0.4
+
+                        Icon {
+                            anchors.centerIn: parent
+                            glyph: "next"
+                            size: Theme.iconSm
+                            color: Theme.fg
+                        }
+
+                        MouseArea {
+                            id: nextMiniMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: root.currentPlayer !== null && Boolean(root.currentPlayer.canGoNext)
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (root.currentPlayer) root.currentPlayer.next()
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+            }
+        }
+
+        // ── Contrôles rapides à droite ────────────────────────────────────
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 8
 
         // En-tête onglet
         ColumnLayout {
@@ -296,7 +462,7 @@ Item {
             Layout.fillWidth: true
             columns: 2
             columnSpacing: 10
-            rowSpacing: 8
+            rowSpacing: 6
 
             QuickTile {
                 glyphName: root.wifiConnected ? "wifi-full" : "wifi"
@@ -380,7 +546,7 @@ Item {
             // Tuile 6 : Session & Énergie (mini-boutons directs)
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 54
+                Layout.preferredHeight: 50
                 radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
                 color: Qt.alpha(Theme.surfaceVariant, 0.34)
                 border.width: 1
@@ -405,6 +571,7 @@ Item {
                         model: [
                             { glyph: "lock", tip: "Verrouiller", cmd: ["loginctl", "lock-session"], danger: false },
                             { glyph: "weather-night", tip: "Veille", cmd: ["systemctl", "suspend"], danger: false },
+                            { glyph: "restart", tip: "Redémarrer", cmd: ["systemctl", "reboot"], danger: true },
                             { glyph: "power", tip: "Éteindre", cmd: ["systemctl", "poweroff"], danger: true }
                         ]
                         delegate: Rectangle {
@@ -648,5 +815,6 @@ Item {
         }
 
         Item { Layout.fillHeight: true }
+        }
     }
 }

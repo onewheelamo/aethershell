@@ -842,6 +842,19 @@ def update_style_var(key, value):
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "first_run_completed":
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "lock_bg_mode" and str(value) in ("solid", "image"):
+        data[key] = str(value)
+    elif key == "lock_bg_color":
+        val_str = str(value).strip()
+        if not val_str:
+            data[key] = ""
+        else:
+            if not val_str.startswith("#"):
+                val_str = "#" + val_str
+            if re.match(r"^#[0-9a-fA-F]{6}$", val_str):
+                data[key] = val_str.lower()
+    elif key == "lock_bg_image":
+        data[key] = str(value).strip()
     elif key in ("user_location_ville", "user_location_tz"):
         # Localisation de l'utilisateur : ville affichée et fuseau. Le fuseau
         # n'est pas validé ici (liste mouvante) mais reste une chaîne courte.
@@ -1561,6 +1574,43 @@ def set_secret_from_file(chemin):
     return {"ok": ok, "section": section, "nom": nom, "tail": valeur[-4:] if ok else ""}
 
 
+def planka_test():
+    """Teste la connexion au serveur Planka à l'aide de core/secrets.json."""
+    import urllib.error
+    import urllib.request
+
+    secrets = lire_secrets().get("planka")
+    if not isinstance(secrets, dict):
+        return {"ok": False, "message": "URL ou jeton API manquant dans core/secrets.json"}
+    url = str(secrets.get("url") or "").strip().rstrip("/")
+    api_key = str(secrets.get("api_key") or "").strip()
+    if not url or not api_key:
+        return {"ok": False, "message": "Renseigner l'URL et le jeton API d'abord"}
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    req = urllib.request.Request(
+        f"{url}/api/users/me",
+        headers={"X-Api-Key": api_key, "Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            body = json.loads(resp.read().decode("utf-8", errors="replace"))
+            item = body.get("item") if isinstance(body, dict) else None
+            nom = ""
+            if isinstance(item, dict):
+                nom = str(item.get("username") or item.get("name") or item.get("email") or "").strip()
+            return {
+                "ok": True,
+                "message": f"Connecté ({nom})" if nom else "Connexion réussie (HTTP 200)",
+            }
+    except urllib.error.HTTPError as err:
+        return {"ok": False, "message": f"Refusé (HTTP {err.code})"}
+    except Exception as err:
+        return {"ok": False, "message": f"Injoignable ({err})"}
+
+
 def load_notif_targets():
     try:
         with open(NOTIF_TARGETS_FILE, encoding="utf-8") as fh:
@@ -1935,6 +1985,9 @@ def get_full_config_state():
         "llm_providers": list(llm_providers.charger().values()),
         "wallpaper_dir": get_wallpaper_dir(),
         "screenshots_dir": get_screenshots_dir(),
+        "lock_bg_mode": str(style_data.get("lock_bg_mode", "solid")),
+        "lock_bg_color": str(style_data.get("lock_bg_color", "")),
+        "lock_bg_image": str(style_data.get("lock_bg_image", "")),
         "matugen_scheme": style_data.get("matugen_scheme", "scheme-tonal-spot"),
         "matugen_contrast": float(style_data.get("matugen_contrast", 0)),
         "blur_enabled": bool(style_data.get("blur_enabled", True)),
@@ -2029,6 +2082,8 @@ if __name__ == "__main__":
         print(json.dumps(get_full_config_state()))
     elif action == "api_key_set_file" and len(sys.argv) > 2:
         print(json.dumps(set_secret_from_file(sys.argv[2]), ensure_ascii=False))
+    elif action == "planka_test":
+        print(json.dumps(planka_test(), ensure_ascii=False))
     elif action == "complete_first_run":
         complete_first_run()
         print(json.dumps(get_full_config_state()))

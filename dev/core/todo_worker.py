@@ -108,7 +108,7 @@ def executer_demande(demande):
         return False, "hors périmètre"
 
     # 1. Prise en charge du bail
-    ok, msg = todo_applet.prendre(item_id)
+    ok, msg = todo_applet.prendre(item_id, notifier=False)
     if not ok:
         return False, f"impossible de prendre la demande ({msg})"
 

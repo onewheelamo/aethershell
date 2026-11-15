@@ -247,33 +247,46 @@ case "$MODE" in
         fi
         ;;
     full)
-        # 1. hyprshot — la sortie qui a le focus, sans sa notification
+        # 1. grim sur la sortie active — immédiat, sans clic ni perte de focus
+        # (préserve les surfaces à HyprlandFocusGrab comme l'Îlot dynamique étendu).
+        if command -v grim &>/dev/null; then
+            FOCUSED_OUT="$(hyprctl monitors -j 2>/dev/null | python3 -c 'import json,sys
+try:
+    ms=json.load(sys.stdin)
+    print(next((m["name"] for m in ms if m.get("focused")), ""))
+except Exception:
+    print("")' 2>/dev/null)"
+            if [ -n "$FOCUSED_OUT" ]; then
+                grim -o "$FOCUSED_OUT" "$FILEPATH"
+            else
+                grim "$FILEPATH"
+            fi
+            if [ -s "$FILEPATH" ]; then
+                command -v wl-copy &>/dev/null && wl-copy < "$FILEPATH"
+                notify_capture "Capture d'écran" \
+                    "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
+                log "grim écran ($FOCUSED_OUT) → $FILEPATH"
+                exit 0
+            fi
+        fi
+        # 2. hyprshot — la sortie active, sans sélection manuelle
         if command -v hyprshot &>/dev/null; then
-            hyprshot -s -m output --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
+            hyprshot -s -m output -m active --output-folder "$SCREENSHOTS_DIR" --filename "$FILENAME"
             if [ -s "$FILEPATH" ]; then
                 notify_capture "Capture d'écran" \
                     "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
-                log "hyprshot output → $FILEPATH"
+                log "hyprshot output active → $FILEPATH"
             else
-                log "hyprshot output : rien produit"
+                log "hyprshot output active : rien produit"
             fi
             exit 0
         fi
-        # 2. grimblast
+        # 3. grimblast
         if command -v grimblast &>/dev/null; then
             grimblast copysave screen "$FILEPATH"
             [ -s "$FILEPATH" ] && notify_capture "Capture d'écran" \
                 "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
             log "grimblast screen → $FILEPATH"
-            exit 0
-        fi
-        # 3. grim sur la sortie courante
-        if command -v grim &>/dev/null; then
-            grim "$FILEPATH"
-            command -v wl-copy &>/dev/null && wl-copy < "$FILEPATH"
-            notify_capture "Capture d'écran" \
-                "Enregistrée dans $FILENAME et copiée dans le presse-papier" "$FILEPATH"
-            log "grim écran → $FILEPATH"
             exit 0
         fi
         ;;

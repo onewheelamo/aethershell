@@ -313,13 +313,13 @@ Item {
             }
         }
 
-        // Arrondis
+        // Flou (Blur)
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
             Text {
                 Layout.preferredWidth: 72
-                text: "Arrondis"
+                text: "Flou (Blur)"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 color: Theme.fg
@@ -334,7 +334,7 @@ Item {
                     radius: 2.5
                     color: Qt.alpha(Theme.fg, 0.14)
                     Rectangle {
-                        width: parent.width * Math.max(0, Math.min(1, (Theme.globalRadius - 4) / 20))
+                        width: parent.width * Math.max(0, Math.min(1, (Theme.blurSize - 1) / 19))
                         height: parent.height
                         radius: 2.5
                         color: Theme.accent
@@ -343,19 +343,19 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    function setRad(mx) {
-                        let r = Math.round(4 + Math.max(0, Math.min(1, mx / width)) * 20)
-                        Theme.globalRadius = r
-                        root.runStyle("global_radius", r)
+                    function setBlur(mx) {
+                        let b = Math.round(1 + Math.max(0, Math.min(1, mx / width)) * 19)
+                        Theme.blurSize = b
+                        root.runStyle("blur_size", b)
                     }
-                    onPressed: mouse => setRad(mouse.x)
-                    onPositionChanged: mouse => { if (pressed) setRad(mouse.x) }
+                    onPressed: mouse => setBlur(mouse.x)
+                    onPositionChanged: mouse => { if (pressed) setBlur(mouse.x) }
                 }
             }
             Text {
                 Layout.preferredWidth: 38
                 horizontalAlignment: Text.AlignRight
-                text: Theme.globalRadius + " px"
+                text: String(Theme.blurSize)
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 color: Theme.fg

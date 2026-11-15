@@ -9,6 +9,22 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.8.00] — 2026-11-15
+
+### Ajouté
+
+- **Refonte de l'Îlot dynamique** ([`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/IslandPanel.qml`](dev/IslandPanel.qml), [`dev/IslandTabControles.qml`](dev/IslandTabControles.qml), [`dev/IslandTabMedia.qml`](dev/IslandTabMedia.qml), [`dev/IslandTabApparence.qml`](dev/IslandTabApparence.qml), [`dev/WorkspacesApplet.qml`](dev/WorkspacesApplet.qml), [`dev/VinylArt.qml`](dev/VinylArt.qml)) :
+  - **Workspaces en points & tiret** : affichage permanent à gauche de la pilule (maintenu au survol en mode étendu), un point par bureau et un tiret pour le bureau actif.
+  - **Indicateurs VPN et confidentialité** ([`dev/core/indicateurs_service.py`](dev/core/indicateurs_service.py)) : point VPN à droite (`bleu` connecté, `blanc` déconnecté, `jaune` erreur service) et point capture à gauche avant les workspaces (`rouge` capture vidéo/webcam, `orange` capture audio seule).
+  - **Rail d'onglets en bas** (surfaces plates pour les onglets inactifs), **mini lecteur audio** sur l'accueil avec pochette vinyle rotative ([`dev/VinylArt.qml`](dev/VinylArt.qml)), onglet **Affichage & Son** (écran principal et résolution), et curseur **Flou (Blur)** dans Apparence.
+- **Fond d'écran de `hyprlock`** ([`dev/OngletApparence.qml`](dev/OngletApparence.qml), [`dev/core/generate_rofi_theme.sh`](dev/core/generate_rofi_theme.sh), [`dev/hypr_modular/hyprlock.conf`](dev/hypr_modular/hyprlock.conf)) : choix couleur unie ou image via `SelecteurFichier.qml` (sans screencopy DMA-BUF).
+- **Capture d'écran immédiate (`SUPER + ALT + S`)** ([`dev/hypr_modular/binds.lua`](dev/hypr_modular/binds.lua), [`dev/core/screenshot.sh`](dev/core/screenshot.sh)) : capture immédiate de l'écran actif via `grim` sans perte de focus.
+- **Notification Hermes sur prise en charge** ([`dev/core/todo_applet.py`](dev/core/todo_applet.py), [`dev/core/todo_worker.py`](dev/core/todo_worker.py)) : notification bureau `notify-send` lors de `todo_applet.prendre()`.
+
+### Corrigé
+
+- **Bouton « Assistant clavier »** ([`dev/main.qml`](dev/main.qml)) : activation du `Loader` sur `Theme.showKeyboardOnboarding` même après `firstRunCompleted`.
+
 ## [0.3.7.03] — 2026-11-13
 
 ### Ajouté

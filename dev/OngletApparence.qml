@@ -769,6 +769,170 @@ onValueModified: newVal => root.runConfigCmd([
 ])
 }
     }
+
+    Rectangle {
+        width: parent.width
+        height: 1
+        color: Theme.surfaceVariant
+        opacity: 0.45
+    }
+
+    // Fond de l'écran de verrouillage (hyprlock) — couleur unie ou image sans screenshot DMA-BUF.
+    Row {
+        width: parent.width
+        spacing: 8
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 160
+            text: "Écran de verrouillage"
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            font.bold: true
+        }
+
+        Repeater {
+            model: [
+                { id: "solid", label: "Couleur unie" },
+                { id: "image", label: "Image" }
+            ]
+            delegate: Rectangle {
+                required property var modelData
+                readonly property bool actif: Theme.lockBgMode === modelData.id
+                width: lockModeLbl.implicitWidth + 20
+                height: 28
+                radius: Theme.globalRadius
+                color: actif ? Theme.accent : (lockModeMa.containsMouse ? Theme.surfaceVariant : Theme.bg)
+                border.color: actif ? Theme.accent : Theme.surfaceVariant
+                border.width: 1
+
+                Text {
+                    id: lockModeLbl
+                    anchors.centerIn: parent
+                    text: modelData.label
+                    color: actif ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: actif
+                }
+
+                MouseArea {
+                    id: lockModeMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runConfigCmd(["style", "lock_bg_mode", modelData.id])
+                }
+            }
+        }
+    }
+
+    // Choix de couleur unie pour hyprlock (palette $bg ou teinte personnalisée)
+    Row {
+        visible: Theme.lockBgMode !== "image"
+        width: parent.width
+        spacing: 8
+
+        Item { width: 160; height: 1 }
+
+        Rectangle {
+            readonly property bool actif: Theme.lockBgColor === ""
+            width: lockPalLbl.implicitWidth + 16
+            height: 26
+            radius: Theme.globalRadius
+            color: actif ? Theme.accent : (lockPalMa.containsMouse ? Theme.surfaceVariant : Theme.bg)
+            border.color: actif ? Theme.accent : Theme.surfaceVariant
+            border.width: 1
+
+            Text {
+                id: lockPalLbl
+                anchors.centerIn: parent
+                text: "Fond du thème"
+                color: actif ? Theme.bg : Theme.fg
+                font.pixelSize: Theme.textXs
+                font.bold: actif
+            }
+
+            MouseArea {
+                id: lockPalMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.runConfigCmd(["style", "lock_bg_color", ""])
+            }
+        }
+
+        Repeater {
+            model: ["#0f1117", "#1e1e2e", "#111827", "#000000", Theme.surface]
+            delegate: Rectangle {
+                required property string modelData
+                readonly property bool actif: Theme.lockBgColor.toLowerCase() === modelData.toLowerCase()
+                width: 26
+                height: 26
+                radius: Theme.globalRadius
+                color: modelData
+                border.color: actif ? Theme.accent : Theme.surfaceVariant
+                border.width: actif ? 2 : 1
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runConfigCmd(["style", "lock_bg_color", modelData])
+                }
+            }
+        }
+    }
+
+    // Choix d'image pour hyprlock via SelecteurFichier.qml
+    Row {
+        visible: Theme.lockBgMode === "image"
+        width: parent.width
+        spacing: 8
+
+        Item { width: 160; height: 1 }
+
+        Rectangle {
+            width: lockImgBtnLbl.implicitWidth + 20
+            height: 28
+            radius: Theme.globalRadius
+            color: lockImgMa.containsMouse ? Theme.accent : Theme.bg
+            border.color: Theme.accent
+            border.width: 1
+
+            Text {
+                id: lockImgBtnLbl
+                anchors.centerIn: parent
+                text: "Choisir une image…"
+                color: lockImgMa.containsMouse ? Theme.bg : Theme.accent
+                font.pixelSize: Theme.textXs
+                font.bold: true
+            }
+
+            MouseArea {
+                id: lockImgMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    root.ouvrirSelecteurFichier(
+                        "lock_bg_image",
+                        "Fond de l'écran de verrouillage",
+                        Theme.lockBgImage !== "" ? Theme.lockBgImage : (Theme.wallpaperDir || "~/Images"),
+                        ["png", "jpg", "jpeg", "webp"],
+                        "image"
+                    )
+                }
+            }
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 160 - 150
+            text: Theme.lockBgImage !== "" ? String(Theme.lockBgImage).split("/").pop() : "Aucune image sélectionnée"
+            color: Theme.lockBgImage !== "" ? Theme.fg : Qt.alpha(Theme.fg, 0.55)
+            font.pixelSize: Theme.textXs
+            elide: Text.ElideMiddle
+        }
+    }
 }
 }
 

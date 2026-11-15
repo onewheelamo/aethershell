@@ -18,9 +18,11 @@ Item {
     // Orientation donnée par la barre qui porte l'applet (`Applet.qml` la pose) :
     // sur une barre de côté les bureaux s'empilent au lieu de s'aligner.
     property bool verticale: false
+    // Mode points/tiret pour l'Îlot dynamique (point par ws, tiret pour l'actif)
+    property bool dotsMode: false
 
     implicitWidth: workspaceRow.implicitWidth
-    implicitHeight: workspaceRow.implicitHeight
+    implicitHeight: dotsMode ? Math.max(18, workspaceRow.implicitHeight) : workspaceRow.implicitHeight
 
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 1: WORKSPACE MODEL & STATE PROPERTIES
@@ -175,7 +177,7 @@ Item {
                 id: workspaceRow
                 anchors.verticalCenter: parent.verticalCenter
                 columns: root.verticale ? 1 : 64
-                spacing: 6
+                spacing: root.dotsMode ? 5 : 6
 
                 Repeater {
                     model: root.visibleWorkspaces
@@ -189,23 +191,35 @@ Item {
                         readonly property bool isUrgent: Boolean(st.urgent)
                         readonly property bool isOccupied: Boolean(st.occupied) && (st.windows === undefined || st.windows > 0)
 
-                        width: root.verticale ? 26 : (isActive ? 30 : 24)
-                        height: 24
-                        radius: Theme.globalRadius
+                        width: root.dotsMode
+                            ? (isActive ? 18 : 6)
+                            : (root.verticale ? 26 : (isActive ? 30 : 24))
+                        height: root.dotsMode ? 6 : 24
+                        radius: root.dotsMode ? 3 : Theme.globalRadius
 
-                        readonly property bool outlineActive: isActive && Theme.wsActiveOutline
+                        readonly property bool outlineActive: !root.dotsMode && isActive && Theme.wsActiveOutline
 
-                        color: isUrgent
-                            ? Theme.error
-                            : outlineActive
-                                ? "transparent"
+                        color: root.dotsMode
+                            ? (isUrgent
+                                ? Theme.error
                                 : isActive
                                     ? Theme.accent
                                     : wsMa.containsMouse
-                                        ? Theme.surfaceVariant
+                                        ? Theme.fg
                                         : isOccupied
-                                            ? Qt.alpha(Theme.surfaceVariant, 0.75)
-                                            : "transparent"
+                                            ? Qt.alpha(Theme.fg, 0.65)
+                                            : Qt.alpha(Theme.fg, 0.25))
+                            : (isUrgent
+                                ? Theme.error
+                                : outlineActive
+                                    ? "transparent"
+                                    : isActive
+                                        ? Theme.accent
+                                        : wsMa.containsMouse
+                                            ? Theme.surfaceVariant
+                                            : isOccupied
+                                                ? Qt.alpha(Theme.surfaceVariant, 0.75)
+                                                : "transparent")
 
                         border.color: isUrgent
                             ? Theme.error
@@ -214,7 +228,7 @@ Item {
                                 : isOccupied
                                     ? Theme.accentMuted
                                     : Theme.surfaceVariant
-                        border.width: outlineActive ? 0 : 1
+                        border.width: (root.dotsMode || outlineActive) ? 0 : 1
 
                         // Liseré dégradé du workspace actif : trait de 1,5 px accent → transparent.
                         // Un Canvas plutôt que deux Rectangles imbriqués, pour ne pas superposer
@@ -268,6 +282,7 @@ Item {
                         Behavior on border.color { ColorAnimation { duration: 160 } }
 
                         Text {
+                            visible: !root.dotsMode
                             anchors.centerIn: parent
                             anchors.verticalCenterOffset: (wsDelegate.isOccupied && !wsDelegate.isActive) ? -2 : 0
                             text: root.wsLabel(wsDelegate.wsId)
@@ -284,7 +299,7 @@ Item {
 
                         // Small occupation dot under kanji when workspace has windows but is not focused
                         Rectangle {
-                            visible: wsDelegate.isOccupied && !wsDelegate.isActive
+                            visible: !root.dotsMode && wsDelegate.isOccupied && !wsDelegate.isActive
                             width: 4
                             height: 4
                             radius: 2
@@ -297,6 +312,7 @@ Item {
                         MouseArea {
                             id: wsMa
                             anchors.fill: parent
+                            anchors.margins: root.dotsMode ? -4 : 0
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {

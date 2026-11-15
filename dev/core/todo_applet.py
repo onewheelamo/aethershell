@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -493,7 +494,21 @@ def bloquer(identifiant, raison):
     return True, "bloqué"
 
 
-def prendre(identifiant):
+def notifier_hermes(titre, corps, urgence="normal"):
+    """Envoie une notification bureau au nom de Hermes si notify-send existe."""
+    if shutil.which("notify-send"):
+        try:
+            subprocess.run(
+                ["notify-send", "-a", "Hermes", "-u", urgence, str(titre), str(corps)],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+        except Exception:
+            pass
+
+
+def prendre(identifiant, notifier=True):
     """Réserve une demande si elle est **encore** en attente.
 
     Le verrou seul ne suffisait pas : il empêche deux écritures de se perdre,
@@ -501,6 +516,7 @@ def prendre(identifiant):
     concurrents repartaient tous avec « prise » (mesuré) et lançaient douze
     agents sur une seule tâche.
     """
+    info = {}
 
     def appliquer(demandes):
         for d in demandes:
@@ -510,10 +526,17 @@ def prendre(identifiant):
                 return "déjà prise"
             d["etat"] = "en_cours"
             d["pris_le"] = datetime.datetime.now().isoformat(timespec="seconds")
+            info["titre"] = d.get("titre") or "Tâche sans titre"
+            info["section"] = d.get("section") or ""
             return "prise"
         return "aucune demande"
 
     etat = _maj_file(appliquer)
+    if etat == "prise" and notifier:
+        notifier_hermes(
+            "Tâche prise en charge",
+            f"{info.get('titre', identifiant)}\n({info.get('section') or 'Todo'})",
+        )
     return etat == "prise", etat
 
 
