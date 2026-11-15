@@ -42,6 +42,31 @@ Item {
     // Indicateurs VPN (droite) et capture vidéo/audio (gauche avant les ws)
     property string vpnState: "disconnected" // "connected" | "disconnected" | "error"
     property string captureState: "none"     // "video" | "audio" | "none"
+    property bool plankaEcheanceProche: false
+    property string plankaUrgence: "none"    // "none" | "orange" | "rouge"
+
+    Process {
+        id: plankaStatutProc
+        command: ["python3", Quickshell.shellPath("core/planka_service.py"), "statut"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.plankaEcheanceProche = Boolean(d && d.echeance_proche)
+                    root.plankaUrgence = String((d && d.urgence) || "none")
+                } catch (e) {}
+            }
+        }
+    }
+
+    Timer {
+        id: plankaStatutTimer
+        interval: 60000
+        repeat: true
+        running: Theme.barStyle === "island" && Theme.ilotProjetsActif
+        triggeredOnStart: true
+        onTriggered: if (!plankaStatutProc.running) plankaStatutProc.running = true
+    }
 
     Process {
         id: indicateursProc
@@ -426,6 +451,36 @@ Item {
                 }
             }
 
+            // Icône Projets (columns-3) si échéance Planka < 24h
+            Item {
+                visible: Theme.ilotProjetsActif && root.plankaEcheanceProche
+                width: 20
+                height: 20
+                anchors.verticalCenter: parent.verticalCenter
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "columns-3"
+                    size: Theme.iconSm
+                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+                }
+
+                Rectangle {
+                    width: 6
+                    height: 6
+                    radius: 3
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(5)
+                }
+            }
+
             // Point VPN à droite (bleu = connecté, blanc = déconnecté, jaune = erreur)
             Rectangle {
                 width: 6
@@ -566,6 +621,36 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Theme.configPanelVisible = !Theme.configPanelVisible
+                }
+            }
+
+            // Icône Projets (columns-3) maintenue au survol si échéance Planka < 24h
+            Item {
+                visible: Theme.ilotProjetsActif && root.plankaEcheanceProche
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                Layout.alignment: Qt.AlignVCenter
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "columns-3"
+                    size: Theme.iconSm
+                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+                }
+
+                Rectangle {
+                    width: 6
+                    height: 6
+                    radius: 3
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(5)
                 }
             }
 

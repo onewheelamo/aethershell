@@ -109,7 +109,7 @@ Rectangle {
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
           tab: 6, section: "greeter_theme", target: "secGreeter" },
-        { label: "Accès API", words: "cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
+        { label: "Quotas IA", words: "quotas ia cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
           section: "widgets_api", target: "secApiKeys" },
         { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 1,
           section: "quickshell_notifications", target: "secNotifs" },

@@ -43,7 +43,7 @@ spacing: 12
 CollapsibleSection {
     id: secApiKeys
     objectName: "secApiKeys"
-    title: "Accès API"
+    title: "Quotas IA"
     summary: Object.keys(root.apiKeys).length + " clés"
     icon: "lock"
     expanded: root.sectionOpen("widgets_api", false)

@@ -142,6 +142,45 @@ CollapsibleSection {
             }
         }
 
+        // 4c. Activation de l'onglet Projets (Kanban Planka) dans l'Îlot dynamique
+        Row {
+            visible: Theme.barStyle === "island"
+            width: parent.width
+            spacing: 8
+
+            Text {
+                width: 160
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Onglet Projets (Kanban) :"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                width: 96
+                height: 28
+                radius: Theme.globalRadius
+                color: Theme.ilotProjetsActif ? Theme.accent : Theme.bg
+                border.color: Theme.ilotProjetsActif ? Theme.accent : Theme.surfaceVariant
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Theme.ilotProjetsActif ? "Activé" : "Masqué"
+                    color: Theme.ilotProjetsActif ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: Theme.ilotProjetsActif
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runConfigCmd(["style", "ilot_projets_actif", Theme.ilotProjetsActif ? "false" : "true"])
+                }
+            }
+        }
+
         // 5. Arrondis îlots (Quickshell)
         Row {
             id: roundingIslandRow   // ancre de recherche

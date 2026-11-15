@@ -99,6 +99,8 @@ Item {
         "next": "\u{F04AD}",
         "previous": "\u{F04AE}",
         "music": "\u{F075A}",
+        "columns-3": "\u{F0570}",
+        "robot": "\u{F06A9}",
         // marque + états dynamiques (wifi / batterie / volume / réseau)
         "arch": "\u{F08C7}",
         "wifi-none": "\u{F092D}",

@@ -842,6 +842,8 @@ def update_style_var(key, value):
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "first_run_completed":
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "ilot_projets_actif":
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "lock_bg_mode" and str(value) in ("solid", "image"):
         data[key] = str(value)
     elif key == "lock_bg_color":
@@ -1956,6 +1958,7 @@ def get_full_config_state():
         "kb_layout": kb,
         "workspace_keys": WORKSPACE_KEYS_BY_LAYOUT.get(kb, WORKSPACE_KEYS_BY_LAYOUT["us"]),
         "first_run_completed": bool(style_data.get("first_run_completed", False)),
+        "ilot_projets_actif": bool(style_data.get("ilot_projets_actif", True)),
         "show_config_button": bool(style_data.get("show_config_button", True)),
         "bar_height": int(style_data.get("bar_height", 40)),
         "bar_gaps_out": int(style_data.get("bar_gaps_out", 8)),

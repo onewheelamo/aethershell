@@ -26,13 +26,19 @@ Item {
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(batInfo && batInfo.present)
 
-    readonly property var tabsModel: [
-        { idx: 0, glyph: "widgets", label: "Contrôles",        src: "IslandTabControles.qml" },
-        { idx: 1, glyph: "monitor", label: "Affichage & Son",  src: "IslandTabMedia.qml" },
-        { idx: 2, glyph: "bell",    label: "Alertes & Tâches", src: "IslandTabAlertes.qml" },
-        { idx: 3, glyph: "cog",     label: "Système & Réseau", src: "IslandTabSysteme.qml" },
-        { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
-    ]
+    readonly property var tabsModel: {
+        let base = [
+            { idx: 0, glyph: "widgets", label: "Contrôles",        src: "IslandTabControles.qml" },
+            { idx: 1, glyph: "monitor", label: "Affichage & Son",  src: "IslandTabMedia.qml" },
+            { idx: 2, glyph: "bell",    label: "Alertes & Tâches", src: "IslandTabAlertes.qml" },
+            { idx: 3, glyph: "cog",     label: "Système & Réseau", src: "IslandTabSysteme.qml" },
+            { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
+        ]
+        if (Theme.ilotProjetsActif) {
+            base.push({ idx: 5, glyph: "columns-3", label: "Projets", src: "IlotProjets.qml" })
+        }
+        return base
+    }
 
     // Navigation clavier (submap Hyprland aether-nav)
     property string navZone: "rail" // "rail" | "contenu"
@@ -248,20 +254,18 @@ Item {
                     }
                 }
 
-                // Bouton Fermer
-                Rectangle {
-                    Layout.preferredWidth: 26
-                    Layout.preferredHeight: 26
-                    radius: 8
-                    color: closeMa.containsMouse ? Qt.alpha(Theme.error, 0.25) : Qt.alpha(Theme.fg, 0.08)
+                // Bouton Fermer (croix seule sans fond)
+                Item {
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
 
                     Text {
                         anchors.centerIn: parent
                         text: "✕"
                         font.family: Theme.fontUi
-                        font.pixelSize: 12
+                        font.pixelSize: 10
                         font.weight: Font.Bold
-                        color: closeMa.containsMouse ? Theme.error : Theme.fg
+                        color: closeMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.82)
                     }
 
                     MouseArea {

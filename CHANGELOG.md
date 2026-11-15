@@ -9,6 +9,21 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.9.00] — 2026-11-15
+
+### Ajouté
+
+- **Intégration Kanban / Planka — Onglet « Projets »** ([`dev/core/planka_service.py`](dev/core/planka_service.py), [`dev/core/planka_worker.py`](dev/core/planka_worker.py), [`dev/IlotProjets.qml`](dev/IlotProjets.qml), [`dev/IslandPanel.qml`](dev/IslandPanel.qml), [`dev/DynamicIsland.qml`](dev/DynamicIsland.qml), [`dev/OngletBarres.qml`](dev/OngletBarres.qml)) :
+  - **Service REST & cache** (`planka_service.py`) avec authentification `X-Api-Key`/Bearer, cache local (TTL 30 s), calcul des échéances (`<24h` orange, `<6h` rouge) et commandes CLI complètes.
+  - **Onglet « Projets »** (`columns-3`) avec onglets de colonnes cibles de drop, filtre `[Toutes | Mes cartes]`, champ d'ajout inline, pastilles d'échéance, boutons `[➔]`, Drag & Drop hybride et accordéon description + checklists.
+  - **Indicateur dynamique d'échéance** sur la pilule (compact et survol) et interrupteur `ilot_projets_actif` dans le panneau de configuration.
+  - **Worker IA** (`planka_worker.py`) avec toggles par colonne (`Inactif` / `IA auto` / `IA approb.`) et intégration `hermes_approbations.py`.
+
+### Modifié
+
+- **Bouton fermer du panneau étendu** ([`dev/IslandPanel.qml`](dev/IslandPanel.qml)) : croix seule réduite (`10 px`) sans fond carré.
+- **Tiroir « Quotas IA »** ([`dev/OngletDonnees.qml`](dev/OngletDonnees.qml), [`dev/config_panel.qml`](dev/config_panel.qml)) : renommage de « Accès API » en « Quotas IA ».
+
 ## [0.3.8.00] — 2026-11-15
 
 ### Ajouté

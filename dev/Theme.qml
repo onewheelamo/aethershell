@@ -78,6 +78,7 @@ QtObject {
         }
     }
     property int panelAnimDuration: 240
+    property bool ilotProjetsActif: true
     onIslandPanelOpenChanged: {
         if (!islandPanelOpen) {
             islandSidePanel = ""
@@ -567,6 +568,7 @@ QtObject {
         if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
         if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
+        if (typeof data.ilot_projets_actif === "boolean") root.ilotProjetsActif = data.ilot_projets_actif
         if (typeof data.first_run_completed === "boolean") {
             root.firstRunCompleted = data.first_run_completed
             if (!data.first_run_completed) {
