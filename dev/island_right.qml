@@ -71,7 +71,7 @@ Item {
                 Icon {
                     anchors.centerIn: parent
                     glyph: "keyboard"
-                    size: Theme.iconSm
+                    size: Math.max(8, Math.round(Theme.iconSm * Theme.barScale))
                     color: Theme.accent
                 }
 

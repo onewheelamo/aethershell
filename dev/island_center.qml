@@ -100,7 +100,7 @@ Item {
                     Icon {
                         anchors.centerIn: parent
                         glyph: "cog"
-                        size: Theme.iconMd
+                        size: Math.max(8, Math.round(Theme.iconMd * Theme.barScale))
                         color: Theme.configPanelVisible ? Theme.bg : Theme.fg
                         opacityLevel: 1
                     }

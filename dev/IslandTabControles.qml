@@ -21,6 +21,8 @@ Item {
     readonly property string trackArtist: currentPlayer ? (currentPlayer.trackArtist || "") : ""
     readonly property string artUrl: currentPlayer ? (currentPlayer.trackArtUrl || "") : ""
 
+    property bool miniLecteurRetracte: false
+
     // ── État local synchronisé avec les services système ──────────────
     readonly property var sysInfo: Theme.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
@@ -39,6 +41,14 @@ Item {
 
     property bool batLimit80: Boolean(batInfo && batInfo.limit_80)
     property int batPlafond: Number((batInfo && batInfo.limit_pct) || 80)
+
+    readonly property bool vizActif: {
+        let _rev = Theme.barAppletsRev
+        let a = Theme.barAppletsActifs ? Theme.barAppletsActifs["visualiseur"] : null
+        return a ? Boolean(a.enabled !== false) : false
+    }
+
+    Process { id: vizCmdProc }
 
     property int volumePct: {
         let v = (sysInfo.volume && sysInfo.volume.percent !== undefined) ? Number(sysInfo.volume.percent) : 50
@@ -277,17 +287,80 @@ Item {
 
         // ── Mini lecteur musique à gauche des contrôles rapides ───────────
         Rectangle {
-            Layout.preferredWidth: 186
+            id: miniLecteurCard
+            Layout.preferredWidth: root.miniLecteurRetracte ? 38 : 186
             Layout.fillHeight: true
+            clip: true
             radius: Math.max(12, Math.round(Theme.pillRadius * 0.7))
             color: Qt.alpha(Theme.surfaceVariant, 0.34)
             border.width: 1
             border.color: Qt.alpha(Theme.fg, 0.08)
 
+            Behavior on Layout.preferredWidth {
+                NumberAnimation {
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            // Bouton flèche en haut à droite pour rétracter / étendre le mini lecteur
+            Rectangle {
+                id: miniLecteurToggleBtn
+                z: 5
+                width: 24
+                height: 24
+                radius: 12
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 8
+                anchors.rightMargin: root.miniLecteurRetracte ? 7 : 8
+                color: miniToggleMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06)
+
+                Behavior on anchors.rightMargin {
+                    NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                }
+
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: "chevron-right"
+                    size: 14
+                    color: miniToggleMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.8)
+                    rotation: root.miniLecteurRetracte ? 180 : 0
+                    Behavior on rotation {
+                        NumberAnimation {
+                            duration: 220
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: miniToggleMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.miniLecteurRetracte = !root.miniLecteurRetracte
+                }
+            }
+
+            // Icône discrète au centre lorsque le mini lecteur est rétracté
+            Icon {
+                anchors.centerIn: parent
+                glyph: "music"
+                size: Theme.iconSm
+                color: root.isPlaying ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
+                opacity: root.miniLecteurRetracte ? 0.9 : 0.0
+                visible: opacity > 0.05
+                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            }
+
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 8
+                opacity: root.miniLecteurRetracte ? 0.0 : 1.0
+                visible: opacity > 0.05
+                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
                 Text {
                     Layout.fillWidth: true
@@ -312,7 +385,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Theme.islandPanelTab = 1
+                        onClicked: Theme.islandPanelTab = 2
                     }
                 }
 
@@ -478,7 +551,7 @@ Item {
                     wifiToggleProc.command = ["nmcli", "radio", "wifi", target]
                     wifiToggleProc.running = true
                 }
-                onChevronClicked: Theme.islandPanelTab = 3
+                onChevronClicked: Theme.islandPanelTab = 2
             }
 
             QuickTile {
@@ -519,7 +592,7 @@ Item {
                                          "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"]
                     dndBridge.running = true
                 }
-                onChevronClicked: Theme.islandPanelTab = 2
+                onChevronClicked: Theme.islandPanelTab = 1
             }
 
             QuickTile {
@@ -710,6 +783,116 @@ Item {
             }
 
             Rectangle {
+                id: vizCycleBtn
+                Layout.preferredWidth: 26
+                Layout.preferredHeight: 24
+                radius: 6
+                readonly property string vizMode: !root.vizActif ? "off" : (Theme.vizEffectiveStyle === "onde" ? "onde" : "barres")
+                color: root.vizActif
+                    ? Qt.alpha(Theme.accent, vizMa.containsMouse ? 0.30 : 0.20)
+                    : (vizMa.containsMouse ? Qt.alpha(Theme.accent, 0.14) : Qt.alpha(Theme.fg, 0.08))
+
+                // Icône 1 : Barres (ou barres barrées quand éteint)
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 2
+                    visible: vizCycleBtn.vizMode !== "onde"
+
+                    Rectangle {
+                        Layout.preferredWidth: 2.5
+                        Layout.preferredHeight: 6
+                        Layout.alignment: Qt.AlignBottom
+                        radius: 1
+                        color: root.vizActif ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                    }
+                    Rectangle {
+                        Layout.preferredWidth: 2.5
+                        Layout.preferredHeight: 12
+                        Layout.alignment: Qt.AlignBottom
+                        radius: 1
+                        color: root.vizActif ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                    }
+                    Rectangle {
+                        Layout.preferredWidth: 2.5
+                        Layout.preferredHeight: 8
+                        Layout.alignment: Qt.AlignBottom
+                        radius: 1
+                        color: root.vizActif ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                    }
+                }
+
+                // Barre diagonale discrète quand le visualiseur est éteint
+                Rectangle {
+                    visible: vizCycleBtn.vizMode === "off"
+                    anchors.centerIn: parent
+                    width: 15
+                    height: 1.5
+                    radius: 1
+                    rotation: -35
+                    color: Qt.alpha(Theme.fg, 0.65)
+                }
+
+                // Icône 2 : Onde sinusoïdale quand le mode « onde » est actif
+                Canvas {
+                    id: vizWaveIcon
+                    visible: vizCycleBtn.vizMode === "onde"
+                    anchors.centerIn: parent
+                    width: 16
+                    height: 12
+                    property color strokeCol: Theme.accent
+                    onStrokeColChanged: requestPaint()
+                    onVisibleChanged: if (visible) requestPaint()
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        ctx.strokeStyle = strokeCol
+                        ctx.lineWidth = 1.8
+                        ctx.lineCap = "round"
+                        ctx.beginPath()
+                        for (let x = 0; x <= width; x += 1) {
+                            const t = (x / width) * Math.PI * 2
+                            const y = height / 2 - Math.sin(t) * (height * 0.36)
+                            if (x === 0) ctx.moveTo(x, y)
+                            else ctx.lineTo(x, y)
+                        }
+                        ctx.stroke()
+                    }
+                }
+
+                MouseArea {
+                    id: vizMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (vizCmdProc.running) return
+                        const styleKey = Theme.barStyle === "island" ? "viz_style_island" : "viz_style_classic"
+                        if (vizCycleBtn.vizMode === "off") {
+                            vizCmdProc.command = [
+                                "sh", "-c",
+                                "python3 \"$1\" style \"$2\" barres && python3 \"$3\" activer visualiseur",
+                                "sh",
+                                Quickshell.shellPath("core/config_manager.py"),
+                                styleKey,
+                                Quickshell.shellPath("core/bar_applets.py")
+                            ]
+                        } else if (vizCycleBtn.vizMode === "barres") {
+                            vizCmdProc.command = [
+                                "python3", Quickshell.shellPath("core/config_manager.py"),
+                                "style", styleKey, "onde"
+                            ]
+                        } else {
+                            vizCmdProc.command = [
+                                "python3", Quickshell.shellPath("core/bar_applets.py"),
+                                "desactiver", "visualiseur"
+                            ]
+                        }
+                        vizCmdProc.running = true
+                    }
+                }
+            }
+
+            Rectangle {
                 Layout.preferredWidth: 26
                 Layout.preferredHeight: 24
                 radius: 6
@@ -728,7 +911,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.islandPanelTab = 1
+                    onClicked: Theme.islandPanelTab = 2
                 }
             }
         }

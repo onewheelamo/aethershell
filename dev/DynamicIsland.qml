@@ -163,7 +163,43 @@ Item {
         && Theme.notifToastVisible
         && Theme.notifToast !== null
         && !panelOpen
-    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (expanded ? "etendu_barre" : "compact"))
+    readonly property bool meteoExpanded: Theme.barStyle === "island"
+        && Theme.activePopup === "applet:meteo"
+        && !panelOpen
+        && !notifToastActive
+    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (meteoExpanded ? "meteo" : (expanded ? "etendu_barre" : "compact")))
+
+    // Attrapeur de focus Hyprland pour l'extension météo inline (clic extérieur -> ferme)
+    property bool pretGrabMeteo: false
+    onMeteoExpandedChanged: {
+        if (meteoExpanded) {
+            retractTimer.stop()
+            expanded = true
+            pretGrabMeteo = false
+            delaiGrabMeteo.restart()
+            Theme.rafraichirMeteo(false)
+            meteoContainer.forceActiveFocus()
+        } else {
+            delaiGrabMeteo.stop()
+            pretGrabMeteo = false
+            if (!isHovered && !isPopupOpen && !panelOpen) retractTimer.restart()
+        }
+    }
+
+    Timer {
+        id: delaiGrabMeteo
+        interval: 150
+        repeat: false
+        onTriggered: if (root.meteoExpanded) root.pretGrabMeteo = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.meteoExpanded && root.pretGrabMeteo
+        windows: (root.QsWindow && root.QsWindow.window) ? [root.QsWindow.window] : []
+        onCleared: {
+            if (Theme.activePopup === "applet:meteo") Theme.activePopup = ""
+        }
+    }
 
     Binding {
         target: Theme
@@ -243,8 +279,9 @@ Item {
     }
 
     readonly property real toastHeight: Math.max(Theme.barHeight + 24, toastContentCol.implicitHeight + 24)
-    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : Theme.barHeight)
-    height: panelOpen ? 420 : (notifToastActive ? toastHeight : Theme.barHeight)
+    readonly property real meteoHeight: Math.max(140, meteoContentCol.implicitHeight + 28)
+    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))
+    height: panelOpen ? 420 : (notifToastActive ? toastHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))
     Behavior on height {
         NumberAnimation {
             duration: Theme.panelAnimDuration
@@ -256,18 +293,14 @@ Item {
     readonly property real osdWidth: Math.max(160, osdRow.implicitWidth + Theme.padH * 2 + 16)
     readonly property real compactRestWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
     readonly property real compactWidth: Theme.osdVisible ? osdWidth : compactRestWidth
+    readonly property real meteoWidth: Math.max(410, meteoContentCol.implicitWidth + 32)
     readonly property real expandedWidth: Math.max(
-        460,
-        expandedWorkspaces.implicitWidth
-        + leftApplets.implicitWidth
-        + clockDateRow.implicitWidth
-        + rightApplets.implicitWidth
-        + (Theme.showConfigButton ? 36 : 0)
-        + Theme.padH * 3 + 40
+        compactRestWidth,
+        fullContentRow.implicitWidth + Theme.padH * 2
     )
 
     readonly property int sidePanelWidth: (panelOpen && Theme.islandSidePanel !== "") ? 340 : 0
-    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (expanded ? expandedWidth : compactWidth))
+    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth)))
 
     Behavior on width {
         NumberAnimation {
@@ -280,12 +313,12 @@ Item {
     SurfaceFloutee {
         id: bgRect
         anchors.fill: parent
-        rayon: root.panelOpen ? Math.max(Theme.pillRadius, 18) : (root.notifToastActive ? Math.max(Theme.globalRadius, 16) : Theme.pillRadius)
+        rayon: root.panelOpen ? Math.max(Theme.pillRadius, 18) : ((root.notifToastActive || root.meteoExpanded) ? Math.max(Theme.globalRadius, 16) : Theme.pillRadius)
         Behavior on rayon { NumberAnimation { duration: Math.max(80, Theme.panelAnimDuration - 20); easing.type: Easing.OutCubic } }
-        teinte: (root.panelOpen || root.notifToastActive) ? Theme.surfaceBg : Theme.barBg
-        bordureCouleur: (root.isCalendarOpen || root.panelOpen || root.notifToastActive) ? Theme.accentMuted : Theme.accent
+        teinte: (root.panelOpen || root.notifToastActive || root.meteoExpanded) ? Theme.surfaceBg : Theme.barBg
+        bordureCouleur: (root.isCalendarOpen || root.panelOpen || root.notifToastActive || root.meteoExpanded) ? Theme.accentMuted : Theme.accent
         bordureLargeur: Theme.barBorder ? 1 : 0
-        actif: root.panelOpen || root.notifToastActive
+        actif: root.panelOpen || root.notifToastActive || root.meteoExpanded
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -297,7 +330,8 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: Theme.barHeight
-        opacity: (root.expanded || root.panelOpen || root.notifToastActive) ? 0.0 : 1.0
+        clip: true
+        opacity: (root.expanded || root.panelOpen || root.notifToastActive || root.meteoExpanded) ? 0.0 : 1.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
@@ -358,7 +392,7 @@ Item {
 
             // Point capture vidéo (rouge) / audio seule (orange) avant les ws
             Rectangle {
-                visible: root.captureState !== "none"
+                visible: Theme.ilotVisibleIn(Theme.ilotShowCapture, "compact") && root.captureState !== "none"
                 width: 6
                 height: 6
                 radius: 3
@@ -369,11 +403,13 @@ Item {
 
             WorkspacesApplet {
                 id: compactWorkspaces
+                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "compact")
                 dotsMode: true
                 anchors.verticalCenter: parent.verticalCenter
             }
 
             Rectangle {
+                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "compact") && Theme.ilotVisibleIn(Theme.ilotShowClock, "compact")
                 width: 1
                 height: 12
                 color: Theme.fg
@@ -383,9 +419,10 @@ Item {
 
             // Horloge principale sans glyphe (clic -> panneau étendu)
             Text {
+                visible: Theme.ilotVisibleIn(Theme.ilotShowClock, "compact")
                 text: Qt.formatTime(clock.date, "HH:mm")
                 font.family: Theme.fontUi
-                font.pixelSize: Theme.textSm
+                font.pixelSize: Math.max(8, Math.round(Theme.textSm * Theme.barScale))
                 font.weight: Font.Bold
                 color: Theme.fg
                 anchors.verticalCenter: parent.verticalCenter
@@ -399,7 +436,7 @@ Item {
 
             // Séparateur subtil (uniquement si média actif)
             Rectangle {
-                visible: root.isMediaActive
+                visible: Theme.ilotVisibleIn(Theme.ilotShowMedia, "compact") && root.isMediaActive
                 width: 1
                 height: 12
                 color: Theme.fg
@@ -407,53 +444,32 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // Si un média est actif : Mini-lecteur audio compact avec bouton play/pause
-            Row {
-                visible: root.isMediaActive
-                spacing: 6
+            // Si un média est actif : titre du morceau en cours
+            Text {
+                visible: Theme.ilotVisibleIn(Theme.ilotShowMedia, "compact") && root.isMediaActive
+                text: {
+                    let t = root.mediaTitle
+                    if (!t) return "Audio"
+                    return t.length > 16 ? (t.substring(0, 15) + "…") : t
+                }
+                font.family: Theme.fontUi
+                font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
+                font.weight: Font.Medium
+                color: Theme.accent
                 anchors.verticalCenter: parent.verticalCenter
+            }
 
-                Rectangle {
-                    width: 18
-                    height: 18
-                    radius: 9
-                    color: Qt.alpha(Theme.accent, playCompactArea.containsMouse ? 0.35 : 0.18)
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.isPlaying ? "󰏤" : "󰐊" // pause / play
-                        font.family: Theme.fontUi
-                        font.pixelSize: 9
-                        color: Theme.accent
-                    }
-
-                    MouseArea {
-                        id: playCompactArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: if (root.activePlayer) root.activePlayer.togglePlaying()
-                    }
-                }
-
-                Text {
-                    text: {
-                        let t = root.mediaTitle
-                        if (!t) return "Audio"
-                        return t.length > 16 ? (t.substring(0, 15) + "…") : t
-                    }
-                    font.family: Theme.fontUi
-                    font.pixelSize: 11
-                    font.weight: Font.Medium
-                    color: Theme.accent
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+            // Applets configurés en mode « Repos » ou « Les deux »
+            AppletRow {
+                id: compactApplets
+                directModel: Theme.appletsPourIlot("compact", "all")
+                visible: compactApplets.applets.length > 0
+                anchors.verticalCenter: parent.verticalCenter
             }
 
             // Icône Projets (columns-3) si échéance Planka < 24h
             Item {
-                visible: Theme.ilotProjetsActif && root.plankaEcheanceProche
+                visible: Theme.ilotProjetsActif && Theme.ilotVisibleIn(Theme.ilotShowPlanka, "compact") && root.plankaEcheanceProche
                 width: 20
                 height: 20
                 anchors.verticalCenter: parent.verticalCenter
@@ -477,18 +493,19 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.ouvrirPanneau(5)
+                    onClicked: root.ouvrirPanneau(4)
                 }
             }
 
             // Point VPN à droite (bleu = connecté, blanc = déconnecté, jaune = erreur)
             Rectangle {
+                visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, "compact")
                 width: 6
                 height: 6
                 radius: 3
                 anchors.verticalCenter: parent.verticalCenter
                 color: root.vpnState === "connected"
-                    ? "#3b82f6"
+                    ? "#00a3d5"
                     : (root.vpnState === "error" ? "#eab308" : "#ffffff")
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
@@ -504,23 +521,22 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: Theme.barHeight
-        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive) ? 1.0 : 0.0
+        clip: true
+        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive && !root.meteoExpanded && root.width >= root.expandedWidth - 16) ? 1.0 : 0.0
         visible: opacity > 0.05
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-        RowLayout {
+        Row {
             id: fullContentRow
-            anchors.fill: parent
-            anchors.leftMargin: Theme.padH
-            anchors.rightMargin: Theme.padH
-            spacing: 12
+            anchors.centerIn: parent
+            spacing: 10
 
-            // Côté Gauche : Point capture (si actif) + Workspaces (points/tiret maintenus) + Programmes minimisés / Systray / Batterie
+            // Côté Gauche : Point capture (si actif) + Workspaces (points/tiret maintenus) + Applets gauche
             Rectangle {
-                visible: root.captureState !== "none"
-                Layout.preferredWidth: 6
-                Layout.preferredHeight: 6
-                Layout.alignment: Qt.AlignVCenter
+                visible: Theme.ilotVisibleIn(Theme.ilotShowCapture, "expanded") && root.captureState !== "none"
+                width: 6
+                height: 6
+                anchors.verticalCenter: parent.verticalCenter
                 radius: 3
                 color: root.captureState === "video" ? "#ef4444" : "#f97316"
                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -528,28 +544,24 @@ Item {
 
             WorkspacesApplet {
                 id: expandedWorkspaces
+                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "expanded")
                 dotsMode: true
-                Layout.alignment: Qt.AlignVCenter
+                anchors.verticalCenter: parent.verticalCenter
             }
 
-            Item {
-                Layout.preferredWidth: leftApplets.implicitWidth
-                Layout.fillHeight: true
-                AppletRow {
-                    id: leftApplets
-                    ile: "haut:debut"
-                    include: ["systray", "minimise", "luminosite", "batterie"]
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+            AppletRow {
+                id: leftApplets
+                directModel: Theme.appletsPourIlot("expanded", "left")
+                visible: applets.length > 0 && implicitWidth > 0
+                anchors.verticalCenter: parent.verticalCenter
             }
 
-            Item { Layout.fillWidth: true }
-
-            // Centre : Horloge + Date (clic -> panneau étendu ; plus de lecteur dans la barre déployée)
+            // Centre : Horloge + Date (clic -> panneau étendu)
             Item {
-                Layout.preferredWidth: clockDateRow.implicitWidth
-                Layout.fillWidth: false
-                Layout.fillHeight: true
+                visible: Theme.ilotVisibleIn(Theme.ilotShowClock, "expanded")
+                width: clockDateRow.implicitWidth
+                height: clockDateRow.implicitHeight
+                anchors.verticalCenter: parent.verticalCenter
 
                 Row {
                     id: clockDateRow
@@ -582,26 +594,46 @@ Item {
                 }
             }
 
-            Item { Layout.fillWidth: true }
+            // Séparateur + titre média en mode étendu (si configuré dans Indicateurs de la pilule)
+            Rectangle {
+                id: expandedMediaSep
+                visible: Theme.ilotVisibleIn(Theme.ilotShowMedia, "expanded") && root.isMediaActive
+                width: 1
+                height: 12
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.fg
+                opacity: 0.15
+            }
 
-            // Côté Droit : Systray / Batterie / Programmes minimisés
-            Item {
-                Layout.preferredWidth: rightApplets.implicitWidth
-                Layout.fillHeight: true
-                AppletRow {
-                    id: rightApplets
-                    ile: "haut:fin"
-                    include: ["systray", "minimise", "luminosite", "batterie"]
-                    anchors.verticalCenter: parent.verticalCenter
+            Text {
+                id: expandedMediaTitle
+                visible: Theme.ilotVisibleIn(Theme.ilotShowMedia, "expanded") && root.isMediaActive
+                anchors.verticalCenter: parent.verticalCenter
+                text: {
+                    let t = root.mediaTitle
+                    if (!t) return "Audio"
+                    return t.length > 20 ? (t.substring(0, 19) + "…") : t
                 }
+                font.family: Theme.fontUi
+                font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
+                font.weight: Font.Medium
+                color: Theme.accent
+            }
+
+            // Côté Droit : Applets droite
+            AppletRow {
+                id: rightApplets
+                directModel: Theme.appletsPourIlot("expanded", "right")
+                visible: applets.length > 0 && implicitWidth > 0
+                anchors.verticalCenter: parent.verticalCenter
             }
 
             // Bouton d'accès rapide au panneau de configuration
             Rectangle {
                 visible: Theme.showConfigButton
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
-                Layout.alignment: Qt.AlignVCenter
+                width: 24
+                height: 24
+                anchors.verticalCenter: parent.verticalCenter
                 radius: Theme.globalRadius
                 color: Theme.configPanelVisible
                     ? Theme.accent
@@ -626,10 +658,10 @@ Item {
 
             // Icône Projets (columns-3) maintenue au survol si échéance Planka < 24h
             Item {
-                visible: Theme.ilotProjetsActif && root.plankaEcheanceProche
-                Layout.preferredWidth: 22
-                Layout.preferredHeight: 22
-                Layout.alignment: Qt.AlignVCenter
+                visible: Theme.ilotProjetsActif && Theme.ilotVisibleIn(Theme.ilotShowPlanka, "expanded") && root.plankaEcheanceProche
+                width: 22
+                height: 22
+                anchors.verticalCenter: parent.verticalCenter
 
                 Icon {
                     anchors.centerIn: parent
@@ -650,18 +682,19 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.ouvrirPanneau(5)
+                    onClicked: root.ouvrirPanneau(4)
                 }
             }
 
             // Point VPN à droite en mode étendu
             Rectangle {
-                Layout.preferredWidth: 6
-                Layout.preferredHeight: 6
-                Layout.alignment: Qt.AlignVCenter
+                visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, "expanded")
+                width: 6
+                height: 6
+                anchors.verticalCenter: parent.verticalCenter
                 radius: 3
                 color: root.vpnState === "connected"
-                    ? "#3b82f6"
+                    ? "#00a3d5"
                     : (root.vpnState === "error" ? "#eab308" : "#ffffff")
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
@@ -685,7 +718,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
                 if (Theme.notifOps && Theme.notifOps.dismissToast) Theme.notifOps.dismissToast()
-                root.ouvrirPanneau(2)
+                root.ouvrirPanneau(1)
             }
         }
 
@@ -863,6 +896,217 @@ Item {
                                     Theme.notifOps.invoke(Theme.notifToast, modelData.identifier)
                                     if (Theme.notifOps.dismissToast) Theme.notifOps.dismissToast()
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // EXTENSION MÉTÉO INLINE (MÊMES INFOS QUE LE WIDGET DE BUREAU)
+    // ──────────────────────────────────────────────────────────────────────
+    Item {
+        id: meteoContainer
+        anchors.fill: parent
+        clip: true
+        focus: root.meteoExpanded
+        Keys.onEscapePressed: Theme.activePopup = ""
+        opacity: root.meteoExpanded ? 1.0 : 0.0
+        visible: opacity > 0.05
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+        readonly property var meteo: Theme.meteoData
+        readonly property bool ok: Theme.meteoLoaded && meteo && meteo.ok === true
+        readonly property var previsions: (meteo && meteo.previsions) ? meteo.previsions.slice(1, 6) : []
+
+        function meteoNombre(v, suffixe) {
+            return (v === undefined || v === null) ? "—" : Math.round(Number(v)) + (suffixe || "")
+        }
+
+        function meteoJourCourt(iso) {
+            const d = new Date(String(iso || "") + "T12:00:00")
+            if (isNaN(d.getTime())) return String(iso || "")
+            return d.toLocaleDateString(Qt.locale("fr_FR"), "ddd")
+        }
+
+        readonly property string meteoGlyphe: {
+            const i = String((meteo && meteo.icon) || "").toLowerCase()
+            if (i === "sun" || i === "clear") return "sun"
+            if (i === "moon" || i === "night") return "weather-night"
+            if (i === "cloud" || i === "overcast") return "cloud"
+            if (i === "fog" || i === "rain" || i === "drizzle" || i === "snow" || i === "storm")
+                return "weather-cloud"
+            return (meteo && meteo.day === false) ? "weather-night" : "cloud"
+        }
+
+        Column {
+            id: meteoContentCol
+            anchors.top: parent.top
+            anchors.topMargin: 14
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 8
+
+            // Relevé du jour + actions (rafraîchir / fermer)
+            RowLayout {
+                width: Math.max(376, meteoForecastRow.implicitWidth)
+                spacing: 12
+
+                Icon {
+                    glyph: meteoContainer.meteoGlyphe
+                    size: 32
+                    color: Theme.accent
+                    opacityLevel: meteoContainer.ok ? 1.0 : 0.45
+                }
+
+                Text {
+                    text: meteoContainer.ok ? Math.round(meteoContainer.meteo.temp) + "°" : "—"
+                    color: Theme.fg
+                    font.family: Theme.fontUi
+                    font.pixelSize: 28
+                    font.weight: Font.Light
+                    font.features: { "tnum": 1 }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 1
+
+                    Text {
+                        width: parent.width
+                        text: meteoContainer.ok
+                            ? String(meteoContainer.meteo.label || "")
+                            : (Theme.meteoStatut !== "" ? Theme.meteoStatut : "Chargement…")
+                        color: Theme.fg
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textSm
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: meteoContainer.ok ? String(meteoContainer.meteo.city || "") : ""
+                        color: Qt.alpha(Theme.fg, 0.65)
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Item {
+                    width: 22
+                    height: 22
+                    Icon {
+                        anchors.centerIn: parent
+                        glyph: "refresh"
+                        size: 13
+                        color: meteoRefreshMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.6)
+                        opacityLevel: 1
+                    }
+                    MouseArea {
+                        id: meteoRefreshMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Theme.rafraichirMeteo(true)
+                    }
+                }
+
+                Item {
+                    width: 22
+                    height: 22
+                    Icon {
+                        anchors.centerIn: parent
+                        glyph: "close"
+                        size: 13
+                        color: meteoCloseMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.6)
+                        opacityLevel: 1
+                    }
+                    MouseArea {
+                        id: meteoCloseMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Theme.activePopup = ""
+                    }
+                }
+            }
+
+            // Détails du jour (identiques au widget de bureau)
+            Text {
+                visible: meteoContainer.ok
+                text: meteoContainer.ok
+                    ? ("min " + meteoContainer.meteoNombre(meteoContainer.meteo.tmin, "°")
+                       + " · max " + meteoContainer.meteoNombre(meteoContainer.meteo.tmax, "°")
+                       + " · ressenti " + meteoContainer.meteoNombre(meteoContainer.meteo.feels, "°")
+                       + " · " + meteoContainer.meteoNombre(meteoContainer.meteo.humidite, " %")
+                       + " · vent " + meteoContainer.meteoNombre(meteoContainer.meteo.vent, " km/h")
+                       + (Number(meteoContainer.meteo.pluie_mm) > 0
+                          ? " · pluie " + meteoContainer.meteoNombre(meteoContainer.meteo.pluie_mm, " mm") : "")
+                       + ((meteoContainer.meteo.stale === true || meteoContainer.meteo.cached === true)
+                          ? " · dernière valeur connue" : ""))
+                    : ""
+                color: Qt.alpha(Theme.fg, 0.72)
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+            }
+
+            // Prévisions des 5 jours suivants (identiques au widget de bureau)
+            Row {
+                id: meteoForecastRow
+                visible: meteoContainer.ok && meteoContainer.previsions.length > 0
+                spacing: 10
+
+                Repeater {
+                    model: meteoContainer.previsions
+
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: 68
+                        height: forecastCol.implicitHeight + 10
+                        radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
+                        color: Qt.alpha(Theme.surfaceVariant, 0.35)
+                        border.width: 1
+                        border.color: Qt.alpha(Theme.fg, 0.08)
+
+                        Column {
+                            id: forecastCol
+                            anchors.centerIn: parent
+                            width: parent.width - 8
+                            spacing: 1
+
+                            Text {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                text: meteoContainer.meteoJourCourt(modelData.date)
+                                color: Qt.alpha(Theme.fg, 0.75)
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                font.capitalization: Font.Capitalize
+                            }
+
+                            Text {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                text: meteoContainer.meteoNombre(modelData.tmin, "°") + " / " + meteoContainer.meteoNombre(modelData.tmax, "°")
+                                color: Theme.fg
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                                font.features: { "tnum": 1 }
+                            }
+
+                            Text {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                visible: modelData.pluie !== null && modelData.pluie !== undefined
+                                text: meteoContainer.meteoNombre(modelData.pluie, " %")
+                                color: Theme.accent
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.text2xs
+                                font.features: { "tnum": 1 }
                             }
                         }
                     }

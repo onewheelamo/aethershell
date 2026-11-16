@@ -142,6 +142,11 @@ Item {
         function onFocusedWorkspaceChanged() {
             if (Theme.activePopup !== "") Theme.activePopup = ""
         }
+        function onRawEvent(event) {
+            if (event && event.name === "submap") {
+                Theme.activeSubmap = String(event.data || "").trim()
+            }
+        }
     }
 
     function beginPlacement(win, grabX, grabY) {
@@ -403,13 +408,11 @@ Item {
             Visualiseur {
                 anchors.fill: slotGauche
                 barre: "haut"
-                autorise: Theme.barGapsTransparent
             }
 
             Visualiseur {
                 anchors.fill: slotDroit
                 barre: "haut"
-                autorise: Theme.barGapsTransparent
             }
 
             // La barre avale les clics, zones peintes comme espaces vides : un
@@ -840,9 +843,71 @@ Item {
                     // laisserait la liste vide pour toujours.
                     item.binds = Qt.binding(function () { return root.cheatsheetBinds })
                     item.surfaceColor = Qt.binding(function () {
-                        return Qt.alpha(Theme.surface, Theme.cheatsheetOpacity)
+                        return Theme.surfaceBg
                     })
                 }
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // WHICH-KEY PAR SUBMAP — overlay deux colonnes des raccourcis du submap
+    // ────────────────────────────────────────────────────────────────────────
+    property var submapBinds: []
+
+    Process {
+        id: submapBindsProc
+        command: ["hyprctl", "binds", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const all = JSON.parse(text)
+                    const cur = Theme.activeSubmap
+                    if (Array.isArray(all) && cur !== "") {
+                        root.submapBinds = all.filter(b => b && String(b.submap || "") === cur)
+                    } else {
+                        root.submapBinds = []
+                    }
+                } catch (e) {
+                    root.submapBinds = []
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Theme
+        function onActiveSubmapChanged() {
+            if (Theme.activeSubmap !== "") {
+                if (!submapBindsProc.running) submapBindsProc.running = true
+            } else {
+                root.submapBinds = []
+            }
+        }
+    }
+
+    PanelWindow {
+        id: submapWhichKeyWindow
+        screen: topBarWindow.screen
+        visible: Theme.activeSubmap !== "" && root.submapBinds.length > 0
+        anchors { bottom: true }
+        margins.bottom: 24
+        implicitWidth: whichKeyLoader.item ? whichKeyLoader.item.implicitWidth : 460
+        implicitHeight: whichKeyLoader.item ? whichKeyLoader.item.implicitHeight : 140
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-whichkey"
+
+        Loader {
+            id: whichKeyLoader
+            anchors.fill: parent
+            source: (Theme.activeSubmap !== "" && root.submapBinds.length > 0) ? "SubmapWhichKey.qml" : ""
+            onLoaded: {
+                if (!item) return
+                item.submapName = Qt.binding(() => Theme.activeSubmap)
+                item.binds = Qt.binding(() => root.submapBinds)
             }
         }
     }

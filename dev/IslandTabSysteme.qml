@@ -104,7 +104,7 @@ Item {
     Connections {
         target: Theme
         function onSystemeDataChanged() {
-            if (root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 3 && Theme.metriquesActif)
+            if (root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 2 && Theme.metriquesActif)
                 root.appliquerSysteme(Theme.systemeData)
         }
     }
@@ -139,7 +139,7 @@ Item {
     // Sonde active uniquement quand cet onglet est visible
     Timer {
         interval: 3000
-        running: root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 3
+        running: root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 2
         repeat: true
         onTriggered: root.refreshTelemetry()
     }
@@ -279,6 +279,8 @@ Item {
         }
     }
 
+    Process { id: idleTimeoutProc }
+
     component GaugeCard: Rectangle {
         property string title: ""
         property string metric: ""
@@ -341,7 +343,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "SYSTÈME & RÉSEAU"
+                text: "SYSTÈME"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textMd
                 font.weight: Font.Bold
@@ -409,6 +411,19 @@ Item {
             color: Qt.alpha(Theme.fg, 0.1)
         }
 
+        Flickable {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: width
+            contentHeight: sysCol.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+
+            ColumnLayout {
+                id: sysCol
+                width: parent.width
+                spacing: 10
+
         GridLayout {
             Layout.fillWidth: true
             columns: 2
@@ -440,117 +455,6 @@ Item {
             }
         }
 
-        // Gestion de la charge de la batterie (uniquement sur laptop)
-        Rectangle {
-            visible: root.isLaptop
-            Layout.fillWidth: true
-            Layout.preferredHeight: 46
-            radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
-            color: Qt.alpha(Theme.surfaceVariant, 0.34)
-            border.width: 1
-            border.color: Qt.alpha(Theme.fg, 0.08)
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
-                spacing: 10
-
-                Icon {
-                    glyph: root.batCharging ? "battery-charging" : "battery-70"
-                    size: 16
-                    color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
-
-                        Text {
-                            text: "Batterie · " + root.batPct + " %"
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            font.weight: Font.Bold
-                            color: Theme.fg
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: {
-                                let st = root.batStatus.toLowerCase()
-                                if (root.batCharging) return "En charge"
-                                if (st === "not charging") return "Branchée (limite)"
-                                if (st === "full") return "Pleine"
-                                return "Sur batterie"
-                            }
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: Qt.alpha(Theme.fg, 0.62)
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 4
-                        radius: 2
-                        color: Qt.alpha(Theme.fg, 0.12)
-
-                        Rectangle {
-                            width: parent.width * Math.max(0, Math.min(1, root.batPct / 100))
-                            height: parent.height
-                            radius: 2
-                            color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
-                            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.preferredHeight: 26
-                    Layout.preferredWidth: batLimRow.implicitWidth + 16
-                    radius: 8
-                    color: root.batLimit80
-                        ? (batLimMa.containsMouse ? Qt.alpha(Theme.accent, 0.34) : Qt.alpha(Theme.accent, 0.22))
-                        : (batLimMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.7) : Qt.alpha(Theme.surfaceVariant, 0.45))
-                    border.width: 1
-                    border.color: root.batLimit80 ? Qt.alpha(Theme.accent, 0.6) : Qt.alpha(Theme.fg, 0.14)
-
-                    RowLayout {
-                        id: batLimRow
-                        anchors.centerIn: parent
-                        spacing: 5
-
-                        Text {
-                            text: root.batLimit80 ? ("Santé " + root.batPlafond + " %") : "Charge 100 %"
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            font.weight: Font.Medium
-                            color: root.batLimit80 ? Theme.accent : Theme.fg
-                        }
-                    }
-
-                    MouseArea {
-                        id: batLimMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (batLimitProc.running) return
-                            let nextLim = root.batLimit80 ? 100 : 80
-                            root.batLimit80 = !root.batLimit80
-                            batLimitProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
-                            batLimitProc.running = true
-                        }
-                    }
-                }
-            }
-        }
-
         Text {
             text: "RÉSEAU"
             font.family: Theme.fontUi
@@ -561,14 +465,17 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: reseauCol.implicitHeight + 20
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.30)
             border.width: 1
             border.color: Qt.alpha(Theme.fg, 0.08)
 
             ColumnLayout {
-                anchors.fill: parent
+                id: reseauCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 anchors.margins: 10
                 spacing: 6
 
@@ -931,8 +838,6 @@ Item {
                     font.pixelSize: 10
                     color: Qt.alpha(Theme.fg, 0.5)
                 }
-
-                Item { Layout.fillHeight: true }
             }
         }
 
@@ -967,6 +872,247 @@ Item {
                     color: Theme.fg
                     elide: Text.ElideRight
                 }
+            }
+        }
+
+        // Grande catégorie Affichage & Son (après le réseau)
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            height: 1
+            color: Qt.alpha(Theme.fg, 0.1)
+        }
+
+        Text {
+            text: "AFFICHAGE & SON"
+            font.family: Theme.fontUi
+            font.pixelSize: Theme.textXs
+            font.weight: Font.Bold
+            color: Qt.alpha(Theme.fg, 0.65)
+        }
+
+        IslandTabMedia {
+            Layout.fillWidth: true
+            embedded: true
+        }
+
+        // Sous-catégorie Batterie & Alimentation
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            height: 1
+            color: Qt.alpha(Theme.fg, 0.1)
+        }
+
+        Text {
+            text: "BATTERIE & ALIMENTATION"
+            font.family: Theme.fontUi
+            font.pixelSize: Theme.textXs
+            font.weight: Font.Bold
+            color: Qt.alpha(Theme.fg, 0.65)
+        }
+
+        // Gestion de la charge de la batterie (uniquement sur laptop)
+        Rectangle {
+            visible: root.isLaptop
+            Layout.fillWidth: true
+            Layout.preferredHeight: 46
+            radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
+            color: Qt.alpha(Theme.surfaceVariant, 0.34)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 10
+
+                Icon {
+                    glyph: root.batCharging ? "battery-charging" : "battery-70"
+                    size: 16
+                    color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Text {
+                            text: "Batterie · " + root.batPct + " %"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Bold
+                            color: Theme.fg
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: {
+                                let st = root.batStatus.toLowerCase()
+                                if (root.batCharging) return "En charge"
+                                if (st === "not charging") return "Branchée (limite)"
+                                if (st === "full") return "Pleine"
+                                return "Sur batterie"
+                            }
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            color: Qt.alpha(Theme.fg, 0.62)
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 4
+                        radius: 2
+                        color: Qt.alpha(Theme.fg, 0.12)
+
+                        Rectangle {
+                            width: parent.width * Math.max(0, Math.min(1, root.batPct / 100))
+                            height: parent.height
+                            radius: 2
+                            color: root.batPct <= 15 ? Theme.warn : (root.batCharging ? Theme.success : Theme.accent)
+                            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredHeight: 26
+                    Layout.preferredWidth: batLimRow.implicitWidth + 16
+                    radius: 8
+                    color: root.batLimit80
+                        ? (batLimMa.containsMouse ? Qt.alpha(Theme.accent, 0.34) : Qt.alpha(Theme.accent, 0.22))
+                        : (batLimMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.7) : Qt.alpha(Theme.surfaceVariant, 0.45))
+                    border.width: 1
+                    border.color: root.batLimit80 ? Qt.alpha(Theme.accent, 0.6) : Qt.alpha(Theme.fg, 0.14)
+
+                    RowLayout {
+                        id: batLimRow
+                        anchors.centerIn: parent
+                        spacing: 5
+
+                        Text {
+                            text: root.batLimit80 ? ("Santé " + root.batPlafond + " %") : "Charge 100 %"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.Medium
+                            color: root.batLimit80 ? Theme.accent : Theme.fg
+                        }
+                    }
+
+                    MouseArea {
+                        id: batLimMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (batLimitProc.running) return
+                            let nextLim = root.batLimit80 ? 100 : 80
+                            root.batLimit80 = !root.batLimit80
+                            batLimitProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
+                            batLimitProc.running = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // Timer de mise en veille automatique (hypridle)
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: idleCol.implicitHeight + 20
+            radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
+            color: Qt.alpha(Theme.surfaceVariant, 0.30)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            ColumnLayout {
+                id: idleCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 10
+                spacing: 8
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                        text: "Mise en veille automatique"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        font.weight: Font.Bold
+                        color: Theme.fg
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "inactivité avant suspension (hypridle)"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: Qt.alpha(Theme.fg, 0.55)
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Repeater {
+                        model: [
+                            { label: "15 min", value: 900 },
+                            { label: "30 min", value: 1800 },
+                            { label: "1 heure", value: 3600 },
+                            { label: "2 heures", value: 7200 },
+                            { label: "3 heures", value: 10800 },
+                            { label: "Jamais", value: 0 }
+                        ]
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property bool actif: Theme.idleSuspendTimeout === modelData.value
+                            width: idleLbl.implicitWidth + 16
+                            height: 24
+                            radius: 7
+                            color: actif ? Theme.accent : Qt.alpha(Theme.surfaceVariant, 0.55)
+                            border.width: 1
+                            border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
+
+                            Text {
+                                id: idleLbl
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                font.weight: actif ? Font.Bold : Font.Normal
+                                color: actif ? Theme.bg : Theme.fg
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Theme.idleSuspendTimeout = modelData.value
+                                    idleTimeoutProc.command = [
+                                        "python3", Quickshell.shellPath("core/config_manager.py"),
+                                        "idle_timeout", String(modelData.value)
+                                    ]
+                                    idleTimeoutProc.running = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
             }
         }
     }

@@ -17,7 +17,7 @@ Item {
     id: root
 
     property var binds: []
-    property color surfaceColor: Qt.alpha(Theme.surface, 0.88)
+    property color surfaceColor: Theme.surfaceBg
 
     // Deux niveaux de lecture : « essentiel » au premier abord (les gestes du
     // quotidien), « tout » pour qui veut découvrir le reste — redimensionner,
@@ -119,12 +119,13 @@ Item {
     implicitWidth: etendu ? 900 : 660
     implicitHeight: Math.max(180, content.implicitHeight + 44)
 
-    Rectangle {
+    SurfaceFloutee {
         anchors.fill: parent
-        radius: Theme.globalRadius
-        color: root.surfaceColor
-        border.width: 1
-        border.color: Qt.alpha(Theme.accent, 0.18)
+        rayon: Theme.globalRadius
+        teinte: root.surfaceColor
+        bordureCouleur: Qt.alpha(Theme.accent, 0.18)
+        bordureLargeur: 1
+        actif: true
 
         Column {
             id: content

@@ -23,7 +23,8 @@ Item {
     readonly property string service: String(applet.service || "")
     readonly property real echelle: {
         const v = Number(applet.text_scale)
-        return (v >= 60 && v <= 160) ? v / 100 : 1.0
+        const base = (v >= 60 && v <= 160) ? v / 100 : 1.0
+        return base * Theme.barScale
     }
     // En minutes, et fractionnaire : un applet qui attend une réponse humaine
     // ne peut pas se contenter d'une minute (0.17 ≈ 10 s). L'arrondi à l'entier
@@ -233,7 +234,7 @@ Item {
                 IconSvg {
                     anchors.verticalCenter: parent.verticalCenter
                     nom: String(modelData.icone || "")
-                    size: Math.max(11, Math.round(Theme.iconSm * root.echelle))
+                    size: Math.max(8, Math.round(Theme.iconSm * root.echelle))
                     couleur: parent.couleurTexte(String(modelData.niveau || "ok"))
                     opacite: 0.75
                 }
@@ -269,7 +270,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.barres.length === 0
             glyph: String(root.applet.icone || "")
-            size: Math.max(10, Math.round(Theme.iconSm * root.echelle))
+            size: Math.max(8, Math.round(Theme.iconSm * root.echelle))
             color: root.alerte ? Theme.warn : Theme.fg
             opacityLevel: root.ok ? 0.92 : 0.45
         }
@@ -474,7 +475,8 @@ Item {
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)
         color: "transparent"
         // Un popup externe est dessiné par son îlot : cette fenêtre reste fermée.
-        visible: root.ouvert && !root.popupExterne && !root.estQml
+        // En mode îlot dynamique, la météo s'étend directement dans l'îlot.
+        visible: root.ouvert && !root.popupExterne && !root.estQml && !(Theme.barStyle === "island" && root.appletId === "meteo")
 
         Rectangle {
             anchors.fill: parent
@@ -555,8 +557,8 @@ Item {
     }
 
     HyprlandFocusGrab {
-        // Rien à saisir ici : le popup externe a déjà son propre attrapeur.
-        active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml
+        // Rien à saisir ici : le popup externe a déjà son propre attrapeur (et la météo en mode îlot aussi).
+        active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml && !(Theme.barStyle === "island" && root.appletId === "meteo")
         // La barre fait partie du grab (voir `Theme.fenetresGrab`).
         windows: Theme.fenetresGrab(fenetre, root)
         onCleared: {

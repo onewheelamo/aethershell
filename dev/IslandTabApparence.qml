@@ -28,7 +28,7 @@ Item {
     }
 
     onVisibleChanged: {
-        if (visible && Theme.islandPanelOpen && Theme.islandPanelTab === 4 && !themesScanProc.running) {
+        if (visible && Theme.islandPanelOpen && Theme.islandPanelTab === 3 && !themesScanProc.running) {
             themesScanProc.running = true
         }
     }

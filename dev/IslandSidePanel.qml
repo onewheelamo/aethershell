@@ -114,6 +114,7 @@ Item {
 
     function fermer() {
         Theme.islandNeedsKeyboard = false
+        if (Theme.islandSidePanel === "calendar") Theme.islandCalendarRetracted = true
         Theme.islandSidePanel = ""
     }
 

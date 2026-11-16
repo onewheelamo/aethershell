@@ -19,7 +19,7 @@ Column {
     // Plusieurs onglets restent montés depuis qu'on ne les décharge plus en
     // quittant : sans ce masque, ils s'empilaient les uns sur les autres
     // (le `visible:` du panneau avait été retiré à la découpe).
-    visible: root ? root.currentTab === 3 : false
+    visible: root ? root.currentTab === 4 : false
     width: mainFlickable ? mainFlickable.width : 0
 
     readonly property var sections: ({
@@ -28,7 +28,8 @@ Column {
         "systeme_horloge": secHorloge,
         "systeme_nuit": secNuit,
         "ecrans_captures": secCaptures,
-        "systeme_maj": secMaj
+        "systeme_maj": secMaj,
+        "systeme_diag": secDiagnostic
     })
 
     readonly property var cibles: ({
@@ -36,8 +37,56 @@ Column {
         "timezoneRow": timezoneRow,
         "idleTimeoutRow": idleTimeoutRow,
         "screenshotsDirRow": screenshotsDirRow,
-        "shellMajRow": shellMajRow
+        "shellMajRow": shellMajRow,
+        "secDiagnostic": secDiagnostic
     })
+
+    property var diagServices: []
+    property var diagLogs: []
+    property var diagBackups: []
+    property string diagLogSource: "quickshell"
+    property string diagRestoreConfirm: ""
+    property string diagStatusMsg: ""
+
+    function refreshDiag(src) {
+        if (src) bloc.diagLogSource = src
+        if (diagProc.running) return
+        diagProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                            "diag_info", bloc.diagLogSource]
+        diagProc.running = true
+    }
+
+    Process {
+        id: diagProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (d && d.ok) {
+                        bloc.diagServices = d.services || []
+                        bloc.diagLogs = d.logs || []
+                        bloc.diagBackups = d.backups || []
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: diagRestoreProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    bloc.diagStatusMsg = (d && d.message) ? String(d.message) : ""
+                } catch (e) {
+                    bloc.diagStatusMsg = "Erreur de restauration"
+                }
+                bloc.diagRestoreConfirm = ""
+                bloc.refreshDiag()
+            }
+        }
+    }
 
     // ── Mise à jour du shell ─────────────────────────────────────────────────
     // Une seule ligne sert à installer **et** à mettre à jour, comme pour Ollama :
@@ -1251,6 +1300,281 @@ Column {
         color: Qt.alpha(Theme.fg, 0.5)
         font.pixelSize: Theme.textXs
         wrapMode: Text.WordWrap
+    }
+}
+
+CollapsibleSection {
+    id: secDiagnostic
+    objectName: "secDiagnostic"
+    width: parent.width
+    title: "Diagnostic, journaux & sauvegardes"
+    summary: (bloc.diagServices.length > 0
+        ? (bloc.diagServices.filter(s => s.active).length + "/" + bloc.diagServices.length + " services actifs")
+        : "Services · Journaux · Backups HQ")
+    expanded: root.sectionOpen("systeme_diag", false)
+    onExpandedChanged: {
+        if (expanded && bloc.diagServices.length === 0) bloc.refreshDiag()
+    }
+    onToggled: {
+        root.setPanelSection("systeme_diag", expanded)
+        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_diag")
+    }
+
+    // Barre d'actions Diagnostic
+    Row {
+        width: parent.width
+        spacing: 8
+
+        Text {
+            width: Math.max(120, parent.width - 110)
+            anchors.verticalCenter: parent.verticalCenter
+            text: "État des services utilisateur :"
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            font.bold: true
+        }
+
+        Rectangle {
+            width: 100
+            height: 26
+            radius: Theme.globalRadius
+            color: diagRefMa.containsMouse ? Theme.accent : Theme.surfaceVariant
+            border.color: Theme.accent
+            border.width: 1
+
+            Text {
+                anchors.centerIn: parent
+                text: diagProc.running ? "Chargement…" : "↻ Actualiser"
+                color: diagRefMa.containsMouse ? Theme.bg : Theme.fg
+                font.pixelSize: Theme.textXs
+            }
+
+            MouseArea {
+                id: diagRefMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: bloc.refreshDiag()
+            }
+        }
+    }
+
+    // Pilules des services
+    Flow {
+        width: parent.width
+        spacing: 6
+
+        Repeater {
+            model: bloc.diagServices
+
+            Rectangle {
+                required property var modelData
+                width: svcTxt.implicitWidth + 22
+                height: 26
+                radius: Theme.globalRadius
+                color: modelData.active ? Qt.alpha(Theme.success, 0.16) : Qt.alpha(Theme.error, 0.18)
+                border.color: modelData.active ? Theme.success : Theme.error
+                border.width: 1
+
+                Text {
+                    id: svcTxt
+                    anchors.centerIn: parent
+                    text: (modelData.active ? "● " : "○ ") + modelData.name.replace(".service", "") + " (" + modelData.state + ")"
+                    color: modelData.active ? Theme.success : Theme.error
+                    font.pixelSize: Theme.textXs
+                }
+            }
+        }
+    }
+
+    // Journaux rapides
+    Row {
+        width: parent.width
+        spacing: 8
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Journaux :"
+            color: Theme.fg
+            font.pixelSize: Theme.textSm
+            font.bold: true
+        }
+
+        Repeater {
+            model: [
+                { code: "quickshell", label: "quickshell.service" },
+                { code: "notifications", label: "notifications.log" }
+            ]
+
+            Rectangle {
+                required property var modelData
+                readonly property bool actif: bloc.diagLogSource === modelData.code
+                width: logBtnTxt.implicitWidth + 16
+                height: 24
+                radius: Theme.globalRadius
+                color: actif ? Theme.accent : Theme.surfaceVariant
+                border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+                border.width: 1
+
+                Text {
+                    id: logBtnTxt
+                    anchors.centerIn: parent
+                    text: modelData.label
+                    color: actif ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: actif
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bloc.refreshDiag(modelData.code)
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        width: parent.width
+        height: 128
+        radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
+        color: Theme.bg
+        border.color: Theme.surfaceVariant
+        border.width: 1
+        clip: true
+
+        Flickable {
+            anchors.fill: parent
+            anchors.margins: 8
+            contentHeight: logCol.implicitHeight
+            contentWidth: width
+            clip: true
+
+            Column {
+                id: logCol
+                width: parent.width
+                spacing: 2
+
+                Repeater {
+                    model: bloc.diagLogs
+
+                    Text {
+                        required property string modelData
+                        width: parent.width
+                        text: modelData
+                        color: Qt.alpha(Theme.fg, 0.85)
+                        font.family: Theme.fontMono
+                        font.pixelSize: 10
+                        wrapMode: Text.WrapAnywhere
+                    }
+                }
+            }
+        }
+    }
+
+    // Sauvegardes HQ
+    Text {
+        width: parent.width
+        text: "Sauvegardes HQ (~/.config/backups_env/) :"
+        color: Theme.fg
+        font.pixelSize: Theme.textSm
+        font.bold: true
+    }
+
+    Text {
+        visible: bloc.diagStatusMsg !== ""
+        width: parent.width
+        text: bloc.diagStatusMsg
+        color: Theme.accent
+        font.pixelSize: Theme.textXs
+    }
+
+    Text {
+        visible: bloc.diagBackups.length === 0
+        width: parent.width
+        text: "Aucune archive trouvée."
+        color: Qt.alpha(Theme.fg, 0.55)
+        font.pixelSize: Theme.textXs
+    }
+
+    Column {
+        width: parent.width
+        spacing: 4
+
+        Repeater {
+            model: bloc.diagBackups
+
+            Rectangle {
+                required property var modelData
+                readonly property bool enAttenteConf: bloc.diagRestoreConfirm === modelData.name
+                width: parent.width
+                height: 30
+                radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
+                color: Qt.alpha(Theme.surfaceVariant, 0.35)
+                border.color: Qt.alpha(Theme.fg, 0.08)
+                border.width: 1
+
+                Row {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 8
+                    spacing: 8
+
+                    Text {
+                        width: Math.max(120, parent.width - 150)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.name
+                        color: Theme.fg
+                        font.family: Theme.fontMono
+                        font.pixelSize: 10
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: 48
+                        anchors.verticalCenter: parent.verticalCenter
+                        horizontalAlignment: Text.AlignRight
+                        text: modelData.size_kb + " K"
+                        color: Qt.alpha(Theme.fg, 0.6)
+                        font.pixelSize: Theme.text2xs
+                    }
+
+                    Rectangle {
+                        width: 82
+                        height: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: 6
+                        color: enAttenteConf ? Qt.alpha(Theme.error, 0.25) : Qt.alpha(Theme.accent, 0.18)
+                        border.color: enAttenteConf ? Theme.error : Qt.alpha(Theme.accent, 0.45)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: enAttenteConf ? "Confirmer ?" : "Restaurer"
+                            color: enAttenteConf ? Theme.error : Theme.accent
+                            font.pixelSize: Theme.text2xs
+                            font.bold: enAttenteConf
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (!enAttenteConf) {
+                                    bloc.diagRestoreConfirm = modelData.name
+                                } else if (!diagRestoreProc.running) {
+                                    diagRestoreProc.command = [
+                                        "python3", Quickshell.shellPath("core/config_manager.py"),
+                                        "diag_restore", modelData.name
+                                    ]
+                                    diagRestoreProc.running = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 }

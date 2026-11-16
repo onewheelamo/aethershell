@@ -31,10 +31,12 @@ Item {
     property bool pret: false
 
     // Sans gestionnaire connu, l'applet n'a rien à dire : il s'efface.
+    // Si `Theme.majSeulementSiDispo` est activé, on masque l'applet tant qu'il n'y a aucune MAJ.
     readonly property bool disponible: gestionnaire !== ""
-    visible: disponible
+    readonly property bool masqueSansMaj: Theme.majSeulementSiDispo && (!pret || nombre <= 0)
+    visible: disponible && !masqueSansMaj
 
-    implicitWidth: rangee.implicitWidth + Math.round(10 * echelle)
+    implicitWidth: visible ? (rangee.implicitWidth + Math.round(10 * echelle)) : 0
     implicitHeight: Math.max(20, Math.round(26 * echelle))
 
     function verifier() {

@@ -110,6 +110,7 @@
       "categorie": "Session & énergie",
       "genre": "qml",
       "composant": "MajApplet.qml",
+      "efface_vide": true,
       "ile": "droite",
       "ordre": 70,
       "text_scale": 100

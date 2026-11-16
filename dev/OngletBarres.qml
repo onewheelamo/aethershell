@@ -256,7 +256,7 @@ CollapsibleSection {
             Slider {
                 anchors.verticalCenter: parent.verticalCenter
                 value: Theme.barHeight
-                minimumValue: 28
+                minimumValue: 14
                 maximumValue: 60
                 stepSize: 2
                 suffix: " px"
@@ -1250,10 +1250,8 @@ CollapsibleSection {
                 }
             }
 
-            // Rendu : une ligne qui ne défile pas (onde) ou des bandes
-            // qui montent avec la musique (barres). Option d'applet du
-            // registre, exposée ici parce que c'est elle qui décide de
-            // l'allure du visualiseur.
+            // Rendu indépendant Barre / Îlot : une ligne qui ne défile pas (onde)
+            // ou des bandes qui montent avec la musique (barres).
             Row {
                 width: parent.width
                 spacing: 8
@@ -1261,7 +1259,7 @@ CollapsibleSection {
                 Text {
                     width: 160
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Mode :"
+                    text: "Mode (Barre) :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
@@ -1277,35 +1275,76 @@ CollapsibleSection {
                         width: 92
                         height: 26
                         radius: Theme.globalRadius
-                        color: root.vizStyle === modelData.code ? Theme.accent
-                                                                : Theme.surfaceVariant
+                        color: root.vizStyleClassic === modelData.code ? Theme.accent
+                                                                       : Theme.surfaceVariant
                         border.color: Theme.accent
                         border.width: 1
 
                         Text {
                             anchors.centerIn: parent
-                            text: root.vizStyle === modelData.code
+                            text: root.vizStyleClassic === modelData.code
                                   ? ("✓ " + modelData.nom) : modelData.nom
-                            color: root.vizStyle === modelData.code ? Theme.bg : Theme.fg
+                            color: root.vizStyleClassic === modelData.code ? Theme.bg : Theme.fg
                             font.pixelSize: Theme.textXs
                         }
 
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.changerModeVisualiseur(modelData.code)
+                            onClicked: {
+                                root.vizStyleClassic = modelData.code
+                                root.runConfigCmd(["style", "viz_style_classic", modelData.code])
+                            }
                         }
                     }
                 }
+            }
+
+            Row {
+                width: parent.width
+                spacing: 8
 
                 Text {
+                    width: 160
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 380
-                    text: "L'onde suit le signal, les barres suivent le spectre. "
-                          + "Les barres s'alignent sur les colonnes : une bande pour quatre."
-                    color: Qt.alpha(Theme.fg, 0.5)
-                    font.pixelSize: Theme.text2xs
-                    wrapMode: Text.WordWrap
+                    text: "Mode (Îlot) :"
+                    color: Theme.fg
+                    font.pixelSize: Theme.textSm
+                    elide: Text.ElideRight
+                }
+
+                Repeater {
+                    model: [{ code: "onde", nom: "Onde" },
+                            { code: "barres", nom: "Barres" }]
+
+                    Rectangle {
+                        required property var modelData
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 92
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: root.vizStyleIsland === modelData.code ? Theme.accent
+                                                                      : Theme.surfaceVariant
+                        border.color: Theme.accent
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.vizStyleIsland === modelData.code
+                                  ? ("✓ " + modelData.nom) : modelData.nom
+                            color: root.vizStyleIsland === modelData.code ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.vizStyleIsland = modelData.code
+                                root.runConfigCmd(["style", "viz_style_island", modelData.code])
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1391,11 +1430,8 @@ CollapsibleSection {
                 width: parent.width
                 spacing: 8
 
-                Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Couleur :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+                Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Couleur (Barre) :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
 
-                // Flow plutôt que Row : à cinq jetons et 540 px de
-                // contenu, la dernière pastille sortait du panneau.
-                // Flow passe à la ligne tout seul.
                 Flow {
                     spacing: 6
                     width: parent.width - 168
@@ -1426,6 +1462,49 @@ CollapsibleSection {
                                 onClicked: {
                                     root.vizCouleur = modelData.code
                                     root.runConfigCmd(["style", "viz_couleur", modelData.code])
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: 8
+
+                Text { width: 160; anchors.verticalCenter: parent.verticalCenter; text: "Couleur (Îlot) :"; color: Theme.fg; font.pixelSize: Theme.textSm; elide: Text.ElideRight }
+
+                Flow {
+                    spacing: 6
+                    width: parent.width - 168
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Repeater {
+                        model: root.vizCouleurs
+
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool choisi: root.vizCouleurIsland === modelData.code
+                            width: 74; height: 22; radius: Theme.globalRadius
+                            color: choisi ? root.couleurViz(modelData.code) : "transparent"
+                            border.color: root.couleurViz(modelData.code)
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.nom
+                                color: parent.choisi ? Theme.bg : root.couleurViz(modelData.code)
+                                font.pixelSize: Math.max(8, Theme.textXs - 2)
+                                font.bold: parent.choisi
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.vizCouleurIsland = modelData.code
+                                    root.runConfigCmd(["style", "viz_couleur_island", modelData.code])
                                 }
                             }
                         }

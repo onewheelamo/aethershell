@@ -28,14 +28,13 @@ Item {
 
     readonly property var tabsModel: {
         let base = [
-            { idx: 0, glyph: "widgets", label: "Contrôles",        src: "IslandTabControles.qml" },
-            { idx: 1, glyph: "monitor", label: "Affichage & Son",  src: "IslandTabMedia.qml" },
-            { idx: 2, glyph: "bell",    label: "Alertes & Tâches", src: "IslandTabAlertes.qml" },
-            { idx: 3, glyph: "cog",     label: "Système & Réseau", src: "IslandTabSysteme.qml" },
-            { idx: 4, glyph: "palette", label: "Apparence",        src: "IslandTabApparence.qml" }
+            { idx: 0, glyph: "widgets", label: "Contrôles", src: "IslandTabControles.qml" },
+            { idx: 1, glyph: "bell",    label: "Alertes",   src: "IslandTabAlertes.qml" },
+            { idx: 2, glyph: "cog",     label: "Système",   src: "IslandTabSysteme.qml" },
+            { idx: 3, glyph: "palette", label: "Apparence", src: "IslandTabApparence.qml" }
         ]
         if (Theme.ilotProjetsActif) {
-            base.push({ idx: 5, glyph: "columns-3", label: "Projets", src: "IlotProjets.qml" })
+            base.push({ idx: 4, glyph: "columns-3", label: "Projets", src: "IlotProjets.qml" })
         }
         return base
     }
@@ -201,7 +200,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Theme.islandPanelTab = 1
+                        onClicked: Theme.islandPanelTab = 2
                     }
                 }
 
@@ -276,6 +275,45 @@ Item {
                         onClicked: {
                             Theme.islandPanelOpen = false
                             Theme.islandNeedsKeyboard = false
+                        }
+                    }
+                }
+
+                // Bouton chevron pour rétracter / afficher l'agenda (onglet Alertes & Tâches)
+                Rectangle {
+                    visible: Theme.islandPanelTab === 1
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+                    radius: 12
+                    color: calToggleMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06)
+
+                    Icon {
+                        anchors.centerIn: parent
+                        glyph: "chevron-left"
+                        size: 14
+                        color: calToggleMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.8)
+                        rotation: Theme.islandSidePanel === "calendar" ? 0 : 180
+                        Behavior on rotation {
+                            NumberAnimation {
+                                duration: 220
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: calToggleMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (Theme.islandSidePanel === "calendar") {
+                                Theme.islandCalendarRetracted = true
+                                Theme.islandSidePanel = ""
+                            } else {
+                                Theme.islandCalendarRetracted = false
+                                Theme.islandSidePanel = "calendar"
+                            }
                         }
                     }
                 }
@@ -360,17 +398,19 @@ Item {
                         readonly property bool active: Theme.islandPanelTab === modelData.idx
 
                         Layout.fillWidth: true
+                        Layout.preferredWidth: tabInnerRow.implicitWidth + 16
                         Layout.fillHeight: true
                         radius: 10
+                        clip: true
                         border.width: (Theme.islandNavActive && root.navZone === "rail" && active) ? 2 : 0
                         border.color: Theme.accent
                         color: active ? Qt.alpha(Theme.accent, 0.20) : "transparent"
                         Behavior on color { ColorAnimation { duration: 140 } }
 
                         RowLayout {
+                            id: tabInnerRow
                             anchors.centerIn: parent
-                            width: Math.min(parent.width - 12, implicitWidth)
-                            spacing: 6
+                            spacing: 5
 
                             Icon {
                                 glyph: parent.parent.modelData.glyph
@@ -379,13 +419,11 @@ Item {
                             }
 
                             Text {
-                                Layout.maximumWidth: 98
                                 text: parent.parent.modelData.label
                                 font.family: Theme.fontUi
                                 font.pixelSize: Theme.textXs
                                 font.weight: parent.parent.active ? Font.Bold : Font.Medium
                                 color: parent.parent.active ? Theme.fg : Qt.alpha(Theme.fg, 0.82)
-                                elide: Text.ElideRight
                             }
                         }
 

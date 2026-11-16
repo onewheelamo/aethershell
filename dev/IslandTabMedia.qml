@@ -11,6 +11,9 @@ import "."
 Item {
     id: root
 
+    property bool embedded: false
+    implicitHeight: mediaCol.implicitHeight
+
     property var monitorsList: []
     property string primaryMonitor: ""
     property string selectedMonitorName: ""
@@ -25,12 +28,6 @@ Item {
     property var sinks: []
     property string defaultSink: ""
     property bool micMuted: false
-
-    readonly property bool vizActif: {
-        let _rev = Theme.barAppletsRev
-        let a = Theme.barAppletsActifs ? Theme.barAppletsActifs["visualiseur"] : null
-        return a ? Boolean(a.enabled !== false) : false
-    }
 
     function refreshDisplay() {
         if (!displayStateProc.running) displayStateProc.running = true
@@ -119,16 +116,17 @@ Item {
         onExited: root.refreshAudio()
     }
 
-    Process {
-        id: vizCmdProc
-    }
-
     ColumnLayout {
-        anchors.fill: parent
+        id: mediaCol
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: root.embedded ? undefined : parent.bottom
         spacing: 10
 
         // En-tête
         RowLayout {
+            visible: !root.embedded
             Layout.fillWidth: true
 
             Text {
@@ -152,6 +150,7 @@ Item {
         }
 
         Rectangle {
+            visible: !root.embedded
             Layout.fillWidth: true
             height: 1
             color: Qt.alpha(Theme.fg, 0.1)
@@ -346,7 +345,8 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.fillHeight: !root.embedded
+            Layout.preferredHeight: root.embedded ? 172 : 0
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.30)
             border.width: 1
@@ -458,33 +458,6 @@ Item {
                             onClicked: {
                                 audioCmdProc.command = ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]
                                 audioCmdProc.running = true
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.preferredHeight: 24
-                        Layout.preferredWidth: 112
-                        radius: 6
-                        color: root.vizActif ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.vizActif ? "Visualiseur : ON" : "Visualiseur : OFF"
-                            font.family: Theme.fontUi
-                            font.pixelSize: Theme.textXs
-                            color: root.vizActif ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                vizCmdProc.command = [
-                                    "python3", Quickshell.shellPath("core/bar_applets.py"),
-                                    root.vizActif ? "desactiver" : "activer", "visualiseur"
-                                ]
-                                vizCmdProc.running = true
                             }
                         }
                     }

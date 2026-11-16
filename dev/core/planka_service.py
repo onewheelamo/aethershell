@@ -253,7 +253,14 @@ def _fetch_board_snapshot(cfg: dict, board_id: str | None = None, force: bool = 
         b_item = b_resp.get("item") or board
         inc = b_resp.get("included") or {}
 
-        raw_lists = sorted(inc.get("lists") or [], key=lambda x: float(x.get("position") or 0))
+        # Planka v2 inclut des listes système (`archive`, `trash`) sans nom ni position.
+        raw_lists = sorted(
+            [
+                l for l in (inc.get("lists") or [])
+                if (l.get("type") or "active") not in ("archive", "trash")
+            ],
+            key=lambda x: float(x.get("position") or 0),
+        )
         raw_cards = inc.get("cards") or []
         raw_labels = {str(l["id"]): l for l in (inc.get("labels") or []) if l.get("id")}
         raw_card_labels = inc.get("cardLabels") or []

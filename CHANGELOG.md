@@ -9,6 +9,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.10.00] — 2026-11-16
+
+### Ajouté
+- **Onglet « Îlot dynamique » dans `config_panel.qml`** (`dev/OngletIlot.qml`) : gestion dédiée de l'îlot dynamique, sélecteurs à 4 états (**Masqué / Repos / Étendu / Les deux**) pour les indicateurs de la pilule et les applets de l'îlot (`dev/core/config_manager.py`, `dev/Theme.qml`, `dev/AppletRow.qml`).
+- **Météo inline animée dans l'îlot dynamique** (`dev/DynamicIsland.qml`, `dev/Applet.qml`) : au clic sur l'applet météo, l'îlot s'étend avec animation pour afficher les relevés du jour et les prévisions sur 5 jours (aligné sur `widgets/meteo.qml`).
+- **Panneau étendu de l'îlot** :
+  - Bouton chevron animé pour rétracter/étendre le mini lecteur musique dans `dev/IslandTabControles.qml`.
+  - Affichage par défaut du calendrier sur l'onglet **Alertes & Tâches** avec chevron animé pour le rétracter/afficher (`dev/IslandPanel.qml`, `dev/IslandSidePanel.qml`, `dev/Theme.qml`), et suppression des 3 prochains événements sous les tâches (`dev/IslandTabAlertes.qml`).
+  - Bouton visualiseur audio à 3 états cycliques (**Barres / Ondes / Éteint**) avec icône dynamique (`dev/IslandTabControles.qml`).
+  - Option *Uniquement s'il y a des mises à jour* pour l'applet `maj` (`dev/MajApplet.qml`, `dev/core/applets_catalogue.json`, `dev/OngletIlot.qml`).
+- **Which-key par submap Hyprland** (`dev/SubmapWhichKey.qml`, `dev/main.qml`, `dev/hypr_modular/general.lua`) : overlay deux colonnes listant les raccourcis du submap actif (`shell-whichkey`).
+
+### Modifié / Corrigé
+- **Navigation clavier (`submap aether-nav`)** (`dev/hypr_modular/binds.lua`, `dev/Theme.qml`) : prise en charge de `SUPER + I` et `SUPER + ALT + H`, correction des appels `hyprctl dispatch submap` et sortie automatique sur clic extérieur (`HyprlandFocusGrab`).
+- **Îlot dynamique** (`dev/DynamicIsland.qml`) : suppression de la collision avec l'applet `musique`, correction de la largeur étendue (`expandedWidth` / `fullContentRow`) pour supprimer l'espace excessif autour de l'heure, et masquage/clipping du contenu étendu tant que la pilule n'a pas fini son extension.
+- **Visualiseur audio & barre** (`dev/VisualiseurAudio.qml`, `dev/OngletBarres.qml`, `dev/config_panel.qml`) : réglages indépendants Barre / Îlot, couleur complémentaire, hauteur minimale à `14 px`, et restauration des toasts / icône silencieuse dans l'historique des notifications (`dev/notif_history.qml`, `dev/NotifService.qml`).
+
 ## [0.3.9.00] — 2026-11-15
 
 ### Ajouté

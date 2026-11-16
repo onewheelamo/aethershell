@@ -519,6 +519,33 @@ Item {
                                         }
 
                                         Icon {
+                                            id: histQuietIcon
+                                            readonly property string appName: String(rowLoader.modelData.entry.app || "")
+                                            visible: appName !== "" && Theme.quietNotifApps.indexOf(appName) >= 0
+                                            anchors.right: histCloseIcon.left
+                                            anchors.rightMargin: 10
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            glyph: histQuietMa.containsMouse ? "bell" : "bell-off"
+                                            size: 11
+                                            color: histQuietMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
+                                            opacityLevel: 1
+
+                                            MouseArea {
+                                                id: histQuietMa
+                                                anchors.fill: parent
+                                                anchors.margins: -5
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    if (Theme.notifOps && Theme.notifOps.setQuiet) {
+                                                        Theme.notifOps.setQuiet(histQuietIcon.appName, false)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Icon {
+                                            id: histCloseIcon
                                             anchors.right: parent.right
                                             anchors.verticalCenter: parent.verticalCenter
                                             glyph: "close"

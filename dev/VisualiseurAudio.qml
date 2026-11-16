@@ -43,7 +43,7 @@ Singleton {
 
     // ── état lu dans le registre ────────────────────────────────────────────
     property bool actif: false
-    property string style: "onde"          // "onde" | "barres"
+    readonly property string style: Theme.vizEffectiveStyle          // "onde" | "barres"
 
     // ── sortie normalisée, consommée par Visualiseur.qml ────────────────────
     property var hauteurs: []              // 0..1, une entrée par colonne
@@ -163,8 +163,6 @@ Singleton {
             const moi = entrees["visualiseur"] || null
             racine.actif = moi !== null
             const opt = (moi && moi.options) ? moi.options : ({})
-            const s = String(opt.style || "onde")
-            racine.style = (s === "barres") ? "barres" : "onde"
             racine.barre = moi ? (String(moi.ile || "haut:milieu").split(":")[0] || "haut") : "haut"
             racine.ignorerNavigateurs = opt.ignorer_navigateurs !== false
         } catch (e) {
@@ -253,8 +251,17 @@ Singleton {
     Process {
         id: barres
         running: false
-        command: racine.lanceur("cava -p '" + Quickshell.shellPath("core/cava_viz.conf")
-                                + "' -b " + racine.colsBarres)
+        command: {
+            const base = Quickshell.shellPath("core/cava_viz.conf")
+            const tmp = "/tmp/quickshell_cava_viz.conf"
+            return ["sh", "-c",
+                "sed -e 's/^bars = .*/bars = " + racine.colsBarres + "/' "
+                + "-e 's/^framerate = .*/framerate = " + racine.fps + "/' "
+                + "'" + base + "' > '" + tmp + "' && "
+                + "P=$PPID; trap 'kill $C 2>/dev/null; exit 0' TERM INT; "
+                + "cava -p '" + tmp + "' & C=$!; "
+                + "while kill -0 $P 2>/dev/null; do sleep 1; done; kill $C 2>/dev/null"]
+        }
         stdout: SplitParser {
             onRead: line => racine.trameCava(line)
         }
@@ -404,6 +411,7 @@ Singleton {
         const morceaux = l.split(";")
         const vals = []
         for (let i = 0; i < morceaux.length; ++i) {
+            if (morceaux[i] === "") continue
             const v = Number(morceaux[i])
             if (!isFinite(v)) continue
             vals.push(Math.max(0, Math.min(1, v / 100)))

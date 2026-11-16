@@ -375,7 +375,7 @@ SHELL_BLUR_END = "-- END shell-blur"
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-bar-cote-droite", "shell-osd", "shell-config",
                          "shell-onboarding", "shell-spotlight",
-                         "shell-spotlight-rest", "shell-cheatsheet",
+                         "shell-spotlight-rest", "shell-cheatsheet", "shell-whichkey",
                          "shell-tray-menu", "shell-shotbar",
                          "shell-menu-session", "shell-menu-widget",
                          # Les deux sélecteurs de fichiers : fenêtres de la taille
@@ -390,7 +390,7 @@ SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
 SHELL_BLUR_KEYS = ("shell_blur_enabled", "shell_blur_alpha", "shell_blur_popups")
 # Colors proposées au visualiseur : des jetons du thème, pas des valeurs libres —
 # une couleur en dur ne suivrait pas un changement de palette.
-VIZ_COULEURS = ("accent", "accentMuted", "fg", "warn", "success")
+VIZ_COULEURS = ("accent", "accentMuted", "complement", "fg", "warn", "success")
 
 # Positions prédéfinies de la capsule du lanceur (pas de position libre) :
 # bord haut/bas, centre ou tiers gauche/droit.
@@ -764,7 +764,9 @@ def update_style_var(key, value):
         data[key] = round(max(0.0, min(0.99, float(value))), 2)
     elif key == "viz_epaisseur":
         data[key] = round(max(0.5, min(4.0, float(value))), 1)
-    elif key == "viz_couleur" and str(value) in VIZ_COULEURS:
+    elif key in ("viz_couleur", "viz_couleur_island") and str(value) in VIZ_COULEURS:
+        data[key] = str(value)
+    elif key in ("viz_style_classic", "viz_style_island") and str(value) in ("onde", "barres"):
         data[key] = str(value)
     elif key == "bar_style" and str(value) in ("classic", "island"):
         data[key] = str(value)
@@ -775,7 +777,7 @@ def update_style_var(key, value):
     elif key == "cheatsheet_opacity":
         data[key] = round(max(0.2, min(1.0, float(value))), 2)
     elif key == "bar_height":
-        data[key] = max(28, min(60, int(float(value))))
+        data[key] = max(14, min(60, int(float(value))))
     elif key == "panel_anim_duration":
         data[key] = max(80, min(500, int(float(value))))
     elif key in ("bar_gaps_out_h", "bar_gaps_out_v", "bar_gaps_out"):
@@ -792,9 +794,18 @@ def update_style_var(key, value):
         subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         return True
     elif key in ("bar_bottom", "bar_left", "bar_right"):
-        # Barres supplémentaires : un booléen, écrit tel quel dans style_vars.
+        # Barres supplémentaires : booléens dans style_vars.
         data[key] = str(value).lower() in ("true", "1", "yes")
-    elif key == "show_config_button":
+    elif key in ("ilot_show_vpn", "ilot_show_capture", "ilot_show_media",
+                 "ilot_show_planka", "ilot_show_workspaces", "ilot_show_clock"):
+        v = str(value).strip().lower()
+        if v in ("off", "compact", "expanded", "both"):
+            data[key] = v
+        elif v in ("true", "1", "yes"):
+            data[key] = "both"
+        else:
+            data[key] = "off"
+    elif key in ("show_config_button", "maj_seulement_si_dispo"):
         if isinstance(value, bool):
             data[key] = value
         else:
@@ -1980,6 +1991,9 @@ def get_full_config_state():
         "viz_lissage": float(style_data.get("viz_lissage", 0.2)),
         "viz_epaisseur": float(style_data.get("viz_epaisseur", 1.4)),
         "viz_couleur": str(style_data.get("viz_couleur", "accent")),
+        "viz_couleur_island": str(style_data.get("viz_couleur_island", "complement")),
+        "viz_style_classic": str(style_data.get("viz_style_classic", "onde")),
+        "viz_style_island": str(style_data.get("viz_style_island", "barres")),
         "hypr_rounding": get_hypr_rounding(),
         "hypr_rounding_power": get_hypr_rounding_power(),
         "api_keys": resume_secrets(),
@@ -2035,6 +2049,78 @@ def get_full_config_state():
     }
 
 
+def get_diag_info(log_source="quickshell"):
+    """État des services systemd utilisateur, journaux récents et backups HQ."""
+    services = []
+    for unit in ("quickshell.service", "hermes-approbations.service", "polkit-agent.service"):
+        res = subprocess.run(
+            ["systemctl", "--user", "is-active", unit],
+            capture_output=True, text=True, check=False,
+        )
+        state = (res.stdout or res.stderr or "unknown").strip().splitlines()[0] if (res.stdout or res.stderr) else "unknown"
+        services.append({"name": unit, "state": state, "active": state == "active"})
+
+    logs = []
+    if log_source == "notifications":
+        log_path = os.path.join(
+            os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
+            "quickshell", "notifications.log",
+        )
+        if os.path.isfile(log_path):
+            try:
+                with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+                    logs = [l.rstrip("\n") for l in fh.readlines()[-30:]]
+            except Exception:
+                logs = ["Impossible de lire notifications.log"]
+        else:
+            logs = ["Aucun journal de notifications pour l'instant."]
+    else:
+        jres = subprocess.run(
+            ["journalctl", "--user", "-u", "quickshell.service", "-n", "30", "--no-pager", "-o", "short"],
+            capture_output=True, text=True, check=False,
+        )
+        logs = [l for l in (jres.stdout or "").splitlines() if l.strip()]
+        if not logs:
+            logs = ["Aucune entrée récente pour quickshell.service."]
+
+    backups_dir = os.path.expanduser("~/.config/backups_env")
+    backups = []
+    if os.path.isdir(backups_dir):
+        try:
+            entries = sorted(
+                (f for f in os.listdir(backups_dir) if f.startswith("backup_") and f.endswith(".tar.gz")),
+                reverse=True,
+            )
+            for fname in entries[:10]:
+                fpath = os.path.join(backups_dir, fname)
+                if os.path.isfile(fpath):
+                    st = os.stat(fpath)
+                    backups.append({
+                        "name": fname,
+                        "size_kb": max(1, round(st.st_size / 1024)),
+                    })
+        except Exception:
+            pass
+
+    return {"ok": True, "services": services, "logs": logs, "backups": backups, "log_source": log_source}
+
+
+def restore_hq_backup(name):
+    """Restaure un snapshot HQ dans ~/.config après validation stricte du nom."""
+    fname = os.path.basename(str(name or "").strip())
+    if not (fname.startswith("backup_") and fname.endswith(".tar.gz")):
+        return {"ok": False, "message": "Nom d'archive invalide"}
+    backups_dir = os.path.expanduser("~/.config/backups_env")
+    fpath = os.path.join(backups_dir, fname)
+    if not os.path.isfile(fpath):
+        return {"ok": False, "message": f"Archive introuvable : {fname}"}
+    target_dir = os.path.expanduser("~/.config")
+    res = subprocess.run(["tar", "-xzf", fpath, "-C", target_dir], capture_output=True, text=True, check=False)
+    if res.returncode != 0:
+        return {"ok": False, "message": (res.stderr or "Échec tar").strip()}
+    return {"ok": True, "message": f"Restauré : {fname}"}
+
+
 if __name__ == "__main__":
     action = sys.argv[1] if len(sys.argv) > 1 else "state"
     # Une commande = une seule section critique sur style_vars.json : lecture,
@@ -2043,7 +2129,7 @@ if __name__ == "__main__":
     # panneau l'appelle après chaque commande, et il interroge le compositeur.
     # Aucun sous-processus lancé ici n'écrit style_vars.json (seulement
     # hyprctl/systemctl), donc pas de blocage en boucle.
-    _verrou_style = None if action == "state" else verrou_etat.prendre(STYLE_FILE)
+    _verrou_style = None if action in ("state", "diag_info") else verrou_etat.prendre(STYLE_FILE)
     if action == "state":
         print(json.dumps(get_full_config_state()))
     elif action == "kb_layout" and len(sys.argv) > 2:
@@ -2176,5 +2262,23 @@ if __name__ == "__main__":
     elif action == "battery" and len(sys.argv) > 2:
         subprocess.run(["python3", SYSTEM_SERVICE, "limit", sys.argv[2]], check=False)
         print(json.dumps(get_full_config_state()))
+    elif action == "ilot_applet_mode" and len(sys.argv) > 3:
+        aid = str(sys.argv[2]).strip()
+        mode = str(sys.argv[3]).strip().lower()
+        if mode not in ("off", "compact", "expanded", "both"):
+            mode = "off"
+        data = load_json(STYLE_FILE)
+        modes = data.get("ilot_applets_mode")
+        if not isinstance(modes, dict):
+            modes = {}
+        modes[aid] = mode
+        data["ilot_applets_mode"] = modes
+        save_json(STYLE_FILE, data)
+        print(json.dumps(get_full_config_state()))
+    elif action == "diag_info":
+        src = sys.argv[2] if len(sys.argv) > 2 else "quickshell"
+        print(json.dumps(get_diag_info(src), ensure_ascii=False))
+    elif action == "diag_restore" and len(sys.argv) > 2:
+        print(json.dumps(restore_hq_backup(sys.argv[2]), ensure_ascii=False))
     else:
         print(json.dumps(get_full_config_state()))

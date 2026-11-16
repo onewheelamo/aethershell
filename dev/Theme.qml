@@ -68,22 +68,70 @@ QtObject {
     property bool islandPanelOpen: false
     property int islandPanelTab: 0
     property string islandSidePanel: ""
+    property bool islandCalendarRetracted: false
     property int todoRev: 0
     property bool islandNeedsKeyboard: false
     property bool islandNavActive: false
     property var islandNavHook: null
+    property string activeSubmap: ""
     onIslandNavActiveChanged: {
         if (!islandNavActive) {
-            Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.submap(\"reset\")"])
+            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"])
         }
     }
     property int panelAnimDuration: 240
     property bool ilotProjetsActif: true
+    property string ilotShowVpn: "both"
+    property string ilotShowCapture: "both"
+    property string ilotShowMedia: "compact"
+    property string ilotShowPlanka: "both"
+    property string ilotShowWorkspaces: "both"
+    property string ilotShowClock: "both"
+    property var ilotAppletsMode: ({})
+    property int ilotAppletsRev: 0
+    property bool majSeulementSiDispo: false
+
+    function normIlotMode(val, defVal) {
+        if (val === true) return defVal || "both"
+        if (val === false) return "off"
+        const s = String(val || "").toLowerCase()
+        if (s === "off" || s === "compact" || s === "expanded" || s === "both") return s
+        return defVal || "off"
+    }
+
+    function ilotVisibleIn(mode, state) {
+        const m = String(mode || "off")
+        if (state === "compact") return m === "compact" || m === "both"
+        if (state === "expanded") return m === "expanded" || m === "both"
+        return false
+    }
+
+    function ilotAppletModeFor(id) {
+        const _ = root.ilotAppletsRev
+        if (root.ilotAppletsMode && root.ilotAppletsMode[id] !== undefined) {
+            return root.normIlotMode(root.ilotAppletsMode[id], "off")
+        }
+        const defExp = ["systray", "minimise", "luminosite", "batterie"]
+        return defExp.indexOf(id) !== -1 ? "expanded" : "off"
+    }
+    property int idleSuspendTimeout: 3600
     onIslandPanelOpenChanged: {
         if (!islandPanelOpen) {
             islandSidePanel = ""
+            islandCalendarRetracted = false
             islandNeedsKeyboard = false
             islandNavActive = false
+        } else if (islandPanelTab === 1 && islandSidePanel === "" && !islandCalendarRetracted) {
+            islandSidePanel = "calendar"
+        }
+    }
+    onIslandPanelTabChanged: {
+        if (islandPanelOpen && islandPanelTab === 1) {
+            if (islandSidePanel === "" && !islandCalendarRetracted) {
+                islandSidePanel = "calendar"
+            }
+        } else if (islandSidePanel === "calendar") {
+            islandSidePanel = ""
         }
     }
     onBarStyleChanged: {
@@ -103,11 +151,25 @@ QtObject {
     property real vizLissage: 0.2
     property real vizEpaisseur: 1.4
     property string vizCouleur: "accent"
-    readonly property color vizColor: vizCouleur === "accentMuted" ? accentMuted
-                                     : vizCouleur === "fg" ? fg
-                                     : vizCouleur === "warn" ? warn
-                                     : vizCouleur === "success" ? success
-                                     : accent
+    property string vizCouleurIsland: "complement"
+    property string vizStyleClassic: "onde"
+    property string vizStyleIsland: "barres"
+    readonly property string vizEffectiveStyle: barStyle === "island" ? vizStyleIsland : vizStyleClassic
+    readonly property color vizComplementColor: Qt.hsla(
+        (accent.hslHue + 0.5) % 1.0,
+        Math.max(0.70, accent.hslSaturation),
+        accent.hslLightness < 0.5 ? 0.68 : 0.52,
+        1.0
+    )
+    function resolveVizColor(code) {
+        if (code === "accentMuted") return accentMuted
+        if (code === "complement") return vizComplementColor
+        if (code === "fg") return fg
+        if (code === "warn") return warn
+        if (code === "success") return success
+        return accent
+    }
+    readonly property color vizColor: resolveVizColor(barStyle === "island" ? vizCouleurIsland : vizCouleur)
 
     // Espaces entre les îlots de la barre du haut : transparents au lieu d'être
     // peints comme le reste de la capsule. Transparent ne veut pas dire flouté :
@@ -188,6 +250,7 @@ QtObject {
 
     readonly property int barSideWidth: barHeight
     readonly property int pillRadius: Math.min(globalRadius, Math.round(barHeight / 2))
+    readonly property real barScale: Math.min(1.0, Math.max(0.45, barHeight / 34.0))
 
     // 5a "capsule continue" : les trois pilules fusionnent en une seule surface.
     // Passer à false remet la barre à trois îlots indépendants.
@@ -530,7 +593,7 @@ QtObject {
         if (typeof data.depth_mask_adouci === "number") root.depthMaskAdouci = data.depth_mask_adouci
         if (typeof data.shell_opacity === "number") root.shellOpacity = Math.max(0.2, Math.min(1.0, data.shell_opacity))
         if (typeof data.show_config_button === "boolean") root.showConfigButton = data.show_config_button
-        if (typeof data.bar_height === "number" && data.bar_height >= 28 && data.bar_height <= 60) root.barHeight = data.bar_height
+        if (typeof data.bar_height === "number" && data.bar_height >= 14 && data.bar_height <= 60) root.barHeight = data.bar_height
         // Les deux axes, avec l'ancienne clé `bar_gaps_out` en repli : une
         // machine qui n'a pas encore été réglée garde exactement son aspect.
         const margeOut = (typeof data.bar_gaps_out === "number") ? data.bar_gaps_out : 8
@@ -548,6 +611,9 @@ QtObject {
         if (typeof data.viz_lissage === "number") root.vizLissage = Math.max(0, Math.min(0.99, data.viz_lissage))
         if (typeof data.viz_epaisseur === "number") root.vizEpaisseur = Math.max(0.5, Math.min(4.0, data.viz_epaisseur))
         if (typeof data.viz_couleur === "string" && data.viz_couleur.length > 0) root.vizCouleur = data.viz_couleur
+        if (typeof data.viz_couleur_island === "string" && data.viz_couleur_island.length > 0) root.vizCouleurIsland = data.viz_couleur_island
+        if (data.viz_style_classic === "onde" || data.viz_style_classic === "barres") root.vizStyleClassic = data.viz_style_classic
+        if (data.viz_style_island === "onde" || data.viz_style_island === "barres") root.vizStyleIsland = data.viz_style_island
         if (typeof data.bar_bottom === "boolean") root.barBottomVisible = data.bar_bottom
         if (typeof data.bar_left === "boolean") root.barLeftVisible = data.bar_left
         if (typeof data.bar_right === "boolean") root.barRightVisible = data.bar_right
@@ -569,6 +635,18 @@ QtObject {
         if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
         if (typeof data.ilot_projets_actif === "boolean") root.ilotProjetsActif = data.ilot_projets_actif
+        if (data.ilot_show_vpn !== undefined) root.ilotShowVpn = root.normIlotMode(data.ilot_show_vpn, "both")
+        if (data.ilot_show_capture !== undefined) root.ilotShowCapture = root.normIlotMode(data.ilot_show_capture, "both")
+        if (data.ilot_show_media !== undefined) root.ilotShowMedia = root.normIlotMode(data.ilot_show_media, "compact")
+        if (data.ilot_show_planka !== undefined) root.ilotShowPlanka = root.normIlotMode(data.ilot_show_planka, "both")
+        if (data.ilot_show_workspaces !== undefined) root.ilotShowWorkspaces = root.normIlotMode(data.ilot_show_workspaces, "both")
+        if (data.ilot_show_clock !== undefined) root.ilotShowClock = root.normIlotMode(data.ilot_show_clock, "both")
+        if (data.ilot_applets_mode && typeof data.ilot_applets_mode === "object") {
+            root.ilotAppletsMode = data.ilot_applets_mode
+            root.ilotAppletsRev++
+        }
+        if (typeof data.maj_seulement_si_dispo === "boolean") root.majSeulementSiDispo = data.maj_seulement_si_dispo
+        if (typeof data.idle_suspend_timeout === "number") root.idleSuspendTimeout = Math.max(0, Math.round(data.idle_suspend_timeout))
         if (typeof data.first_run_completed === "boolean") {
             root.firstRunCompleted = data.first_run_completed
             if (!data.first_run_completed) {
@@ -759,6 +837,42 @@ QtObject {
             liste.push(entree)
         }
 
+        liste.sort(function(a, b) {
+            const oa = (typeof a.ordre === "number") ? a.ordre : 100
+            const ob = (typeof b.ordre === "number") ? b.ordre : 100
+            if (oa !== ob) return oa - ob
+            return String(a.id || "").localeCompare(String(b.id || ""))
+        })
+        return liste
+    }
+
+    function appletsPourIlot(state, side) {
+        const _ = root.barAppletsRev + root.ilotAppletsRev
+        if (!root.barAppletsCatalogue.length) return []
+        const liste = []
+        for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
+            const cat = root.barAppletsCatalogue[i]
+            if (!cat || !cat.id || cat.fixe) continue
+            if (cat.id === "visualiseur" || cat.id === "workspaces" || cat.id === "horloge" || cat.id === "musique") continue
+            const mode = root.ilotAppletModeFor(cat.id)
+            if (!root.ilotVisibleIn(mode, state)) continue
+
+            const choix = root.barAppletsActifs[cat.id] || ({})
+            let itemIle = String(choix.ile || cat.ile || "haut:fin")
+            itemIle = root.barAnciens[itemIle] || itemIle
+            if (side === "left" && itemIle !== "haut:debut") continue
+            if (side === "right" && itemIle === "haut:debut") continue
+
+            const entree = Object.assign({}, cat)
+            entree.actif = true
+            entree.ile = itemIle
+            const ordre = parseInt(choix.ordre, 10)
+            entree.ordre = isNaN(ordre) ? (cat.ordre || 100) : ordre
+            const echelle = parseInt(choix.text_scale, 10)
+            entree.text_scale = isNaN(echelle) ? 100 : Math.max(60, Math.min(160, echelle))
+            entree.options = choix.options || ({})
+            liste.push(entree)
+        }
         liste.sort(function(a, b) {
             const oa = (typeof a.ordre === "number") ? a.ordre : 100
             const ob = (typeof b.ordre === "number") ? b.ordre : 100
@@ -1190,7 +1304,8 @@ QtObject {
         function openIslandPanel(tabIndex: int) {
             if (root.barStyle !== "island") return
             root.activePopup = ""
-            root.islandPanelTab = Math.max(0, Math.min(4, tabIndex))
+            const maxTab = root.ilotProjetsActif ? 4 : 3
+            root.islandPanelTab = Math.max(0, Math.min(maxTab, tabIndex))
             root.islandPanelOpen = true
         }
         function nav(action: string): string {
@@ -1214,12 +1329,13 @@ QtObject {
                 root.islandPanelOpen = true
             }
             root.islandNavActive = true
+            const nTabs = root.ilotProjetsActif ? 5 : 4
             if (a === "onglet_suiv" || a === "tab_next") {
-                root.islandPanelTab = (root.islandPanelTab + 1) % 5
+                root.islandPanelTab = (root.islandPanelTab + 1) % nTabs
                 return "ok"
             }
             if (a === "onglet_prec" || a === "tab_prev") {
-                root.islandPanelTab = (root.islandPanelTab + 4) % 5
+                root.islandPanelTab = (root.islandPanelTab + nTabs - 1) % nTabs
                 return "ok"
             }
             if (root.islandNavHook) {

@@ -14,21 +14,11 @@ Item {
     property var todoItems: []
     property int todoOpenCount: 0
     property bool todoSurveillance: false
-    property var upcomingEvents: []
-    property var _curMonthDays: ({})
 
     function refreshTasks() {
         if (!todoProc.running) {
             todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "--tous"]
             todoProc.running = true
-        }
-        if (!calProc.running) {
-            let now = new Date()
-            calProc.command = [
-                "python3", Quickshell.shellPath("core/nextcloud_service.py"),
-                "month", String(now.getFullYear()), String(now.getMonth() + 1)
-            ]
-            calProc.running = true
         }
     }
 
@@ -68,87 +58,6 @@ Item {
     Process {
         id: todoActionProc
         onExited: root.refreshTasks()
-    }
-
-    function collecterProchainsEvenements(daysA, daysB, isoToday, maxCount) {
-        let merged = []
-        let sources = [daysA || ({}), daysB || ({})]
-        let seen = ({})
-        for (let s = 0; s < sources.length; s++) {
-            let map = sources[s]
-            let keys = Object.keys(map).sort()
-            for (let i = 0; i < keys.length; i++) {
-                let k = keys[i]
-                if (k < isoToday) continue
-                let arr = map[k] || []
-                for (let j = 0; j < arr.length; j++) {
-                    let ev = arr[j]
-                    let summary = String(ev.summary || "Événement")
-                    let dedup = k + "|" + summary + "|" + String(ev.time || "")
-                    if (seen[dedup]) continue
-                    seen[dedup] = true
-                    let dateLabel = k
-                    if (k === isoToday) {
-                        dateLabel = "Aujourd'hui"
-                    } else {
-                        let parts = k.split("-")
-                        if (parts.length === 3) {
-                            let dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-                            dateLabel = Qt.formatDate(dt, "ddd d MMM")
-                        }
-                    }
-                    merged.push({
-                        sortKey: k + " " + String(ev.sort_key || "00:00"),
-                        dateLabel: dateLabel,
-                        summary: summary
-                    })
-                }
-            }
-        }
-        merged.sort((a, b) => a.sortKey < b.sortKey ? -1 : (a.sortKey > b.sortKey ? 1 : 0))
-        return merged.slice(0, maxCount || 3)
-    }
-
-    Process {
-        id: calProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let d = JSON.parse(text.trim())
-                    let daysMap = d.days || d.events || ({})
-                    root._curMonthDays = daysMap
-                    let now = new Date()
-                    let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
-                    let list = root.collecterProchainsEvenements(daysMap, null, iso, 3)
-                    root.upcomingEvents = list
-                    if (list.length < 3 && !calNextProc.running) {
-                        let nm = now.getMonth() + 2
-                        let ny = now.getFullYear()
-                        if (nm > 12) { nm = 1; ny += 1 }
-                        calNextProc.command = [
-                            "python3", Quickshell.shellPath("core/nextcloud_service.py"),
-                            "month", String(ny), String(nm)
-                        ]
-                        calNextProc.running = true
-                    }
-                } catch (e) {}
-            }
-        }
-    }
-
-    Process {
-        id: calNextProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let d = JSON.parse(text.trim())
-                    let nextMap = d.days || d.events || ({})
-                    let now = new Date()
-                    let iso = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0")
-                    root.upcomingEvents = root.collecterProchainsEvenements(root._curMonthDays, nextMap, iso, 3)
-                } catch (e) {}
-            }
-        }
     }
 
     Process {
@@ -576,92 +485,6 @@ Item {
                                     color: Qt.alpha(Theme.fg, 0.45)
                                 }
                             }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: Qt.alpha(Theme.fg, 0.1)
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 3
-
-                        RowLayout {
-                            visible: root.upcomingEvents.length === 0
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Icon {
-                                glyph: "calendar"
-                                size: 12
-                                color: Qt.alpha(Theme.fg, 0.55)
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Aucun événement à venir"
-                                font.family: Theme.fontUi
-                                font.pixelSize: Theme.textXs
-                                color: Qt.alpha(Theme.fg, 0.55)
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        Repeater {
-                            model: root.upcomingEvents
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 6
-
-                                Icon {
-                                    glyph: "calendar"
-                                    size: 12
-                                    color: Theme.accent
-                                }
-
-                                Text {
-                                    text: String(modelData.dateLabel || "")
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: 10
-                                    font.weight: Font.DemiBold
-                                    color: Theme.accent
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: String(modelData.summary || "")
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: Theme.textXs
-                                    color: Theme.fg
-                                    elide: Text.ElideRight
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        Layout.alignment: Qt.AlignBottom
-                        Layout.minimumWidth: implicitWidth
-                        text: Theme.islandSidePanel === "calendar" ? "Agenda ×" : "Agenda →"
-                        font.family: Theme.fontUi
-                        font.pixelSize: Theme.textXs
-                        font.weight: Theme.islandSidePanel === "calendar" ? Font.Bold : Font.Normal
-                        color: (Theme.islandSidePanel === "calendar" || calLinkMa.containsMouse) ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                        MouseArea {
-                            id: calLinkMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Theme.islandSidePanel = (Theme.islandSidePanel === "calendar" ? "" : "calendar")
                         }
                     }
                 }

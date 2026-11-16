@@ -19,7 +19,7 @@ Column {
     // Plusieurs onglets restent montés depuis qu'on ne les décharge plus en
     // quittant : sans ce masque, ils s'empilaient les uns sur les autres
     // (le `visible:` du panneau avait été retiré à la découpe).
-    visible: root ? root.currentTab === 6 : false
+    visible: root ? root.currentTab === 7 : false
     width: mainFlickable ? mainFlickable.width : 0
 
     readonly property var sections: ({
@@ -44,7 +44,7 @@ Column {
         Loader {
             id: greeterTabLoader
             width: parent.width
-            active: root.currentTab === 6
+            active: root.currentTab === 7
             source: "GreeterTab.qml"
             onLoaded: item.width = parent.width
         }

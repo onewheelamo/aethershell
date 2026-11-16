@@ -108,25 +108,31 @@ Rectangle {
     // l'onglet et la section, puis fait défiler jusqu'à la ligne ciblée.
     readonly property var searchIndex: [
         { label: "Thème de l'écran de connexion", words: "connexion greeter sddm ecran login theme de connexion",
-          tab: 6, section: "greeter_theme", target: "secGreeter" },
-        { label: "Quotas IA", words: "quotas ia cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 2,
+          tab: 7, section: "greeter_theme", target: "secGreeter" },
+        { label: "Quotas IA", words: "quotas ia cle api token deepseek ollama antigravity secrets connexion fournisseur", tab: 8,
           section: "widgets_api", target: "secApiKeys" },
-        { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 1,
+        { label: "Notifications (ne pas déranger)", words: "notification dnd ne pas deranger toast silencieux cloche", tab: 6,
           section: "quickshell_notifications", target: "secNotifs" },
-        { label: "Localisation (ville, coordonnées, fuseau)", words: "localisation ville position coordonnees latitude longitude fuseau timezone meteo", tab: 7,
+        { label: "Localisation (ville, coordonnées, fuseau)", words: "localisation ville position coordonnees latitude longitude fuseau timezone meteo", tab: 8,
           section: "donnees_localisation", target: "secLocalisation" },
-        { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 7,
+        { label: "Calendrier Nextcloud", words: "nextcloud calendrier caldav identifiants agenda compte", tab: 8,
           section: "quickshell_calendrier", target: "secCalendrier" },
-        { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 7,
+        { label: "Homelab (Proxmox)", words: "proxmox homelab serveur noeud vm jeton api token", tab: 8,
           section: "widgets_homelab", target: "secHomelab" },
+        { label: "Îlot dynamique (mode, animation, projets)", words: "ilot dynamique pilule animation projets kanban bordure hauteur",
+          tab: 2, section: "ilot_config", target: "secIlotConfig" },
+        { label: "Indicateurs de la pilule (VPN, capture, média)", words: "ilot indicateurs pilule vpn capture media planka workspaces horloge",
+          tab: 2, section: "ilot_indicateurs", target: "secIlotIndicateurs" },
+        { label: "Applets de l'îlot (systray, musique, nuit...)", words: "ilot applets systray musique audio nuit batterie volume reseau repos etendu",
+          tab: 2, section: "ilot_applets", target: "secIlotApplets" },
         { label: "Applets de la barre", words: "applets barre ilot ordre position echelle cloche volume reseau",
           tab: 1, section: "quickshell_applets", target: "secApplets" },
         { label: "Barre et surfaces du shell", words: "barre hauteur opacite flou arrondi ilot popups bordure",
           tab: 0, section: "quickshell_barre", target: "secBarre" },
         { label: "Widgets du bureau", words: "widgets bureau horloge date meteo workspace",
-          tab: 2, section: "widgets", target: "secWidgets" },
+          tab: 3, section: "widgets", target: "secWidgets" },
         { label: "Position du lanceur", words: "lanceur position capsule haut bas centre gauche droite",
-          tab: 2, section: "widgets", target: "secWidgets" },
+          tab: 3, section: "widgets", target: "secWidgets" },
         { label: "Thème et fond d'écran", words: "theme fond ecran wallpaper couleur",
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Jeux de couleurs Matugen", words: "matugen palette preset couleurs saturation",
@@ -138,7 +144,7 @@ Rectangle {
         { label: "Masque de profondeur du fond", words: "masque profondeur relief parallaxe wallpaper widgets seuil adouci",
           tab: 0, section: "esthetique_fonds", target: "masqueProfondeurRow" },
         { label: "Dossier des captures d'écran", words: "capture ecran screenshot dossier chemin enregistrement image",
-          tab: 3, section: "ecrans_captures", target: "screenshotsDirRow" },
+          tab: 4, section: "ecrans_captures", target: "screenshotsDirRow" },
         { label: "Gaps internes et externes", words: "gaps espacement interieur exterieur marge",
           tab: 0, section: "esthetique_aspect", target: "gapsRow" },
         { label: "Bordures des fenêtres", words: "bordure border epaisseur",
@@ -172,17 +178,19 @@ Rectangle {
         { label: "Flou des surfaces du shell", words: "flou shell layer rule seuil ignore alpha popups",
           tab: 0, section: "quickshell_barre", target: "shellBlurRow" },
         { label: "Écrans, résolution, taux de rafraîchissement", words: "ecran moniteur resolution taux hz echelle scale",
-          tab: 3, section: "", target: "monitorsRow" },
+          tab: 4, section: "", target: "monitorsRow" },
         { label: "Fuseau horaire et synchronisation NTP", words: "fuseau timezone heure ntp synchronisation horloge",
-          tab: 3, section: "", target: "timezoneRow" },
+          tab: 4, section: "", target: "timezoneRow" },
         { label: "Mise à jour du shell", words: "mise a jour version installateur curl update github aethershell terminal",
-          tab: 3, section: "systeme_maj", target: "shellMajRow" },
+          tab: 4, section: "systeme_maj", target: "shellMajRow" },
+        { label: "Diagnostic, journaux & sauvegardes", words: "diagnostic logs journaux journalctl services systemd backup hq sauvegarde restaurer",
+          tab: 4, section: "systeme_diag", target: "secDiagnostic" },
         { label: "Mise en veille automatique", words: "mise en veille veille inactivité suspend sleep ecran timer energie heure",
-          tab: 3, section: "systeme_horloge", target: "idleTimeoutRow" },
+          tab: 4, section: "systeme_horloge", target: "idleTimeoutRow" },
         { label: "Disposition du clavier", words: "clavier layout azerty qwerty langue",
-          tab: 4, section: "", target: "kbdRow" },
+          tab: 5, section: "", target: "kbdRow" },
         { label: "Raccourcis Hyprland", words: "raccourcis binds touches clavier hyprland",
-          tab: 4, section: "", target: "bindsCol" },
+          tab: 5, section: "", target: "bindsCol" },
         { label: "Programmes par défaut des raccourcis", words: "applications variables programmes defaut terminal navigateur editeur fichiers chemins",
           tab: 5, section: "apps_programs", target: "secApps" },
         { label: "Historique des lancements", words: "historique lancements recents pilule spotlight memoire",
@@ -252,14 +260,15 @@ Rectangle {
         "quickshell_barre": 0,
         "quickshell_applets": 1, "quickshell_barres": 1, "quickshell_disques": 1,
         "quickshell_visualiseur": 1,
-        "widgets": 2, "widgets_pilule": 2, "widgets_api": 7,
-        "systeme_nuit": 3, "ecrans_moniteurs": 3, "ecrans_profils": 3, "systeme_horloge": 3,
-        "ecrans_captures": 3, "systeme_maj": 3,
-        "clavier_disposition": 4, "clavier_binds": 4,
-        "apps_programs": 5, "apps_autostart": 5, "quickshell_notifications": 5,
-        "greeter_theme": 6,
-        "quickshell_calendrier": 7, "taches_fichiers": 7, "widgets_homelab": 7,
-        "donnees_localisation": 7
+        "ilot_config": 2, "ilot_indicateurs": 2, "ilot_applets": 2,
+        "widgets": 3, "widgets_pilule": 3, "widgets_api": 8,
+        "systeme_nuit": 4, "ecrans_moniteurs": 4, "ecrans_profils": 4, "systeme_horloge": 4,
+        "ecrans_captures": 4, "systeme_maj": 4, "systeme_diag": 4,
+        "clavier_disposition": 5, "clavier_binds": 5,
+        "apps_programs": 6, "apps_autostart": 6, "quickshell_notifications": 6,
+        "greeter_theme": 7,
+        "quickshell_calendrier": 8, "taches_fichiers": 8, "widgets_homelab": 8,
+        "donnees_localisation": 8
     })
 
     // Écrit la localisation : quatre clés, une par champ, dans style_vars.json.
@@ -310,12 +319,13 @@ Rectangle {
         let h = 0
         if (n === 0) h = ongletApparence.item ? ongletApparence.item.implicitHeight : 0
         else if (n === 1) h = ongletBarres.item ? ongletBarres.item.implicitHeight : 0
-        else if (n === 2) h = ongletBureau.item ? ongletBureau.item.implicitHeight : 0
-        else if (n === 3) h = ongletEcrans.item ? ongletEcrans.item.implicitHeight : 0
-        else if (n === 4) h = ongletClavier.item ? ongletClavier.item.implicitHeight : 0
-        else if (n === 5) h = ongletApps.item ? ongletApps.item.implicitHeight : 0
-        else if (n === 6) h = ongletConnexion.item ? ongletConnexion.item.implicitHeight : 0
-        else if (n === 7) h = ongletDonnees.item ? ongletDonnees.item.implicitHeight : 0
+        else if (n === 2) h = ongletIlot.item ? ongletIlot.item.implicitHeight : 0
+        else if (n === 3) h = ongletBureau.item ? ongletBureau.item.implicitHeight : 0
+        else if (n === 4) h = ongletEcrans.item ? ongletEcrans.item.implicitHeight : 0
+        else if (n === 5) h = ongletClavier.item ? ongletClavier.item.implicitHeight : 0
+        else if (n === 6) h = ongletApps.item ? ongletApps.item.implicitHeight : 0
+        else if (n === 7) h = ongletConnexion.item ? ongletConnexion.item.implicitHeight : 0
+        else if (n === 8) h = ongletDonnees.item ? ongletDonnees.item.implicitHeight : 0
         return h
     }
 
@@ -1033,21 +1043,21 @@ Rectangle {
     property real vizLissage: 0.2
     property real vizEpaisseur: 1.4
     property string vizCouleur: "accent"
+    property string vizCouleurIsland: "complement"
+    property string vizStyleClassic: "onde"
+    property string vizStyleIsland: "barres"
     // Jetons proposés au visualiseur — les mêmes que VIZ_COULEURS dans
     // core/config_manager.py, qui refuse tout le reste.
     readonly property var vizCouleurs: [
         { code: "accent", nom: "Accent" },
         { code: "accentMuted", nom: "Accent 2" },
+        { code: "complement", nom: "Complém." },
         { code: "fg", nom: "Texte" },
         { code: "warn", nom: "Alerte" },
         { code: "success", nom: "Succès" }
     ]
     function couleurViz(code) {
-        return code === "accentMuted" ? Theme.accentMuted
-             : code === "fg" ? Theme.fg
-             : code === "warn" ? Theme.warn
-             : code === "success" ? Theme.success
-             : Theme.accent
+        return Theme.resolveVizColor(code)
     }
     property real shellBlurAlpha: 0.4
     property bool shellBlurPopups: true
@@ -1064,7 +1074,7 @@ Rectangle {
     // « ReferenceError: secTheme is not defined ». On les demande donc à l'onglet
     // chargé, qui expose `sections` (nom de tiroir → objet) et `cibles` (nom
     // d'ancre → objet). La liste grandit au fil des extractions.
-    readonly property var ongletsDeportes: [ ongletApparence, ongletBarres, ongletBureau, ongletEcrans, ongletClavier, ongletApps, ongletConnexion, ongletDonnees ]
+    readonly property var ongletsDeportes: [ ongletApparence, ongletBarres, ongletIlot, ongletBureau, ongletEcrans, ongletClavier, ongletApps, ongletConnexion, ongletDonnees ]
 
     function tiroirDe(nom) {
         if (root.tiroirs[nom]) return root.tiroirs[nom]
@@ -1321,6 +1331,9 @@ Rectangle {
         if (typeof data.viz_lissage === "number") root.vizLissage = data.viz_lissage
         if (typeof data.viz_epaisseur === "number") root.vizEpaisseur = data.viz_epaisseur
         if (typeof data.viz_couleur === "string") root.vizCouleur = data.viz_couleur
+        if (typeof data.viz_couleur_island === "string") root.vizCouleurIsland = data.viz_couleur_island
+        if (typeof data.viz_style_classic === "string") root.vizStyleClassic = data.viz_style_classic
+        if (typeof data.viz_style_island === "string") root.vizStyleIsland = data.viz_style_island
         if (typeof data.shell_blur_alpha === "number") root.shellBlurAlpha = data.shell_blur_alpha
         if (typeof data.shell_blur_popups === "boolean") root.shellBlurPopups = data.shell_blur_popups
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
@@ -1696,12 +1709,13 @@ Rectangle {
         return [
             [0, ongletApparence, "OngletApparence.qml", {}],
             [1, ongletBarres, "OngletBarres.qml", { disquesListeProc: disquesListeProc }],
-            [2, ongletBureau, "OngletBureau.qml", {}],
-            [3, ongletEcrans, "OngletEcrans.qml", {}],
-            [4, ongletClavier, "OngletClavier.qml", {}],
-            [5, ongletApps, "OngletApps.qml", {}],
-            [6, ongletConnexion, "OngletConnexion.qml", {}],
-            [7, ongletDonnees, "OngletDonnees.qml", { ncEtatProc: ncEtatProc }]
+            [2, ongletIlot, "OngletIlot.qml", {}],
+            [3, ongletBureau, "OngletBureau.qml", {}],
+            [4, ongletEcrans, "OngletEcrans.qml", {}],
+            [5, ongletClavier, "OngletClavier.qml", {}],
+            [6, ongletApps, "OngletApps.qml", {}],
+            [7, ongletConnexion, "OngletConnexion.qml", {}],
+            [8, ongletDonnees, "OngletDonnees.qml", { ncEtatProc: ncEtatProc }]
         ]
     }
 
@@ -1992,7 +2006,8 @@ Rectangle {
             // les étapes suivantes : ici seule la charpente change.
             model: [
                 { icon: "palette", label: "Apparence" },
-                { icon: "cog", label: "Barres & Applets" },
+                { icon: "cog", label: "Barre" },
+                { icon: "widgets", label: "Îlot dynamique" },
                 { icon: "widgets", label: "Bureau & Lanceur" },
                 { icon: "monitor", label: root.isLaptop ? "Écrans & Système" : "Écrans & Système" },
                 { icon: "keyboard", label: "Clavier & Binds" },
@@ -2147,6 +2162,12 @@ Rectangle {
         // Corps dans OngletBarres.qml, instancie a l'ouverture de l'onglet.
         Loader {
             id: ongletBarres
+            width: mainFlickable.width
+        }
+
+        // ── Onglet « Îlot dynamique » ──────────────────────────────────────────────
+        Loader {
+            id: ongletIlot
             width: mainFlickable.width
         }
 

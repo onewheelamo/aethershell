@@ -9,7 +9,9 @@ Item {
     property string ile: "haut:fin"
     property var include: []
     property var exclude: []
+    property var directModel: null
     readonly property var applets: {
+        if (root.directModel !== null) return root.directModel
         if (root.ile === "") return []
         let list = Theme.appletsPourIle(root.ile)
         if (root.include && root.include.length > 0) {
