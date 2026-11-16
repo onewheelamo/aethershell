@@ -51,6 +51,60 @@ CollapsibleSection {
         width: parent.width
         spacing: 10
 
+        // Barre d'édition directe sur le bureau + aimantation grille
+        Row {
+            width: parent.width
+            spacing: Theme.space2
+
+            Rectangle {
+                width: editModeLbl.implicitWidth + 20
+                height: 28
+                radius: Theme.globalRadius
+                color: Theme.widgetsEditMode ? Theme.accent : Theme.surfaceVariant
+                border.width: 1
+                border.color: Theme.widgetsEditMode ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                Text {
+                    id: editModeLbl
+                    anchors.centerIn: parent
+                    text: Theme.widgetsEditMode ? "Édition sur bureau : ON" : "Édition sur le bureau"
+                    color: Theme.widgetsEditMode ? Theme.bg : Theme.fg
+                    font.pixelSize: Theme.textXs
+                    font.bold: Theme.widgetsEditMode
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.widgetsEditMode = !Theme.widgetsEditMode
+                }
+            }
+
+            Rectangle {
+                width: snapLbl.implicitWidth + 16
+                height: 28
+                radius: Theme.globalRadius
+                color: Theme.widgetsSnapGrid ? Qt.alpha(Theme.accent, 0.22) : Theme.surfaceVariant
+                border.width: 1
+                border.color: Theme.widgetsSnapGrid ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                Text {
+                    id: snapLbl
+                    anchors.centerIn: parent
+                    text: Theme.widgetsSnapGrid ? "Grille 16 px : ON" : "Grille 16 px : OFF"
+                    color: Theme.widgetsSnapGrid ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                    font.pixelSize: Theme.textXs
+                    font.bold: Theme.widgetsSnapGrid
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.widgetsSnapGrid = !Theme.widgetsSnapGrid
+                }
+            }
+        }
+
         Text {
             width: parent.width
             text: root.widgetsList.length === 0
@@ -170,6 +224,11 @@ CollapsibleSection {
                     const ia = ["deepseek", "ollama", "antigravity", "comptes"]
                     return ia.indexOf(widgetCard.wtype) >= 0 ? 85 : 100
                 }
+                readonly property string wStyle: {
+                    const s = String(widgetCard.modelData.style || "")
+                    if (s === "transparent" || s === "glass") return s
+                    return widgetCard.wOpacity <= 0.01 ? "transparent" : "glass"
+                }
 
                 width: parent.width
                 height: wcol.implicitHeight + 20
@@ -288,6 +347,53 @@ CollapsibleSection {
                             stepSize: 10
                             onValueModified: newVal =>
                                 root.runConfigCmd(["widget_move", widgetCard.wid, String(Number(widgetCard.modelData.x) || 0), String(newVal)])
+                        }
+                    }
+
+                    // Ligne 2b : Style « Glass / Carte » vs « Transparent »
+                    Row {
+                        width: parent.width
+                        spacing: Theme.space2
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 56
+                            text: "Style"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Repeater {
+                            model: [
+                                { code: "glass", label: "Glass / Carte" },
+                                { code: "transparent", label: "Transparent" }
+                            ]
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool actif: widgetCard.wStyle === modelData.code
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: stLbl.implicitWidth + 16
+                                height: 22
+                                radius: Theme.globalRadius
+                                color: actif ? Theme.accent : Theme.surfaceVariant
+                                border.width: 1
+                                border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                Text {
+                                    id: stLbl
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    color: actif ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.text2xs
+                                    font.bold: actif
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.runConfigCmd(["widget_set", widgetCard.wid, "style", modelData.code])
+                                }
+                            }
                         }
                     }
 
@@ -615,6 +721,65 @@ CollapsibleSection {
                         }
                     }
 
+                    // Widget Sticker : chemin de l'image PNG/SVG/WebP
+                    Row {
+                        width: parent.width
+                        spacing: Theme.space2
+                        visible: widgetCard.wtype === "sticker"
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 56
+                            text: "Image"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.textXs
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 56 - 78 - Theme.space2 * 2
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: Theme.bg
+                            border.width: 1
+                            border.color: stickerInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+
+                            TextInput {
+                                id: stickerInput
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: Text.AlignVCenter
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                                clip: true
+                                selectByMouse: true
+                                text: String(widgetCard.wOptions.image || "")
+                                onAccepted: root.runConfigCmd(["widget_set", widgetCard.wid, "image", text.trim()])
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: Theme.accent
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Appliquer"
+                                color: Theme.bg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.runConfigCmd(["widget_set", widgetCard.wid, "image", stickerInput.text.trim()])
+                            }
+                        }
+                    }
+
                     // Widget Quotas IA (comptes) : sélection des services surveillés.
                     Row {
                         width: parent.width
@@ -700,10 +865,7 @@ CollapsibleSection {
 
             Item {
                 width: parent.width - 76 - Theme.space2
-                // Six rangées visibles (28 px + 6 d'écart) : les dix-sept
-                // natures tiennent en 6 lignes de trois colonnes. Au-delà,
-                // on fait défiler et la bande du bas le signale.
-                height: Math.min(gridPicker.implicitHeight, 6 * 28 + 5 * 6 + 2)
+                height: Math.min(gridPicker.implicitHeight, 4 * 48 + 3 * 8 + 2)
 
                 Flickable {
                     id: widgetPicker
@@ -720,9 +882,9 @@ CollapsibleSection {
                     Grid {
                         id: gridPicker
                         width: widgetPicker.width
-                        columns: 3
-                        rowSpacing: 6
-                        columnSpacing: 6
+                        columns: 2
+                        rowSpacing: 8
+                        columnSpacing: 8
 
                         Repeater {
                             model: root.widgetTypeRows
@@ -730,32 +892,76 @@ CollapsibleSection {
                             Rectangle {
                                 id: typeCell
                                 required property var modelData
-                                width: (gridPicker.width - 2 * gridPicker.columnSpacing) / 3
-                                height: 28
+                                readonly property var meta: {
+                                    const list = root.widgetTypes || []
+                                    for (let i = 0; i < list.length; i++) {
+                                        if (list[i].type === modelData.type) return list[i]
+                                    }
+                                    return ({ icon: "widgets", preview: "" })
+                                }
+                                width: (gridPicker.width - gridPicker.columnSpacing) / 2
+                                height: 48
                                 radius: Theme.globalRadius
                                 color: modelData.present
                                     ? Qt.alpha(Theme.accent, 0.16) : Theme.surfaceVariant
                                 border.width: 1
                                 border.color: modelData.present
-                                    ? Theme.accent : Theme.surfaceVariant
+                                    ? Theme.accent : Qt.alpha(Theme.fg, 0.1)
 
                                 Row {
                                     anchors.left: parent.left
-                                    anchors.leftMargin: 8
+                                    anchors.leftMargin: 10
                                     anchors.right: parent.right
-                                    anchors.rightMargin: 6
+                                    anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 6
+                                    spacing: 8
 
                                     Rectangle {
-                                        width: 12
-                                        height: 12
-                                        radius: 3
-                                        color: typeCell.modelData.present
-                                            ? Theme.accent : "transparent"
+                                        width: 28
+                                        height: 28
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: 7
+                                        color: typeCell.modelData.present ? Theme.accent : Qt.alpha(Theme.fg, 0.08)
+
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            glyph: String(typeCell.meta.icon || "widgets")
+                                            size: Theme.iconSm
+                                            color: typeCell.modelData.present ? Theme.bg : Theme.fg
+                                        }
+                                    }
+
+                                    Column {
+                                        width: parent.width - 36 - 18
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 1
+
+                                        Text {
+                                            width: parent.width
+                                            text: typeCell.modelData.label
+                                            color: Theme.fg
+                                            font.pixelSize: Theme.textXs
+                                            font.bold: true
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            width: parent.width
+                                            text: String(typeCell.meta.preview || "")
+                                            color: Qt.alpha(Theme.fg, 0.58)
+                                            font.pixelSize: Theme.text2xs
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: 14
+                                        height: 14
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        radius: 4
+                                        color: typeCell.modelData.present ? Theme.accent : "transparent"
                                         border.width: 1
-                                        border.color: typeCell.modelData.present
-                                            ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                                        border.color: typeCell.modelData.present ? Theme.accent : Qt.alpha(Theme.fg, 0.35)
 
                                         Text {
                                             anchors.centerIn: parent
@@ -765,15 +971,6 @@ CollapsibleSection {
                                             font.pixelSize: 9
                                             font.bold: true
                                         }
-                                    }
-
-                                    Text {
-                                        width: parent.width - 18
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: typeCell.modelData.label
-                                        color: Theme.fg
-                                        font.pixelSize: Theme.textXs
-                                        elide: Text.ElideRight
                                     }
                                 }
 

@@ -226,6 +226,35 @@ Item {
                     color: Qt.alpha(Theme.fg, 0.65)
                 }
 
+                // Bouton Notes rapides (bascule vers l'îlot Notes)
+                Rectangle {
+                    Layout.preferredWidth: notesBtnLbl.implicitWidth + 14
+                    Layout.preferredHeight: 22
+                    radius: 6
+                    color: notesBtnMa.containsMouse ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08)
+
+                    Text {
+                        id: notesBtnLbl
+                        anchors.centerIn: parent
+                        text: "Notes"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.text2xs
+                        font.weight: Font.DemiBold
+                        color: notesBtnMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.85)
+                    }
+
+                    MouseArea {
+                        id: notesBtnMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Theme.islandPanelOpen = false
+                            Theme.islandNotesOpen = true
+                        }
+                    }
+                }
+
                 // Bouton réglages complets
                 Rectangle {
                     visible: Theme.showConfigButton

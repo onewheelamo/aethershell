@@ -160,8 +160,11 @@ Item {
     }
 
     function endPlacement(commit) {
-        if (commit && placingWindow)
-            moveWidget(placingWindow.w.id, Math.round(placingX), Math.round(placingY))
+        if (commit && placingWindow) {
+            const fx = Theme.widgetsSnapGrid ? Math.round(placingX / 16) * 16 : Math.round(placingX)
+            const fy = Theme.widgetsSnapGrid ? Math.round(placingY / 16) * 16 : Math.round(placingY)
+            moveWidget(placingWindow.w.id, fx, fy)
+        }
         placingWindow = null
     }
 
@@ -298,7 +301,7 @@ Item {
         // passe Wi-Fi y a besoin du clavier.
         WlrLayershell.keyboardFocus: (Theme.activePopup === "applet:reseau"
                                       || Theme.activePopup === "calendar"
-                                      || (Theme.barStyle === "island" && Theme.islandPanelOpen))
+                                      || (Theme.barStyle === "island" && (Theme.islandPanelOpen || Theme.wallpaperPickerOpen || Theme.islandLauncherOpen || Theme.islandNotesOpen)))
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-bar"
@@ -698,7 +701,7 @@ Item {
     PanelWindow {
         id: spotlightRestWindow
         screen: topBarWindow.screen
-        visible: !Theme.spotlightVisible
+        visible: !Theme.spotlightVisible && Theme.barStyle !== "island"
 
         // Six positions prédéfinies (PROPOSITION_widgets.md §3.5) : bord haut ou
         // bas, centre ou tiers gauche/droit — jamais une position libre.
@@ -1147,6 +1150,9 @@ Item {
                                                && !isNaN(Number(w.opacity))
             readonly property real cardOpacity: hasOpacity
                 ? Math.max(0, Math.min(1, Number(w.opacity))) : 0.35
+            readonly property bool isTransparentStyle: String(w.style || "") === "transparent"
+                || (!w.style && cardOpacity <= 0.01)
+            readonly property bool isGlassStyle: !isTransparentStyle && cardOpacity > 0.01
             // Un type sans composant (meteo.qml absent, faute de frappe) donnait une
             // carte de pad*2 = 36×36 avec le rayon global : un rond vide, illisible
             // comme diagnostic. On affiche un libellé explicite à la place.
@@ -1179,10 +1185,19 @@ Item {
                 id: carteWidget
                 anchors.fill: parent
                 radius: Theme.globalRadius
-                // Seul le fond suit l'opacité ; 0 = carte invisible, texte intact.
-                color: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
-                border.width: widgetWindow.w.border === false ? 0 : 1
-                border.color: Qt.alpha(Theme.accent, 0.16)
+                // Style Transparent : fond nul ; style Glass : SurfaceFloutee.
+                color: "transparent"
+                border.width: Theme.widgetsEditMode ? 2 : ((widgetWindow.isTransparentStyle || widgetWindow.w.border === false) ? 0 : 1)
+                border.color: Theme.widgetsEditMode ? Theme.accent : Qt.alpha(Theme.accent, 0.16)
+
+                SurfaceFloutee {
+                    anchors.fill: parent
+                    visible: widgetWindow.isGlassStyle
+                    rayon: Theme.globalRadius
+                    teinte: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
+                    bordureLargeur: 0
+                    actif: widgetWindow.isGlassStyle
+                }
 
                 // Clic milieu : les réglages de ce widget. Déclaré avant les
                 // autres surfaces de la carte, donc dessous : le glissement
@@ -1195,6 +1210,19 @@ Item {
                         root.menuWidgetX = Number(widgetWindow.w.x) || 0
                         root.menuWidgetY = Number(widgetWindow.w.y) || 0
                         root.menuWidgetId = String(widgetWindow.w.id || "")
+                    }
+                }
+
+                // Mode édition directe : clic gauche déplace le widget
+                MouseArea {
+                    anchors.fill: parent
+                    visible: Theme.widgetsEditMode
+                    acceptedButtons: Qt.LeftButton
+                    cursorShape: Qt.SizeAllCursor
+                    onPressed: mouse => {
+                        root.beginPlacement(widgetWindow,
+                            (Number(widgetWindow.w.x) || 0) + mouse.x,
+                            (Number(widgetWindow.w.y) || 0) + mouse.y)
                     }
                 }
 
@@ -1257,6 +1285,175 @@ Item {
                             widgetLoader.item.options = widgetWindow.w.options || ({})
                         }
                     }
+                }
+
+                // Poignées de coin + barre d'actions rapides en mode édition
+                Repeater {
+                    model: Theme.widgetsEditMode ? 4 : 0
+                    delegate: Rectangle {
+                        required property int index
+                        width: 7
+                        height: 7
+                        radius: 2
+                        color: Theme.accent
+                        anchors.top: (index < 2) ? parent.top : undefined
+                        anchors.bottom: (index >= 2) ? parent.bottom : undefined
+                        anchors.left: (index % 2 === 0) ? parent.left : undefined
+                        anchors.right: (index % 2 === 1) ? parent.right : undefined
+                        anchors.margins: -2
+                    }
+                }
+
+                Rectangle {
+                    visible: Theme.widgetsEditMode
+                    z: 10
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.margins: 4
+                    width: editToolsRow.implicitWidth + 8
+                    height: 22
+                    radius: 6
+                    color: Qt.alpha(Theme.bg, 0.88)
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.accent, 0.55)
+
+                    Row {
+                        id: editToolsRow
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        Rectangle {
+                            width: 18; height: 18; radius: 4
+                            color: decScaleMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
+                            Text { anchors.centerIn: parent; text: "−"; color: Theme.fg; font.pixelSize: 11; font.bold: true }
+                            MouseArea {
+                                id: decScaleMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
+                                    const nxt = Math.max(60, Math.round(cur - 10))
+                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 18; height: 18; radius: 4
+                            color: incScaleMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
+                            Text { anchors.centerIn: parent; text: "+"; color: Theme.fg; font.pixelSize: 11; font.bold: true }
+                            MouseArea {
+                                id: incScaleMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
+                                    const nxt = Math.min(160, Math.round(cur + 10))
+                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 18; height: 18; radius: 4
+                            color: styleTogMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
+                            Text { anchors.centerIn: parent; text: widgetWindow.isGlassStyle ? "◆" : "◇"; color: Theme.accent; font.pixelSize: 11 }
+                            MouseArea {
+                                id: styleTogMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const nxt = widgetWindow.isGlassStyle ? "transparent" : "glass"
+                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "style", nxt])
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 18; height: 18; radius: 4
+                            color: delWidMa.containsMouse ? Qt.alpha(Theme.error, 0.28) : "transparent"
+                            Text { anchors.centerIn: parent; text: "✕"; color: Theme.error; font.pixelSize: 10; font.bold: true }
+                            MouseArea {
+                                id: delWidMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_remove", String(widgetWindow.w.id)])
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Bandeau flottant de contrôle quand le mode édition des widgets est actif
+    PanelWindow {
+        id: widgetsEditBanner
+        screen: topBarWindow.screen
+        visible: Theme.widgetsEditMode
+        anchors { top: true }
+        margins.top: Theme.barHeight + 14
+        implicitWidth: editBannerRow.implicitWidth + 28
+        implicitHeight: 36
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-whichkey"
+
+        SurfaceFloutee {
+            anchors.fill: parent
+            rayon: Theme.pillRadius
+            teinte: Theme.surfaceBg
+            bordureCouleur: Theme.accent
+            bordureLargeur: 1
+            actif: true
+        }
+
+        Row {
+            id: editBannerRow
+            anchors.centerIn: parent
+            spacing: 12
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "ÉDITION WIDGETS"
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+                font.bold: true
+                color: Theme.accent
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: bannerSnapTxt.implicitWidth + 14
+                height: 22
+                radius: 6
+                color: Theme.widgetsSnapGrid ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08)
+                Text {
+                    id: bannerSnapTxt
+                    anchors.centerIn: parent
+                    text: Theme.widgetsSnapGrid ? "Grille 16 px" : "Libre"
+                    font.pixelSize: Theme.text2xs
+                    color: Theme.widgetsSnapGrid ? Theme.accent : Theme.fg
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.widgetsSnapGrid = !Theme.widgetsSnapGrid
+                }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: bannerDoneTxt.implicitWidth + 16
+                height: 22
+                radius: 6
+                color: Theme.accent
+                Text {
+                    id: bannerDoneTxt
+                    anchors.centerIn: parent
+                    text: "Terminer"
+                    font.pixelSize: Theme.text2xs
+                    font.bold: true
+                    color: Theme.bg
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.widgetsEditMode = false
                 }
             }
         }

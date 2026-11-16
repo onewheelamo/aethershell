@@ -1835,7 +1835,7 @@ def sync_programs_lua(app_data):
 # valide. Ajouter un fournisseur LLM passe par core/llm_providers.json.
 WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "systeme",
                 "reseau", "disques", "homelab", "hermes", "usb", "todo",
-                "presse_papiers",
+                "presse_papiers", "notes", "sticker",
                 "deepseek", "ollama", "antigravity", "comptes")
 WIDGET_DEFAULT_OPACITY = 0.35
 
@@ -1912,6 +1912,9 @@ def widget_set(wid, key, value):
             w[key] = str(value)
         elif key == "id":
             w[key] = str(value)
+        elif key == "style":
+            v = str(value).strip().lower()
+            w["style"] = "transparent" if v == "transparent" else "glass"
         else:
             # Tout le reste va dans options (secondes, ville, fichiers…). Une
             # valeur JSON (liste des fichiers suivis) est rangée telle quelle,

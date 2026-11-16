@@ -115,7 +115,13 @@ FocusScope {
 
     Keys.onEscapePressed: root.closeRequested()
 
-    Component.onCompleted: searchInput.forceActiveFocus()
+    Component.onCompleted: {
+        opacity = 1.0
+        searchInput.forceActiveFocus()
+    }
+
+    opacity: 0.0
+    Behavior on opacity { NumberAnimation { duration: Theme.panelAnimDuration; easing.type: Easing.OutCubic } }
 
     // Fond assombri — clic extérieur ferme l'overview
     Rectangle {

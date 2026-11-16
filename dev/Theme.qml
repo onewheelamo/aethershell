@@ -66,6 +66,19 @@ QtObject {
     property string barStyle: "classic"
     // État du panneau étendu de l'Îlot dynamique (Phase 3)
     property bool islandPanelOpen: false
+    property bool wallpaperPickerOpen: false
+    property bool islandLauncherOpen: false
+    property bool islandNotesOpen: false
+    property bool widgetsEditMode: false
+    property bool widgetsSnapGrid: true
+    property var wallpaperNavHook: null
+    onWallpaperPickerOpenChanged: {
+        if (wallpaperPickerOpen) {
+            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "aether-wp"])
+        } else {
+            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"])
+        }
+    }
     property int islandPanelTab: 0
     property string islandSidePanel: ""
     property bool islandCalendarRetracted: false
@@ -142,6 +155,9 @@ QtObject {
     onBarStyleChanged: {
         if (barStyle !== "island") {
             islandPanelOpen = false
+            wallpaperPickerOpen = false
+            islandLauncherOpen = false
+            islandNotesOpen = false
             islandSidePanel = ""
             islandNeedsKeyboard = false
             islandNavActive = false
@@ -1354,7 +1370,23 @@ QtObject {
             return root.islandNavActive
         }
         function toggleSpotlight() {
-            root.spotlightVisible = !root.spotlightVisible
+            if (root.barStyle === "island") {
+                root.activePopup = ""
+                root.islandPanelOpen = false
+                root.wallpaperPickerOpen = false
+                root.islandNotesOpen = false
+                root.islandLauncherOpen = !root.islandLauncherOpen
+            } else {
+                root.spotlightVisible = !root.spotlightVisible
+            }
+        }
+        function toggleNotes() {
+            if (root.barStyle !== "island") return
+            root.activePopup = ""
+            root.islandPanelOpen = false
+            root.wallpaperPickerOpen = false
+            root.islandLauncherOpen = false
+            root.islandNotesOpen = !root.islandNotesOpen
         }
         // Écran des raccourcis (SUPER + K) : show/hide idempotents à côté du
         // toggle, pour les tests scriptés (un toggle qui perd un appel dérive).
@@ -1363,6 +1395,28 @@ QtObject {
         }
         function toggleOverview() {
             root.overviewVisible = !root.overviewVisible
+        }
+        function toggleWidgetEditMode() {
+            root.widgetsEditMode = !root.widgetsEditMode
+        }
+        function toggleWallpaperPicker() {
+            if (root.barStyle === "island") {
+                root.activePopup = ""
+                root.islandPanelOpen = false
+                root.islandLauncherOpen = false
+                root.islandNotesOpen = false
+                root.wallpaperPickerOpen = !root.wallpaperPickerOpen
+            } else {
+                Quickshell.execDetached(["quickshell", "-n", "-p", Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"])
+            }
+        }
+        function wpNav(action: string) {
+            const a = String(action || "").toLowerCase()
+            if (a === "close" || a === "fermer") {
+                root.wallpaperPickerOpen = false
+                return
+            }
+            if (root.wallpaperNavHook) root.wallpaperNavHook(a)
         }
         function showCheatsheet() {
             root.cheatsheetVisible = true

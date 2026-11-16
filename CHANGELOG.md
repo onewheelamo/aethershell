@@ -9,6 +9,22 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.12.00] — 2026-11-16
+
+### Ajouté
+- **Îlot dynamique tout-en-un (façon Impasto)** :
+  - **Sélecteur de fond d'écran inline (`SUPER + W`)** (`dev/DynamicIsland.qml`, `dev/Theme.qml`, `dev/hypr_modular/binds.lua`) : carrousel horizontal de miniatures agrandies, submap dédiée `aether-wp` (navigation molette/flèches, `Entrée` applique et ferme), bouton *Aléatoire*.
+  - **Lanceur d'applications inline (`SUPER + R`)** (`dev/DynamicIsland.qml`, `dev/Theme.qml`) : recherche temps réel (`app_index.json`, `launch_history.json`, commandes `>`, prestataires `launcher_service.py` avec `--query` / `--limit` et état *« Recherche… »*).
+  - **Notes rapides / Post-its inline (`SUPER + N`)** (`dev/DynamicIsland.qml`, `dev/IslandPanel.qml`, `dev/Theme.qml`) : multi-notes auto-sauvegardées dans `~/.cache/quickshell/quick_notes.json`, copie presse-papiers et bouton *Bureau* pour épingler sur le bureau ; masquage de `spotlightRestWindow` en mode `island`.
+- **Refonte des widgets du bureau** :
+  - **Mode édition directe & Style Glass/Carte** (`dev/main.qml`, `dev/OngletBureau.qml`, `dev/Theme.qml`, `dev/core/config_manager.py`) : poignées visuelles, glisser-déposer direct avec aimantation grille `16 px`, barre d'actions rapide par widget (`−`/`+` échelle, style `glass` via `SurfaceFloutee` vs `transparent`, suppression), et bandeau de contrôle.
+  - **Catalogue visuel 2 colonnes & Nouveaux widgets** (`dev/widgets/notes.qml`, `dev/widgets/sticker.qml`, `dev/OngletBureau.qml`, `dev/config_panel.qml`) : widgets *Notes rapides* (synchronisé avec `quick_notes.json` + pastilles multi-notes + édition `✎`) et *Sticker / Image* (PNG/SVG/WebP).
+- **Cohérence visuelle & Thémage bout-en-bout** (`dev/core/sync_apps_theme.py`, `dev/core/generate_rofi_theme.sh`, `dev/DynamicIsland.qml`, `dev/OverviewOverlay.qml`, `dev/SubmapWhichKey.qml`) : propagation automatique de la palette active vers GTK 3/4, `gsettings color-scheme` et Qt5ct/Qt6ct, et unification des courbes/durées d'animation sur `Theme.panelAnimDuration` (`Easing.OutCubic`).
+
+### Modifié / Corrigé
+- **Raccourcis Hyprland** (`dev/hypr_modular/binds.lua`) : `SUPER + G` pour la Vue d'ensemble des fenêtres (`OverviewOverlay`), `SUPER + ,` / `SUPER + SHIFT + ,` (`hl.dsp.exec_cmd`) pour le scratchpad.
+- **ONLYOFFICE** (`dev/hypr_modular/windows.lua`) : ajout de `no_blur = true, no_shadow = true` sur `opaque-onlyoffice`.
+
 ## [0.3.11.00] — 2026-11-16
 
 ### Ajouté

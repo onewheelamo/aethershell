@@ -42,6 +42,10 @@ Item {
     implicitWidth: Math.min(760, Math.max(420, contentCol.implicitWidth + 32))
     implicitHeight: contentCol.implicitHeight + 24
 
+    opacity: 0.0
+    Component.onCompleted: opacity = 1.0
+    Behavior on opacity { NumberAnimation { duration: Theme.panelAnimDuration; easing.type: Easing.OutCubic } }
+
     SurfaceFloutee {
         anchors.fill: parent
         rayon: Math.max(Theme.globalRadius, 14)

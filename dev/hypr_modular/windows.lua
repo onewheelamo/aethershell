@@ -64,5 +64,5 @@ hl.window_rule({ name = "idle-firefox", match = { class = "(?i).*firefox.*" }, i
 
 hl.window_rule({ name = "opaque-firefox", match = { class = "(?i).*firefox.*" }, opaque = true, opacity = "1.0 override" })
 hl.window_rule({ name = "opaque-zen", match = { class = "(?i).*zen.*" }, opaque = true, opacity = "1.0 override" })
-hl.window_rule({ name = "opaque-onlyoffice", match = { class = "(?i).*onlyoffice.*" }, opaque = true, opacity = "1.0 override" })
+hl.window_rule({ name = "opaque-onlyoffice", match = { class = "(?i).*onlyoffice.*" }, opaque = true, opacity = "1.0 override", no_blur = true, no_shadow = true })
 hl.window_rule({ name = "opaque-video", match = { class = "(?i).*(mpv|vlc|totem|celluloid|haruna).*" }, opaque = true, opacity = "1.0 override" })

@@ -320,3 +320,8 @@ fi
 if [ -f "$SCRIPT_DIR/generate_terminal_theme.py" ]; then
     python3 "$SCRIPT_DIR/generate_terminal_theme.py" >/dev/null 2>&1 || true
 fi
+
+# 6. Synchronise la palette vers GTK 3/4 et Qt5ct/Qt6ct
+if [ -f "$SCRIPT_DIR/sync_apps_theme.py" ]; then
+    python3 "$SCRIPT_DIR/sync_apps_theme.py" >/dev/null 2>&1 || true
+fi
