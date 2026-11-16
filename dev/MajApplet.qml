@@ -32,11 +32,15 @@ Item {
 
     // Sans gestionnaire connu, l'applet n'a rien à dire : il s'efface.
     // Si `Theme.majSeulementSiDispo` est activé, on masque l'applet tant qu'il n'y a aucune MAJ.
+    // Attention : `implicitWidth` doit dépendre de `doitAfficher` et non de `visible`,
+    // car `Applet.qml` masque le parent (`efface_vide`) tant que `implicitWidth <= 0`,
+    // ce qui maintiendrait `visible === false` en boucle fermée.
     readonly property bool disponible: gestionnaire !== ""
     readonly property bool masqueSansMaj: Theme.majSeulementSiDispo && (!pret || nombre <= 0)
-    visible: disponible && !masqueSansMaj
+    readonly property bool doitAfficher: disponible && !masqueSansMaj
+    visible: doitAfficher
 
-    implicitWidth: visible ? (rangee.implicitWidth + Math.round(10 * echelle)) : 0
+    implicitWidth: doitAfficher ? (rangee.implicitWidth + Math.round(10 * echelle)) : 0
     implicitHeight: Math.max(20, Math.round(26 * echelle))
 
     function verifier() {

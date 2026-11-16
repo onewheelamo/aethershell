@@ -61,6 +61,36 @@ Item {
         return Math.max(5, Math.min(100, Math.round(b)))
     }
 
+    property string powerProfile: "balanced"
+    property bool hasPowerProfiles: false
+
+    property bool audioDrawerOpen: false
+    property var audioSinks: []
+    property string defaultSinkName: ""
+
+    property var scratchpadWindows: []
+
+    function labelProfil(p) {
+        if (p === "performance") return "Performance"
+        if (p === "power-saver") return "Économie"
+        return "Équilibré"
+    }
+
+    function nextProfil(p) {
+        if (p === "power-saver") return "balanced"
+        if (p === "balanced") return "performance"
+        return "power-saver"
+    }
+
+    function shortSinkLabel(name) {
+        const s = String(name || "")
+        if (s.indexOf("bluez") !== -1) return "Bluetooth"
+        if (s.indexOf("hdmi") !== -1 || s.indexOf("HDMI") !== -1) return "HDMI / DisplayPort"
+        if (s.indexOf("usb") !== -1 || s.indexOf("USB") !== -1) return "Audio USB"
+        if (s.indexOf("analog") !== -1 || s.indexOf("pci") !== -1) return "Haut-parleurs / Jack"
+        return s.length > 26 ? s.substring(0, 25) + "…" : s
+    }
+
     function rafraichirEtats() {
         if (!btProc.running) {
             btProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
@@ -72,6 +102,15 @@ Item {
         }
         if (!wifiCheckProc.running) {
             wifiCheckProc.running = true
+        }
+        if (!powerProfileReadProc.running) {
+            powerProfileReadProc.running = true
+        }
+        if (!scratchpadProc.running) {
+            scratchpadProc.running = true
+        }
+        if (root.audioDrawerOpen && !audioSinksProc.running) {
+            audioSinksProc.running = true
         }
     }
 
@@ -181,7 +220,84 @@ Item {
         id: brightProc
     }
 
-    // Composant tuile réutilisable (6 tuiles rapides)
+    Process {
+        id: powerProfileReadProc
+        command: ["powerprofilesctl", "get"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const p = text.trim()
+                if (p === "performance" || p === "balanced" || p === "power-saver") {
+                    root.hasPowerProfiles = true
+                    root.powerProfile = p
+                }
+            }
+        }
+    }
+
+    Process {
+        id: powerProfileSetProc
+        onExited: if (!powerProfileReadProc.running) powerProfileReadProc.running = true
+    }
+
+    Process {
+        id: audioSinksProc
+        command: ["sh", "-c", "pactl get-default-sink 2>/dev/null; echo '---'; pactl list short sinks 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts = text.split("---")
+                root.defaultSinkName = (parts[0] || "").trim()
+                const lines = (parts[1] || "").trim().split("\n")
+                const list = []
+                for (let i = 0; i < lines.length; i++) {
+                    const cols = lines[i].trim().split(/\s+/)
+                    if (cols.length >= 2 && cols[1]) {
+                        list.push({ name: cols[1], label: root.shortSinkLabel(cols[1]) })
+                    }
+                }
+                root.audioSinks = list
+            }
+        }
+    }
+
+    Process {
+        id: audioSwitchProc
+        onExited: if (!audioSinksProc.running) audioSinksProc.running = true
+    }
+
+    Process {
+        id: scratchpadProc
+        command: ["hyprctl", "clients", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const all = JSON.parse(text)
+                    const res = []
+                    if (Array.isArray(all)) {
+                        for (let i = 0; i < all.length; i++) {
+                            const c = all[i]
+                            if (c && c.workspace && String(c.workspace.name || "") === "special:scratchpad") {
+                                res.push({
+                                    address: String(c.address || ""),
+                                    klass: String(c["class"] || c.initialClass || "App"),
+                                    title: String(c.title || c["class"] || "Fenêtre")
+                                })
+                            }
+                        }
+                    }
+                    root.scratchpadWindows = res
+                } catch (e) {
+                    root.scratchpadWindows = []
+                }
+            }
+        }
+    }
+
+    Process {
+        id: scratchpadActionProc
+        onExited: if (!scratchpadProc.running) scratchpadProc.running = true
+    }
+
+    // Composant tuile réutilisable (tuiles rapides)
     component QuickTile: Rectangle {
         id: tile
         property string glyphName: "cog"
@@ -193,7 +309,7 @@ Item {
         signal chevronClicked()
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 50
+        Layout.preferredHeight: 42
         radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
         color: active
             ? Qt.alpha(Theme.accent, tileMa.containsMouse ? 0.28 : 0.20)
@@ -499,9 +615,18 @@ Item {
         }
 
         // ── Contrôles rapides à droite ────────────────────────────────────
-        ColumnLayout {
+        Flickable {
+            id: controlsFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
+            contentWidth: width
+            contentHeight: controlsCol.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+
+        ColumnLayout {
+            id: controlsCol
+            width: controlsFlick.width
             spacing: 8
 
         // En-tête onglet
@@ -530,12 +655,12 @@ Item {
             color: Qt.alpha(Theme.fg, 0.1)
         }
 
-        // Grille 2x3 des 6 tuiles
+        // Grille 2x4 des tuiles rapides
         GridLayout {
             Layout.fillWidth: true
             columns: 2
             columnSpacing: 10
-            rowSpacing: 6
+            rowSpacing: 5
 
             QuickTile {
                 glyphName: root.wifiConnected ? "wifi-full" : "wifi"
@@ -619,7 +744,7 @@ Item {
             // Tuile 6 : Session & Énergie (mini-boutons directs)
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 50
+                Layout.preferredHeight: 42
                 radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
                 color: Qt.alpha(Theme.surfaceVariant, 0.34)
                 border.width: 1
@@ -678,6 +803,30 @@ Item {
                             }
                         }
                     }
+                }
+            }
+
+            // Tuile 7 : Anti-veille (Caffeine)
+            QuickTile {
+                glyphName: "coffee"
+                title: "Caffeine"
+                subtitle: Theme.caffeineActif ? "Veille bloquée" : "Inactif"
+                active: Theme.caffeineActif
+                onToggled: Theme.caffeineActif = !Theme.caffeineActif
+            }
+
+            // Tuile 8 : Profil de performance
+            QuickTile {
+                glyphName: "speedometer"
+                title: "Performance"
+                subtitle: root.hasPowerProfiles ? root.labelProfil(root.powerProfile) : "Indisponible"
+                active: root.hasPowerProfiles && root.powerProfile === "performance"
+                onToggled: {
+                    if (!root.hasPowerProfiles || powerProfileSetProc.running) return
+                    const nxt = root.nextProfil(root.powerProfile)
+                    root.powerProfile = nxt
+                    powerProfileSetProc.command = ["powerprofilesctl", "set", nxt]
+                    powerProfileSetProc.running = true
                 }
             }
         }
@@ -896,14 +1045,16 @@ Item {
                 Layout.preferredWidth: 26
                 Layout.preferredHeight: 24
                 radius: 6
-                color: audioTabMa.containsMouse ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08)
+                color: root.audioDrawerOpen
+                    ? Qt.alpha(Theme.accent, 0.28)
+                    : (audioTabMa.containsMouse ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08))
 
                 Text {
                     anchors.centerIn: parent
                     text: "⇄"
                     font.family: Theme.fontUi
                     font.pixelSize: 12
-                    color: Theme.fg
+                    color: root.audioDrawerOpen ? Theme.accent : Theme.fg
                 }
 
                 MouseArea {
@@ -911,7 +1062,65 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.islandPanelTab = 2
+                    onClicked: {
+                        root.audioDrawerOpen = !root.audioDrawerOpen
+                        if (root.audioDrawerOpen && !audioSinksProc.running) {
+                            audioSinksProc.running = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sous-tiroir sélecteur de sortie audio instantané
+        Rectangle {
+            visible: root.audioDrawerOpen
+            Layout.fillWidth: true
+            Layout.preferredHeight: sinkFlow.implicitHeight + 12
+            radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
+            color: Qt.alpha(Theme.surfaceVariant, 0.35)
+            border.width: 1
+            border.color: Qt.alpha(Theme.accent, 0.3)
+
+            Flow {
+                id: sinkFlow
+                anchors.fill: parent
+                anchors.margins: 6
+                spacing: 6
+
+                Repeater {
+                    model: root.audioSinks
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property bool current: modelData.name === root.defaultSinkName
+                        width: sinkLbl.implicitWidth + 16
+                        height: 24
+                        radius: 6
+                        color: current ? Theme.accent : (sinkMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.06))
+
+                        Text {
+                            id: sinkLbl
+                            anchors.centerIn: parent
+                            text: modelData.label
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.text2xs
+                            font.bold: current
+                            color: current ? Theme.bg : Theme.fg
+                        }
+
+                        MouseArea {
+                            id: sinkMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (audioSwitchProc.running) return
+                                root.defaultSinkName = modelData.name
+                                audioSwitchProc.command = ["pactl", "set-default-sink", modelData.name]
+                                audioSwitchProc.running = true
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -997,7 +1206,86 @@ Item {
             Item { Layout.preferredWidth: 26 }
         }
 
-        Item { Layout.fillHeight: true }
+        // Barre Scratchpads visuels (`special:scratchpad`)
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 30
+            radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
+            color: Qt.alpha(Theme.surfaceVariant, 0.30)
+            border.width: 1
+            border.color: Qt.alpha(Theme.fg, 0.08)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 8
+                spacing: 6
+
+                Text {
+                    text: "SCRATCHPAD"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    font.weight: Font.Bold
+                    color: Theme.accent
+                }
+
+                Text {
+                    visible: root.scratchpadWindows.length === 0
+                    Layout.fillWidth: true
+                    text: "Aucune fenêtre (SUPER + ,)"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    color: Qt.alpha(Theme.fg, 0.5)
+                    elide: Text.ElideRight
+                }
+
+                Row {
+                    visible: root.scratchpadWindows.length > 0
+                    Layout.fillWidth: true
+                    spacing: 5
+                    clip: true
+
+                    Repeater {
+                        model: root.scratchpadWindows.slice(0, 4)
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: Math.min(115, spLbl.implicitWidth + 14)
+                            height: 20
+                            radius: 6
+                            color: spMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
+
+                            Text {
+                                id: spLbl
+                                anchors.centerIn: parent
+                                width: parent.width - 10
+                                horizontalAlignment: Text.AlignHCenter
+                                text: modelData.klass
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.text2xs
+                                color: spMa.containsMouse ? Theme.accent : Theme.fg
+                                elide: Text.ElideRight
+                            }
+
+                            MouseArea {
+                                id: spMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Theme.islandPanelOpen = false
+                                    scratchpadActionProc.command = [
+                                        "sh", "-c",
+                                        "hyprctl dispatch togglespecialworkspace scratchpad && hyprctl dispatch focuswindow address:" + modelData.address
+                                    ]
+                                    scratchpadActionProc.running = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        }
         }
     }
 }

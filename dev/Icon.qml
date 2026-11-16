@@ -73,6 +73,8 @@ Item {
         "memory": "\u{F035B}",
         "battery": "\u{F0079}",
         "power": "\u{F0425}",
+        "coffee": "\u{F0176}",
+        "speedometer": "\u{F04C5}",
         "restart": "\u{F0709}",
         "sleep": "\u{F0904}",
         "lock": "\u{F033E}",

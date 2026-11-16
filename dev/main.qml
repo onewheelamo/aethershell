@@ -913,6 +913,60 @@ Item {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // VUE D'ENSEMBLE DES FENÊTRES — MISSION CONTROL (SUPER + G)
+    // ────────────────────────────────────────────────────────────────────────
+    property var overviewClients: []
+
+    Process {
+        id: overviewClientsProc
+        command: ["hyprctl", "clients", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const parsed = JSON.parse(text)
+                    root.overviewClients = Array.isArray(parsed) ? parsed : []
+                } catch (e) {
+                    root.overviewClients = []
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Theme
+        function onOverviewVisibleChanged() {
+            if (Theme.overviewVisible && !overviewClientsProc.running) {
+                overviewClientsProc.running = true
+            }
+        }
+    }
+
+    PanelWindow {
+        id: overviewWindow
+        screen: topBarWindow.screen
+        visible: Theme.overviewVisible
+        anchors { top: true; bottom: true; left: true; right: true }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: Theme.overviewVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-overview"
+
+        Loader {
+            anchors.fill: parent
+            source: Theme.overviewVisible ? "OverviewOverlay.qml" : ""
+            onLoaded: {
+                if (!item) return
+                item.clients = Qt.binding(() => root.overviewClients)
+                item.closeRequested.connect(() => { Theme.overviewVisible = false })
+                item.refreshRequested.connect(() => {
+                    if (!overviewClientsProc.running) overviewClientsProc.running = true
+                })
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // TIROIR DE L'HISTORIQUE DES NOTIFICATIONS — surface indépendante du panneau :
     // elle garde tout ce qui est arrivé, y compris ce qui a été effacé du panneau
     // ou fermé par l'application. Ouverture par l'icône de l'en-tête du panneau,

@@ -74,6 +74,11 @@ QtObject {
     property bool islandNavActive: false
     property var islandNavHook: null
     property string activeSubmap: ""
+    property bool caffeineActif: false
+    property Process caffeineProc: Process {
+        command: ["systemd-inhibit", "--what=idle", "--who=AetherShell", "--why=Mode Caffeine", "sleep", "infinity"]
+        running: root.caffeineActif
+    }
     onIslandNavActiveChanged: {
         if (!islandNavActive) {
             Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"])
@@ -371,6 +376,7 @@ QtObject {
     property int calquesVersion: 0
     // Écran des raccourcis (SUPER + K) : surface fixe, centrée, comme le panneau.
     property bool cheatsheetVisible: false
+    property bool overviewVisible: false
     // Barre de capture (SUPER + SHIFT + S) : pastille verticale à gauche.
     property bool screenshotPickerVisible: false
     property real cheatsheetOpacity: 0.88
@@ -1354,6 +1360,9 @@ QtObject {
         // toggle, pour les tests scriptés (un toggle qui perd un appel dérive).
         function toggleCheatsheet() {
             root.cheatsheetVisible = !root.cheatsheetVisible
+        }
+        function toggleOverview() {
+            root.overviewVisible = !root.overviewVisible
         }
         function showCheatsheet() {
             root.cheatsheetVisible = true

@@ -375,7 +375,7 @@ SHELL_BLUR_END = "-- END shell-blur"
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
                          "shell-bar-cote-droite", "shell-osd", "shell-config",
                          "shell-onboarding", "shell-spotlight",
-                         "shell-spotlight-rest", "shell-cheatsheet", "shell-whichkey",
+                         "shell-spotlight-rest", "shell-cheatsheet", "shell-whichkey", "shell-overview",
                          "shell-tray-menu", "shell-shotbar",
                          "shell-menu-session", "shell-menu-widget",
                          # Les deux sélecteurs de fichiers : fenêtres de la taille

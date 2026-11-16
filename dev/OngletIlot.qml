@@ -268,7 +268,6 @@ Column {
             model: [
                 { key: "ilot_show_vpn",        label: "Voyant VPN",             desc: "Point d'état VPN",                    mode: Theme.ilotShowVpn },
                 { key: "ilot_show_capture",    label: "Voyant Capture",         desc: "Capture vidéo / audio active",        mode: Theme.ilotShowCapture },
-                { key: "ilot_show_media",      label: "Titre média en cours",   desc: "Morceau joué dans la pilule",         mode: Theme.ilotShowMedia },
                 { key: "ilot_show_planka",     label: "Échéance Kanban Planka", desc: "Icône si une carte approche",         mode: Theme.ilotShowPlanka },
                 { key: "ilot_show_workspaces", label: "Workspaces",             desc: "Points des bureaux virtuels",         mode: Theme.ilotShowWorkspaces },
                 { key: "ilot_show_clock",      label: "Horloge",                desc: "Heure (et date en mode étendu)",      mode: Theme.ilotShowClock }
@@ -366,7 +365,7 @@ Column {
         id: secIlotApplets
         width: parent.width
         title: "Applets de l'îlot"
-        summary: "Systray · Luminosité/Nuit · Batterie · Météo · etc."
+        summary: "Systray · Titre média · Luminosité/Nuit · Batterie · etc."
         expanded: root ? root.sectionOpen("ilot_applets", false) : false
         onToggled: {
             if (!root) return
@@ -377,6 +376,7 @@ Column {
         Repeater {
             model: [
                 { id: "systray",         label: "Systray",             desc: "Icônes d'applications en arrière-plan" },
+                { id: "ilot_media",      styleKey: "ilot_show_media", label: "Titre média en cours", desc: "Morceau joué dans l'îlot dynamique" },
                 { id: "luminosite",      label: "Luminosité & Nuit",   desc: "Réglage écran et filtre lumière bleue" },
                 { id: "batterie",        label: "Batterie",            desc: "Niveau et charge (laptop)" },
                 { id: "minimise",        label: "Fenêtres minimisées", desc: "Icônes des fenêtres réduites" },
@@ -391,7 +391,7 @@ Column {
 
             delegate: Rectangle {
                 required property var modelData
-                readonly property string curMode: Theme.ilotAppletModeFor(modelData.id)
+                readonly property string curMode: modelData.styleKey ? Theme.ilotShowMedia : Theme.ilotAppletModeFor(modelData.id)
                 readonly property bool isMaj: modelData.id === "maj"
                 width: parent ? parent.width : 0
                 height: isMaj ? 78 : 46
@@ -471,7 +471,14 @@ Column {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: if (root) root.runConfigCmd(["ilot_applet_mode", appRow.modelData.id, modelData.code])
+                                        onClicked: {
+                                            if (!root) return
+                                            if (appRow.modelData.styleKey) {
+                                                root.runConfigCmd(["style", appRow.modelData.styleKey, modelData.code])
+                                            } else {
+                                                root.runConfigCmd(["ilot_applet_mode", appRow.modelData.id, modelData.code])
+                                            }
+                                        }
                                     }
                                 }
                             }

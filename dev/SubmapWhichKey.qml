@@ -46,7 +46,6 @@ Item {
         anchors.fill: parent
         rayon: Math.max(Theme.globalRadius, 14)
         teinte: Theme.surfaceBg
-        opacite: Theme.surfaceOpacity
         bordureCouleur: Qt.alpha(Theme.accent, 0.45)
         bordureLargeur: 1
         actif: true

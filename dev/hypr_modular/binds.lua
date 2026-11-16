@@ -109,7 +109,10 @@ hl.bind(mainMod .. " + ALT + H", hl.dsp.exec_cmd("quickshell ipc -n call shell n
 hl.bind(mainMod .. " + SHIFT + H", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleConfig"), { description = "panneau de réglages" })  -- essentiel
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("quickshell -n -p ~/.config/quickshell/hyprquickpaper"), { description = "fond d'écran" })
 hl.bind(mainMod .. " + K", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleCheatsheet"), { description = "raccourcis" })  -- essentiel
+hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("quickshell ipc -n call shell toggleOverview"), { description = "vue d'ensemble des fenêtres" })
 hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd("quickshell ipc -n call shell showNotifHistory"), { description = "historique des notifications" })
+hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd("hyprctl dispatch togglespecialworkspace scratchpad"), { description = "afficher/masquer le scratchpad" })
+hl.bind(mainMod .. " + SHIFT + comma", hl.dsp.exec_cmd("hyprctl dispatch movetoworkspacesilent special:scratchpad"), { description = "envoyer la fenêtre au scratchpad" })
 -- Placement d'un widget de bureau : le shell lit la position du curseur, trouve le
 -- widget dessous et affiche une surface plein écran qui le fait suivre la souris.
 -- SUPER + clic ne peut pas servir (déjà pris par le glisser de fenêtre) et

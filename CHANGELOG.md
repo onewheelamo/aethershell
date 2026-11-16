@@ -9,6 +9,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.11.00] — 2026-11-16
+
+### Ajouté
+- **Quick Toggles enrichis** (`dev/IslandTabControles.qml`, `dev/Theme.qml`, `dev/Icon.qml`) : tuile **Caffeine** (`systemd-inhibit --what=idle`), tuile **Performance** (`powerprofilesctl`), sélecteur de sortie audio instantané (`pactl`) et colonne de droite scrollable (`Flickable`).
+- **Scratchpads visuels** (`dev/hypr_modular/binds.lua`, `dev/IslandTabControles.qml`) : raccourcis `SUPER + ,` / `SUPER + SHIFT + ,` (`comma`) pour `special:scratchpad` et barre de rappel rapide dans l'onglet Contrôles.
+- **Vue d'ensemble des fenêtres / « Mission Control »** (`dev/OverviewOverlay.qml`, `dev/main.qml`, `dev/Theme.qml`, `dev/hypr_modular/binds.lua`, `dev/hypr_modular/general.lua`, `dev/core/config_manager.py`) : overlay plein écran `SUPER + G` (`shell-overview`), filtre temps réel, navigation clavier (`Hyprland.usingLua` + `Hyprland.dispatch`), focus au clic gauche et fermeture au clic milieu / `✕`.
+
+### Corrigé
+- **Îlot dynamique** (`dev/DynamicIsland.qml`) : suppression du test `&& implicitWidth > 0` sur `leftApplets` / `rightApplets` qui empêchait l'affichage du `systray` (ou d'applets chargés asynchronement) lorsqu'il était seul dans une rangée.
+- **Applet Mises à jour** (`dev/MajApplet.qml`) : rupture de l'interblocage `visible` / `implicitWidth` avec `efface_vide`.
+- **Onglet Îlot dynamique** (`dev/OngletIlot.qml`) : déplacement de *Titre média en cours* (`ilot_show_media`) dans le tiroir *Applets de l'îlot*.
+
 ## [0.3.10.00] — 2026-11-16
 
 ### Ajouté

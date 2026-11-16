@@ -552,7 +552,7 @@ Item {
             AppletRow {
                 id: leftApplets
                 directModel: Theme.appletsPourIlot("expanded", "left")
-                visible: applets.length > 0 && implicitWidth > 0
+                visible: applets.length > 0
                 anchors.verticalCenter: parent.verticalCenter
             }
 
@@ -624,7 +624,7 @@ Item {
             AppletRow {
                 id: rightApplets
                 directModel: Theme.appletsPourIlot("expanded", "right")
-                visible: applets.length > 0 && implicitWidth > 0
+                visible: applets.length > 0
                 anchors.verticalCenter: parent.verticalCenter
             }
 
