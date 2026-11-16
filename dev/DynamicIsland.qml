@@ -185,7 +185,15 @@ Item {
         && !meteoExpanded
         && !wallpaperExpanded
         && !launcherExpanded
-    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (notesExpanded ? "notes" : (launcherExpanded ? "launcher" : (wallpaperExpanded ? "wallpaper" : (meteoExpanded ? "meteo" : (expanded ? "etendu_barre" : "compact"))))))
+    readonly property bool themeExpanded: Theme.barStyle === "island"
+        && Theme.themePickerOpen
+        && !panelOpen
+        && !notifToastActive
+        && !meteoExpanded
+        && !wallpaperExpanded
+        && !launcherExpanded
+        && !notesExpanded
+    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (themeExpanded ? "theme" : (notesExpanded ? "notes" : (launcherExpanded ? "launcher" : (wallpaperExpanded ? "wallpaper" : (meteoExpanded ? "meteo" : (expanded ? "etendu_barre" : "compact")))))))
 
     property var wallpaperList: []
     property int wallpaperSelectedIdx: 0
@@ -254,6 +262,77 @@ Item {
 
     Component.onCompleted: {
         Theme.wallpaperNavHook = root.handleWallpaperNav
+        Theme.themeNavHook = root.handleThemeNav
+    }
+
+    // ── Sélecteur de jeu de couleurs inline (SUPER + C) ──────────────────
+    property int themeSelectedIdx: 0
+
+    Process {
+        id: islandThemesScanProc
+        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+    }
+
+    function applyThemeScheme(nom) {
+        if (!nom) return
+        Quickshell.execDetached(["python3", Quickshell.shellPath("core/theme_manager.py"), String(nom)])
+        Theme.themePickerOpen = false
+    }
+
+    function handleThemeNav(action) {
+        const list = Theme.paletteNoms || []
+        const n = list.length
+        if (action === "prev" || action === "left" || action === "gauche") {
+            if (n > 0) {
+                root.themeSelectedIdx = (root.themeSelectedIdx - 1 + n) % n
+                themeListView.positionViewAtIndex(root.themeSelectedIdx, ListView.Center)
+            }
+        } else if (action === "next" || action === "right" || action === "droite") {
+            if (n > 0) {
+                root.themeSelectedIdx = (root.themeSelectedIdx + 1) % n
+                themeListView.positionViewAtIndex(root.themeSelectedIdx, ListView.Center)
+            }
+        } else if (action === "apply" || action === "valider") {
+            if (n > 0) {
+                const idx = Math.max(0, Math.min(n - 1, root.themeSelectedIdx))
+                root.applyThemeScheme(list[idx])
+            }
+        }
+    }
+
+    property bool pretGrabTheme: false
+    onThemeExpandedChanged: {
+        if (themeExpanded) {
+            retractTimer.stop()
+            expanded = true
+            pretGrabTheme = false
+            delaiGrabTheme.restart()
+            if (!islandThemesScanProc.running) islandThemesScanProc.running = true
+            const list = Theme.paletteNoms || []
+            const cur = list.indexOf(Theme.activeTheme)
+            root.themeSelectedIdx = cur >= 0 ? cur : 0
+            themeListView.positionViewAtIndex(root.themeSelectedIdx, ListView.Center)
+            themeContainer.forceActiveFocus()
+        } else {
+            delaiGrabTheme.stop()
+            pretGrabTheme = false
+            if (!isHovered && !isPopupOpen && !panelOpen) retractTimer.restart()
+        }
+    }
+
+    Timer {
+        id: delaiGrabTheme
+        interval: 150
+        repeat: false
+        onTriggered: if (root.themeExpanded) root.pretGrabTheme = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.themeExpanded && root.pretGrabTheme
+        windows: (root.QsWindow && root.QsWindow.window) ? [root.QsWindow.window] : []
+        onCleared: {
+            if (Theme.themePickerOpen) Theme.themePickerOpen = false
+        }
     }
 
     // Attrapeur de focus Hyprland pour le sélecteur de fonds d'écran inline
@@ -664,6 +743,7 @@ Item {
     function ouvrirPanneau(tabIdx) {
         Theme.activePopup = ""
         Theme.wallpaperPickerOpen = false
+        Theme.themePickerOpen = false
         Theme.islandLauncherOpen = false
         Theme.islandNotesOpen = false
         if (tabIdx !== undefined) Theme.islandPanelTab = tabIdx
@@ -704,8 +784,9 @@ Item {
     readonly property real wallpaperHeight: 224
     readonly property real launcherHeight: Math.min(440, 74 + Math.max(1, root.launcherResults.length) * 44 + 14)
     readonly property real notesHeight: 270
-    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight)))))
-    height: panelOpen ? 420 : (notifToastActive ? toastHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight)))))
+    readonly property real themePickerHeight: 164
+    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))))))
+    height: panelOpen ? 420 : (notifToastActive ? toastHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))))))
     Behavior on height {
         NumberAnimation {
             duration: Theme.panelAnimDuration
@@ -721,13 +802,14 @@ Item {
     readonly property real wallpaperWidth: 880
     readonly property real launcherWidth: 560
     readonly property real notesWidth: 520
+    readonly property real themePickerWidth: 780
     readonly property real expandedWidth: Math.max(
         compactRestWidth,
         fullContentRow.implicitWidth + Theme.padH * 2
     )
 
     readonly property int sidePanelWidth: (panelOpen && Theme.islandSidePanel !== "") ? 340 : 0
-    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (notesExpanded ? notesWidth : (launcherExpanded ? launcherWidth : (wallpaperExpanded ? wallpaperWidth : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth))))))
+    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (themeExpanded ? themePickerWidth : (notesExpanded ? notesWidth : (launcherExpanded ? launcherWidth : (wallpaperExpanded ? wallpaperWidth : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth)))))))
 
     Behavior on width {
         NumberAnimation {
@@ -740,12 +822,12 @@ Item {
     SurfaceFloutee {
         id: bgRect
         anchors.fill: parent
-        rayon: root.panelOpen ? Math.max(Theme.pillRadius, 18) : ((root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded) ? Math.max(Theme.globalRadius, 16) : Theme.pillRadius)
+        rayon: root.panelOpen ? Math.max(Theme.pillRadius, 18) : ((root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? Math.max(Theme.globalRadius, 16) : Theme.pillRadius)
         Behavior on rayon { NumberAnimation { duration: Math.max(80, Theme.panelAnimDuration - 20); easing.type: Easing.OutCubic } }
-        teinte: (root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded) ? Theme.surfaceBg : Theme.barBg
-        bordureCouleur: (root.isCalendarOpen || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded) ? Theme.accentMuted : Theme.accent
+        teinte: (root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? Theme.surfaceBg : Theme.barBg
+        bordureCouleur: (root.isCalendarOpen || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? Theme.accentMuted : Theme.accent
         bordureLargeur: Theme.barBorder ? 1 : 0
-        actif: root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded
+        actif: root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -758,7 +840,7 @@ Item {
         anchors.right: parent.right
         height: Theme.barHeight
         clip: true
-        opacity: (root.expanded || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded) ? 0.0 : 1.0
+        opacity: (root.expanded || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? 0.0 : 1.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.OutCubic } }
 
@@ -949,7 +1031,7 @@ Item {
         anchors.right: parent.right
         height: Theme.barHeight
         clip: true
-        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive && !root.meteoExpanded && !root.wallpaperExpanded && !root.launcherExpanded && !root.notesExpanded && root.width >= root.expandedWidth - 16) ? 1.0 : 0.0
+        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive && !root.meteoExpanded && !root.wallpaperExpanded && !root.launcherExpanded && !root.notesExpanded && !root.themeExpanded && root.width >= root.expandedWidth - 16) ? 1.0 : 0.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
@@ -2186,6 +2268,178 @@ Item {
                             font.family: Theme.fontUi
                             font.pixelSize: Theme.textSm
                             color: Qt.alpha(Theme.fg, 0.42)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // SÉLECTEUR DE JEU DE COULEURS INLINE (SUPER + C)
+    // ──────────────────────────────────────────────────────────────────────
+    Item {
+        id: themeContainer
+        anchors.fill: parent
+        clip: true
+        focus: root.themeExpanded
+        Keys.onEscapePressed: Theme.themePickerOpen = false
+        Keys.onLeftPressed: root.handleThemeNav("prev")
+        Keys.onRightPressed: root.handleThemeNav("next")
+        Keys.onReturnPressed: root.handleThemeNav("apply")
+        opacity: root.themeExpanded ? 1.0 : 0.0
+        visible: opacity > 0.05
+        Behavior on opacity { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.OutCubic } }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 14
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Icon {
+                    glyph: "palette"
+                    size: Theme.iconSm
+                    color: Theme.accent
+                }
+
+                Text {
+                    text: "JEUX DE COULEURS"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    font.weight: Font.Bold
+                    color: Theme.accent
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: (Theme.paletteNoms ? Theme.paletteNoms.length : 0) + " schémas"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    color: Qt.alpha(Theme.fg, 0.55)
+                }
+
+                Item {
+                    width: 22
+                    height: 22
+                    Icon {
+                        anchors.centerIn: parent
+                        glyph: "close"
+                        size: 13
+                        color: themeCloseMa.containsMouse ? Theme.fg : Qt.alpha(Theme.fg, 0.6)
+                        opacityLevel: 1
+                    }
+                    MouseArea {
+                        id: themeCloseMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Theme.themePickerOpen = false
+                    }
+                }
+            }
+
+            ListView {
+                id: themeListView
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                orientation: ListView.Horizontal
+                spacing: 10
+                clip: true
+                model: Theme.paletteNoms || []
+
+                WheelHandler {
+                    onWheel: event => {
+                        const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                        themeListView.contentX = Math.max(0, Math.min(Math.max(0, themeListView.contentWidth - themeListView.width), themeListView.contentX - delta * 0.8))
+                    }
+                }
+
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    readonly property var pal: (Theme.paletteCouleurs && Theme.paletteCouleurs[modelData]) ? Theme.paletteCouleurs[modelData] : ({})
+                    readonly property string label: String((Theme.paletteEtiquettes && Theme.paletteEtiquettes[modelData]) || modelData)
+                    readonly property bool isCurrent: modelData === Theme.activeTheme
+                    readonly property bool isSelected: index === root.themeSelectedIdx
+
+                    width: 172
+                    height: themeListView.height
+                    radius: Math.max(10, Math.round(Theme.globalRadius * 0.65))
+                    color: pal.bg ? Qt.alpha(String(pal.bg), 0.88) : Qt.alpha(Theme.surfaceVariant, 0.45)
+                    border.width: (isCurrent || isSelected || thCardMa.containsMouse) ? 2 : 1
+                    border.color: isCurrent
+                        ? Theme.accent
+                        : ((isSelected || thCardMa.containsMouse) ? String(pal.accent || Theme.accent) : Qt.alpha(Theme.fg, 0.14))
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 6
+
+                        Item { Layout.fillHeight: true }
+
+                        Row {
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: 6
+
+                            Repeater {
+                                model: [
+                                    String(pal.bg || Theme.bg),
+                                    String(pal.surface || Theme.surface),
+                                    String(pal.accent || Theme.accent),
+                                    String(pal.accent_muted || Theme.accentMuted),
+                                    String(pal.fg || Theme.fg)
+                                ]
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    width: 16
+                                    height: 16
+                                    radius: 8
+                                    color: modelData
+                                    border.width: 1
+                                    border.color: Qt.alpha("#ffffff", 0.22)
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillHeight: true }
+
+                        Text {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            text: label
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.bold: isCurrent || isSelected
+                            color: String(pal.fg || Theme.fg)
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            visible: isCurrent
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "Actif"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                            color: String(pal.accent || Theme.accent)
+                        }
+                    }
+
+                    MouseArea {
+                        id: thCardMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: root.themeSelectedIdx = index
+                        onClicked: {
+                            root.themeSelectedIdx = index
+                            root.applyThemeScheme(modelData)
                         }
                     }
                 }

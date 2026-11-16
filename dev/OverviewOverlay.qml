@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import "."
 
 // ══════════════════════════════════════════════════════════════════════
@@ -33,9 +34,13 @@ FocusScope {
             const title = String(c.title || "")
             const klass = String(c["class"] || c.initialClass || "")
             const wsName = (c.workspace && c.workspace.name) ? String(c.workspace.name) : ""
+            const wsId = (c.workspace && c.workspace.id !== undefined) ? String(c.workspace.id) : ""
+            const wsLbl = root.wsLabel(c)
             if (q !== "" && title.toLowerCase().indexOf(q) === -1
                 && klass.toLowerCase().indexOf(q) === -1
-                && wsName.toLowerCase().indexOf(q) === -1) {
+                && wsName.toLowerCase().indexOf(q) === -1
+                && wsId.toLowerCase().indexOf(q) === -1
+                && wsLbl.toLowerCase().indexOf(q) === -1) {
                 continue
             }
             out.push(c)
@@ -55,6 +60,19 @@ FocusScope {
         if (selectedIndex >= filteredClients.length) {
             selectedIndex = Math.max(0, filteredClients.length - 1)
         }
+    }
+
+    function findWaylandToplevel(address) {
+        const key = Theme.cleAdresse(address)
+        if (!key) return null
+        const tops = Hyprland.toplevels ? Hyprland.toplevels.values : []
+        for (let i = 0; i < tops.length; i++) {
+            const t = tops[i]
+            if (t && t.address && Theme.cleAdresse(t.address) === key) {
+                return t.wayland || null
+            }
+        }
+        return null
     }
 
     function wsLabel(c) {
@@ -271,14 +289,9 @@ FocusScope {
             }
 
             // Grille des fenêtres
-            Flickable {
-                id: gridFlick
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                contentWidth: width
-                contentHeight: winGrid.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
 
                 Text {
                     visible: root.filteredClients.length === 0
@@ -288,6 +301,14 @@ FocusScope {
                     font.pixelSize: Theme.textSm
                     color: Qt.alpha(Theme.fg, 0.5)
                 }
+
+                Flickable {
+                    id: gridFlick
+                    anchors.fill: parent
+                    clip: true
+                    contentWidth: width
+                    contentHeight: winGrid.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
 
                 Grid {
                     id: winGrid
@@ -299,11 +320,13 @@ FocusScope {
                         model: root.filteredClients
 
                         delegate: Rectangle {
+                            id: cardDelegate
                             required property var modelData
                             required property int index
                             readonly property bool selected: index === root.selectedIndex
+                            readonly property var waylandToplevel: root.findWaylandToplevel(modelData.address)
                             width: (winGrid.width - (winGrid.columns - 1) * winGrid.spacing) / winGrid.columns
-                            height: 108
+                            height: 236
                             radius: Math.max(10, Math.round(Theme.globalRadius * 0.7))
                             color: selected
                                 ? Qt.alpha(Theme.accent, cardMa.containsMouse ? 0.24 : 0.16)
@@ -331,8 +354,8 @@ FocusScope {
 
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 6
+                                anchors.margins: 10
+                                spacing: 8
 
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -389,30 +412,67 @@ FocusScope {
                                     }
                                 }
 
-                                Text {
+                                // Miniature en direct de la fenêtre (Wayland screencopy)
+                                Rectangle {
+                                    id: thumbBox
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    text: String(modelData.title || "")
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: Theme.textXs
-                                    color: Qt.alpha(Theme.fg, 0.78)
-                                    wrapMode: Text.WordWrap
-                                    maximumLineCount: 2
-                                    elide: Text.ElideRight
-                                    verticalAlignment: Text.AlignVCenter
+                                    radius: 8
+                                    clip: true
+                                    color: Qt.alpha(Theme.bg, 0.58)
+                                    border.width: 1
+                                    border.color: Qt.alpha(Theme.fg, 0.08)
+
+                                    ScreencopyView {
+                                        id: thumbView
+                                        anchors.centerIn: parent
+                                        readonly property real maxW: Math.max(1, thumbBox.width - 4)
+                                        readonly property real maxH: Math.max(1, thumbBox.height - 4)
+                                        readonly property bool hasDim: hasContent && sourceSize.width > 0 && sourceSize.height > 0
+                                        width: hasDim ? Math.min(maxW, maxH * sourceSize.width / sourceSize.height) : maxW
+                                        height: hasDim ? Math.min(maxH, maxW * sourceSize.height / sourceSize.width) : maxH
+                                        captureSource: cardDelegate.waylandToplevel
+                                        live: true
+                                        paintCursor: false
+                                        constraintSize: Qt.size(Math.max(1, thumbBox.width), Math.max(1, thumbBox.height))
+                                        visible: captureSource !== null && hasContent
+                                    }
+
+                                    Icon {
+                                        visible: !thumbView.visible
+                                        anchors.centerIn: parent
+                                        glyph: "widgets"
+                                        size: 28
+                                        color: Qt.alpha(Theme.fg, 0.28)
+                                    }
                                 }
 
-                                Text {
-                                    visible: Boolean(modelData.floating) || Number(modelData.fullscreen || 0) > 0
-                                    text: (Number(modelData.fullscreen || 0) > 0 ? "Plein écran" : "Flottante")
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: Theme.text2xs
-                                    color: Qt.alpha(Theme.fg, 0.5)
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: String(modelData.title || "")
+                                        font.family: Theme.fontUi
+                                        font.pixelSize: Theme.textXs
+                                        color: Qt.alpha(Theme.fg, 0.82)
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Text {
+                                        visible: Boolean(modelData.floating) || Number(modelData.fullscreen || 0) > 0
+                                        text: (Number(modelData.fullscreen || 0) > 0 ? "Plein écran" : "Flottante")
+                                        font.family: Theme.fontUi
+                                        font.pixelSize: Theme.text2xs
+                                        color: Qt.alpha(Theme.fg, 0.5)
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
             }
         }
     }

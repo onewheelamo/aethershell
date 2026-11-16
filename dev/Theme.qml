@@ -30,7 +30,10 @@ QtObject {
     property var paletteImportees: []
     property var etiquettesLocales: ({})
     property var etiquettesImportees: ({})
+    property var paletteCouleursLocales: ({})
+    property var paletteCouleursImportees: ({})
     readonly property var paletteEtiquettes: Object.assign({}, etiquettesLocales, etiquettesImportees)
+    readonly property var paletteCouleurs: Object.assign({}, paletteCouleursImportees, paletteCouleursLocales)
     // Liste montrée par le panneau : les palettes maison d'abord, puis les
     // schémas du disque, sans doublon (l'active importée figure dans les deux).
     readonly property var paletteNoms: {
@@ -67,16 +70,33 @@ QtObject {
     // État du panneau étendu de l'Îlot dynamique (Phase 3)
     property bool islandPanelOpen: false
     property bool wallpaperPickerOpen: false
+    property bool themePickerOpen: false
     property bool islandLauncherOpen: false
     property bool islandNotesOpen: false
     property bool widgetsEditMode: false
     property bool widgetsSnapGrid: true
+    function setSubmap(name) {
+        if (Hyprland.usingLua) {
+            Hyprland.dispatch('hl.dsp.submap("' + name + '")')
+        } else {
+            Hyprland.dispatch("submap " + name)
+        }
+    }
+
     property var wallpaperNavHook: null
+    property var themeNavHook: null
     onWallpaperPickerOpenChanged: {
         if (wallpaperPickerOpen) {
-            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "aether-wp"])
+            setSubmap("aether-wp")
         } else {
-            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"])
+            setSubmap("reset")
+        }
+    }
+    onThemePickerOpenChanged: {
+        if (themePickerOpen) {
+            setSubmap("aether-theme")
+        } else {
+            setSubmap("reset")
         }
     }
     property int islandPanelTab: 0
@@ -94,7 +114,7 @@ QtObject {
     }
     onIslandNavActiveChanged: {
         if (!islandNavActive) {
-            Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"])
+            setSubmap("reset")
         }
     }
     property int panelAnimDuration: 240
@@ -156,6 +176,7 @@ QtObject {
         if (barStyle !== "island") {
             islandPanelOpen = false
             wallpaperPickerOpen = false
+            themePickerOpen = false
             islandLauncherOpen = false
             islandNotesOpen = false
             islandSidePanel = ""
@@ -680,6 +701,7 @@ QtObject {
         // Les palettes de la configuration seulement : le catalogue des schémas
         // du disque arrive par `catalogueFile`, juste en dessous.
         root.paletteLocales = Object.keys(palettes)
+        root.paletteCouleursLocales = palettes
         root.etiquettesLocales = data.palette_noms || ({})
         const pal = palettes[root.activeTheme] || palettes["dynamic"] || {}
 
@@ -748,9 +770,14 @@ QtObject {
                 const themes = (JSON.parse(text()) || {}).themes || ({})
                 const cles = Object.keys(themes).sort()
                 const labels = {}
-                for (const cle of cles) labels[cle] = themes[cle].nom || cle
+                const couleurs = {}
+                for (const cle of cles) {
+                    labels[cle] = themes[cle].nom || cle
+                    couleurs[cle] = themes[cle].palette || themes[cle] || ({})
+                }
                 root.paletteImportees = cles
                 root.etiquettesImportees = labels
+                root.paletteCouleursImportees = couleurs
             } catch (e) {
                 // Lecture concurrente ou fichier absent : on conserve le catalogue précédent.
                 console.warn("Theme.qml: lecture palette_cache.json ignorée :", e)
@@ -1374,6 +1401,7 @@ QtObject {
                 root.activePopup = ""
                 root.islandPanelOpen = false
                 root.wallpaperPickerOpen = false
+                root.themePickerOpen = false
                 root.islandNotesOpen = false
                 root.islandLauncherOpen = !root.islandLauncherOpen
             } else {
@@ -1385,6 +1413,7 @@ QtObject {
             root.activePopup = ""
             root.islandPanelOpen = false
             root.wallpaperPickerOpen = false
+            root.themePickerOpen = false
             root.islandLauncherOpen = false
             root.islandNotesOpen = !root.islandNotesOpen
         }
@@ -1405,10 +1434,31 @@ QtObject {
                 root.islandPanelOpen = false
                 root.islandLauncherOpen = false
                 root.islandNotesOpen = false
+                root.themePickerOpen = false
                 root.wallpaperPickerOpen = !root.wallpaperPickerOpen
             } else {
                 Quickshell.execDetached(["quickshell", "-n", "-p", Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"])
             }
+        }
+        function toggleThemePicker() {
+            if (root.barStyle === "island") {
+                root.activePopup = ""
+                root.islandPanelOpen = false
+                root.islandLauncherOpen = false
+                root.islandNotesOpen = false
+                root.wallpaperPickerOpen = false
+                root.themePickerOpen = !root.themePickerOpen
+            } else {
+                root.openConfigSection("apparence_couleurs")
+            }
+        }
+        function themeNav(action: string) {
+            const a = String(action || "").toLowerCase()
+            if (a === "close" || a === "fermer") {
+                root.themePickerOpen = false
+                return
+            }
+            if (root.themeNavHook) root.themeNavHook(a)
         }
         function wpNav(action: string) {
             const a = String(action || "").toLowerCase()
