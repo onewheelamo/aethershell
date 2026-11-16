@@ -9,7 +9,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
-## [0.3.12.00] — 2026-11-16
+## [0.4.0.0] — 2026-11-16
 
 ### Ajouté
 - **Îlot dynamique tout-en-un (façon Impasto)** :
