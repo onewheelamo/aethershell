@@ -144,6 +144,7 @@ AetherShell n'est pas né dans le vide : il emprunte des briques, des concepts e
 | [NVTOP](https://github.com/noctalia-dev/community-plugins/tree/main/nvtop) | **tordex** | Principe de surveillance système à la demande (processus lancé uniquement lorsque la vue est ouverte). |
 | [Wallpaper Depth](https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth) | **noctalia** | Concept d'immersion visuelle des îlots via masques de profondeur (Depth Anything V2). |
 | [WallpaperFx.qml (`pocket-dots`)](https://github.com/diegoMalagrida/pocket-dots) | **diegoMalagrida** | Transitions de fond d'écran par shader (`WallpaperFx.qml` / `wallfx.frag` : propagation organique `contagio`, silhouette `perfil` et passage de relais sans accroc avec `awww`). |
+| [Impasto](https://github.com/andreumassanet/impasto) | **andreumassanet** | Inspiration pour le morphing tout-en-un de l'Îlot dynamique (sélecteur de fonds d'écran, lanceur, notes rapides) et l'édition directe / le style *glass* des widgets du bureau. |
 | **Quickshell & Hyprland** | **outfoxxed & vaxerski** | Pour ces deux projets majeurs qui rendent possible la construction d'un shell Wayland moderne et performant. |
 
 ---
