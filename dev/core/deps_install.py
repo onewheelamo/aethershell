@@ -40,6 +40,8 @@ PAQUETS = {
         "cc": "gcc",
         "wl-copy": "wl-clipboard",
         "bluetoothctl": "bluez-utils",
+        "udisksctl": "udisks2",
+        "zbarcam": "zbar",
         "matugen": "matugen-bin",
     },
     "fedora": {
@@ -54,6 +56,8 @@ PAQUETS = {
         "cc": "gcc",
         "wl-copy": "wl-clipboard",
         "bluetoothctl": "bluez",
+        "udisksctl": "udisks2",
+        "zbarcam": "zbar",
     },
     "debian": {
         "wpctl": "wireplumber",
@@ -67,6 +71,8 @@ PAQUETS = {
         "cc": "gcc",
         "wl-copy": "wl-clipboard",
         "bluetoothctl": "bluez",
+        "udisksctl": "udisks2",
+        "zbarcam": "zbar-tools",
     },
 }
 

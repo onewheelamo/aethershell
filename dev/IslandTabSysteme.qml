@@ -27,6 +27,8 @@ Item {
     property string pendingConnectSsid: ""
     property string wifiStatusMsg: ""
     property bool wifiConnecting: false
+    property bool qrAvailable: false
+    property bool qrScanning: false
     property bool btPresent: false
     property bool btOn: false
     property var btDevices: []
@@ -118,6 +120,7 @@ Item {
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
         if (!btStateProc.running) btStateProc.running = true
+        if (!qrStatusProc.running) qrStatusProc.running = true
         Theme.rafraichirSystemInfo()
     }
 
@@ -225,6 +228,48 @@ Item {
                     Theme.islandNeedsKeyboard = true
                     wifiPassInput.forceActiveFocus()
                     root.wifiStatusMsg = msg !== "" ? msg : "Clé requise ou échec de connexion"
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qrStatusProc
+        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let d = JSON.parse(text.trim() || "{}")
+                    root.qrAvailable = Boolean(d.available)
+                } catch (e) {
+                    root.qrAvailable = false
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qrScanProc
+        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "scan"]
+        property string targetSsid: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.qrScanning = false
+                try {
+                    let d = JSON.parse(text.trim() || "{}")
+                    if (d.ok) {
+                        let pwd = String(d.password || "")
+                        if (pwd !== "") {
+                            wifiPassInput.text = pwd
+                            root.connectWifi(qrScanProc.targetSsid || String(d.ssid || ""), pwd)
+                        } else {
+                            root.wifiStatusMsg = "QR code sans clé Wi-Fi"
+                        }
+                    } else {
+                        root.wifiStatusMsg = String(d.error || "Scan annulé")
+                    }
+                } catch (e) {
+                    root.wifiStatusMsg = "Lecture QR impossible"
                 }
             }
         }
@@ -660,6 +705,33 @@ Item {
                                 font.family: Theme.fontUi
                                 font.pixelSize: Theme.textXs
                                 color: Qt.alpha(Theme.fg, 0.45)
+                            }
+                        }
+
+                        Rectangle {
+                            visible: root.qrAvailable
+                            Layout.preferredHeight: 22
+                            Layout.preferredWidth: 26
+                            radius: 5
+                            color: qrIslandMa.containsMouse || root.qrScanning ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.1)
+                            Icon {
+                                anchors.centerIn: parent
+                                glyph: "qrcode"
+                                size: 12
+                                color: root.qrScanning ? Theme.accent : Theme.fg
+                            }
+                            MouseArea {
+                                id: qrIslandMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (qrScanProc.running) return
+                                    root.qrScanning = true
+                                    root.wifiStatusMsg = "Scan QR en cours (webcam)…"
+                                    qrScanProc.targetSsid = root.passwordSsid
+                                    qrScanProc.running = true
+                                }
                             }
                         }
 

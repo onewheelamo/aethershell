@@ -16,11 +16,29 @@ testable depuis un terminal.
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
+DATA_DIR = Path.home() / ".cache" / "quickshell" / "depth"
+VENV_PYTHON = DATA_DIR / "runtime" / "bin" / "python"
+
+
+def _se_reexecuter_dans_le_venv():
+    try:
+        from PIL import Image  # noqa: F401
+        return
+    except Exception:
+        pass
+    if not VENV_PYTHON.is_file():
+        return
+    if Path(sys.prefix).resolve() == (DATA_DIR / "runtime").resolve():
+        return
+    os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
+
 
 def main():
+    _se_reexecuter_dans_le_venv()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sortie", required=True, help="PNG à écrire")
     ap.add_argument("--ecran", default="1920x1080", metavar="LxH")
@@ -33,7 +51,11 @@ def main():
     except ValueError:
         sys.exit("--ecran attend LARGEURxHAUTEUR, par exemple 1920x1080")
 
-    brut = sys.stdin.read().strip()
+    # Lit la première ligne JSON (terminée par '\n') pour ne pas rester bloqué sur
+    # EOF lorsque le processus appelant (Quickshell Process) garde stdin ouvert.
+    brut = sys.stdin.readline().strip()
+    if brut == "":
+        brut = sys.stdin.read().strip()
     if brut == "":
         sys.exit("aucun trait sur l'entrée standard")
     try:

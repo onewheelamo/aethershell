@@ -41,6 +41,17 @@ pkg-config
 cava
 # Contrôle audio PipeWire / WirePlumber (commun à tous les postes)
 wpctl
+pactl
+# Presse-papiers Wayland (historique + copie)
+wl-copy
+cliphist
+# Périphériques USB (montage / déverrouillage udisks2)
+udisksctl
+# Bluetooth
+bluetoothctl
+# Scan QR code Wi-Fi via webcam (zbarcam, ou ffmpeg + zbarimg)
+zbarcam
+ffmpeg
 
 #: laptop
 # PC portable seulement : luminosité écran, profils d'énergie, capteur d'orientation.

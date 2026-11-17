@@ -1400,7 +1400,7 @@ Item {
             // Live Activity (enregistrement, minuteur, téléchargements, tâches IPC)
             Rectangle {
                 id: liveActivityPill
-                visible: root.liveActivities.length > 0
+                visible: Theme.ilotVisibleIn(Theme.ilotShowLiveActivity, "compact") && root.liveActivities.length > 0
                 readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
                 height: Math.max(18, Theme.barHeight - 8)
                 width: liveActRow.implicitWidth + 12
@@ -1640,7 +1640,7 @@ Item {
             // Live Activity visible aussi en mode étendu (au survol)
             Rectangle {
                 id: expandedLiveActivityPill
-                visible: root.liveActivities.length > 0
+                visible: Theme.ilotVisibleIn(Theme.ilotShowLiveActivity, "expanded") && root.liveActivities.length > 0
                 readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
                 height: Math.max(18, Theme.barHeight - 8)
                 width: expLiveRow.implicitWidth + 12

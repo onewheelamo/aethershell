@@ -170,13 +170,13 @@ def _inpaint_rgb(image_rgb, masque_trou, rayon_dilat=11):
     """
     np, Image = _numpy()
     from PIL import ImageFilter
+    import depth_mask
 
     arr = np.asarray(image_rgb, dtype=np.float32)
     h, w, _ = arr.shape
-    m_u8 = (np.asarray(masque_trou, dtype=np.uint8) * 255)
-    k = max(3, int(rayon_dilat) | 1)
-    m_dil_pil = Image.fromarray(m_u8, mode="L").filter(ImageFilter.MaxFilter(k))
-    m_dil = np.asarray(m_dil_pil, dtype=np.float32) / 255.0
+    m_bin = np.asarray(masque_trou, dtype=np.float32)
+    m_dil = depth_mask._dilate_bin((m_bin > 0.5).astype(np.float32), max(1, int(rayon_dilat) // 2))
+    m_dil_pil = Image.fromarray((m_dil * 255.0).astype(np.uint8), mode="L")
 
     hole = m_dil > 0.5
     if not np.any(hole):

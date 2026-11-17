@@ -796,8 +796,8 @@ def update_style_var(key, value):
     elif key in ("bar_bottom", "bar_left", "bar_right"):
         # Barres supplémentaires : booléens dans style_vars.
         data[key] = str(value).lower() in ("true", "1", "yes")
-    elif key in ("ilot_show_vpn", "ilot_show_capture", "ilot_show_media",
-                 "ilot_show_planka", "ilot_show_workspaces", "ilot_show_clock"):
+    elif key in ("ilot_show_vpn", "ilot_show_capture", "ilot_show_live_activity",
+                 "ilot_show_media", "ilot_show_planka", "ilot_show_workspaces", "ilot_show_clock"):
         v = str(value).strip().lower()
         if v in ("off", "compact", "expanded", "both"):
             data[key] = v

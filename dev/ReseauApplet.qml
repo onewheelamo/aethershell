@@ -38,6 +38,8 @@ Item {
     property bool connectingBusy: false
     property bool wifiScanQueued: false
     property bool wifiScanQueuedRescan: false
+    property bool qrAvailable: false
+    property bool qrScanning: false
 
     readonly property bool ouvert: Theme.activePopup === "applet:reseau"
 
@@ -73,6 +75,7 @@ Item {
     }
 
     function scanWifi(rescan) {
+        if (!qrStatusProc.running) qrStatusProc.running = true
         wifiScanning = true
         if (wifiScanProc.running) {
             wifiScanQueued = true
@@ -101,6 +104,7 @@ Item {
     Component.onCompleted: {
         root.synchroniserSystemInfo()
         root.lireBluetooth()
+        if (!qrStatusProc.running) qrStatusProc.running = true
     }
 
     Connections {
@@ -150,6 +154,47 @@ Item {
                     }
                 } catch (e) {
                     root.connectingStatus = "✕ Erreur de connexion"
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qrStatusProc
+        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim() || "{}")
+                    root.qrAvailable = Boolean(d.available)
+                } catch (e) {
+                    root.qrAvailable = false
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qrScanProc
+        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "scan"]
+        property string targetSsid: ""
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.qrScanning = false
+                try {
+                    const d = JSON.parse(text.trim() || "{}")
+                    if (d.ok) {
+                        const pwd = String(d.password || "")
+                        if (pwd !== "") {
+                            root.connectToWifi(qrScanProc.targetSsid || String(d.ssid || ""), pwd)
+                        } else {
+                            root.connectingStatus = "✕ QR code sans clé Wi-Fi"
+                        }
+                    } else {
+                        root.connectingStatus = "✕ " + String(d.error || "Scan annulé")
+                    }
+                } catch (e) {
+                    root.connectingStatus = "✕ Lecture QR impossible"
                 }
             }
         }
@@ -448,7 +493,7 @@ Item {
                                         spacing: 6
 
                                         Rectangle {
-                                            width: parent.width - 82
+                                            width: parent.width - (root.qrAvailable ? 116 : 82)
                                             height: parent.height
                                             color: Theme.bg
                                             radius: Theme.globalRadius
@@ -485,6 +530,37 @@ Item {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.IBeamCursor
                                                 acceptedButtons: Qt.NoButton
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            visible: root.qrAvailable
+                                            width: 28
+                                            height: parent.height
+                                            radius: Theme.globalRadius
+                                            color: qrBarMa.containsMouse || root.qrScanning ? Qt.alpha(Theme.accent, 0.25) : Theme.bg
+                                            border.width: 1
+                                            border.color: root.qrScanning ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+
+                                            Icon {
+                                                anchors.centerIn: parent
+                                                glyph: "qrcode"
+                                                size: 14
+                                                color: root.qrScanning ? Theme.accent : Theme.fg
+                                            }
+
+                                            MouseArea {
+                                                id: qrBarMa
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    if (qrScanProc.running) return
+                                                    root.qrScanning = true
+                                                    root.connectingStatus = "Scan QR en cours (webcam)..."
+                                                    qrScanProc.targetSsid = netItemCol.modelData.ssid
+                                                    qrScanProc.running = true
+                                                }
                                             }
                                         }
 

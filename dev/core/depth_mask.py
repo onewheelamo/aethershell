@@ -170,6 +170,18 @@ def _box_blur_2d(a, r: int):
     return ((cs2[:, k:] - cs2[:, :-k]) / float(k)).astype(np.float32)
 
 
+def _dilate_bin(mask_bin, radius: int):
+    if radius <= 0:
+        return mask_bin
+    return (_box_blur_2d(mask_bin, radius) > 1e-6).astype(mask_bin.dtype)
+
+
+def _erode_bin(mask_bin, radius: int):
+    if radius <= 0:
+        return mask_bin
+    return (_box_blur_2d(mask_bin, radius) > (1.0 - 1e-6)).astype(mask_bin.dtype)
+
+
 def affiner_contour_rgb(
     source_rgb,
     mask,
@@ -188,17 +200,16 @@ def affiner_contour_rgb(
 
     rgb = np.asarray(source_rgb, dtype=np.float32) / 255.0
     courant = np.asarray(mask, dtype=np.float32)
-    dil_in_k = max(3, (halo_px // 2) | 1)
-    dil_out_k = max(5, (halo_px * 2 + 1) | 1)
-    ero_k = 7
+    r_in = max(1, halo_px // 4)
+    r_out = max(2, halo_px)
+    r_ero = 3
     r_est = max(12, halo_px * 2)
 
     for _ in range(max(1, passes)):
         m_bin = (courant > 0.40).astype(np.float32)
-        m_pil = Image.fromarray((m_bin * 255.0).astype(np.uint8), mode="L")
-        dil_inner = np.asarray(m_pil.filter(ImageFilter.MaxFilter(dil_in_k)), dtype=np.float32) / 255.0
-        dil_outer = np.asarray(m_pil.filter(ImageFilter.MaxFilter(dil_out_k)), dtype=np.float32) / 255.0
-        eroded = np.asarray(m_pil.filter(ImageFilter.MinFilter(ero_k)), dtype=np.float32) / 255.0
+        dil_inner = _dilate_bin(m_bin, r_in)
+        dil_outer = _dilate_bin(m_bin, r_out)
+        eroded = _erode_bin(m_bin, r_ero)
 
         bg_weight = 1.0 - dil_inner
         w_blur = np.maximum(_box_blur_2d(bg_weight, r_est), 1e-4)
@@ -220,7 +231,16 @@ def affiner_contour_rgb(
     return np.asarray(ref_pil, dtype=np.float32) / 255.0
 
 
-def _inferer_birefnet(source, ml_cible: int, mh_cible: int):
+def _ort_options():
+    import onnxruntime as ort
+    options = ort.SessionOptions()
+    options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    options.intra_op_num_threads = 2
+    options.inter_op_num_threads = 1
+    return options
+
+
+def _inferer_birefnet(source, ml_cible: int, mh_cible: int, cache_path: Path | None = None):
     """Exécute BiRefNet-lite FP16 s'il est installé dans ~/.cache/quickshell/depth/models/."""
     if not (BIREFNET_PATH.is_file() and BIREFNET_PATH.stat().st_size > 100_000_000):
         return None
@@ -229,15 +249,21 @@ def _inferer_birefnet(source, ml_cible: int, mh_cible: int):
         import onnxruntime as ort
         from PIL import Image
 
+        if cache_path is not None and cache_path.is_file():
+            try:
+                cached = np.load(cache_path, allow_pickle=False)
+                if cached.shape == (mh_cible, ml_cible):
+                    return cached.astype(np.float32)
+            except Exception:
+                cache_path.unlink(missing_ok=True)
+
         im = source.resize((1024, 1024), Image.Resampling.BILINEAR)
         arr = np.asarray(im, dtype=np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         x = ((arr - mean) / std).transpose(2, 0, 1)[None].astype(np.float16)
 
-        options = ort.SessionOptions()
-        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        sess = ort.InferenceSession(str(BIREFNET_PATH), sess_options=options,
+        sess = ort.InferenceSession(str(BIREFNET_PATH), sess_options=_ort_options(),
                                     providers=["CPUExecutionProvider"])
         out = sess.run(None, {sess.get_inputs()[0].name: x})[-1]
         pred = np.squeeze(out).astype(np.float32)
@@ -248,12 +274,21 @@ def _inferer_birefnet(source, ml_cible: int, mh_cible: int):
         prob_im = Image.fromarray((prob * 255.0).astype(np.uint8), mode="L").resize(
             (ml_cible, mh_cible), Image.Resampling.BICUBIC
         )
-        return np.asarray(prob_im, dtype=np.float32) / 255.0
+        res = np.asarray(prob_im, dtype=np.float32) / 255.0
+        if cache_path is not None:
+            try:
+                with tempfile.NamedTemporaryFile("wb", dir=cache_path.parent, delete=False) as f:
+                    np.save(f, res.astype(np.float16), allow_pickle=False)
+                    tmp = Path(f.name)
+                os.replace(tmp, cache_path)
+            except Exception:
+                pass
+        return res
     except Exception:
         return None
 
 
-def _fusionner_profondeur_et_contours(source, profondeur):
+def _fusionner_profondeur_et_contours(source, profondeur, biref_cache: Path | None = None):
     """Produit la carte de profondeur continue pleine résolution [0..1] sans trous internes."""
     import numpy as np
     from PIL import Image
@@ -265,7 +300,7 @@ def _fusionner_profondeur_et_contours(source, profondeur):
         dtype=np.float32,
     ) / 255.0
 
-    biref = _inferer_birefnet(source, l, h)
+    biref = _inferer_birefnet(source, l, h, biref_cache)
     if biref is not None:
         ratio_fond_3d = float((pleine < 0.22).mean())
         couv_biref = float((biref > 0.5).mean())
@@ -281,15 +316,10 @@ def _fusionner_profondeur_et_contours(source, profondeur):
             # Scène multi-plans : complète les rameaux/extrémités fines (pétales, antennes)
             # qui prolongent une zone de premier plan 3D (pleine > 0.48) sur plusieurs passes
             # d'hystérésis, sans jamais toucher aux plans moyens éloignés (pont, horizon).
-            from PIL import ImageFilter
             fg_seed = (pleine > 0.48).astype(np.float32)
             cand = ((biref > 0.25) & (pleine > 0.14)).astype(np.float32)
             for _ in range(4):
-                dil = np.asarray(
-                    Image.fromarray((fg_seed * 255.0).astype(np.uint8), mode="L")
-                    .filter(ImageFilter.MaxFilter(65)),
-                    dtype=np.float32,
-                ) / 255.0
+                dil = _dilate_bin(fg_seed, 32)
                 fg_seed = np.maximum(fg_seed, dil * cand)
             pleine = np.maximum(pleine, fg_seed * np.maximum(biref, 0.85) * 0.92)
 
@@ -319,9 +349,15 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
     DEPTH_DIR.mkdir(parents=True, exist_ok=True)
     MASQUE_DIR.mkdir(parents=True, exist_ok=True)
     chemin_profondeur = DEPTH_DIR / ("%s.npy" % cle)
+    chemin_biref = DEPTH_DIR / ("%s-biref.npy" % empreinte)
     cle_masque = "%s-v%d-t%.4f-f%.4f" % (cle, VERSION_MASQUE, seuil, adouci)
     chemin_masque = MASQUE_DIR / ("%s.png" % cle_masque)
     chemin_brut = MASQUE_DIR / ("%s-brut-v%d.png" % (cle, VERSION_MASQUE))
+
+    try:
+        os.nice(10)
+    except OSError:
+        pass
 
     verrou = (DATA_DIR / "runtime" / "generation.lock").open("w")
     try:
@@ -344,9 +380,7 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
                 pixels = (pixels - np.array([0.485, 0.456, 0.406], dtype=np.float32)) \
                     / np.array([0.229, 0.224, 0.225], dtype=np.float32)
                 tenseur = np.transpose(pixels, (2, 0, 1))[None, ...]
-                options = ort.SessionOptions()
-                options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                session = ort.InferenceSession(str(MODEL_PATH), sess_options=options,
+                session = ort.InferenceSession(str(MODEL_PATH), sess_options=_ort_options(),
                                                providers=["CPUExecutionProvider"])
                 nom = session.get_inputs()[0].name
                 brut_out = np.asarray(session.run(None, {nom: tenseur})[0], dtype=np.float32).squeeze()
@@ -363,7 +397,7 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
                 os.replace(temporaire, chemin_profondeur)
 
             if brut and not chemin_brut.is_file():
-                pleine = _fusionner_profondeur_et_contours(source, profondeur)
+                pleine = _fusionner_profondeur_et_contours(source, profondeur, chemin_biref)
                 gris = Image.fromarray(np.rint(np.clip(pleine, 0.0, 1.0) * 255.0).astype("uint8"))
                 with tempfile.NamedTemporaryFile("wb", dir=MASQUE_DIR, delete=False) as f:
                     gris.save(f, format="PNG", optimize=True)
@@ -371,7 +405,7 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
                 os.replace(temporaire, chemin_brut)
 
             if not brut and not chemin_masque.is_file():
-                pleine = _fusionner_profondeur_et_contours(source, profondeur)
+                pleine = _fusionner_profondeur_et_contours(source, profondeur, chemin_biref)
                 demi = adouci * 0.5
                 alpha = np.clip((pleine - (seuil - demi)) / max(1e-6, 2 * demi), 0.0, 1.0) \
                     if demi > 0 else (pleine >= seuil).astype(np.float32)

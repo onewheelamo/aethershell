@@ -8,8 +8,9 @@ import "."
 // PANNEAU LATÉRAL DE L'ÎLOT (IslandSidePanel.qml) — 340 × 420 px
 // ══════════════════════════════════════════════════════════════════════
 // Déployé à droite du panneau principal pour :
-// - "todo-add" : création rapide d'une tâche dans todo_applet.py
-// - "calendar" : calendrier mensuel + événements Nextcloud CalDAV
+// - "todo-add"  : création rapide d'une tâche dans todo_applet.py
+// - "calendar"  : calendrier mensuel + événements Nextcloud CalDAV
+// - "clipboard" : historique du presse-papiers (cliphist)
 // ══════════════════════════════════════════════════════════════════════
 
 Item {
@@ -57,6 +58,28 @@ Item {
     property var eventsByDay: ({})
     property bool calLoading: false
     property date nowDate: new Date()
+
+    // ── État presse-papiers ───────────────────────────────────────────────
+    property var clipEntries: []
+    property bool clipLoaded: false
+    property string clipStatus: ""
+
+    function fetchClipboard() {
+        clipListProc.running = false
+        clipListProc.running = true
+    }
+
+    function copyClipEntry(id) {
+        root.clipStatus = "Copié !"
+        clipActionProc.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "copier", String(id)]
+        clipActionProc.running = true
+    }
+
+    function clearClipboard() {
+        root.clipStatus = ""
+        clipActionProc.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "vider"]
+        clipActionProc.running = true
+    }
 
     readonly property var monthNamesFr: [
         "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -159,6 +182,10 @@ Item {
             monthOffset = 0
             selectedDateStr = todayStr
             fetchMonth()
+        } else if (mode === "clipboard") {
+            Theme.islandNeedsKeyboard = false
+            clipStatus = ""
+            fetchClipboard()
         } else {
             Theme.islandNeedsKeyboard = false
         }
@@ -172,6 +199,29 @@ Item {
             if (root.mode === "todo-add" && Theme.islandPanelOpen) {
                 todoTitleInput.forceActiveFocus()
             }
+        }
+    }
+
+    Process {
+        id: clipListProc
+        command: ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "liste", "20"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim() || "{}")
+                    root.clipEntries = Array.isArray(d.entrees) ? d.entrees : []
+                } catch (e) {
+                    root.clipEntries = []
+                }
+                root.clipLoaded = true
+            }
+        }
+    }
+
+    Process {
+        id: clipActionProc
+        stdout: StdioCollector {
+            onStreamFinished: root.fetchClipboard()
         }
     }
 
@@ -292,14 +342,14 @@ Item {
                 spacing: 8
 
                 Icon {
-                    glyph: root.mode === "calendar" ? "calendar" : "widgets"
+                    glyph: root.mode === "calendar" ? "calendar" : (root.mode === "clipboard" ? "clipboard" : "widgets")
                     size: Theme.iconSm
                     color: Theme.accent
                 }
 
                 Text {
                     Layout.fillWidth: true
-                    text: root.mode === "calendar" ? "Agenda" : "Nouvelle tâche"
+                    text: root.mode === "calendar" ? "Agenda" : (root.mode === "clipboard" ? "Presse-papiers" : "Nouvelle tâche")
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textSm
                     font.weight: Font.Bold
@@ -913,6 +963,115 @@ Item {
                                     color: Theme.fg
                                     elide: Text.ElideRight
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── MODE : PRESSE-PAPIERS ─────────────────────────────────────────
+        ColumnLayout {
+            visible: root.mode === "clipboard"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: 12
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.clipStatus !== "" ? root.clipStatus : (root.clipEntries.length + " entrée" + (root.clipEntries.length > 1 ? "s" : ""))
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    font.weight: root.clipStatus !== "" ? Font.Bold : Font.Normal
+                    color: root.clipStatus !== "" ? Theme.accent : Qt.alpha(Theme.fg, 0.65)
+                }
+
+                Rectangle {
+                    visible: root.clipEntries.length > 0
+                    Layout.preferredHeight: 22
+                    Layout.preferredWidth: clipClearLbl.implicitWidth + 14
+                    radius: 6
+                    color: clipClearMa.containsMouse ? Qt.alpha(Theme.error, 0.22) : Qt.alpha(Theme.fg, 0.08)
+
+                    Text {
+                        id: clipClearLbl
+                        anchors.centerIn: parent
+                        text: "Vider"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: clipClearMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.8)
+                    }
+
+                    MouseArea {
+                        id: clipClearMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.clearClipboard()
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Qt.alpha(Theme.fg, 0.1)
+            }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: width
+                contentHeight: clipCol.implicitHeight
+                clip: true
+
+                ColumnLayout {
+                    id: clipCol
+                    width: parent.width
+                    spacing: 4
+
+                    Text {
+                        visible: root.clipEntries.length === 0
+                        text: root.clipLoaded ? "Historique vide" : "Lecture…"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: Qt.alpha(Theme.fg, 0.55)
+                    }
+
+                    Repeater {
+                        model: root.clipEntries
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 30
+                            radius: 6
+                            color: clipItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.18) : Qt.alpha(Theme.surfaceVariant, 0.35)
+                            border.width: 1
+                            border.color: clipItemMa.containsMouse ? Qt.alpha(Theme.accent, 0.45) : Qt.alpha(Theme.fg, 0.06)
+
+                            Text {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                verticalAlignment: Text.AlignVCenter
+                                text: String(modelData.apercu || modelData.texte || "")
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.textXs
+                                color: Theme.fg
+                                elide: Text.ElideRight
+                            }
+
+                            MouseArea {
+                                id: clipItemMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.copyClipEntry(modelData.id)
                             }
                         }
                     }

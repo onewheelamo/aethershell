@@ -692,6 +692,8 @@ pkg_for_bin() {
                 pactl) echo "pulseaudio-utils" ;;
                 wl-copy) echo "wl-clipboard" ;;
                 bluetoothctl) echo "bluez" ;;
+                udisksctl) echo "udisks2" ;;
+                zbarcam) echo "zbar" ;;
                 cc) echo "gcc" ;;
                 *) echo "$bin" ;;
             esac
@@ -708,6 +710,8 @@ pkg_for_bin() {
                 pactl) echo "pulseaudio-utils" ;;
                 wl-copy) echo "wl-clipboard" ;;
                 bluetoothctl) echo "bluez" ;;
+                udisksctl) echo "udisks2" ;;
+                zbarcam) echo "zbar-tools" ;;
                 cc) echo "gcc" ;;
                 *) echo "$bin" ;;
             esac
@@ -724,6 +728,8 @@ pkg_for_bin() {
                 pactl) echo "libpulse" ;;
                 wl-copy) echo "wl-clipboard" ;;
                 bluetoothctl) echo "bluez-utils" ;;
+                udisksctl) echo "udisks2" ;;
+                zbarcam) echo "zbar" ;;
                 cc) echo "gcc" ;;
                 matugen) echo "matugen-bin" ;;
                 *) echo "$bin" ;;

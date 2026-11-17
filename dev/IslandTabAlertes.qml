@@ -68,18 +68,58 @@ Item {
         anchors.fill: parent
         spacing: 8
 
-        // En-tête + boutons N.P.D. et Tout effacer
+        // En-tête + boutons Presse-papiers, N.P.D. et Tout effacer
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
 
             Text {
                 Layout.fillWidth: true
-                text: "ALERTES & TÂCHES"
+                text: "PRODUCTIVITÉ"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textMd
                 font.weight: Font.Bold
                 color: Theme.fg
+            }
+
+            Rectangle {
+                Layout.preferredHeight: 24
+                Layout.preferredWidth: clipBtnRow.implicitWidth + 14
+                radius: 7
+                color: Theme.islandSidePanel === "clipboard"
+                    ? Qt.alpha(Theme.accent, 0.25)
+                    : (clipBtnMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : Qt.alpha(Theme.fg, 0.08))
+                border.width: 1
+                border.color: Theme.islandSidePanel === "clipboard" ? Theme.accent : "transparent"
+
+                Row {
+                    id: clipBtnRow
+                    anchors.centerIn: parent
+                    spacing: 4
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: "clipboard"
+                        size: 12
+                        color: Theme.islandSidePanel === "clipboard" ? Theme.accent : Theme.fg
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Presse-papiers"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: Theme.islandSidePanel === "clipboard" ? Theme.accent : Theme.fg
+                    }
+                }
+
+                MouseArea {
+                    id: clipBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.islandSidePanel = (Theme.islandSidePanel === "clipboard" ? "" : "clipboard")
+                }
             }
 
             Rectangle {

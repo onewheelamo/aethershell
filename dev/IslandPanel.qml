@@ -28,9 +28,9 @@ Item {
 
     readonly property var tabsModel: {
         let base = [
-            { idx: 0, glyph: "widgets", label: "Contrôles", src: "IslandTabControles.qml" },
-            { idx: 1, glyph: "bell",    label: "Alertes",   src: "IslandTabAlertes.qml" },
-            { idx: 2, glyph: "cog",     label: "Système",   src: "IslandTabSysteme.qml" },
+            { idx: 0, glyph: "widgets", label: "Contrôles",    src: "IslandTabControles.qml" },
+            { idx: 1, glyph: "bell",    label: "Productivité", src: "IslandTabAlertes.qml" },
+            { idx: 2, glyph: "cog",     label: "Système",      src: "IslandTabSysteme.qml" },
             { idx: 3, glyph: "palette", label: "Apparence", src: "IslandTabApparence.qml" }
         ]
         if (Theme.ilotProjetsActif) {

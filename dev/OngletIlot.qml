@@ -266,11 +266,12 @@ Column {
 
         Repeater {
             model: [
-                { key: "ilot_show_vpn",        label: "Voyant VPN",             desc: "Point d'état VPN",                    mode: Theme.ilotShowVpn },
-                { key: "ilot_show_capture",    label: "Voyant Capture",         desc: "Capture vidéo / audio active",        mode: Theme.ilotShowCapture },
-                { key: "ilot_show_planka",     label: "Échéance Kanban Planka", desc: "Icône si une carte approche",         mode: Theme.ilotShowPlanka },
-                { key: "ilot_show_workspaces", label: "Workspaces",             desc: "Points des bureaux virtuels",         mode: Theme.ilotShowWorkspaces },
-                { key: "ilot_show_clock",      label: "Horloge",                desc: "Heure (et date en mode étendu)",      mode: Theme.ilotShowClock }
+                { key: "ilot_show_vpn",           label: "Voyant VPN",             desc: "Point d'état VPN",                    mode: Theme.ilotShowVpn },
+                { key: "ilot_show_capture",       label: "Voyant Capture",         desc: "Capture vidéo / audio active",        mode: Theme.ilotShowCapture },
+                { key: "ilot_show_live_activity", label: "Live Activity",          desc: "Minuteur, enregistrement, téléchargements", mode: Theme.ilotShowLiveActivity },
+                { key: "ilot_show_planka",        label: "Échéance Kanban Planka", desc: "Icône si une carte approche",         mode: Theme.ilotShowPlanka },
+                { key: "ilot_show_workspaces",    label: "Workspaces",             desc: "Points des bureaux virtuels",         mode: Theme.ilotShowWorkspaces },
+                { key: "ilot_show_clock",         label: "Horloge",                desc: "Heure (et date en mode étendu)",      mode: Theme.ilotShowClock }
             ]
 
             delegate: Rectangle {
@@ -386,7 +387,8 @@ Column {
                 { id: "maj",             label: "Mises à jour",        desc: "Paquets en attente" },
                 { id: "todo",            label: "Tâches Todo",         desc: "Compteur de tâches ouvertes" },
                 { id: "meteo",           label: "Météo",               desc: "Température actuelle" },
-                { id: "presse-papiers",  label: "Presse-papiers",      desc: "Historique du presse-papiers" }
+                { id: "presse-papiers",  label: "Presse-papiers",      desc: "Historique du presse-papiers" },
+                { id: "usb",             label: "Périphériques USB",   desc: "Clés USB, cartes SD et disques optiques" }
             ]
 
             delegate: Rectangle {

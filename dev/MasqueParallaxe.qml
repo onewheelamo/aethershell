@@ -202,7 +202,7 @@ PanelWindow {
         }).concat(fenetre.contours.map(function (c) {
             return { genre: "contour", points: c }
         }))
-        peintre.write(JSON.stringify(envoi))
+        peintre.write(JSON.stringify(envoi) + "\n")
     }
 
     onVisibleChanged: if (visible) fenetre.ouvrir()
@@ -239,6 +239,19 @@ PanelWindow {
                                   "--ecran", fenetre.ecranLargeur + "x" + fenetre.ecranHauteur,
                                   "--masque-de", fenetre.cheminMasque]
             generateur.running = true
+        }
+    }
+
+    // Garde-fou : évite qu'un sous-processus bloqué ne gèle l'overlay plein écran.
+    Timer {
+        interval: 45000
+        running: fenetre.travail
+        repeat: false
+        onTriggered: {
+            if (peintre.running) peintre.running = false
+            if (generateur.running) generateur.running = false
+            fenetre.travail = false
+            fenetre.message = "délai dépassé — réessaie ou appuie sur Échap."
         }
     }
 
@@ -912,7 +925,13 @@ PanelWindow {
         anchors.fill: parent
         focus: fenetre.visible
         Keys.onEscapePressed: {
-            if (fenetre.travail) return
+            if (fenetre.travail) {
+                if (peintre.running) peintre.running = false
+                if (generateur.running) generateur.running = false
+                fenetre.travail = false
+                fenetre.message = "annulé."
+                return
+            }
             if (fenetre.contourEnCours.length > 0) {
                 fenetre.contourEnCours = []
                 canvasPeinture.requestPaint()

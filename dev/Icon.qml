@@ -78,6 +78,8 @@ Item {
         "restart": "\u{F0709}",
         "sleep": "\u{F0904}",
         "lock": "\u{F033E}",
+        "qrcode": "\u{F0432}",
+        "clipboard": "\u{F014C}",
         "logout": "\u{F0343}",
         "download": "\u{F01DA}",
         "rocket": "\u{F14DE}",

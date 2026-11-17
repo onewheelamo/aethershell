@@ -123,6 +123,7 @@ QtObject {
     property bool ilotProjetsActif: true
     property string ilotShowVpn: "both"
     property string ilotShowCapture: "both"
+    property string ilotShowLiveActivity: "both"
     property string ilotShowMedia: "compact"
     property string ilotShowPlanka: "both"
     property string ilotShowWorkspaces: "both"
@@ -826,6 +827,7 @@ QtObject {
         if (typeof data.ilot_projets_actif === "boolean") root.ilotProjetsActif = data.ilot_projets_actif
         if (data.ilot_show_vpn !== undefined) root.ilotShowVpn = root.normIlotMode(data.ilot_show_vpn, "both")
         if (data.ilot_show_capture !== undefined) root.ilotShowCapture = root.normIlotMode(data.ilot_show_capture, "both")
+        if (data.ilot_show_live_activity !== undefined) root.ilotShowLiveActivity = root.normIlotMode(data.ilot_show_live_activity, "both")
         if (data.ilot_show_media !== undefined) root.ilotShowMedia = root.normIlotMode(data.ilot_show_media, "compact")
         if (data.ilot_show_planka !== undefined) root.ilotShowPlanka = root.normIlotMode(data.ilot_show_planka, "both")
         if (data.ilot_show_workspaces !== undefined) root.ilotShowWorkspaces = root.normIlotMode(data.ilot_show_workspaces, "both")
