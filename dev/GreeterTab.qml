@@ -292,15 +292,9 @@ Item {
         width: parent.width
         spacing: Theme.space3
 
-        CollapsibleSection {
-            id: secGreeter
-            title: "Écran de connexion"
-            icon: "lock"
-            expanded: true
-
-            Column {
-                width: parent.width
-                spacing: Theme.space3
+        Column {
+            width: parent.width
+            spacing: Theme.space3
 
                 Text {
                     width: parent.width
@@ -701,7 +695,6 @@ Item {
                     font.pixelSize: Theme.textXs
                     wrapMode: Text.WordWrap
                 }
-            }
         }
     }
 }
