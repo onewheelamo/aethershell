@@ -27,7 +27,7 @@ Item {
     readonly property var sysInfo: Theme.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
     readonly property var batInfo: sysInfo.battery || ({})
-    readonly property bool isLaptop: Boolean(batInfo && batInfo.present)
+    readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
 
     property bool wifiEnabled: Boolean(wifiInfo && (wifiInfo.enabled !== false))
     property string wifiSsid: (wifiInfo && wifiInfo.ssid) ? String(wifiInfo.ssid) : ""
@@ -51,7 +51,8 @@ Item {
     Process { id: vizCmdProc }
 
     property int volumePct: {
-        let v = (sysInfo.volume && sysInfo.volume.percent !== undefined) ? Number(sysInfo.volume.percent) : 50
+        let v = (sysInfo.volume && (sysInfo.volume.level !== undefined ? sysInfo.volume.level : sysInfo.volume.percent) !== undefined)
+            ? Number(sysInfo.volume.level !== undefined ? sysInfo.volume.level : sysInfo.volume.percent) : 50
         return Math.max(0, Math.min(100, Math.round(v)))
     }
     property bool volumeMuted: Boolean(sysInfo.volume && sysInfo.volume.muted)

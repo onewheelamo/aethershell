@@ -7,19 +7,14 @@ Le code ci-dessous est écrit pour AetherShell : même principe (une carte de
 profondeur par fond d'écran, seuil et adoucissement réglables), pas la même
 mécanique (pas de Luau, cache et CLI propres au projet).
 
-Ce que ça produit : un PNG en niveaux de gris, à la résolution du fond, où le
-blanc est **devant** (premier plan) et le noir derrière. Dessiné au-dessus des
-widgets de bureau mais sous les fenêtres, il fait passer les widgets *derrière*
-les objets proches du fond — ce que layer-shell ne sait pas faire tout seul.
-
-Modèle : Depth Anything V2 Small (Apache-2.0), ONNX, téléchargé une fois depuis
-Hugging Face et vérifié par empreinte. Rien n'est envoyé nulle part : l'inférence
-est locale. Le runtime vit dans un venv isolé sous `~/.cache/quickshell/depth/`
-pour ne pas toucher au Python du système.
+Modèle principal : Depth Anything V2 Small (Apache-2.0), ONNX, évalué en haute
+résolution 16:9 (924×518) + affinage local des contours par contraste chromatique RGB.
+Modèle optionnel : BiRefNet-lite FP16 (ONNX), fusionné avec la profondeur 3D
+lorsqu'il est installé via le panneau.
 
     depth_mask.py status
     depth_mask.py setup                    # venv + modèle (réseau, ~150 Mo)
-    depth_mask.py generate --wallpaper <png> [--threshold 30] [--feather 8]
+    depth_mask.py generate --wallpaper <png> [--threshold 0.30] [--feather 0.08] [--brut]
     depth_mask.py clear-cache
 """
 from __future__ import annotations
@@ -40,15 +35,16 @@ MODEL_URL = ("https://huggingface.co/onnx-community/depth-anything-v2-small/reso
              f"{MODEL_REVISION}/onnx/model.onnx?download=true")
 MODEL_SHA256 = "afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c"
 MODEL_SIZE = 99_060_839
-INPUT_SIZE = 518
+INPUT_SIZE = 924
 PATCH = 14
-VERSION_DEPTH = 1
-VERSION_MASQUE = 2
+VERSION_DEPTH = 3
+VERSION_MASQUE = 13
 PACKAGES = ("numpy", "onnxruntime", "pillow")
 
 DATA_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "depth"
 VENV_PYTHON = DATA_DIR / "runtime" / "bin" / "python"
 MODEL_PATH = DATA_DIR / "models" / "depth-anything-v2-small.onnx"
+BIREFNET_PATH = DATA_DIR / "models" / "birefnet-lite-fp16.onnx"
 DEPTH_DIR = DATA_DIR / "cache" / "profondeur"
 MASQUE_DIR = DATA_DIR / "cache" / "masques"
 
@@ -89,12 +85,7 @@ def runtime_pret() -> bool:
 
 
 def _se_reexecuter_dans_le_venv() -> None:
-    """Bascule dans le venv quand c'est lui qui porte numpy/onnxruntime.
-
-    Le shell appelle ce script avec le Python du système, qui n'a pas ces
-    modules : sans cette bascule, `generate` échouerait alors que le runtime est
-    installé. La garde sur `sys.executable` empêche la boucle.
-    """
+    """Bascule dans le venv quand c'est lui qui porte numpy/onnxruntime."""
     try:
         import numpy, onnxruntime  # noqa: F401
         return
@@ -102,9 +93,6 @@ def _se_reexecuter_dans_le_venv() -> None:
         pass
     if not VENV_PYTHON.is_file():
         return
-    # On regarde `sys.prefix`, pas `sys.executable` : le python du venv est un
-    # lien vers le python de base, donc les deux chemins résolus sont égaux alors
-    # que les `site-packages` ne le sont pas.
     if Path(sys.prefix).resolve() == (DATA_DIR / "runtime").resolve():
         return
     os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
@@ -158,57 +146,155 @@ def statut() -> None:
           "cheminModele": str(MODEL_PATH), "cache": str(MASQUE_DIR)})
 
 
-# ── inférence ────────────────────────────────────────────────────────────────
+# ── inférence et affinage ────────────────────────────────────────────────────
 def taille_inference(largeur: int, hauteur: int) -> tuple[int, int]:
-    echelle = max(INPUT_SIZE / largeur, INPUT_SIZE / hauteur)
-    return (max(INPUT_SIZE, round(largeur * echelle / PATCH) * PATCH),
-            max(INPUT_SIZE, round(hauteur * echelle / PATCH) * PATCH))
+    """Côté long = INPUT_SIZE (924 px), côté court = multiple de 14 respectant le ratio (ex. 518 px)."""
+    if largeur >= hauteur:
+        ml = INPUT_SIZE
+        mh = max(PATCH, round((hauteur / max(1, largeur)) * INPUT_SIZE / PATCH) * PATCH)
+    else:
+        mh = INPUT_SIZE
+        ml = max(PATCH, round((largeur / max(1, hauteur)) * INPUT_SIZE / PATCH) * PATCH)
+    return ml, mh
 
 
-def lisser(valeurs, rayon: int):
-    """Moyenne par fenêtre (somme intégrale) — le guide du filtre guidé."""
+def _box_blur_2d(a, r: int):
     import numpy as np
+    if r <= 0:
+        return a
+    k = 2 * r + 1
+    p = np.pad(a, ((r, r), (r, r)), mode="edge")
+    cs = np.cumsum(np.pad(p, ((1, 0), (0, 0))), axis=0, dtype=np.float64)
+    v = (cs[k:, :] - cs[:-k, :]) / float(k)
+    cs2 = np.cumsum(np.pad(v, ((0, 0), (1, 0))), axis=1, dtype=np.float64)
+    return ((cs2[:, k:] - cs2[:, :-k]) / float(k)).astype(np.float32)
 
-    borde = np.pad(valeurs, ((rayon, rayon), (rayon, rayon)), mode="edge")
-    integrale = np.pad(borde, ((1, 0), (1, 0)), mode="constant")
-    integrale = np.cumsum(np.cumsum(integrale, axis=0, dtype=np.float64), axis=1, dtype=np.float64)
-    d = rayon * 2 + 1
-    total = (integrale[d:, d:] - integrale[:-d, d:]
-             - integrale[d:, :-d] + integrale[:-d, :-d])
-    return (total / (d * d)).astype(np.float32)
 
-
-def affiner_guide(source, profondeur, max_dim=1920, rayon=8, epsilon=0.001):
-    """Filtre guidé : recolle la carte de profondeur aux contours de l'image.
-
-    Sans lui, le masque suit une carte floue de 518 px et bave sur les branches
-    fines ; c'est le détail qui fait la différence entre « joli » et « faux ».
+def affiner_contour_rgb(
+    source_rgb,
+    mask,
+    halo_px: int = 16,
+    color_thresh: float = 0.075,
+    passes: int = 1,
+    porte_profondeur=None,
+):
+    """Affine la bordure externe d'un masque par contraste chromatique RGB
+    avec le fond local immédiat :
+    - Ne perce JAMAIS de trous dans les fenêtres de bâtiments ou rayures internes (contrairement au filtre guidé en luminance).
+    - Avec `passes > 1`, propage le masque le long des brindilles/antennes fines colorées.
     """
+    import numpy as np
+    from PIL import Image, ImageFilter
+
+    rgb = np.asarray(source_rgb, dtype=np.float32) / 255.0
+    courant = np.asarray(mask, dtype=np.float32)
+    dil_in_k = max(3, (halo_px // 2) | 1)
+    dil_out_k = max(5, (halo_px * 2 + 1) | 1)
+    ero_k = 7
+    r_est = max(12, halo_px * 2)
+
+    for _ in range(max(1, passes)):
+        m_bin = (courant > 0.40).astype(np.float32)
+        m_pil = Image.fromarray((m_bin * 255.0).astype(np.uint8), mode="L")
+        dil_inner = np.asarray(m_pil.filter(ImageFilter.MaxFilter(dil_in_k)), dtype=np.float32) / 255.0
+        dil_outer = np.asarray(m_pil.filter(ImageFilter.MaxFilter(dil_out_k)), dtype=np.float32) / 255.0
+        eroded = np.asarray(m_pil.filter(ImageFilter.MinFilter(ero_k)), dtype=np.float32) / 255.0
+
+        bg_weight = 1.0 - dil_inner
+        w_blur = np.maximum(_box_blur_2d(bg_weight, r_est), 1e-4)
+
+        bg_rgb = np.zeros_like(rgb)
+        for c in range(3):
+            bg_rgb[:, :, c] = _box_blur_2d(rgb[:, :, c] * bg_weight, r_est) / w_blur
+
+        dist = np.sqrt(np.sum((rgb - bg_rgb) ** 2, axis=2))
+        halo_zone = np.clip(dil_outer - eroded, 0.0, 1.0)
+        contrast_alpha = np.clip((dist - color_thresh) / 0.06, 0.0, 1.0)
+        ajout = halo_zone * contrast_alpha
+        if porte_profondeur is not None:
+            ajout = ajout * porte_profondeur
+        courant = np.maximum(courant, ajout)
+
+    ref_pil = Image.fromarray((np.clip(courant, 0.0, 1.0) * 255.0).astype(np.uint8), mode="L")
+    ref_pil = ref_pil.filter(ImageFilter.GaussianBlur(radius=1.15))
+    return np.asarray(ref_pil, dtype=np.float32) / 255.0
+
+
+def _inferer_birefnet(source, ml_cible: int, mh_cible: int):
+    """Exécute BiRefNet-lite FP16 s'il est installé dans ~/.cache/quickshell/depth/models/."""
+    if not (BIREFNET_PATH.is_file() and BIREFNET_PATH.stat().st_size > 100_000_000):
+        return None
+    try:
+        import numpy as np
+        import onnxruntime as ort
+        from PIL import Image
+
+        im = source.resize((1024, 1024), Image.Resampling.BILINEAR)
+        arr = np.asarray(im, dtype=np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        x = ((arr - mean) / std).transpose(2, 0, 1)[None].astype(np.float16)
+
+        options = ort.SessionOptions()
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        sess = ort.InferenceSession(str(BIREFNET_PATH), sess_options=options,
+                                    providers=["CPUExecutionProvider"])
+        out = sess.run(None, {sess.get_inputs()[0].name: x})[-1]
+        pred = np.squeeze(out).astype(np.float32)
+        prob = 1.0 / (1.0 + np.exp(-np.clip(pred, -30.0, 30.0)))
+        pmin, pmax = float(prob.min()), float(prob.max())
+        if pmax - pmin > 1e-6:
+            prob = (prob - pmin) / (pmax - pmin)
+        prob_im = Image.fromarray((prob * 255.0).astype(np.uint8), mode="L").resize(
+            (ml_cible, mh_cible), Image.Resampling.BICUBIC
+        )
+        return np.asarray(prob_im, dtype=np.float32) / 255.0
+    except Exception:
+        return None
+
+
+def _fusionner_profondeur_et_contours(source, profondeur):
+    """Produit la carte de profondeur continue pleine résolution [0..1] sans trous internes."""
     import numpy as np
     from PIL import Image
 
     l, h = source.size
-    echelle = min(1.0, max_dim / max(l, h))
-    taille = (max(1, round(l * echelle)), max(1, round(h * echelle)))
-    guide = source.convert("L")
-    if guide.size != taille:
-        guide = guide.resize(taille, Image.Resampling.LANCZOS)
-    guide = np.asarray(guide, dtype=np.float32) / 255.0
-    grossier = np.asarray(Image.fromarray(profondeur).resize(taille, Image.Resampling.BICUBIC),
-                          dtype=np.float32)
+    pleine = np.asarray(
+        Image.fromarray((np.clip(profondeur, 0.0, 1.0) * 255.0).astype(np.uint8), mode="L")
+        .resize((l, h), Image.Resampling.BICUBIC),
+        dtype=np.float32,
+    ) / 255.0
 
-    mg = lisser(guide, rayon)
-    mp = lisser(grossier, rayon)
-    varg = lisser(guide * guide, rayon) - mg * mg
-    cov = lisser(guide * grossier, rayon) - mg * mp
-    a = cov / (varg + np.float32(epsilon))
-    b = mp - a * mg
-    affine = np.clip(lisser(a, rayon) * guide + lisser(b, rayon), 0.0, 1.0).astype(np.float32)
+    biref = _inferer_birefnet(source, l, h)
+    if biref is not None:
+        ratio_fond_3d = float((pleine < 0.22).mean())
+        couv_biref = float((biref > 0.5).mean())
+        if ratio_fond_3d > 0.54 and 0.03 < couv_biref < 0.48:
+            # Sujet isolé (ex. X-Wing, personnage/droïde) : la silhouette BiRefNet
+            # donne le contour exact, filtré par la présence 3D (d > 0.14)
+            # pour exclure tout élément plat du fond.
+            porte_3d = np.clip((pleine - 0.14) / 0.10, 0.0, 1.0)
+            sujet = np.clip((biref * porte_3d - 0.08) / 0.84, 0.0, 1.0)
+            return (0.28 + 0.72 * sujet) * (sujet > 0.02).astype(np.float32)
 
-    if taille != (l, h):
-        affine = np.asarray(Image.fromarray(affine).resize((l, h), Image.Resampling.BICUBIC),
-                            dtype=np.float32)
-    return affine
+        elif 0.03 < couv_biref < 0.85:
+            # Scène multi-plans : complète les rameaux/extrémités fines (pétales, antennes)
+            # qui prolongent une zone de premier plan 3D (pleine > 0.48) sur plusieurs passes
+            # d'hystérésis, sans jamais toucher aux plans moyens éloignés (pont, horizon).
+            from PIL import ImageFilter
+            fg_seed = (pleine > 0.48).astype(np.float32)
+            cand = ((biref > 0.25) & (pleine > 0.14)).astype(np.float32)
+            for _ in range(4):
+                dil = np.asarray(
+                    Image.fromarray((fg_seed * 255.0).astype(np.uint8), mode="L")
+                    .filter(ImageFilter.MaxFilter(65)),
+                    dtype=np.float32,
+                ) / 255.0
+                fg_seed = np.maximum(fg_seed, dil * cand)
+            pleine = np.maximum(pleine, fg_seed * np.maximum(biref, 0.85) * 0.92)
+
+    # Scène multi-plans ou sans BiRefNet : conserve les plans 3D (lointain / moyen / proche)
+    return np.clip(pleine, 0.0, 1.0).astype(np.float32)
 
 
 def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None:
@@ -228,20 +314,15 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
     from PIL import Image
 
     empreinte = sha256(fond)
-    cle = "%s-m%s-d%d-i%d" % (empreinte, MODEL_SHA256[:16], VERSION_DEPTH, INPUT_SIZE)
+    biref_tag = "b1" if (BIREFNET_PATH.is_file() and BIREFNET_PATH.stat().st_size > 100_000_000) else "b0"
+    cle = "%s-m%s-d%d-i%d-%s" % (empreinte, MODEL_SHA256[:16], VERSION_DEPTH, INPUT_SIZE, biref_tag)
     DEPTH_DIR.mkdir(parents=True, exist_ok=True)
     MASQUE_DIR.mkdir(parents=True, exist_ok=True)
     chemin_profondeur = DEPTH_DIR / ("%s.npy" % cle)
     cle_masque = "%s-v%d-t%.4f-f%.4f" % (cle, VERSION_MASQUE, seuil, adouci)
     chemin_masque = MASQUE_DIR / ("%s.png" % cle_masque)
-    # Carte continue, sans seuil : c'est elle que lit le découpage en calques.
-    # Le masque binarisé ne porte qu'un contour choisi à l'avance ; sur une carte
-    # binaire, les bandes intermédiaires sont vides et tout le décor tombe d'un
-    # côté ou de l'autre d'un seul cran.
     chemin_brut = MASQUE_DIR / ("%s-brut-v%d.png" % (cle, VERSION_MASQUE))
 
-    # Un verrou entre processus : deux appels concurrents (fond changé pendant
-    # une génération) ne doivent pas écrire le même fichier en même temps.
     verrou = (DATA_DIR / "runtime" / "generation.lock").open("w")
     try:
         import fcntl
@@ -268,38 +349,42 @@ def generer(fond: Path, seuil: float, adouci: float, brut: bool = False) -> None
                 session = ort.InferenceSession(str(MODEL_PATH), sess_options=options,
                                                providers=["CPUExecutionProvider"])
                 nom = session.get_inputs()[0].name
-                brut = np.asarray(session.run(None, {nom: tenseur})[0], dtype=np.float32).squeeze()
-                if brut.shape != (mh, ml):
-                    raise RuntimeError("sortie du modèle de forme inattendue : %s" % (brut.shape,))
-                mini, maxi = float(brut.min()), float(brut.max())
+                brut_out = np.asarray(session.run(None, {nom: tenseur})[0], dtype=np.float32).squeeze()
+                if brut_out.shape != (mh, ml):
+                    raise RuntimeError("sortie du modèle de forme inattendue : %s" % (brut_out.shape,))
+                mini = float(np.percentile(brut_out, 1.5))
+                maxi = float(np.percentile(brut_out, 99.2))
                 if not np.isfinite(mini) or not np.isfinite(maxi) or maxi <= mini:
                     raise RuntimeError("carte de profondeur invalide")
-                profondeur = (brut - mini) / (maxi - mini)
+                profondeur = np.clip((brut_out - mini) / (maxi - mini), 0.0, 1.0)
                 with tempfile.NamedTemporaryFile("wb", dir=DEPTH_DIR, delete=False) as f:
                     np.save(f, profondeur, allow_pickle=False)
                     temporaire = Path(f.name)
                 os.replace(temporaire, chemin_profondeur)
 
-            if brut or not chemin_masque.is_file():
-                pleine = affiner_guide(source, profondeur)
-
             if brut and not chemin_brut.is_file():
-                import numpy as _np
-                gris = Image.fromarray(_np.rint(_np.clip(pleine, 0.0, 1.0) * 255.0).astype("uint8"))
+                pleine = _fusionner_profondeur_et_contours(source, profondeur)
+                gris = Image.fromarray(np.rint(np.clip(pleine, 0.0, 1.0) * 255.0).astype("uint8"))
                 with tempfile.NamedTemporaryFile("wb", dir=MASQUE_DIR, delete=False) as f:
                     gris.save(f, format="PNG", optimize=True)
                     temporaire = Path(f.name)
                 os.replace(temporaire, chemin_brut)
 
             if not brut and not chemin_masque.is_file():
+                pleine = _fusionner_profondeur_et_contours(source, profondeur)
                 demi = adouci * 0.5
                 alpha = np.clip((pleine - (seuil - demi)) / max(1e-6, 2 * demi), 0.0, 1.0) \
                     if demi > 0 else (pleine >= seuil).astype(np.float32)
-                alpha = alpha * alpha * (3.0 - 2.0 * alpha)   # smoothstep
-                # Le calque doit redessiner **le décor**, pas un masque blanc :
-                # on garde les pixels du fond et on n'emprunte que l'alpha. Un
-                # masque en niveaux de gris, dessiné tel quel, afficherait une
-                # silhouette blanche par-dessus le fond au lieu de le laisser voir.
+                alpha = alpha * alpha * (3.0 - 2.0 * alpha)
+                if float((pleine < 0.20).mean()) <= 0.54:
+                    porte_3d = np.clip((pleine - 0.10) / 0.08, 0.0, 1.0)
+                    porte_ciel = np.ones((h, l), dtype=np.float32)
+                    porte_ciel[int(h * 0.56):, :] = porte_3d[int(h * 0.56):, :]
+                    alpha = affiner_contour_rgb(
+                        source, alpha, halo_px=18, color_thresh=0.070, passes=5, porte_profondeur=porte_ciel
+                    )
+                alpha = np.clip((alpha - 0.06) / 0.88, 0.0, 1.0)
+
                 masque = Image.fromarray(np.rint(alpha * 255.0).astype(np.uint8))
                 image = source.copy().convert("RGBA")
                 image.putalpha(masque)
@@ -350,7 +435,7 @@ def main() -> int:
                 raise RuntimeError("--wallpaper est requis")
             generer(a.wallpaper.expanduser().resolve(), a.threshold, a.feather, a.brut)
         return 0
-    except Exception as e:                       # une seule ligne, actionnable
+    except Exception as e:
         print(str(e), file=sys.stderr, flush=True)
         emit({"ok": False, "error": str(e)})
         return 1

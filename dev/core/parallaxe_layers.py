@@ -2,47 +2,44 @@
 """Découpe un fond d'écran en trois calques de parallaxe à partir de sa carte
 de profondeur.
 
-Idée et principe repris du plugin Noctalia `wallpaper_depth`
-(https://github.com/noctalia-dev/official-plugins/tree/main/wallpaper_depth,
-MIT) : la carte de profondeur dit ce qui est devant. Ici elle sert à découper
-l'image en trois plans — lointain, moyen, proche — que `FondProfondeur.qml`
-décale différemment quand on change de bureau.
-
-Les trois calques gardent **les pixels du fond** et ne portent que leur poids
-dans l'alpha, avec des poids qui somment à 1 : empilés, ils redonnent exactement
-l'image d'origine (aucun trou, aucun doublon au repos). Le décalage ne fait
-apparaître que ce qui est derrière, jamais de transparence.
+Combine :
+- Profondeur 3D haute résolution (Depth Anything V2 Small en 924×518 16:9)
+- Détourage haute précision BiRefNet-lite FP16 (optionnel, géré via `status|setup|remove`)
+- Affinage chromatique RGB des contours (pétales, antennes, sans trous dans les bâtiments)
+- Inpainting horizontal pondéré par la distance (zéro tache grise derrière les sujets)
 
 Usage :
+    python3 parallaxe_layers.py status | setup | remove
     python3 parallaxe_layers.py generate --wallpaper FOND.png [--out DOSSIER]
-                                        [--seuil-bas 30] [--seuil-haut 65]
-
-Le masque est calculé (ou relu du cache) par `depth_mask.py`, avec les mêmes
-seuils que le masque de premier plan : le réglage du panneau vaut pour les deux.
+                                         [--seuil-bas 30] [--seuil-haut 65]
+                                         [--ecran 1920x1080] [--masque-de MASQUE.png]
 """
+
+from __future__ import annotations
 
 import argparse
 import json
 import os
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
 NOMS = ("1-lointain.png", "2-moyen.png", "3-proche.png")
-# Runtime partagé avec depth_mask.py : c'est lui qui porte numpy et Pillow.
-DATA_DIR = Path.home() / ".cache" / "quickshell" / "depth"
+DATA_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quickshell" / "depth"
 VENV_PYTHON = DATA_DIR / "runtime" / "bin" / "python"
+MODELS_DIR = DATA_DIR / "models"
+BIREFNET_MODEL = MODELS_DIR / "birefnet-lite-fp16.onnx"
+LEGACY_RMBG_MODEL = MODELS_DIR / "rmbg-1.4.onnx"
+BIREFNET_URL = (
+    "https://huggingface.co/onnx-community/BiRefNet_lite/resolve/main/onnx/model_fp16.onnx"
+)
+TAILLE_MIN = 100_000_000  # ~218 Mo
 
 
 def _se_reexecuter_dans_le_venv():
-    """Bascule dans le venv quand c'est lui qui porte numpy et Pillow.
-
-    Le shell appelle ce script avec le Python du système, qui n'a pas ces
-    modules : sans cette bascule la génération échouerait alors que le runtime
-    est installé. La garde sur `sys.prefix` empêche la boucle (le python du venv
-    est un lien vers celui de base, donc `sys.executable` ne distingue rien).
-    """
+    """Bascule dans le venv partagé avec depth_mask.py."""
     try:
         import numpy  # noqa: F401
         from PIL import Image  # noqa: F401
@@ -65,16 +62,66 @@ def _numpy():
     return np, Image
 
 
-def masque_pour(fond, peint=None):
-    """Rend la carte qui décide des plans : masque peint s'il existe, sinon profondeur.
+def statut() -> int:
+    ok_biref = BIREFNET_MODEL.is_file() and BIREFNET_MODEL.stat().st_size >= TAILLE_MIN
+    if not ok_biref and LEGACY_RMBG_MODEL.is_file():
+        LEGACY_RMBG_MODEL.unlink(missing_ok=True)
+    taille_mo = round(BIREFNET_MODEL.stat().st_size / (1024 * 1024), 1) if ok_biref else 0.0
+    print(json.dumps({
+        "ok": True,
+        "rmbg": ok_biref,
+        "installed": ok_biref,
+        "model": "BiRefNet-lite FP16 + Depth V2 HD" if ok_biref else "Depth Anything V2 Small HD",
+        "path": str(BIREFNET_MODEL),
+        "size_mb": taille_mo,
+    }), flush=True)
+    return 0
 
-    Le masque peint à la main (pinceau du panneau) est une image à fond
-    transparent dont l'alpha vaut 255 là où l'utilisateur a jugé que l'objet est
-    devant : il fait foi, sans passer par le modèle. Sinon on demande à
-    depth_mask.py sa carte **continue** — pas le masque binarisé : le découpage a
-    besoin de la gradation réelle, car sur une carte binaire la bande
-    intermédiaire est vide et tout bascule d'un cran.
-    """
+
+def installer() -> int:
+    # S'assure d'abord que le runtime et Depth Anything V2 sont prêts
+    subprocess.run([sys.executable, str(ICI / "depth_mask.py"), "setup"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    if LEGACY_RMBG_MODEL.is_file():
+        LEGACY_RMBG_MODEL.unlink(missing_ok=True)
+
+    if BIREFNET_MODEL.is_file() and BIREFNET_MODEL.stat().st_size >= TAILLE_MIN:
+        return statut()
+
+    tmp = BIREFNET_MODEL.with_suffix(".part")
+    tmp.unlink(missing_ok=True)
+    try:
+        req = urllib.request.Request(BIREFNET_URL, headers={"User-Agent": "AetherShell/1.0"})
+        with urllib.request.urlopen(req, timeout=300) as r, tmp.open("wb") as f:
+            while True:
+                chunk = r.read(256 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+        if tmp.stat().st_size < TAILLE_MIN:
+            raise RuntimeError("téléchargement incomplet")
+        os.replace(tmp, BIREFNET_MODEL)
+        # Invalide les masques bruts en cache pour forcer l'usage de BiRefNet
+        subprocess.run([sys.executable, str(ICI / "depth_mask.py"), "clear-cache"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return statut()
+    except Exception as exc:
+        tmp.unlink(missing_ok=True)
+        print(json.dumps({"ok": False, "rmbg": False, "error": str(exc)}), flush=True)
+        return 1
+
+
+def supprimer() -> int:
+    for p in (BIREFNET_MODEL, BIREFNET_MODEL.with_suffix(".part"), LEGACY_RMBG_MODEL):
+        p.unlink(missing_ok=True)
+    subprocess.run([sys.executable, str(ICI / "depth_mask.py"), "clear-cache"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return statut()
+
+
+def masque_pour(fond, peint=None):
+    """Rend la carte qui décide des plans : masque peint s'il existe, sinon profondeur."""
     if peint:
         peint = Path(peint).expanduser()
         if peint.is_file():
@@ -85,8 +132,8 @@ def masque_pour(fond, peint=None):
     if r.returncode != 0:
         sys.exit("depth_mask.py a échoué : " + (r.stderr.strip() or r.stdout.strip())[:300])
     try:
-        d = json.loads(r.stdout.strip())
-    except json.JSONDecodeError:
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:
         sys.exit("réponse illisible de depth_mask.py : " + r.stdout[:200])
     if not d.get("ok"):
         sys.exit("carte de profondeur indisponible : " + str(d.get("error")))
@@ -103,88 +150,83 @@ def _lissage(a, bas, haut):
 
 
 def _cover(image, largeur, hauteur):
-    """Redimensionne en « cover » : remplit l'écran, recadre au centre.
-
-    C'est le cadrage du démon de fond (awww recadre en crop). Mesuré contre une
-    capture du compositeur : écart moyen 0,7 sur 255 avec LANCZOS — largement
-    sous le seuil visible, alors qu'un redimensionnement par Qt dans la surface
-    laissait 187. C'est ce qui permet de produire les calques depuis le fichier
-    du fond, sans capture ni bureau vide.
-    """
+    """Redimensionne en « cover » : remplit l'écran, recadre au centre."""
     _, Image = _numpy()
-    ratio = max(largeur / image.width, hauteur / image.height)
-    taille = (round(image.width * ratio), round(image.height * ratio))
-    red = image.resize(taille, Image.LANCZOS)
-    x = (red.width - largeur) // 2
-    y = (red.height - hauteur) // 2
-    return red.crop((x, y, x + largeur, y + hauteur))
+    l, h = image.size
+    if (l, h) == (largeur, hauteur):
+        return image
+    echelle = max(largeur / l, hauteur / h)
+    nl, nh = round(l * echelle), round(h * echelle)
+    redim = image.resize((nl, nh), Image.LANCZOS)
+    x = (nl - largeur) // 2
+    y = (nh - hauteur) // 2
+    return redim.crop((x, y, x + largeur, y + hauteur))
 
 
-def _inpaint_rgb(rgb_img, mask_bool):
-    """Comble les zones masquées (derrière un avant-plan) sans dépendance externe.
-    Utilise cv2.inpaint si présent, sinon une pyramide multi-échelle Pillow/numpy."""
+def _inpaint_rgb(image_rgb, masque_trou, rayon_dilat=11):
+    """Reconstruit les zones occultées par propagation horizontale pondérée des
+    couleurs de bord gauche/droit sur chaque ligne de balayage.
+    Élimine 100 % des halos gris laissés par une initialisation à la couleur moyenne.
+    """
     np, Image = _numpy()
     from PIL import ImageFilter
 
-    if not np.any(mask_bool):
-        return rgb_img
+    arr = np.asarray(image_rgb, dtype=np.float32)
+    h, w, _ = arr.shape
+    m_u8 = (np.asarray(masque_trou, dtype=np.uint8) * 255)
+    k = max(3, int(rayon_dilat) | 1)
+    m_dil_pil = Image.fromarray(m_u8, mode="L").filter(ImageFilter.MaxFilter(k))
+    m_dil = np.asarray(m_dil_pil, dtype=np.float32) / 255.0
 
-    # Dilate légèrement le masque pour absorber le halo de contour (3 px)
-    m_img = Image.fromarray((mask_bool.astype(np.uint8) * 255), mode="L")
-    m_dil = m_img.filter(ImageFilter.MaxFilter(7))
-    dil_bool = np.asarray(m_dil) > 127
+    hole = m_dil > 0.5
+    if not np.any(hole):
+        return image_rgb
 
-    try:
-        import cv2  # type: ignore
-        bgr = np.asarray(rgb_img, dtype=np.uint8)[:, :, ::-1]
-        res = cv2.inpaint(bgr, (dil_bool.astype(np.uint8) * 255), 5, cv2.INPAINT_TELEA)
-        return Image.fromarray(res[:, :, ::-1], mode="RGB")
-    except Exception:
-        pass
+    valid = ~hole
+    idx = np.arange(w, dtype=np.int32)[None, :]
 
-    arr = np.asarray(rgb_img, dtype=np.float32).copy()
-    h, w = arr.shape[:2]
-    # Pyramide rapide 1/8 -> diffusion itérative -> remontée douce
-    sw, sh = max(32, w // 8), max(32, h // 8)
-    small_rgb = np.asarray(rgb_img.resize((sw, sh), Image.BILINEAR), dtype=np.float32)
-    small_m = np.asarray(m_dil.resize((sw, sh), Image.NEAREST)) > 127
+    left_idx = np.where(valid, idx, 0)
+    np.maximum.accumulate(left_idx, axis=1, out=left_idx)
+    has_left = np.maximum.accumulate(valid.astype(np.int8), axis=1) > 0
 
-    valid = ~small_m
-    work = small_rgb.copy()
-    if np.any(valid):
-        mean_col = work[valid].mean(axis=0)
-        work[small_m] = mean_col
-        for _ in range(28):
-            up = np.roll(work, 1, axis=0)
-            dn = np.roll(work, -1, axis=0)
-            lf = np.roll(work, 1, axis=1)
-            rt = np.roll(work, -1, axis=1)
-            avg = 0.25 * (up + dn + lf + rt)
-            work[small_m] = avg[small_m]
+    right_idx = np.where(valid, idx, w - 1)
+    right_idx = np.minimum.accumulate(right_idx[:, ::-1], axis=1)[:, ::-1]
+    has_right = np.maximum.accumulate(valid[:, ::-1].astype(np.int8), axis=1)[:, ::-1] > 0
 
-    up_fill = np.asarray(
-        Image.fromarray(np.clip(work, 0, 255).astype(np.uint8), mode="RGB")
-        .resize((w, h), Image.BILINEAR)
-        .filter(ImageFilter.GaussianBlur(radius=3)),
-        dtype=np.float32,
-    )
-    # Adoucir la transition sur 2 px autour du trou
-    soft_m = np.asarray(m_dil.filter(ImageFilter.GaussianBlur(radius=2)), dtype=np.float32) / 255.0
+    rows = np.arange(h, dtype=np.int32)[:, None]
+    left_col = arr[rows, left_idx]
+    right_col = arr[rows, right_idx]
+
+    dist_l = np.maximum(1.0, (idx - left_idx).astype(np.float32))
+    dist_r = np.maximum(1.0, (right_idx - idx).astype(np.float32))
+
+    wl = np.where(has_left, 1.0 / dist_l, 0.0)
+    wr = np.where(has_right, 1.0 / dist_r, 0.0)
+    wsum = wl + wr
+    both_missing = wsum < 1e-6
+    wsum = np.where(both_missing, 1.0, wsum)
+
+    fill = (left_col * wl[:, :, None] + right_col * wr[:, :, None]) / wsum[:, :, None]
+    if np.any(both_missing):
+        med = np.median(arr.reshape(-1, 3), axis=0).astype(np.float32)
+        fill[both_missing] = med
+
+    fill_im = Image.fromarray(np.clip(fill, 0, 255).astype(np.uint8), mode="RGB")
+    fill_im = fill_im.resize((max(16, w // 4), max(16, h // 4)), Image.BILINEAR)
+    fill_im = fill_im.filter(ImageFilter.GaussianBlur(radius=3.5))
+    up_fill = np.asarray(fill_im.resize((w, h), Image.BILINEAR), dtype=np.float32)
+
+    soft_m = np.asarray(m_dil_pil.filter(ImageFilter.GaussianBlur(radius=4.0)), dtype=np.float32) / 255.0
     soft_m = soft_m[:, :, None]
     blended = arr * (1.0 - soft_m) + up_fill * soft_m
     return Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8), mode="RGB")
 
 
 def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
-    """`fond` est l'image à découper ; `masque_de` est l'image dont on tire la
-    carte de profondeur quand les deux diffèrent.
-
-    Le cas d'usage : découper une **capture du bureau** plutôt que le fichier du
-    fond. Les pixels sont alors ceux du compositeur, à l'échelle 1:1 ; les
-    calques se superposent au fond sans le moindre écart, là où réduire un
-    3904×2240 avec le filtre de Qt donnait une image légèrement différente de
-    celle d'awww (couture visible sous la barre)."""
     np, Image = _numpy()
+    sys.path.insert(0, str(ICI))
+    import depth_mask
+
     fond = Path(fond).expanduser().resolve()
     if not fond.exists():
         sys.exit("fond introuvable : " + str(fond))
@@ -193,35 +235,76 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     rgb = Image.open(fond).convert("RGB")
     if ecran:
         rgb = _cover(rgb, int(ecran[0]), int(ecran[1]))
-    sortie = Path(sortie).expanduser()
+    sortie = Path(sortie).expanduser().resolve()
     sortie.mkdir(parents=True, exist_ok=True)
-    # Masque peint : l'alpha porte la sélection (le fond est transparent).
-    # Carte du modèle : les niveaux de gris.
+
+    masque_peint = bool(masque_de and Path(masque_de).expanduser().is_file())
     with Image.open(chemin_masque) as _m:
         if _m.mode in ("RGBA", "LA") or (_m.mode == "P" and "transparency" in _m.info):
             alpha = _m.convert("RGBA").getchannel("A")
         else:
             alpha = _m.convert("L")
     if alpha.size != rgb.size:
-        alpha = alpha.resize(rgb.size, Image.LANCZOS)
+        alpha = _cover(alpha, rgb.size[0], rgb.size[1]) if ecran else alpha.resize(rgb.size, Image.LANCZOS)
 
-    a = np.asarray(alpha, dtype=float) / 255.0
-    proche = _lissage(a, (seuil_haut - 10) / 100.0, (seuil_haut + 5) / 100.0)
-    moyen = np.clip(_lissage(a, (seuil_bas - 5) / 100.0, (seuil_bas + 10) / 100.0) - proche, 0.0, 1.0)
+    a = np.asarray(alpha, dtype=np.float32) / 255.0
+    h, w = a.shape
 
-    # Inpainting des plans arrière pour éviter tout trou/halo lors du décalage parallaxe :
-    # - 1-lointain : fond opaque comblé derrière moyen + proche
-    # - 2-moyen    : comblé derrière proche, avec alpha étendu sous proche
-    # - 3-proche   : pixels originaux intacts
-    rgb_lointain = _inpaint_rgb(rgb, (moyen + proche) > 0.25)
-    rgb_moyen = _inpaint_rgb(rgb, proche > 0.25)
+    if masque_peint:
+        proche = _lissage(a, (seuil_haut - 10) / 100.0, (seuil_haut + 5) / 100.0)
+        moyen = np.clip(_lissage(a, (seuil_bas - 5) / 100.0, (seuil_bas + 10) / 100.0) - proche, 0.0, 1.0)
+    else:
+        # Détection sujet isolé (ex. X-Wing sur fond rayé, où le plan moyen [0.22..0.48] est quasi vide)
+        # vs scène multi-plans (ex. paysage/ville avec premier plan, plan moyen et horizon)
+        part_fond = float((a < 0.22).mean())
+        part_moyen = float(((a >= 0.22) & (a <= 0.48)).mean())
+        est_sujet_isole = part_fond > 0.54 and part_moyen < 0.10
+        if est_sujet_isole:
+            proche = _lissage(a, 0.25, 0.42)
+            if not (BIREFNET_MODEL.is_file() and BIREFNET_MODEL.stat().st_size >= TAILLE_MIN):
+                proche = depth_mask.affiner_contour_rgb(rgb, proche, halo_px=10, color_thresh=0.09)
+            proche = np.clip((proche - 0.04) / 0.92, 0.0, 1.0)
+            moyen = np.zeros_like(proche)
+        else:
+            s_haut_lo = max(0.42, (seuil_haut - 17) / 100.0)
+            s_haut_hi = min(0.72, (seuil_haut - 7) / 100.0)
+            proche_brut = _lissage(a, s_haut_lo, s_haut_hi)
+
+            # Évite qu'une bande d'eau/sol tout en bas sur toute la largeur ne coupe les reflets du plan moyen
+            couv_bas = float((proche_brut[int(h * 0.90):, :] > 0.5).mean())
+            couv_milieu = float((proche_brut[int(h * 0.45):int(h * 0.75), :] > 0.5).mean())
+            if couv_bas > 0.70 and couv_milieu < 0.25:
+                yy = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None]
+                att_bas = 1.0 - _lissage(yy, 0.80, 0.90)
+                proche_brut = proche_brut * att_bas
+
+            # Passe 1 : propage le long des rameaux/antennes (contraste fort) avec porte 3D
+            porte_3d = np.clip((a - 0.10) / 0.08, 0.0, 1.0)
+            proche = depth_mask.affiner_contour_rgb(
+                rgb, proche_brut, halo_px=18, color_thresh=0.075, passes=6, porte_profondeur=porte_3d
+            )
+            # Passe 2 : rattache tous les rameaux terminaux et pétales proches des branches (jusqu'aux pointes)
+            porte_ciel = np.ones((h, w), dtype=np.float32)
+            porte_ciel[int(h * 0.56):, :] = porte_3d[int(h * 0.56):, :]
+            proche = depth_mask.affiner_contour_rgb(
+                rgb, proche, halo_px=20, color_thresh=0.068, passes=5, porte_profondeur=porte_ciel
+            )
+            proche = np.clip((proche - 0.06) / 0.88, 0.0, 1.0)
+
+            s_bas_lo = max(0.14, (seuil_bas - 12) / 100.0)
+            s_bas_hi = max(s_bas_lo + 0.08, (seuil_bas - 2) / 100.0)
+            fg_total_brut = _lissage(a, s_bas_lo, s_bas_hi)
+            fg_total = depth_mask.affiner_contour_rgb(rgb, fg_total_brut, halo_px=12, color_thresh=0.085)
+            fg_total = np.maximum(fg_total, proche)
+            moyen = np.clip(fg_total - proche, 0.0, 1.0)
+
+    rgb_lointain = _inpaint_rgb(rgb, (moyen + proche) > 0.15, rayon_dilat=11)
+    rgb_moyen = _inpaint_rgb(rgb, proche > 0.15, rayon_dilat=9) if np.any(moyen > 0.05) else rgb
 
     poids_lointain = np.ones_like(proche)
-    poids_moyen = np.clip(moyen + proche, 0.0, 1.0)
+    poids_moyen = moyen
     poids_proche = proche
 
-    sortie = Path(sortie).expanduser().resolve()
-    sortie.mkdir(parents=True, exist_ok=True)
     for nom, img_base, poids in zip(NOMS, (rgb_lointain, rgb_moyen, rgb), (poids_lointain, poids_moyen, poids_proche)):
         calque = img_base.copy()
         calque.putalpha(Image.fromarray(np.rint(poids * 255.0).astype(np.uint8)))
@@ -231,6 +314,15 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
 
 def main():
     _se_reexecuter_dans_le_venv()
+    if len(sys.argv) >= 2 and sys.argv[1] in ("status", "setup", "remove"):
+        cmd = sys.argv[1]
+        if cmd == "status":
+            raise SystemExit(statut())
+        if cmd == "setup":
+            raise SystemExit(installer())
+        if cmd == "remove":
+            raise SystemExit(supprimer())
+
     ap = argparse.ArgumentParser(description="Trois calques de parallaxe depuis une carte de profondeur")
     sous = ap.add_subparsers(dest="cmd", required=True)
     g = sous.add_parser("generate")

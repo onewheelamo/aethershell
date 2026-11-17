@@ -289,8 +289,11 @@ def get_system_info():
         "has_battery": has_bat,
         "has_backlight": has_bri,
         "battery": {
+            "present": has_bat,
             "level": bat_cap,
+            "percent": bat_cap,
             "status": bat_status,
+            "charging": bat_status == "Charging",
             "limit_80": limit_80,
             # Plafond réel et mécanisme, pour que l'applet n'annonce pas « 80 % »
             # sur une machine qui coupe à 60 %.
@@ -299,6 +302,7 @@ def get_system_info():
         },
         "volume": {
             "level": vol_pct,
+            "percent": vol_pct,
             "muted": muted,
         },
         "brightness": bright_pct,

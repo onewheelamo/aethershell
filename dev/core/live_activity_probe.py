@@ -147,114 +147,11 @@ def _load_chromium_downloads_meta():
     return meta
 
 
-def _load_gecko_downloads_meta():
-    """Lit downloads.json des profils Gecko (Firefox, Zen, LibreWolf, Floorp, Waterfox, Flatpak)."""
-    meta = {}
-    patterns = (
-        os.path.expanduser("~/.mozilla/firefox/*/downloads.json"),
-        os.path.expanduser("~/.librewolf/*/downloads.json"),
-        os.path.expanduser("~/.zen/*/downloads.json"),
-        os.path.expanduser("~/.floorp/*/downloads.json"),
-        os.path.expanduser("~/.waterfox/*/downloads.json"),
-        os.path.expanduser("~/.var/app/org.mozilla.firefox/.mozilla/firefox/*/downloads.json"),
-        os.path.expanduser("~/.var/app/io.gitlab.librewolf-community/.librewolf/*/downloads.json"),
-        os.path.expanduser("~/.var/app/app.zen_browser.zen/.zen/*/downloads.json"),
-    )
-    for pat in patterns:
-        for path in glob.glob(pat):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                for item in data.get("list", []):
-                    tgt = item.get("target") or {}
-                    part = tgt.get("partFilePath") or ""
-                    final = tgt.get("path") or ""
-                    total = int(item.get("totalBytes") or 0)
-                    if part:
-                        meta[part] = {
-                            "totalBytes": total,
-                            "name": os.path.basename(final) if final else "",
-                        }
-            except Exception:
-                pass
-    return meta
-
-
-def _load_chromium_downloads_meta():
-    """Lit la table downloads de History (Chrome, Chromium, Brave, Opera, Vivaldi, Edge)."""
-    meta = {}
-    patterns = (
-        os.path.expanduser("~/.config/google-chrome/*/History"),
-        os.path.expanduser("~/.config/chromium/*/History"),
-        os.path.expanduser("~/.config/BraveSoftware/Brave-Browser/*/History"),
-        os.path.expanduser("~/.config/opera/History"),
-        os.path.expanduser("~/.config/opera/*/History"),
-        os.path.expanduser("~/.config/vivaldi/*/History"),
-        os.path.expanduser("~/.config/microsoft-edge/*/History"),
-        os.path.expanduser("~/.var/app/com.google.Chrome/config/google-chrome/*/History"),
-        os.path.expanduser("~/.var/app/org.chromium.Chromium/config/chromium/*/History"),
-        os.path.expanduser("~/.var/app/com.brave.Browser/config/BraveSoftware/Brave-Browser/*/History"),
-        os.path.expanduser("~/.var/app/com.opera.Opera/config/opera/History"),
-    )
-    for pat in patterns:
-        for db in glob.glob(pat):
-            tmp = ""
-            try:
-                fd, tmp = tempfile.mkstemp(suffix=".sqlite")
-                os.close(fd)
-                shutil.copy2(db, tmp)
-                con = sqlite3.connect(tmp)
-                rows = con.execute(
-                    "SELECT current_path, target_path, total_bytes FROM downloads WHERE state = 0"
-                ).fetchall()
-                con.close()
-                for cur_p, tgt_p, total in rows:
-                    if cur_p:
-                        meta[cur_p] = {
-                            "totalBytes": int(total or 0),
-                            "name": os.path.basename(tgt_p) if tgt_p else "",
-                        }
-            except Exception:
-                pass
-            finally:
-                if tmp and os.path.exists(tmp):
-                    try:
-                        os.unlink(tmp)
-                    except OSError:
-                        pass
-    return meta
-
-
 def _probe_downloads():
     dl_dir = _download_dir()
     if not dl_dir:
         return []
     now = time.time()
-    suffixes = (".part", ".crdownload", ".opdownload")
-    raw_entries = []
-    try:
-        for entry in os.scandir(dl_dir):
-            if not entry.is_file():
-                continue
-            low = entry.name.lower()
-            if not any(low.endswith(s) for s in suffixes):
-                continue
-            st = entry.stat()
-            if now - st.st_mtime > 45:
-                continue
-            raw_entries.append((entry, st, low))
-    except Exception:
-        return []
-
-    if not raw_entries:
-        return []
-
-    meta = {}
-    if any(low.endswith(".part") for _, _, low in raw_entries):
-        meta.update(_load_gecko_downloads_meta())
-    if any(low.endswith(".crdownload") or low.endswith(".opdownload") for _, _, low in raw_entries):
-        meta.update(_load_chromium_downloads_meta())
-
     suffixes = (".part", ".crdownload", ".opdownload")
     raw_entries = []
     try:
@@ -300,14 +197,6 @@ def _probe_downloads():
                 if clean_name.lower().endswith(s):
                     clean_name = clean_name[:-len(s)]
                     break
-            m = meta.get(entry.path) or {}
-            if m.get("name"):
-                clean_name = m["name"]
-            total_bytes = int(m.get("totalBytes") or 0)
-            progress = -1
-            if total_bytes > 0:
-                progress = max(0, min(100, round(100 * st.st_size / total_bytes)))
-
             m = meta.get(entry.path) or {}
             if m.get("name"):
                 clean_name = m["name"]
@@ -485,86 +374,6 @@ def _probe_pkg_update():
     except Exception:
         pass
     return {"active": False, "elapsedSec": 0, "pid": 0, "tool": "", "needsInput": False, "remainingPkgs": -1, "initialPkgs": -1, "progress": -1, "etaSec": -1}
-
-
-def _ancestor_pids(pid):
-    ancestors = set()
-    cur = int(pid or 0)
-    for _ in range(16):
-        if cur <= 1 or cur in ancestors:
-            break
-        ancestors.add(cur)
-        try:
-            res = subprocess.run(
-                ["ps", "-o", "ppid=", "-p", str(cur)],
-                capture_output=True, text=True, timeout=1, check=False
-            )
-            nxt = res.stdout.strip()
-            cur = int(nxt) if nxt.isdigit() else 0
-        except Exception:
-            break
-    return ancestors
-
-
-def _hypr_dispatch(lua_expr, legacy_args):
-    res = subprocess.run(
-        ["hyprctl", "dispatch", lua_expr],
-        capture_output=True, text=True, check=False
-    )
-    if res.returncode != 0 or "error:" in (res.stdout + res.stderr).lower():
-        subprocess.run(["hyprctl", "dispatch"] + legacy_args, check=False)
-
-
-def _focus_hypr_client(client):
-    if not client or not client.get("address"):
-        return False
-    addr = client["address"]
-    ws = client.get("workspace") or {}
-    ws_id = ws.get("id", 0)
-    if isinstance(ws_id, int) and ws_id > 0:
-        _hypr_dispatch(f"hl.dsp.focus({{ workspace = {ws_id} }})", ["workspace", str(ws_id)])
-    _hypr_dispatch(f'hl.dsp.focus({{ window = "address:{addr}" }})', ["focuswindow", f"address:{addr}"])
-    return True
-
-
-def _focus_activity(kind, pid=0):
-    try:
-        res = subprocess.run(
-            ["hyprctl", "clients", "-j"],
-            capture_output=True, text=True, timeout=2, check=False
-        )
-        clients = json.loads(res.stdout or "[]")
-    except Exception:
-        return False
-    if not isinstance(clients, list):
-        return False
-
-    if kind == "update":
-        ancestors = _ancestor_pids(pid)
-        for c in clients:
-            if c.get("pid") in ancestors:
-                return _focus_hypr_client(c)
-        for c in clients:
-            t = str(c.get("title", "")).lower()
-            if any(k in t for k in ("arch-update", "dnf", "apt", "nala")):
-                return _focus_hypr_client(c)
-        return False
-
-    if kind == "download":
-        browsers = ("firefox", "zen", "librewolf", "floorp", "waterfox", "chromium", "chrome", "brave", "vivaldi", "opera", "microsoft-edge")
-        matches = [
-            c for c in clients
-            if any(b in str(c.get("class", "")).lower() or b in str(c.get("initialClass", "")).lower() for b in browsers)
-        ]
-        matches.sort(key=lambda c: (
-            1 if str((c.get("workspace") or {}).get("name", "")).startswith("special:") else 0,
-            c.get("focusHistoryID", 999)
-        ))
-        if matches:
-            return _focus_hypr_client(matches[0])
-        return False
-
-    return False
 
 
 def _ancestor_pids(pid):

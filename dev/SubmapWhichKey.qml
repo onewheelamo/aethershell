@@ -124,7 +124,7 @@ Item {
                             id: keyLbl
                             anchors.centerIn: parent
                             text: root.formatCombo(modelData)
-                            font.family: Theme.fontMono
+                            font.family: Theme.fontUi
                             font.pixelSize: Theme.text2xs
                             font.weight: Font.Bold
                             color: Theme.accent

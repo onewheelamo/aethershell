@@ -40,35 +40,12 @@ PanelWindow {
     // Chemin du masque courant, et l'erreur éventuelle à ne pas cacher.
     property string masque: ""
     property string erreur: ""
-    property string fondCourant: ""
+    property string generateurFond: ""
+    readonly property string fondCourant: Theme.wallpaperCourant
+    readonly property int bureau: Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
 
     readonly property real seuil: Math.max(0, Math.min(100, Theme.depthMaskSeuil)) / 100
     readonly property real adouci: Math.max(0, Math.min(50, Theme.depthMaskAdouci)) / 100
-
-    // Le fond courant décide de tout : masque, seuil et adoucissement.
-    Process {
-        id: sondeFond
-        command: ["awww", "query"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
-                const nouveau = m ? m[1] : ""
-                if (nouveau !== fenetre.fondCourant) {
-                    fenetre.fondCourant = nouveau
-                    fenetre.masque = ""
-                }
-            }
-        }
-    }
-
-    // awww ne prévient pas : on le redemande tant que le calque est actif.
-    Timer {
-        interval: 30000
-        repeat: true
-        running: Theme.depthMask
-        onTriggered: if (!sondeFond.running) sondeFond.running = true
-    }
 
     // Génération (ou relecture du cache) : le service rend le chemin du masque.
     Process {
@@ -78,6 +55,7 @@ PanelWindow {
         // résolvait en « . » (le répertoire courant du shell).
         stdout: StdioCollector {
             onStreamFinished: {
+                if (fenetre.generateurFond !== fenetre.fondCourant) return
                 try {
                     const d = JSON.parse(String(text).trim())
                     if (d && d.ok && d.masque) {
@@ -95,7 +73,10 @@ PanelWindow {
 
     // Déclencheurs : fond connu, option active, et chaque changement de seuil,
     // d'adoucissement ou de fond (le cache du service évite l'inférence).
-    onFondCourantChanged: relancer()
+    onFondCourantChanged: {
+        fenetre.masque = ""
+        relancer()
+    }
     onSeuilChanged: relancer()
     onAdouciChanged: relancer()
     Component.onCompleted: relancer()
@@ -109,7 +90,8 @@ PanelWindow {
 
     function relancer() {
         if (!Theme.depthMask || fenetre.fondCourant === "") return
-        if (generateur.running) return
+        if (generateur.running) generateur.running = false
+        fenetre.generateurFond = fenetre.fondCourant
         generateur.command = ["python3", Quickshell.shellPath("core/depth_mask.py"),
                               "generate", "--wallpaper", fenetre.fondCourant,
                               "--threshold", String(fenetre.seuil),
@@ -122,13 +104,16 @@ PanelWindow {
     onMasqueChanged: Theme.depthMaskPath = masque
 
     Image {
-        anchors.fill: parent
+        width: fenetre.width
+        height: fenetre.height
+        x: Theme.depthWallpaper ? (((fenetre.bureau - 1) % 4) * 10) : 0
+        y: 0
         source: fenetre.masque !== "" ? "file://" + fenetre.masque : ""
-        // Même cadrage que le démon de fond (awww recadre en « crop ») : sans
-        // cela, le décor redessiné ne tombe pas sur celui du dessous et le
-        // premier plan se voit décalé.
+        // Même cadrage que le démon de fond (awww recadre en « crop ») et même
+        // décalage parallaxe que `3-proche.png` dans FondProfondeur.qml.
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        cache: true
+        cache: false
+        Behavior on x { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
     }
 }

@@ -1119,12 +1119,20 @@ QtObject {
     // ────────────────────────────────────────────────────────────────────────
     // Sonde partagée pour `FondProfondeur`, déclenchée uniquement quand actif.
     property string wallpaperCourant: ""
+    property double wallpaperLockUntil: 0
+
+    function setWallpaperCourant(path) {
+        if (!path) return
+        root.wallpaperLockUntil = Date.now() + 4500
+        root.wallpaperCourant = String(path)
+    }
 
     property Process wallpaperSondeProc: Process {
         command: ["awww", "query"]
-        running: root.depthWallpaper
+        running: root.depthWallpaper || root.depthMask
         stdout: StdioCollector {
             onStreamFinished: {
+                if (Date.now() < root.wallpaperLockUntil) return
                 const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
                 if (m) root.wallpaperCourant = m[1]
             }
@@ -1132,6 +1140,7 @@ QtObject {
     }
 
     function rafraichirWallpaper() {
+        if (Date.now() < root.wallpaperLockUntil) return
         if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
     }
 

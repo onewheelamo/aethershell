@@ -65,19 +65,23 @@ PanelWindow {
         const base = p.split("/").pop()
         return base.replace(/\.[^.]+$/, "")
     }
-    readonly property string dossierSpecifique: fenetre.nomFond === "" ? dossierBase
-                                                                     : fenetre.dossierBase + fenetre.nomFond + "/"
-    // Vrai quand le jeu propre au fond courant n'existe pas : on retombe alors
-    // sur le dossier commun. La bascule se fait à la première image en erreur,
-    // et se réarme quand le fond d'écran change.
-    property bool repli: false
-    readonly property string dossier: repli ? dossierBase : dossierSpecifique
+    readonly property string dossierSpecifique: fenetre.nomFond === "" ? ""
+                                                                      : fenetre.dossierBase + fenetre.nomFond + "/"
+    property bool rechargeEnCours: false
+    readonly property bool sourcesActives: Theme.depthWallpaper
+                                           && fenetre.dossierSpecifique !== ""
+                                           && !fenetre.generationEnCours
+                                           && !fenetre.rechargeEnCours
 
-    readonly property bool assetsPresents: lointain.status === Image.Ready
+    readonly property bool assetsPresents: sourcesActives
+                                           && lointain.status === Image.Ready
                                            && moyen.status === Image.Ready
                                            && proche.status === Image.Ready
 
-    onNomFondChanged: fenetre.repli = false
+    onNomFondChanged: {
+        fenetre.derniereTentative = ""
+        fenetre.rechargerCalques()
+    }
 
     // ── Génération automatique des calques ────────────────────────────────
     // Le jeu manquant est produit par le shell lui-même, depuis le fichier du
@@ -87,6 +91,7 @@ PanelWindow {
     property bool generationEnCours: false
     // Un fond dont la génération a échoué n'est pas retenté en boucle.
     property string derniereTentative: ""
+    property string generateurFond: ""
 
     Timer {
         id: veilleCalques
@@ -98,6 +103,7 @@ PanelWindow {
             if (lointain.status !== Image.Error) return
             if (fenetre.fondCourant === "" || fenetre.derniereTentative === fenetre.fondCourant) return
             fenetre.derniereTentative = fenetre.fondCourant
+            fenetre.generateurFond = fenetre.fondCourant
             fenetre.generationEnCours = true
             generateur.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
                                   "generate", "--wallpaper", fenetre.fondCourant,
@@ -120,7 +126,11 @@ PanelWindow {
         onRunningChanged: {
             if (running) return
             fenetre.generationEnCours = false
-            fenetre.rechargerCalques()
+            if (fenetre.generateurFond === fenetre.fondCourant) {
+                fenetre.rechargerCalques()
+            } else {
+                fenetre.derniereTentative = ""
+            }
         }
         stderr: StdioCollector {
             onStreamFinished: {
@@ -135,33 +145,24 @@ PanelWindow {
     Connections {
         target: Theme
         function onCalquesVersionChanged() {
-            fenetre.repli = false
+            fenetre.derniereTentative = ""
             fenetre.rechargerCalques()
         }
     }
 
-    // Relit les trois fichiers après génération : `cache: false` ne suffit pas,
-    // Qt garde la source en échec tant qu'elle n'est pas reposée.
+    // Relit les trois fichiers sans casser le binding déclaratif sur `source`.
     function rechargerCalques() {
-        // Le repli sur le dossier commun a pu s'armer avant la génération : sans
-        // cette remise à zéro, les sources repartaient sur un dossier toujours vide.
-        fenetre.repli = false
-        const a = lointain.source, b = moyen.source, c = proche.source
-        lointain.source = ""
-        moyen.source = ""
-        proche.source = ""
+        fenetre.rechargeEnCours = true
         Qt.callLater(function () {
-            lointain.source = a
-            moyen.source = b
-            proche.source = c
+            fenetre.rechargeEnCours = false
         })
     }
 
     // Une option allumée sans assets ne dessine rien : le dire dans le journal
     // plutôt que de laisser croire à une panne.
     onVisibleChanged: {
-        if (!visible && Theme.depthWallpaper && !assetsPresents)
-            console.warn("fond en profondeur : aucun jeu de trois PNG dans " + dossier)
+        if (!visible && Theme.depthWallpaper && !assetsPresents && fenetre.dossierSpecifique !== "")
+            console.warn("fond en profondeur : aucun jeu de trois PNG dans " + fenetre.dossierSpecifique)
     }
 
     // `facteur` = pixels de décalage par bureau ; la marge d'agrandissement est
@@ -175,19 +176,11 @@ PanelWindow {
 
     Image {
         id: lointain
-        // Exactement la taille de l'écran : au bureau 1 le décalage est nul et
-        // le calque redonne le fond pixel pour pixel. Agrandir l'image pour se
-        // ménager une marge la zoomait de 1 %, d'où une couture visible le long
-        // de la barre et sur tout bureau inoccupé.
         width: fenetre.width
         height: fenetre.height
         x: fenetre.decalage(0)
         y: 0
-        // Rien n'est demandé tant que le fond courant n'est pas connu :
-        // sinon le repli se déclenche sur un chemin incomplet.
-        source: (Theme.depthWallpaper && fenetre.nomFond !== "")
-                ? "file://" + fenetre.dossier + "1-lointain.png" : ""
-        onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
+        source: fenetre.sourcesActives ? ("file://" + fenetre.dossierSpecifique + "1-lointain.png") : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -201,11 +194,7 @@ PanelWindow {
         height: fenetre.height
         x: fenetre.decalage(7)
         y: 0
-        // Rien n'est demandé tant que le fond courant n'est pas connu :
-        // sinon le repli se déclenche sur un chemin incomplet.
-        source: (Theme.depthWallpaper && fenetre.nomFond !== "")
-                ? "file://" + fenetre.dossier + "2-moyen.png" : ""
-        onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
+        source: fenetre.sourcesActives ? ("file://" + fenetre.dossierSpecifique + "2-moyen.png") : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -219,11 +208,7 @@ PanelWindow {
         height: fenetre.height
         x: fenetre.decalage(10)
         y: 0
-        // Rien n'est demandé tant que le fond courant n'est pas connu :
-        // sinon le repli se déclenche sur un chemin incomplet.
-        source: (Theme.depthWallpaper && fenetre.nomFond !== "")
-                ? "file://" + fenetre.dossier + "3-proche.png" : ""
-        onStatusChanged: if (status === Image.Error && !fenetre.repli) fenetre.repli = true
+        source: fenetre.sourcesActives ? ("file://" + fenetre.dossierSpecifique + "3-proche.png") : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false

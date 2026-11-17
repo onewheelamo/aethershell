@@ -4,7 +4,7 @@
 
 A desktop environment for [Hyprland](https://hyprland.org), featuring an island-style bar, modular panels, desktop widgets, and everyday tools, written in QML/Qt and powered by [Quickshell](https://quickshell.org).
 
-> **Note:** AetherShell does not claim to reinvent the wheel or establish itself as a standard. It is simply a personal desktop environment among others, still young and actively evolving (`0.2.x` cycle), designed to fit a daily workflow and refine over experience.
+> **Note:** AetherShell does not claim to reinvent the wheel or establish itself as a standard. It is simply a personal desktop environment among others, still young and actively evolving (`0.3.x` cycle), designed to fit a daily workflow and refine over experience.
 
 ---
 
@@ -14,7 +14,8 @@ Rather than a simple bar theme, AetherShell brings together the visual and utili
 
 * **Main Bar & Modular Capsule**: two switchable modes, configurable on the fly:
   * *Classic*: a three-island layout (left, center, right) enclosed in a shared capsule with customizable separation transparency and morphed bar-aligned panels (`PanneauSurface`).
-  * *Dynamic Island*: a single 3-state interactive central pill — compact at rest (time, mini-player, integrated OSD), expanded on hover (applets, full MPRIS controls, calendar), and morphed on click into a **5-tab interactive panel** (*Controls*, *Media & Sound*, *Alerts & Tasks*, *System & Network*, *Appearance*).
+  * *Dynamic Island* (`DynamicIsland`): an all-in-one interactive central pill configurable via its dedicated **Dynamic Island** tab (4-state selector *Hidden / Rest / Expanded / Both* per indicator and applet) — compact at rest (clock, media title, multi-source **Live Activity**, integrated OSD, conditional updates), expanded on hover, featuring **animated inline weather**, **inline wallpaper picker** (`SUPER + W`, `aether-wp` submap), **inline color scheme picker** (`SUPER + C`, `aether-scheme` submap), **app launcher & `as` command bar** (`SUPER + R`), **quick notes** (`SUPER + N`), and a tabbed expanded panel (*Controls* with work contexts `Normal / Focus / Meeting / Chill`, Caffeine, Performance, audio output, and scratchpad; *Alerts & Tasks* with collapsible agenda; *System & Network* with battery charge limiter; *Appearance*; *Planka Projects*), fully keyboard-driven (`SUPER + I` / `SUPER + ALT + H`, `SubmapWhichKey`).
+* **Window Overview & Scratchpad**: *Mission Control* overlay ([`OverviewOverlay.qml`](../dev/OverviewOverlay.qml), `SUPER + G`) displaying workspace windows with live thumbnails and instant filtering, plus scratchpad management (`SUPER + ,` / `SUPER + SHIFT + ,`).
 * **Optional Secondary Bars**: support for a bottom bar and vertical side bars following the same component architecture.
 * **Unified Configuration Panel**: accessible via a hotkey (`SUPER + SHIFT + H`, while `SUPER + H` toggles the Dynamic Island panel) or by middle-clicking any applet. Allows tuning appearance (palettes, blurs, corner radii, opacity), favorite applications, displays, idle timeout (`hypridle`), autostart, and local secrets, with live hot-reloading without restarting the session.
 * **Dockable Desktop Widgets**: draggable blocks (tasks, system monitor, weather, music, clock, agent...) configurable and filterable by virtual workspace (middle-click to restrict a widget to one or more workspaces).

@@ -9,6 +9,29 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.9.0] — 2026-11-17
+
+### Ajouté
+- **Îlot dynamique — Thème, barre de commandes `as`, Live Activity & Contextes** :
+  - **Sélecteur de jeu de couleurs inline (`SUPER + C`)** (`dev/DynamicIsland.qml`, `dev/Theme.qml`, `dev/hypr_modular/binds.lua`) : carrousel horizontal des schémas Matugen + préréglages dans l'îlot dynamique avec aperçu des pastilles chromatiques et navigation clavier (`submap aether-scheme`).
+  - **Barre de commandes unifiée `as` dans le lanceur (`SUPER + R`)** (`dev/DynamicIsland.qml`, `dev/core/launcher_service.py`) : commandes directes (`as theme`, `as wp`, `as contexte`, `as dnd`, `as nuit`, `as cafeine`, `as energie`, `as maj`, `as lock`, `as reload`) avec autocomplétion inline.
+  - **Live Activity multi-sources** (`dev/core/live_activity_probe.py`, `dev/DynamicIsland.qml`, `dev/Theme.qml`) : suivi unifié dans la pilule des téléchargements navigateur (Firefox/Zen/Chromium), copies/transferts (`cp`/`rsync`/`mv`), encodages `ffmpeg`, archives et minuteur de concentration.
+  - **Contextes de travail** (`dev/core/config_manager.py`, `dev/Theme.qml`, `dev/IslandTabControles.qml`, `dev/DynamicIsland.qml`) : bascule rapide entre `normal`, `focus` (NPD + Caffeine + minuteur 25 min), `reunion` (NPD + Caffeine + micro coupé) et `detente` (filtre nuit + profil économie).
+- **Vue d'ensemble (`SUPER + G`) avec miniatures de fenêtres** (`dev/OverviewOverlay.qml`, `dev/core/window_previews.py`, `dev/Theme.qml`, `dev/OngletBarres.qml`) : captures asynchrones par fenêtre (`grim` + géométrie Hyprland) mises en cache dans `$XDG_RUNTIME_DIR/aethershell/previews/`, désactivables via `overview_thumbnails`.
+- **Séparation de la configuration Hyprland utilisateur (`~/.config/hypr/user/`)** (`dev/hypr_modular/hyprland.lua`, `dev/hypr_modular/binds.lua`, `dev/core/config_manager.py`, `install.sh`) : chargement dédié de `user/binds.lua` et `user/autostart.txt` sans conflit lors des mises à jour.
+- **Détourage IA haute précision & Parallaxe 3 plans sans artefacts** (`dev/core/depth_mask.py`, `dev/core/parallaxe_layers.py`, `dev/OngletEcrans.qml`) :
+  - Inférence `Depth Anything V2 Small` en haute résolution 16:9 (`924×518`) au lieu de `518×518`.
+  - Remplacement du filtre guidé en luminance par un **affinage chromatique RGB sur halo externe** (`affiner_contour_rgb`) qui préserve l'opacité interne des bâtiments/sujets tout en capturant les détails fins (brindilles, pétales, antennes).
+  - Support optionnel de **BiRefNet-lite FP16** (téléchargeable/supprimable à la demande depuis *Écrans & Système → Mise à jour du shell*, où a également été regroupé le bouton *Installer les paquets manquants*).
+  - **Inpainting horizontal pondéré par la distance** (`_inpaint_rgb`) éliminant les halos gris derrière les sujets décalés.
+
+### Corrigé
+- **Gestion de la batterie sur portable dans le panneau étendu** (`dev/core/system_service.py`, `dev/IslandTabSysteme.qml`, `dev/IslandTabControles.qml`, `dev/IslandPanel.qml`) : ajout des clés `battery.present`, `battery.percent` et `battery.charging` dans `system_service.py` et prise en compte de `sysInfo.has_battery` / `batInfo.level`, qui masquaient la section *Batterie & Alimentation* (limite de charge 80 % / mode conservation) sur portable.
+- **Fond en profondeur & Transitions** (`dev/FondProfondeur.qml`, `dev/CalqueProfondeur.qml`, `dev/WallpaperFx.qml`, `dev/Theme.qml`) :
+  - Correction de `rechargerCalques()` qui écrasait impérativement `source` et cassait le binding déclaratif QML (provoquant le retour visuel à l'ancien fond d'écran).
+  - Synchronisation du décalage parallaxe `x` entre `CalqueProfondeur.qml` et `3-proche.png`, et invalidation des générations périmées lors d'un changement rapide de fond.
+  - Gel de la frame sortante dans `WallpaperFx.qml` (`ShaderEffectSource` avec `live: false`) avant le démarrage d'`awww img`.
+
 ## [0.3.8.0] — 2026-11-16
 
 ### Ajouté

@@ -24,7 +24,7 @@ Item {
 
     readonly property var sysInfo: Theme.systemInfo || ({})
     readonly property var batInfo: sysInfo.battery || ({})
-    readonly property bool isLaptop: Boolean(batInfo && batInfo.present)
+    readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
 
     readonly property var tabsModel: {
         let base = [
@@ -212,8 +212,8 @@ Item {
                 // Infos compactes (Batterie · Alertes)
                 Text {
                     visible: root.isLaptop
-                    text: Math.round(Number((root.batInfo && root.batInfo.percent) || 0)) + "%"
-                          + ((root.batInfo && root.batInfo.charging) ? " ⚡" : "")
+                    text: Math.round(Number((root.batInfo && (root.batInfo.level !== undefined ? root.batInfo.level : root.batInfo.percent)) || 0)) + "%"
+                          + ((root.batInfo && (root.batInfo.status === "Charging" || root.batInfo.charging)) ? " ⚡" : "")
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textXs
                     color: Qt.alpha(Theme.fg, 0.65)

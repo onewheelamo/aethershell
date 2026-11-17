@@ -245,7 +245,7 @@ Item {
 
     function applyWallpaper(path) {
         if (!path) return
-        Theme.wallpaperCourant = String(path)
+        Theme.setWallpaperCourant(String(path))
         Quickshell.execDetached(["bash", Quickshell.shellPath("hyprquickpaper/commands.sh"), String(path)])
         Theme.wallpaperPickerOpen = false
     }

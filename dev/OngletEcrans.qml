@@ -172,6 +172,39 @@ Column {
         onTriggered: bloc.majCopie = ""
     }
 
+    // ── Modèle IA optionnel (RMBG-1.4, ~42 Mo) pour le détourage des calques ──
+    property bool rmbgInstalle: false
+    property bool rmbgOccupe: false
+    property string rmbgErreur: ""
+
+    function verifierRmbg() {
+        if (procRmbg.running) return
+        procRmbg.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"), "status"]
+        procRmbg.running = true
+    }
+
+    function installerOuSupprimerRmbg() {
+        if (procRmbg.running) return
+        bloc.rmbgErreur = ""
+        procRmbg.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
+                            bloc.rmbgInstalle ? "remove" : "setup"]
+        procRmbg.running = true
+    }
+
+    Process {
+        id: procRmbg
+        onRunningChanged: bloc.rmbgOccupe = running
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim() || "{}")
+                    bloc.rmbgInstalle = Boolean(d.rmbg)
+                    if (d.ok === false) bloc.rmbgErreur = "Échec du téléchargement"
+                } catch (e) {}
+            }
+        }
+    }
+
 spacing: 12
 
 // Tiroir : moniteurs détectés, moniteur principal, résolution et
@@ -1111,6 +1144,7 @@ CollapsibleSection {
         root.setPanelSection("systeme_maj", expanded)
         if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("systeme_maj")
         if (expanded && bloc.majLocale === "") bloc.verifierMaj(false)
+        if (expanded) bloc.verifierRmbg()
     }
 
 Column {
@@ -1300,6 +1334,108 @@ Column {
         color: Qt.alpha(Theme.fg, 0.5)
         font.pixelSize: Theme.textXs
         wrapMode: Text.WordWrap
+    }
+
+    Rectangle {
+        width: parent.width
+        height: 1
+        color: Qt.alpha(Theme.fg, 0.1)
+    }
+
+    // Paquets système manquants (déplacé depuis l'onglet Apps & Alertes)
+    Row {
+        width: parent.width
+        spacing: 10
+
+        Rectangle {
+            id: depsBtn
+            width: depsBtnText.implicitWidth + 26
+            height: 28
+            radius: Theme.globalRadius
+            color: depsBtnMa.containsMouse ? Theme.accentMuted : Theme.accent
+
+            Text {
+                id: depsBtnText
+                anchors.centerIn: parent
+                text: "Installer les paquets manquants"
+                color: Theme.bg
+                font.pixelSize: Theme.text2xs
+                font.bold: true
+            }
+
+            MouseArea {
+                id: depsBtnMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.installerDependances()
+            }
+        }
+
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.depsEtat === "à jour"
+            glyph: "check"
+            size: Theme.iconSm
+            color: Theme.success
+            opacityLevel: 1
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.depsEtat !== "" && root.depsEtat !== "à jour"
+            width: parent.width - depsBtn.width - Theme.iconSm - 20
+            text: root.depsEtat
+            color: Theme.error
+            font.pixelSize: Theme.textXs
+            elide: Text.ElideRight
+        }
+    }
+
+    // Détourage IA optionnel des calques parallaxe (RMBG-1.4, ~42 Mo)
+    Row {
+        width: parent.width
+        spacing: 10
+
+        Rectangle {
+            id: rmbgBtn
+            width: rmbgBtnTxt.implicitWidth + 24
+            height: 28
+            radius: Theme.globalRadius
+            color: bloc.rmbgInstalle
+                ? (rmbgMa.containsMouse ? Qt.alpha(Theme.error, 0.22) : Theme.surfaceVariant)
+                : (rmbgMa.containsMouse ? Theme.accentMuted : Theme.surfaceVariant)
+            border.width: 1
+            border.color: bloc.rmbgInstalle ? Theme.success : Theme.accent
+
+            Text {
+                id: rmbgBtnTxt
+                anchors.centerIn: parent
+                text: bloc.rmbgOccupe
+                    ? "Téléchargement…"
+                    : (bloc.rmbgInstalle ? "✓ Modèle IA calques (BiRefNet-lite) · Supprimer" : "Télécharger détourage IA calques (BiRefNet-lite · 109 Mo)")
+                color: Theme.fg
+                font.pixelSize: Theme.text2xs
+                font.bold: bloc.rmbgInstalle
+            }
+
+            MouseArea {
+                id: rmbgMa
+                anchors.fill: parent
+                hoverEnabled: true
+                enabled: !bloc.rmbgOccupe
+                cursorShape: Qt.PointingHandCursor
+                onClicked: bloc.installerOuSupprimerRmbg()
+            }
+        }
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: bloc.rmbgErreur !== ""
+            text: bloc.rmbgErreur
+            color: Theme.error
+            font.pixelSize: Theme.textXs
+        }
     }
 }
 
