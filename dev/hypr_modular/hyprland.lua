@@ -59,3 +59,18 @@ require("colors")
 require("input")
 require("windows")
 require("binds")
+
+-- 4. Surcharges et configurations personnelles (~/.config/hypr/user/*.lua)
+--    Chargées en dernier pour pouvoir compléter ou surcharger la config
+--    du dépôt sans être écrasées par install.sh.
+local user_dir = config_dir .. "user"
+local p = io.popen('ls -1 "' .. user_dir .. '"/*.lua 2>/dev/null | sort')
+if p then
+    for path in p:lines() do
+        local ok, err = pcall(dofile, path)
+        if not ok then
+            print("Avertissement : erreur dans " .. tostring(path) .. " : " .. tostring(err))
+        end
+    end
+    p:close()
+end

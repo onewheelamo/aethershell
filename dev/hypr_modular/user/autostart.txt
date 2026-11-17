@@ -1,0 +1,7 @@
+# ~/.config/hypr/user/autostart.txt
+# Programmes personnels à lancer au démarrage de session Hyprland.
+# Une commande par ligne (les lignes vides et commençant par # sont ignorées).
+# Ce fichier n'est jamais écrasé ni régénéré par install.sh ou le panneau.
+#
+# Exemple :
+# syncthing --no-browser

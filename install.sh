@@ -503,7 +503,7 @@ PRESERVE_CORE="style_vars.json app_vars.json secrets.json autostart.json widgets
 # programs.lua est *généré* depuis core/app_vars.json (sync_programs_lua) et
 # autostart_cmds.txt depuis core/autostart.json : ils ne sont ni préservés ni
 # comparés, et sont réécrits juste après la copie (aucun .upstream possible).
-PRESERVE_HYPR="input.lua binds.lua general.lua"
+PRESERVE_HYPR="input.lua general.lua"
 
 # dossier_de DST : la famille d'un répertoire cible, pour est_etat_machine.
 dossier_de() {
@@ -1813,7 +1813,7 @@ deploy_new_env() {
         else
             echo "ℹ️ Aucun marqueur Quickshell dans $CURRENT_HYPR : configuration initiale."
         fi
-        echo "   Les fichiers d'état existants (style_vars, general.lua, binds.lua...) restent préservés."
+        echo "   Les fichiers d'état existants (style_vars, general.lua, user/...) restent préservés."
     fi
 
     copy_dir_files "$DEV_DIR/hypr_modular" "$CURRENT_HYPR" "$PRESERVE_HYPR"
@@ -1823,6 +1823,17 @@ deploy_new_env() {
     prune_target "$CURRENT_HYPR" "$hypr_manifest" "$PRESERVE_HYPR"
     rm -f "$hypr_manifest"
     chmod +x "$CURRENT_HYPR/"*.sh 2>/dev/null || true
+
+    # Dossier personnel (~/.config/hypr/user/) : modèles posés uniquement s'ils
+    # sont absents, jamais écrasés ni élagués lors des mises à jour.
+    if [ -d "$DEV_DIR/hypr_modular/user" ]; then
+        mkdir -p "$CURRENT_HYPR/user"
+        for f in "$DEV_DIR/hypr_modular/user"/*; do
+            [ -f "$f" ] || continue
+            name="$(basename "$f")"
+            [ -e "$CURRENT_HYPR/user/$name" ] || cp "$f" "$CURRENT_HYPR/user/$name"
+        done
+    fi
 
     mkdir -p "$CORE_DIR"
     copy_dir_files "$DEV_DIR/core" "$CORE_DIR" "$PRESERVE_CORE"

@@ -1189,21 +1189,13 @@ def set_screen_rotation(transform_id):
 # SECTION 6: KEYBINDINGS MANAGEMENT (binds.lua)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_binds_list():
-    """Parse binds.lua and return a list of shortcut dicts.
-
-    Chaque entrée porte `mod`, `key`, `dispatcher`, `target`, plus `description`
-    (option `{ description = "…" }` du bind, vide si absente) et `category`
-    (dernier commentaire de section). L'écran des raccourcis ne montre que les
-    binds qui ont une description : c'est la liste « des plus utiles », entretenue
-    dans binds.lua et jamais dupliquée ailleurs.
-    """
-    path = os.path.join(HYPR_DIR, "binds.lua")
+def _parse_binds_file(path, default_category=""):
+    """Parse un fichier Lua de raccourcis Hyprland (binds.lua ou user/*.lua)."""
     binds = []
     if not os.path.exists(path):
         return binds
 
-    category = ""
+    category = default_category
     try:
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
@@ -1246,9 +1238,24 @@ def get_binds_list():
     return binds
 
 
+def get_binds_list():
+    """Parse binds.lua puis user/*.lua et retourne la liste des raccourcis."""
+    binds = _parse_binds_file(os.path.join(HYPR_DIR, "binds.lua"))
+    user_dir = os.path.join(HYPR_DIR, "user")
+    if os.path.isdir(user_dir):
+        for fname in sorted(os.listdir(user_dir)):
+            if fname.endswith(".lua"):
+                binds.extend(_parse_binds_file(os.path.join(user_dir, fname), default_category="Personnel"))
+    return binds
+
+
+def _user_binds_path():
+    return os.path.join(HYPR_DIR, "user", "binds.lua")
+
+
 def set_keybind(key_combo, command_or_var):
-    """Update or add a SUPER + <key_combo> shortcut in binds.lua."""
-    path = os.path.join(HYPR_DIR, "binds.lua")
+    """Update or add a SUPER + <key_combo> shortcut in user/binds.lua."""
+    path = _user_binds_path()
     key_clean = key_combo.strip()
     cmd_clean = command_or_var.strip()
     if not key_clean or not cmd_clean:
@@ -1273,10 +1280,13 @@ def set_keybind(key_combo, command_or_var):
     lhs_prefix = f'hl.bind(mainMod .. " + {key_clean}"'
 
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         lines = []
         if os.path.exists(path):
             with open(path, "r") as f:
                 lines = f.readlines()
+        else:
+            lines = ['local mainMod = mainMod or "SUPER"\n']
         updated = False
         for i, line in enumerate(lines):
             if lhs_prefix in line:
@@ -1295,10 +1305,10 @@ def set_keybind(key_combo, command_or_var):
 
 
 def remove_keybind(key_combo):
-    """Remove a SUPER + <key_combo> shortcut from binds.lua."""
+    """Remove a SUPER + <key_combo> shortcut from user/binds.lua."""
     if not KEY_COMBO_RE.match(key_combo.strip()):
         return False
-    path = os.path.join(HYPR_DIR, "binds.lua")
+    path = _user_binds_path()
     lhs_prefix = f'hl.bind(mainMod .. " + {key_combo.strip()}"'
     if not os.path.exists(path):
         return False
@@ -1733,9 +1743,14 @@ DEFAULT_AUTOSTART = [
 
 def get_autostart():
     if not os.path.exists(AUTOSTART_FILE):
-        return DEFAULT_AUTOSTART
-    data = load_json(AUTOSTART_FILE)
-    return data if isinstance(data, list) else DEFAULT_AUTOSTART
+        return list(DEFAULT_AUTOSTART)
+    try:
+        with open(AUTOSTART_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else list(DEFAULT_AUTOSTART)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"config_manager: lecture impossible de {AUTOSTART_FILE} ({exc})", file=sys.stderr)
+        return list(DEFAULT_AUTOSTART)
 
 
 def set_autostart(name, enabled=None, cmd=None):
@@ -1776,14 +1791,74 @@ def remove_autostart(name):
     return sync_autostart_lua(kept)
 
 
+CORE_AUTOSTART_NAMES = {
+    "Hermes (canal d'approbation)",
+    "Quickshell (barre)",
+    "Hypridle (inactivité)",
+    "awww-daemon (wallpaper, si Noctalia absent)",
+    "Agent Polkit",
+    "Focus de l'invite polkit",
+    "Presse-papiers (veilleurs cliphist)",
+}
+
+
+def _sync_user_autostart_file(user_entries):
+    """Met à jour le bloc géré par le panneau dans ~/.config/hypr/user/autostart.txt
+    en préservant intactes les lignes ajoutées à la main en dehors du bloc."""
+    user_dir = os.path.join(HYPR_DIR, "user")
+    user_path = os.path.join(user_dir, "autostart.txt")
+    begin_tag = "# >>> panneau"
+    end_tag = "# <<< panneau"
+
+    preserved = []
+    if os.path.exists(user_path):
+        in_block = False
+        with open(user_path, "r", encoding="utf-8") as f:
+            for raw in f:
+                s = raw.strip()
+                if s == begin_tag:
+                    in_block = True
+                    continue
+                if s == end_tag:
+                    in_block = False
+                    continue
+                if not in_block:
+                    preserved.append(raw.rstrip("\n"))
+    else:
+        preserved = [
+            "# ~/.config/hypr/user/autostart.txt",
+            "# Programmes personnels à lancer au démarrage de session Hyprland.",
+            "# Une commande par ligne (les lignes vides et commençant par # sont ignorées).",
+            "# Ce fichier n'est jamais écrasé ni régénéré par install.sh.",
+        ]
+
+    while preserved and preserved[-1].strip() == "":
+        preserved.pop()
+
+    panel_lines = [begin_tag]
+    for e in user_entries:
+        cmd = e["cmd"].strip()
+        if cmd:
+            panel_lines.append(cmd if e.get("enabled", True) else "# " + cmd)
+    panel_lines.append(end_tag)
+
+    os.makedirs(user_dir, exist_ok=True)
+    final_lines = preserved + ([""] if preserved else []) + panel_lines
+    with open(user_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(final_lines) + "\n")
+
+
 def sync_autostart_lua(entries):
-    """Régénère ~/.config/hypr/autostart_cmds.txt (une commande par ligne).
-    Lu ligne à ligne par exec.lua dans hl.on("hyprland.start").
+    """Régénère ~/.config/hypr/autostart_cmds.txt (socle shell) et met à jour
+    le bloc panneau de ~/.config/hypr/user/autostart.txt (programmes utilisateur).
     Les programmes désactivés sont préfixés par '#' pour garder la trace."""
+    core_entries = [e for e in entries if e.get("name") in CORE_AUTOSTART_NAMES]
+    user_entries = [e for e in entries if e.get("name") not in CORE_AUTOSTART_NAMES]
+
     out_path = os.path.join(HYPR_DIR, "autostart_cmds.txt")
     lines = ["# Généré par core/config_manager.py — ne pas éditer à la main.",
-             "# Source de vérité : core/autostart.json (modifiable depuis le panneau)."]
-    for e in entries:
+             "# Source de vérité : core/autostart.json (socle shell)."]
+    for e in core_entries:
         line = e["cmd"].strip()
         if line:
             lines.append(line if e.get("enabled", True) else "# " + line)
@@ -1791,6 +1866,7 @@ def sync_autostart_lua(entries):
         os.makedirs(HYPR_DIR, exist_ok=True)
         with open(out_path, "w") as f:
             f.write("\n".join(lines) + "\n")
+        _sync_user_autostart_file(user_entries)
         return True
     except Exception as ex:
         print(f"Error writing {out_path}: {ex}", file=sys.stderr)

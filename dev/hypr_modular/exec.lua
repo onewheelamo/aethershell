@@ -20,6 +20,20 @@ local function get_marker_path()
     return run_dir .. "/hypr_autostart_" .. sig
 end
 
+local function run_cmd_file(path)
+    local f = io.open(path, "r")
+    if not f then
+        return
+    end
+    for line in f:lines() do
+        local cmd = line:match("^%s*(.-)%s*$")
+        if cmd ~= "" and cmd:sub(1, 1) ~= "#" then
+            hl.exec_cmd(cmd)
+        end
+    end
+    f:close()
+end
+
 local function run_autostart_file()
     -- Ne s'exécute qu'une seule fois par session Hyprland.
     -- Évite de relancer l'autostart (et de dupliquer quickshell) lors des
@@ -37,18 +51,9 @@ local function run_autostart_file()
         wf:close()
     end
 
-    local path = os.getenv("HOME") .. "/.config/hypr/autostart_cmds.txt"
-    local f = io.open(path, "r")
-    if not f then
-        return
-    end
-    for line in f:lines() do
-        local cmd = line:match("^%s*(.-)%s*$")
-        if cmd ~= "" and cmd:sub(1, 1) ~= "#" then
-            hl.exec_cmd(cmd)
-        end
-    end
-    f:close()
+    local hypr_dir = os.getenv("HOME") .. "/.config/hypr/"
+    run_cmd_file(hypr_dir .. "autostart_cmds.txt")
+    run_cmd_file(hypr_dir .. "user/autostart.txt")
 end
 
 -- Timer one-shot de 1s : laisse le compositor finir de démarrer,
