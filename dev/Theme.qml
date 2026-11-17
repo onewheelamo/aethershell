@@ -73,7 +73,9 @@ QtObject {
     property bool themePickerOpen: false
     property bool islandLauncherOpen: false
     property bool islandNotesOpen: false
+    property bool islandLiveActivityOpen: false
     property bool widgetsEditMode: false
+    property bool widgetsBureauVisibles: true
     property bool widgetsSnapGrid: true
     function setSubmap(name) {
         if (Hyprland.usingLua) {
@@ -179,6 +181,7 @@ QtObject {
             themePickerOpen = false
             islandLauncherOpen = false
             islandNotesOpen = false
+            islandLiveActivityOpen = false
             islandSidePanel = ""
             islandNeedsKeyboard = false
             islandNavActive = false
@@ -442,6 +445,149 @@ QtObject {
     // Applications dont les notifications n'apparaissent pas en toast (elles vont
     // directement au centre). Alimentée par core/style_vars.json.
     property var quietNotifApps: []
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CONTEXTES DE TRAVAIL (manuels : îlot, commande `as contexte`, IPC)
+    // ──────────────────────────────────────────────────────────────────────────
+    property string activeContext: "normal"
+    readonly property var workContexts: [
+        { id: "normal",  label: "Normal",       desc: "DND off · Équilibré · Widgets visibles",           icon: "widgets",       dnd: false, caffeine: false, power: "balanced",    night: false, nightTemp: 4500, widgets: true },
+        { id: "focus",   label: "Focus / Code", desc: "DND on · Caffeine · Performance · Widgets masqués", icon: "cog",           dnd: true,  caffeine: true,  power: "performance", night: false, nightTemp: 4500, widgets: false },
+        { id: "reunion", label: "Réunion",      desc: "DND on · Caffeine · Équilibré · Widgets masqués",   icon: "bell-off",      dnd: true,  caffeine: true,  power: "balanced",    night: false, nightTemp: 4500, widgets: false },
+        { id: "detente", label: "Détente",      desc: "DND off · Nuit 3800K · Éco · Widgets visibles",     icon: "weather-night", dnd: false, caffeine: false, power: "power-saver", night: true,  nightTemp: 3800, widgets: true }
+    ]
+
+    function applyContext(ctxId) {
+        const q = String(ctxId || "").trim().toLowerCase()
+        const aliasMap = { "code": "focus", "travail": "focus", "meeting": "reunion", "relax": "detente" }
+        const key = aliasMap[q] || q
+        let found = null
+        for (let i = 0; i < root.workContexts.length; i++) {
+            if (root.workContexts[i].id === key) {
+                found = root.workContexts[i]
+                break
+            }
+        }
+        if (!found) return false
+        root.activeContext = found.id
+        root.doNotDisturb = found.dnd
+        root.caffeineActif = found.caffeine
+        root.widgetsBureauVisibles = found.widgets
+        Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", found.dnd ? "true" : "false"])
+        Quickshell.execDetached(["powerprofilesctl", "set", found.power])
+        if (found.night) {
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "temperature", String(found.nightTemp)])
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "activer"])
+        } else {
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "desactiver"])
+        }
+        return true
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // LIVE ACTIVITY (Îlot dynamique : minuteur, enregistrement, téléchargements, IPC)
+    // ──────────────────────────────────────────────────────────────────────────
+    property var ipcActivities: []
+    property int timerTotalSec: 0
+    property int timerRemainingSec: 0
+    property bool timerRunning: false
+    property bool timerPaused: false
+    property string timerLabel: "Minuteur"
+
+    property Timer liveTimerTick: Timer {
+        interval: 1000
+        repeat: true
+        running: root.timerRunning && !root.timerPaused
+        onTriggered: {
+            if (root.timerRemainingSec > 1) {
+                root.timerRemainingSec -= 1
+            } else {
+                const lbl = root.timerLabel || "Minuteur"
+                root.timerRunning = false
+                root.timerPaused = false
+                root.timerRemainingSec = 0
+                root.timerTotalSec = 0
+                Quickshell.execDetached(["notify-send", "-a", "AetherShell", lbl + " terminé", "Le décompte est arrivé à 0."])
+            }
+        }
+    }
+
+    function startTimer(minutes, label) {
+        const mins = Math.max(1, Math.round(Number(minutes) || 0))
+        root.timerTotalSec = mins * 60
+        root.timerRemainingSec = mins * 60
+        root.timerLabel = (label && String(label).trim() !== "") ? String(label).trim() : ("Minuteur " + mins + "m")
+        root.timerPaused = false
+        root.timerRunning = true
+    }
+
+    function togglePauseTimer() {
+        if (!root.timerRunning) return
+        root.timerPaused = !root.timerPaused
+    }
+
+    function stopTimer() {
+        root.timerRunning = false
+        root.timerPaused = false
+        root.timerRemainingSec = 0
+        root.timerTotalSec = 0
+    }
+
+    function toggleLiveActivity() {
+        if (root.barStyle !== "island") return
+        root.activePopup = ""
+        root.islandPanelOpen = false
+        root.wallpaperPickerOpen = false
+        root.themePickerOpen = false
+        root.islandLauncherOpen = false
+        root.islandNotesOpen = false
+        root.islandLiveActivityOpen = !root.islandLiveActivityOpen
+    }
+
+    function handleLiveActivity(action, actId, title, progress) {
+        const a = String(action || "").toLowerCase()
+        const id = String(actId || "").trim()
+        if (a === "clear") {
+            root.ipcActivities = []
+            return "ok"
+        }
+        if (!id) return "missing_id"
+        const list = root.ipcActivities.slice()
+        const idx = list.findIndex(x => x && x.id === id)
+        if (a === "stop" || a === "remove" || a === "done") {
+            if (idx >= 0) {
+                list.splice(idx, 1)
+                root.ipcActivities = list
+            }
+            return "ok"
+        }
+        const p = (progress !== undefined && progress !== null) ? Number(progress) : -1
+        const prog = isNaN(p) ? -1 : (p < 0 ? -1 : Math.max(0, Math.min(100, Math.round(p))))
+        if (a === "start" || (a === "update" && idx < 0)) {
+            const item = {
+                id: id,
+                title: String(title || id),
+                progress: prog,
+                startedAt: Date.now()
+            }
+            if (idx >= 0) list[idx] = item
+            else list.push(item)
+            root.ipcActivities = list
+            return "ok"
+        }
+        if (a === "update" && idx >= 0) {
+            const cur = list[idx]
+            list[idx] = {
+                id: id,
+                title: (title !== undefined && String(title) !== "") ? String(title) : cur.title,
+                progress: prog,
+                startedAt: cur.startedAt || Date.now()
+            }
+            root.ipcActivities = list
+            return "ok"
+        }
+        return "unknown_action"
+    }
     // « Ne pas déranger » : les notifications continuent d'arriver dans
     // l'historique, mais aucun toast ne s'affiche. Réglé depuis le centre de
     // notifications, mémorisé dans style_vars.json (do_not_disturb).
@@ -989,6 +1135,14 @@ QtObject {
         if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
     }
 
+    property Timer wallpaperSondeTimer: Timer {
+        interval: 2500
+        repeat: true
+        running: root.depthWallpaper || root.depthMask
+        triggeredOnStart: true
+        onTriggered: root.rafraichirWallpaper()
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // Météo partagée (weather_service.py — évite 3 sondes concurrentes)
     // ────────────────────────────────────────────────────────────────────────
@@ -1403,6 +1557,7 @@ QtObject {
                 root.wallpaperPickerOpen = false
                 root.themePickerOpen = false
                 root.islandNotesOpen = false
+                root.islandLiveActivityOpen = false
                 root.islandLauncherOpen = !root.islandLauncherOpen
             } else {
                 root.spotlightVisible = !root.spotlightVisible
@@ -1415,7 +1570,40 @@ QtObject {
             root.wallpaperPickerOpen = false
             root.themePickerOpen = false
             root.islandLauncherOpen = false
+            root.islandLiveActivityOpen = false
             root.islandNotesOpen = !root.islandNotesOpen
+        }
+        function toggleLiveActivity() {
+            if (root.barStyle !== "island") return
+            root.activePopup = ""
+            root.islandPanelOpen = false
+            root.wallpaperPickerOpen = false
+            root.themePickerOpen = false
+            root.islandLauncherOpen = false
+            root.islandNotesOpen = false
+            root.islandLiveActivityOpen = !root.islandLiveActivityOpen
+        }
+        function liveActivity(action: string, actId: string, title: string, progress: int): string {
+            return root.handleLiveActivity(action, actId, title, progress)
+        }
+        function liveActivityStart(actId: string, title: string, progress: int): string {
+            return root.handleLiveActivity("start", actId, title, progress)
+        }
+        function liveActivityUpdate(actId: string, progress: int, title: string): string {
+            return root.handleLiveActivity("update", actId, title, progress)
+        }
+        function liveActivityStop(actId: string): string {
+            return root.handleLiveActivity("stop", actId, "", -1)
+        }
+        function liveActivityClear(): string {
+            return root.handleLiveActivity("clear", "", "", -1)
+        }
+        function timerStart(minutes: int): string {
+            root.startTimer(minutes, "")
+            return "ok"
+        }
+        function setContext(ctxId: string): string {
+            return root.applyContext(ctxId) ? "ok" : "unknown_context"
         }
         // Écran des raccourcis (SUPER + K) : show/hide idempotents à côté du
         // toggle, pour les tests scriptés (un toggle qui perd un appel dérive).
@@ -1435,6 +1623,7 @@ QtObject {
                 root.islandLauncherOpen = false
                 root.islandNotesOpen = false
                 root.themePickerOpen = false
+                root.islandLiveActivityOpen = false
                 root.wallpaperPickerOpen = !root.wallpaperPickerOpen
             } else {
                 Quickshell.execDetached(["quickshell", "-n", "-p", Quickshell.env("HOME") + "/.config/quickshell/hyprquickpaper"])
@@ -1447,6 +1636,7 @@ QtObject {
                 root.islandLauncherOpen = false
                 root.islandNotesOpen = false
                 root.wallpaperPickerOpen = false
+                root.islandLiveActivityOpen = false
                 root.themePickerOpen = !root.themePickerOpen
             } else {
                 root.openConfigSection("apparence_couleurs")

@@ -193,7 +193,16 @@ Item {
         && !wallpaperExpanded
         && !launcherExpanded
         && !notesExpanded
-    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (themeExpanded ? "theme" : (notesExpanded ? "notes" : (launcherExpanded ? "launcher" : (wallpaperExpanded ? "wallpaper" : (meteoExpanded ? "meteo" : (expanded ? "etendu_barre" : "compact")))))))
+    readonly property bool liveActivityExpanded: Theme.barStyle === "island"
+        && Theme.islandLiveActivityOpen
+        && !panelOpen
+        && !notifToastActive
+        && !meteoExpanded
+        && !wallpaperExpanded
+        && !launcherExpanded
+        && !notesExpanded
+        && !themeExpanded
+    readonly property string etat: panelOpen ? "panneau" : (notifToastActive ? "toast" : (liveActivityExpanded ? "live" : (themeExpanded ? "theme" : (notesExpanded ? "notes" : (launcherExpanded ? "launcher" : (wallpaperExpanded ? "wallpaper" : (meteoExpanded ? "meteo" : (expanded ? "etendu_barre" : "compact"))))))))
 
     property var wallpaperList: []
     property int wallpaperSelectedIdx: 0
@@ -236,6 +245,7 @@ Item {
 
     function applyWallpaper(path) {
         if (!path) return
+        Theme.wallpaperCourant = String(path)
         Quickshell.execDetached(["bash", Quickshell.shellPath("hyprquickpaper/commands.sh"), String(path)])
         Theme.wallpaperPickerOpen = false
     }
@@ -420,8 +430,346 @@ Item {
         onExited: root.launcherSearching = false
     }
 
+    function asCommands(rest) {
+        const r = String(rest || "").trim()
+        const rl = r.toLowerCase()
+        const out = []
+
+        if (rl === "theme" || rl.indexOf("theme ") === 0) {
+            const qTheme = rl.slice(5).trim()
+            if (qTheme === "") {
+                out.push({ name: "as theme", desc: "Ouvrir le sélecteur de jeu de couleurs", icon: "palette", kind: "as", asAction: "theme_picker" })
+            }
+            const noms = Theme.paletteNoms || []
+            for (let i = 0; i < noms.length; i++) {
+                const cle = String(noms[i])
+                const label = String((Theme.paletteEtiquettes && Theme.paletteEtiquettes[cle]) || cle)
+                if (qTheme === "" || cle.toLowerCase().indexOf(qTheme) !== -1 || label.toLowerCase().indexOf(qTheme) !== -1) {
+                    out.push({
+                        name: "as theme " + label,
+                        desc: (cle === Theme.activeTheme ? "Thème actif · " : "Appliquer ") + cle,
+                        icon: "palette",
+                        kind: "as",
+                        asAction: "theme_apply",
+                        asArg: cle
+                    })
+                }
+            }
+            return out
+        }
+
+        if (rl === "energie" || rl.indexOf("energie ") === 0) {
+            const qProf = rl.slice(7).trim()
+            const profs = [
+                { key: "performance", alias: "perf", label: "Performance", desc: "Puissance maximale (powerprofilesctl)" },
+                { key: "balanced", alias: "equilibre", label: "Équilibré", desc: "Profil standard (powerprofilesctl)" },
+                { key: "power-saver", alias: "eco", label: "Économie", desc: "Économie d'énergie (powerprofilesctl)" }
+            ]
+            for (let i = 0; i < profs.length; i++) {
+                const p = profs[i]
+                if (qProf === "" || p.alias.indexOf(qProf) !== -1 || p.key.indexOf(qProf) !== -1 || p.label.toLowerCase().indexOf(qProf) !== -1) {
+                    out.push({
+                        name: "as energie " + p.alias,
+                        desc: p.label + " — " + p.desc,
+                        icon: "battery",
+                        kind: "as",
+                        asAction: "energie",
+                        asArg: p.key
+                    })
+                }
+            }
+            return out
+        }
+
+        if (rl.indexOf("nuit ") === 0) {
+            const num = parseInt(r.slice(5).trim(), 10)
+            if (!isNaN(num) && num >= 2200 && num <= 6500) {
+                return [{ name: "as nuit " + num + " K", desc: "Régler la température du mode nuit", icon: "weather-night", kind: "as", asAction: "nuit_temp", asArg: num }]
+            }
+        }
+
+        if (rl.indexOf("timer ") === 0) {
+            const mins = parseInt(r.slice(6).trim(), 10)
+            if (!isNaN(mins) && mins > 0) {
+                return [{ name: "as timer " + mins, desc: "Démarrer un minuteur de " + mins + " min", icon: "clock", kind: "as", asAction: "timer", asArg: mins }]
+            }
+        }
+
+        if (rl === "contexte" || rl.indexOf("contexte ") === 0) {
+            const qCtx = rl.slice(8).trim()
+            const ctxs = Theme.workContexts || []
+            for (let i = 0; i < ctxs.length; i++) {
+                const c = ctxs[i]
+                if (qCtx === "" || c.id.indexOf(qCtx) !== -1 || c.label.toLowerCase().indexOf(qCtx) !== -1) {
+                    out.push({
+                        name: "as contexte " + c.id,
+                        desc: (c.id === Theme.activeContext ? "Actif · " : "") + c.label + " — " + c.desc,
+                        icon: c.icon,
+                        kind: "as",
+                        asAction: "contexte",
+                        asArg: c.id
+                    })
+                }
+            }
+            return out
+        }
+
+        const catalog = [
+            { name: "as dnd", desc: Theme.doNotDisturb ? "Désactiver Ne Pas Déranger" : "Activer Ne Pas Déranger", icon: Theme.doNotDisturb ? "bell" : "bell-off", kind: "as", asAction: "dnd" },
+            { name: "as caffeine", desc: Theme.caffeineActif ? "Désactiver Caffeine" : "Activer Caffeine (empêche la veille)", icon: "coffee", kind: "as", asAction: "caffeine" },
+            { name: "as nuit", desc: "Basculer le mode nuit (ou « as nuit 3500 »)", icon: "weather-night", kind: "as", asAction: "nuit" },
+            { name: "as theme", desc: "Choisir un jeu de couleurs (ou « as theme <nom> »)", icon: "palette", kind: "as", asAction: "theme_picker" },
+            { name: "as fond", desc: "Ouvrir le sélecteur de fond d'écran", icon: "image", kind: "as", asAction: "fond" },
+            { name: "as barre", desc: Theme.barStyle === "island" ? "Passer en barre classique" : "Passer en Îlot dynamique", icon: "widgets", kind: "as", asAction: "barre" },
+            { name: "as widgets", desc: Theme.widgetsBureauVisibles ? "Masquer les widgets du bureau" : "Afficher les widgets du bureau", icon: "widgets", kind: "as", asAction: "widgets" },
+            { name: "as energie", desc: "Profil d'énergie (perf / equilibre / eco)", icon: "battery", kind: "as", asAction: "prefill_as", asArg: "as energie " },
+            { name: "as timer", desc: "Lancer un minuteur (ex. « as timer 25 »)", icon: "clock", kind: "as", asAction: "prefill_as", asArg: "as timer 25" },
+            { name: "as contexte", desc: "Activer un contexte de travail", icon: "cog", kind: "as", asAction: "prefill_as", asArg: "as contexte " },
+            { name: "as reload", desc: "Recharger Hyprland et redémarrer Quickshell", icon: "refresh", kind: "as", asAction: "reload" },
+            { name: "as verrouiller", desc: "Verrouiller la session (hyprlock)", icon: "lock", kind: "as", asAction: "verrouiller" },
+            { name: "as veille", desc: "Mettre le système en veille", icon: "sleep", kind: "as", asAction: "veille" },
+            { name: "as redemarrer", desc: "Redémarrer l'ordinateur", icon: "restart", kind: "as", asAction: "redemarrer" },
+            { name: "as eteindre", desc: "Éteindre l'ordinateur", icon: "power", kind: "as", asAction: "eteindre" }
+        ]
+
+        if (rl === "") return catalog
+        for (let i = 0; i < catalog.length; i++) {
+            const item = catalog[i]
+            if (item.name.toLowerCase().indexOf(rl) !== -1 || item.desc.toLowerCase().indexOf(rl) !== -1) {
+                out.push(item)
+            }
+        }
+        return out
+    }
+
+    function runAsCommand(entry) {
+        if (!entry || !entry.asAction) return
+        const act = entry.asAction
+        if (act === "prefill_as" && entry.asArg) {
+            launcherInput.text = String(entry.asArg)
+            launcherInput.cursorPosition = launcherInput.text.length
+            return
+        }
+        Theme.islandLauncherOpen = false
+        if (act === "dnd") {
+            Theme.doNotDisturb = !Theme.doNotDisturb
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"])
+        } else if (act === "caffeine") {
+            Theme.caffeineActif = !Theme.caffeineActif
+        } else if (act === "nuit") {
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "basculer"])
+        } else if (act === "nuit_temp") {
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "temperature", String(entry.asArg)])
+        } else if (act === "barre") {
+            const next = Theme.barStyle === "island" ? "classic" : "island"
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "bar_style", next])
+        } else if (act === "widgets") {
+            Theme.widgetsBureauVisibles = !Theme.widgetsBureauVisibles
+        } else if (act === "theme_picker") {
+            Theme.themePickerOpen = true
+        } else if (act === "theme_apply" && entry.asArg) {
+            root.applyThemeScheme(String(entry.asArg))
+        } else if (act === "fond") {
+            Theme.wallpaperPickerOpen = true
+        } else if (act === "energie" && entry.asArg) {
+            Quickshell.execDetached(["powerprofilesctl", "set", String(entry.asArg)])
+        } else if (act === "reload") {
+            Quickshell.execDetached(["sh", "-c", "hyprctl reload && systemctl --user restart quickshell.service"])
+        } else if (act === "verrouiller") {
+            Quickshell.execDetached(["sh", "-c", "hyprlock || loginctl lock-session"])
+        } else if (act === "veille") {
+            Quickshell.execDetached(["systemctl", "suspend"])
+        } else if (act === "redemarrer") {
+            Quickshell.execDetached(["systemctl", "reboot"])
+        } else if (act === "eteindre") {
+            Quickshell.execDetached(["systemctl", "poweroff"])
+        } else if (act === "timer" && entry.asArg) {
+            Theme.startTimer(entry.asArg, "")
+        } else if (act === "contexte" && entry.asArg) {
+            Theme.applyContext(String(entry.asArg))
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // LIVE ACTIVITY (wf-recorder, minuteur, téléchargements navigateurs, IPC)
+    // ──────────────────────────────────────────────────────────────────────
+    property var liveRecording: ({ active: false, elapsedSec: 0, pid: 0 })
+    property var liveUpdate: ({ active: false, elapsedSec: 0, pid: 0, tool: "" })
+    property var liveDownloads: []
+
+    Process {
+        id: liveActivityProbeProc
+        command: ["python3", Quickshell.shellPath("core/live_activity_probe.py")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const parsed = JSON.parse(text.trim() || "{}")
+                    if (parsed.recording) root.liveRecording = parsed.recording
+                    if (parsed.pkgUpdate) root.liveUpdate = parsed.pkgUpdate
+                    else if (parsed.archUpdate) root.liveUpdate = parsed.archUpdate
+                    root.liveDownloads = Array.isArray(parsed.downloads) ? parsed.downloads : []
+                } catch (e) {}
+            }
+        }
+    }
+
+    Timer {
+        interval: 2000
+        repeat: true
+        running: Theme.barStyle === "island"
+        triggeredOnStart: true
+        onTriggered: if (!liveActivityProbeProc.running) liveActivityProbeProc.running = true
+    }
+
+    function formatLiveDuration(sec) {
+        const s = Math.max(0, Math.round(Number(sec) || 0))
+        const h = Math.floor(s / 3600)
+        const m = Math.floor((s % 3600) / 60)
+        const r = s % 60
+        const pad = n => (n < 10 ? "0" : "") + n
+        return h > 0 ? (h + ":" + pad(m) + ":" + pad(r)) : (pad(m) + ":" + pad(r))
+    }
+
+    readonly property var liveActivities: {
+        const list = []
+        if (root.liveRecording && root.liveRecording.active) {
+            list.push({
+                id: "wf-recorder",
+                kind: "record",
+                title: "REC " + root.formatLiveDuration(root.liveRecording.elapsedSec),
+                subtitle: "Enregistrement écran en cours",
+                etaText: "Écoulé " + root.formatLiveDuration(root.liveRecording.elapsedSec),
+                progress: -1,
+                color: "#ef4444"
+            })
+        }
+        if (Theme.timerRunning) {
+            const pct = Theme.timerTotalSec > 0
+                ? Math.max(0, Math.min(100, Math.round(100 * (Theme.timerTotalSec - Theme.timerRemainingSec) / Theme.timerTotalSec)))
+                : 0
+            list.push({
+                id: "timer",
+                kind: "timer",
+                title: (Theme.timerPaused ? "⏸ " : "") + root.formatLiveDuration(Theme.timerRemainingSec),
+                subtitle: Theme.timerLabel,
+                etaText: "Reste ~ " + root.formatLiveDuration(Theme.timerRemainingSec),
+                progress: pct,
+                paused: Theme.timerPaused,
+                color: Theme.accent
+            })
+        }
+        if (root.liveUpdate && root.liveUpdate.active) {
+            const u = root.liveUpdate
+            const tool = u.tool || "paquets"
+            const rem = (u.remainingPkgs !== undefined && u.remainingPkgs !== null) ? Number(u.remainingPkgs) : -1
+            const p = (u.progress !== undefined && u.progress !== null) ? Number(u.progress) : -1
+            const etaS = (u.etaSec !== undefined && u.etaSec !== null) ? Number(u.etaSec) : -1
+            const needIn = Boolean(u.needsInput)
+            const etaParts = []
+            if (p >= 0) etaParts.push(p + "%")
+            if (rem >= 0) etaParts.push(rem + " paq.")
+            if (etaS > 0) etaParts.push("~ " + root.formatLiveDuration(etaS))
+            else etaParts.push(root.formatLiveDuration(u.elapsedSec))
+
+            list.push({
+                id: "arch-update",
+                kind: "update",
+                pid: u.pid || 0,
+                title: needIn ? ("MàJ · Action! " + root.formatLiveDuration(u.elapsedSec)) : ("MàJ " + root.formatLiveDuration(u.elapsedSec)),
+                subtitle: needIn
+                    ? ("Intervention requise dans le terminal (" + tool + ")")
+                    : ("Mise à jour (" + tool + ")" + (rem >= 0 ? (" · " + rem + " paquet" + (rem > 1 ? "s" : "") + " restant" + (rem > 1 ? "s" : "")) : "")),
+                etaText: etaParts.join(" · "),
+                progress: p,
+                color: needIn ? "#ef4444" : Theme.warn
+            })
+        }
+        const dls = Array.isArray(root.liveDownloads) ? root.liveDownloads : []
+        for (let i = 0; i < dls.length; i++) {
+            const d = dls[i]
+            if (!d || !d.name) continue
+            const p = (d.progress !== undefined && d.progress !== null) ? Number(d.progress) : -1
+            const sizeInfo = d.totalStr ? (d.sizeStr + " / " + d.totalStr) : (d.sizeStr || "")
+            const parts = []
+            if (p >= 0) parts.push(p + "%")
+            if (d.speedStr) parts.push(d.speedStr)
+            if (d.etaSec !== undefined && Number(d.etaSec) > 0) parts.push("~ " + root.formatLiveDuration(d.etaSec))
+            const eta = parts.length > 0 ? parts.join(" · ") : (sizeInfo || "En cours")
+            list.push({
+                id: "dl:" + d.name,
+                kind: "download",
+                title: d.name + (p >= 0 ? (" · " + p + "%") : ""),
+                subtitle: "Téléchargement · " + (sizeInfo || "en cours") + (d.speedStr ? (" · " + d.speedStr) : ""),
+                etaText: eta,
+                progress: p,
+                color: Theme.info
+            })
+        }
+        const ipcs = Array.isArray(Theme.ipcActivities) ? Theme.ipcActivities : []
+        for (let j = 0; j < ipcs.length; j++) {
+            const x = ipcs[j]
+            if (!x || !x.id) continue
+            const p = Number(x.progress)
+            let eta = p >= 0 ? (p + "%") : "En cours"
+            if (p > 0 && p < 100 && x.startedAt > 0) {
+                const el = Math.max(1, (Date.now() - Number(x.startedAt)) / 1000.0)
+                const rem = Math.round(el * (100 - p) / p)
+                eta = p + "% · ~ " + root.formatLiveDuration(rem)
+            }
+            list.push({
+                id: x.id,
+                kind: "ipc",
+                title: String(x.title || x.id) + (p >= 0 ? (" · " + p + "%") : ""),
+                subtitle: "Tâche en arrière-plan",
+                etaText: eta,
+                progress: p,
+                color: Theme.accent
+            })
+        }
+        return list
+    }
+
+    readonly property var compactBarsList: root.liveActivities.slice(0, 3)
+    readonly property real compactExtraHeight: (!Theme.osdVisible && root.compactBarsList.length > 1)
+        ? (root.compactBarsList.length * 3 + 2)
+        : 0
+
+    property bool pretGrabLiveActivity: false
+    onLiveActivityExpandedChanged: {
+        if (liveActivityExpanded) {
+            retractTimer.stop()
+            expanded = true
+            pretGrabLiveActivity = false
+            delaiGrabLiveActivity.restart()
+            liveActivityContainer.forceActiveFocus()
+        } else {
+            delaiGrabLiveActivity.stop()
+            pretGrabLiveActivity = false
+            if (!isHovered && !isPopupOpen && !panelOpen) retractTimer.restart()
+        }
+    }
+
+    Timer {
+        id: delaiGrabLiveActivity
+        interval: 150
+        repeat: false
+        onTriggered: if (root.liveActivityExpanded) root.pretGrabLiveActivity = true
+    }
+
+    HyprlandFocusGrab {
+        active: root.liveActivityExpanded && root.pretGrabLiveActivity
+        windows: (root.QsWindow && root.QsWindow.window) ? [root.QsWindow.window] : []
+        onCleared: {
+            if (Theme.islandLiveActivityOpen) Theme.islandLiveActivityOpen = false
+        }
+    }
+
     readonly property var launcherResults: {
         const q = root.launcherQuery.trim()
+        const qlRaw = q.toLowerCase()
+        if (qlRaw === "as" || qlRaw.indexOf("as ") === 0) {
+            return root.asCommands(q.slice(2)).slice(0, 8)
+        }
         if (q.startsWith(">")) {
             const cmd = q.slice(1).trim()
             if (cmd === "") return []
@@ -483,6 +831,10 @@ Item {
 
     function runLauncherEntry(entry) {
         if (!entry) return
+        if (entry.kind === "as") {
+            root.runAsCommand(entry)
+            return
+        }
         if (entry.action === "prefill" && entry.arg !== undefined) {
             launcherInput.text = String(entry.arg)
             launcherInput.cursorPosition = launcherInput.text.length
@@ -785,8 +1137,11 @@ Item {
     readonly property real launcherHeight: Math.min(440, 74 + Math.max(1, root.launcherResults.length) * 44 + 14)
     readonly property real notesHeight: 270
     readonly property real themePickerHeight: 164
-    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))))))
-    height: panelOpen ? 420 : (notifToastActive ? toastHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : Theme.barHeight))))))
+    readonly property real liveActivityWidth: 480
+    readonly property real liveActivityHeight: Math.min(380, 74 + Math.max(1, root.liveActivities.length) * 68 + 14)
+    readonly property real compactTotalHeight: Theme.barHeight + (root.expanded ? 0 : root.compactExtraHeight)
+    implicitHeight: panelOpen ? 420 : (notifToastActive ? toastHeight : (liveActivityExpanded ? liveActivityHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : compactTotalHeight)))))))
+    height: panelOpen ? 420 : (notifToastActive ? toastHeight : (liveActivityExpanded ? liveActivityHeight : (themeExpanded ? themePickerHeight : (notesExpanded ? notesHeight : (launcherExpanded ? launcherHeight : (wallpaperExpanded ? wallpaperHeight : (meteoExpanded ? meteoHeight : compactTotalHeight)))))))
     Behavior on height {
         NumberAnimation {
             duration: Theme.panelAnimDuration
@@ -809,7 +1164,7 @@ Item {
     )
 
     readonly property int sidePanelWidth: (panelOpen && Theme.islandSidePanel !== "") ? 340 : 0
-    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (themeExpanded ? themePickerWidth : (notesExpanded ? notesWidth : (launcherExpanded ? launcherWidth : (wallpaperExpanded ? wallpaperWidth : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth)))))))
+    width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (liveActivityExpanded ? liveActivityWidth : (themeExpanded ? themePickerWidth : (notesExpanded ? notesWidth : (launcherExpanded ? launcherWidth : (wallpaperExpanded ? wallpaperWidth : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth))))))))
 
     Behavior on width {
         NumberAnimation {
@@ -827,7 +1182,7 @@ Item {
         teinte: (root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? Theme.surfaceBg : Theme.barBg
         bordureCouleur: (root.isCalendarOpen || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? Theme.accentMuted : Theme.accent
         bordureLargeur: Theme.barBorder ? 1 : 0
-        actif: root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded
+        actif: root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded || root.liveActivityExpanded
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -838,9 +1193,9 @@ Item {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: Theme.barHeight
+        height: root.compactTotalHeight
         clip: true
-        opacity: (root.expanded || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded) ? 0.0 : 1.0
+        opacity: (root.expanded || root.panelOpen || root.notifToastActive || root.meteoExpanded || root.wallpaperExpanded || root.launcherExpanded || root.notesExpanded || root.themeExpanded || root.liveActivityExpanded) ? 0.0 : 1.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.OutCubic } }
 
@@ -895,7 +1250,9 @@ Item {
         // 2. Repos : Capture (si active) + Workspaces (points/tiret) à gauche + Heure + lecteur audio + VPN à droite
         Row {
             id: compactContentRow
-            anchors.centerIn: parent
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            height: Theme.barHeight
             spacing: 10
             visible: !Theme.osdVisible
 
@@ -1006,6 +1363,114 @@ Item {
                 }
             }
 
+            // Badge contexte actif (si différent de « normal »)
+            Rectangle {
+                visible: Theme.activeContext !== "" && Theme.activeContext !== "normal"
+                height: Math.max(18, Theme.barHeight - 8)
+                width: ctxPillTxt.implicitWidth + 12
+                radius: Math.round(height / 2)
+                anchors.verticalCenter: parent.verticalCenter
+                color: Qt.alpha(Theme.accent, 0.16)
+                border.width: 1
+                border.color: Qt.alpha(Theme.accent, 0.4)
+
+                Text {
+                    id: ctxPillTxt
+                    anchors.centerIn: parent
+                    text: {
+                        const ctxs = Theme.workContexts || []
+                        for (let i = 0; i < ctxs.length; i++) {
+                            if (ctxs[i].id === Theme.activeContext) return ctxs[i].label
+                        }
+                        return Theme.activeContext
+                    }
+                    font.family: Theme.fontUi
+                    font.pixelSize: Math.max(8, Math.round(10 * Theme.barScale))
+                    font.weight: Font.Bold
+                    color: Theme.accent
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(0)
+                }
+            }
+
+            // Live Activity (enregistrement, minuteur, téléchargements, tâches IPC)
+            Rectangle {
+                id: liveActivityPill
+                visible: root.liveActivities.length > 0
+                readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
+                height: Math.max(18, Theme.barHeight - 8)
+                width: liveActRow.implicitWidth + 12
+                radius: Math.round(height / 2)
+                anchors.verticalCenter: parent.verticalCenter
+                color: primary ? Qt.alpha(primary.color, 0.16) : "transparent"
+                border.width: 1
+                border.color: primary ? Qt.alpha(primary.color, 0.45) : "transparent"
+
+                Row {
+                    id: liveActRow
+                    anchors.centerIn: parent
+                    spacing: 5
+
+                    Rectangle {
+                        id: livePulseDot
+                        width: 6
+                        height: 6
+                        radius: 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.accent
+                        SequentialAnimation on opacity {
+                            running: liveActivityPill.visible && !(liveActivityPill.primary && liveActivityPill.primary.paused)
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 1.0; to: 0.25; duration: 700; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 0.25; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: {
+                            const p = liveActivityPill.primary
+                            if (!p) return ""
+                            const t = String(p.title || "")
+                            return t.length > 16 ? (t.substring(0, 15) + "…") : t
+                        }
+                        font.family: Theme.fontUi
+                        font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
+                        font.weight: Font.Bold
+                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.fg
+                    }
+
+                    Rectangle {
+                        visible: root.liveActivities.length > 1
+                        width: liveCountTxt.implicitWidth + 8
+                        height: 14
+                        radius: 7
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.accent
+
+                        Text {
+                            id: liveCountTxt
+                            anchors.centerIn: parent
+                            text: "+" + (root.liveActivities.length - 1)
+                            font.family: Theme.fontUi
+                            font.pixelSize: 9
+                            font.weight: Font.Bold
+                            color: Theme.bg
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.toggleLiveActivity()
+                }
+            }
+
             // Point VPN à droite (bleu = connecté, blanc = déconnecté, jaune = erreur)
             Rectangle {
                 visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, "compact")
@@ -1017,6 +1482,49 @@ Item {
                     ? "#00a3d5"
                     : (root.vpnState === "error" ? "#eab308" : "#ffffff")
                 Behavior on color { ColorAnimation { duration: 150 } }
+            }
+        }
+
+        // Seconde barre (et +) vers le bas pour les téléchargements / activités secondaires
+        // Barres de progression fines (2px, espacées de 1px) collées en bas de la pilule
+        // Barres de progression fines (2px, espacées de 1px) collées en bas de la pilule
+        Column {
+            id: compactBarsCol
+            visible: root.compactBarsList.length > 0 && !Theme.osdVisible
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 2
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Math.max(12, Math.round(Theme.globalRadius * 0.7))
+            anchors.rightMargin: Math.max(12, Math.round(Theme.globalRadius * 0.7))
+            spacing: 1
+
+            Repeater {
+                model: root.compactBarsList
+                delegate: Rectangle {
+                    required property var modelData
+                    width: compactBarsCol.width
+                    height: 2
+                    radius: 1
+                    color: Qt.alpha(Theme.fg, 0.14)
+                    clip: true
+
+                    Rectangle {
+                        height: parent.height
+                        radius: 1
+                        color: modelData.color || Theme.accent
+                        readonly property real p: Number(modelData.progress)
+                        width: p >= 0 ? Math.round(parent.width * Math.max(0, Math.min(100, p)) / 100.0) : Math.round(parent.width * 0.34)
+                        x: p >= 0 ? 0 : indOff
+                        property real indOff: 0
+                        SequentialAnimation on indOff {
+                            running: compactBarsCol.visible && Number(modelData.progress) < 0
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0; to: Math.max(0, compactBarsCol.width * 0.66); duration: 1050; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: Math.max(0, compactBarsCol.width * 0.66); to: 0; duration: 1050; easing.type: Easing.InOutSine }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1031,7 +1539,7 @@ Item {
         anchors.right: parent.right
         height: Theme.barHeight
         clip: true
-        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive && !root.meteoExpanded && !root.wallpaperExpanded && !root.launcherExpanded && !root.notesExpanded && !root.themeExpanded && root.width >= root.expandedWidth - 16) ? 1.0 : 0.0
+        opacity: (root.expanded && !root.panelOpen && !root.notifToastActive && !root.meteoExpanded && !root.wallpaperExpanded && !root.launcherExpanded && !root.notesExpanded && !root.themeExpanded && !root.liveActivityExpanded && root.width >= root.expandedWidth - 16) ? 1.0 : 0.0
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
@@ -1127,6 +1635,73 @@ Item {
                 font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
                 font.weight: Font.Medium
                 color: Theme.accent
+            }
+
+            // Live Activity visible aussi en mode étendu (au survol)
+            Rectangle {
+                id: expandedLiveActivityPill
+                visible: root.liveActivities.length > 0
+                readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
+                height: Math.max(18, Theme.barHeight - 8)
+                width: expLiveRow.implicitWidth + 12
+                radius: Math.round(height / 2)
+                anchors.verticalCenter: parent.verticalCenter
+                color: primary ? Qt.alpha(primary.color, 0.16) : "transparent"
+                border.width: 1
+                border.color: primary ? Qt.alpha(primary.color, 0.45) : "transparent"
+
+                Row {
+                    id: expLiveRow
+                    anchors.centerIn: parent
+                    spacing: 5
+
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.accent
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: {
+                            const p = expandedLiveActivityPill.primary
+                            if (!p) return ""
+                            const t = String(p.title || "")
+                            return t.length > 16 ? (t.substring(0, 15) + "…") : t
+                        }
+                        font.family: Theme.fontUi
+                        font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
+                        font.weight: Font.Bold
+                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.fg
+                    }
+
+                    Rectangle {
+                        visible: root.liveActivities.length > 1
+                        width: expLiveCnt.implicitWidth + 8
+                        height: 14
+                        radius: 7
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.accent
+
+                        Text {
+                            id: expLiveCnt
+                            anchors.centerIn: parent
+                            text: "+" + (root.liveActivities.length - 1)
+                            font.family: Theme.fontUi
+                            font.pixelSize: 9
+                            font.weight: Font.Bold
+                            color: Theme.bg
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Theme.toggleLiveActivity()
+                }
             }
 
             // Côté Droit : Applets droite
@@ -2440,6 +3015,349 @@ Item {
                         onClicked: {
                             root.themeSelectedIdx = index
                             root.applyThemeScheme(modelData)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // EXTENSION INLINE LIVE ACTIVITY (TÂCHES LONGUES, MINUTEUR, REC, DL)
+    // ──────────────────────────────────────────────────────────────────────
+    Item {
+        id: liveActivityContainer
+        anchors.fill: parent
+        clip: true
+        focus: root.liveActivityExpanded
+        Keys.onEscapePressed: Theme.islandLiveActivityOpen = false
+        opacity: root.liveActivityExpanded ? 1.0 : 0.0
+        visible: opacity > 0.05
+        Behavior on opacity { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.OutCubic } }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Icon {
+                    glyph: "clock"
+                    size: Theme.iconSm
+                    color: Theme.accent
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Activités en cours (" + root.liveActivities.length + ")"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textSm
+                    font.bold: true
+                    color: Theme.fg
+                }
+
+                Rectangle {
+                    id: p5Btn
+                    property bool hovered: false
+                    width: 40
+                    height: 22
+                    radius: 6
+                    color: (root.liveActivityExpanded && hovered) ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.55)
+                    Text { anchors.centerIn: parent; text: "+5m"; font.family: Theme.fontUi; font.pixelSize: Theme.text2xs; font.bold: true; color: Theme.accent }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: root.liveActivityExpanded
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: p5Btn.hovered = true
+                        onExited: p5Btn.hovered = false
+                        onClicked: { p5Btn.hovered = false; Theme.startTimer(5, "Minuteur 5m") }
+                    }
+                }
+
+                Rectangle {
+                    id: p25Btn
+                    property bool hovered: false
+                    width: 46
+                    height: 22
+                    radius: 6
+                    color: (root.liveActivityExpanded && hovered) ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.55)
+                    Text { anchors.centerIn: parent; text: "+25m"; font.family: Theme.fontUi; font.pixelSize: Theme.text2xs; font.bold: true; color: Theme.accent }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: root.liveActivityExpanded
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: p25Btn.hovered = true
+                        onExited: p25Btn.hovered = false
+                        onClicked: { p25Btn.hovered = false; Theme.startTimer(25, "Pomodoro 25m") }
+                    }
+                }
+
+                // Timer personnalisé (minutes)
+                Rectangle {
+                    width: 68
+                    height: 22
+                    radius: 6
+                    color: Qt.alpha(Theme.bg, 0.55)
+                    border.width: 1
+                    border.color: customTimerInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.16)
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 2
+                        spacing: 2
+
+                        TextInput {
+                            id: customTimerInput
+                            Layout.fillWidth: true
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.text2xs
+                            color: Theme.fg
+                            horizontalAlignment: TextInput.AlignHCenter
+                            validator: IntValidator { bottom: 1; top: 999 }
+                            maximumLength: 3
+                            selectByMouse: true
+                            Keys.onEscapePressed: Theme.islandLiveActivityOpen = false
+                            onAccepted: {
+                                const m = parseInt(text, 10)
+                                if (!isNaN(m) && m > 0) {
+                                    Theme.startTimer(m, "Minuteur " + m + "m")
+                                    text = ""
+                                }
+                            }
+
+                            Text {
+                                visible: customTimerInput.text === ""
+                                anchors.centerIn: parent
+                                text: "min"
+                                font.family: Theme.fontUi
+                                font.pixelSize: Theme.text2xs
+                                color: Qt.alpha(Theme.fg, 0.42)
+                            }
+                        }
+
+                        Rectangle {
+                            width: 18
+                            height: 18
+                            radius: 5
+                            color: customGoMa.containsMouse ? Qt.alpha(Theme.accent, 0.3) : Qt.alpha(Theme.accent, 0.16)
+                            Text { anchors.centerIn: parent; text: "▶"; font.pixelSize: 8; color: Theme.accent }
+                            MouseArea {
+                                id: customGoMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const m = parseInt(customTimerInput.text, 10)
+                                    if (!isNaN(m) && m > 0) {
+                                        Theme.startTimer(m, "Minuteur " + m + "m")
+                                        customTimerInput.text = ""
+                                    } else {
+                                        customTimerInput.forceActiveFocus()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 22
+                    height: 22
+                    radius: 6
+                    color: laCloseMa.containsMouse ? Qt.alpha(Theme.error, 0.22) : Qt.alpha(Theme.surfaceVariant, 0.45)
+                    Text { anchors.centerIn: parent; text: "✕"; font.pixelSize: 10; font.bold: true; color: laCloseMa.containsMouse ? Theme.error : Theme.fg }
+                    MouseArea { id: laCloseMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Theme.islandLiveActivityOpen = false }
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Qt.alpha(Theme.fg, 0.1) }
+
+            Text {
+                visible: root.liveActivities.length === 0
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: "Aucune activité longue en cours"
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.textXs
+                color: Qt.alpha(Theme.fg, 0.5)
+            }
+
+            ListView {
+                visible: root.liveActivities.length > 0
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 6
+                clip: true
+                model: root.liveActivities
+
+                delegate: Rectangle {
+                    required property var modelData
+                    readonly property bool canFocusWindow: modelData.kind === "update" || modelData.kind === "download"
+                    width: ListView.view.width
+                    height: 62
+                    radius: Math.max(8, Math.round(Theme.globalRadius * 0.55))
+                    color: (canFocusWindow && laCardMa.containsMouse)
+                        ? Qt.alpha(Theme.surfaceVariant, 0.72)
+                        : Qt.alpha(Theme.surfaceVariant, 0.42)
+                    border.width: 1
+                    border.color: Qt.alpha(modelData.color || Theme.accent, (canFocusWindow && laCardMa.containsMouse) ? 0.65 : 0.32)
+
+                    MouseArea {
+                        id: laCardMa
+                        anchors.fill: parent
+                        enabled: canFocusWindow
+                        hoverEnabled: canFocusWindow
+                        cursorShape: canFocusWindow ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: {
+                            Theme.islandLiveActivityOpen = false
+                            Quickshell.execDetached([
+                                "python3", Quickshell.shellPath("core/live_activity_probe.py"),
+                                "--focus", String(modelData.kind), String(modelData.pid || 0)
+                            ])
+                        }
+                    }
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 6
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Rectangle {
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: modelData.color || Theme.accent
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.title || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: true
+                                    color: Theme.fg
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: String(modelData.subtitle || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.text2xs
+                                    color: Qt.alpha(Theme.fg, 0.65)
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            Rectangle {
+                                visible: String(modelData.etaText || "") !== ""
+                                Layout.preferredWidth: etaBadgeTxt.implicitWidth + 12
+                                Layout.preferredHeight: 20
+                                radius: 6
+                                color: Qt.alpha(modelData.color || Theme.accent, 0.16)
+
+                                Text {
+                                    id: etaBadgeTxt
+                                    anchors.centerIn: parent
+                                    text: String(modelData.etaText || "")
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.text2xs
+                                    font.bold: true
+                                    color: modelData.color || Theme.accent
+                                }
+                            }
+
+                            Rectangle {
+                                visible: modelData.kind === "timer"
+                                Layout.preferredWidth: 24
+                                Layout.preferredHeight: 22
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 6
+                                color: pauseMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.surfaceVariant, 0.65)
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.paused ? "▶" : "⏸"
+                                    font.pixelSize: 10
+                                    color: Theme.fg
+                                }
+                                MouseArea {
+                                    id: pauseMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Theme.togglePauseTimer()
+                                }
+                            }
+
+                            Rectangle {
+                                visible: modelData.kind === "record" || modelData.kind === "timer" || modelData.kind === "ipc"
+                                Layout.preferredWidth: 24
+                                Layout.preferredHeight: 22
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 6
+                                color: stopMa.containsMouse ? Qt.alpha(Theme.error, 0.28) : Qt.alpha(Theme.surfaceVariant, 0.65)
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "■"
+                                    font.pixelSize: 10
+                                    color: stopMa.containsMouse ? Theme.error : Theme.fg
+                                }
+                                MouseArea {
+                                    id: stopMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (modelData.kind === "record") {
+                                            Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"])
+                                        } else if (modelData.kind === "timer") {
+                                            Theme.stopTimer()
+                                        } else if (modelData.kind === "ipc") {
+                                            Theme.handleLiveActivity("stop", modelData.id, "", -1)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Barre de chargement agrandie (6px) avec animation si indéterminée
+                        Rectangle {
+                            id: laBarTrack
+                            Layout.fillWidth: true
+                            height: 6
+                            radius: 3
+                            color: Qt.alpha(Theme.fg, 0.14)
+                            clip: true
+
+                            Rectangle {
+                                height: parent.height
+                                radius: 3
+                                color: modelData.color || Theme.accent
+                                readonly property real p: Number(modelData.progress)
+                                width: p >= 0 ? Math.round(parent.width * Math.max(0, Math.min(100, p)) / 100.0) : Math.round(parent.width * 0.32)
+                                x: p >= 0 ? 0 : laIndOff
+                                property real laIndOff: 0
+                                SequentialAnimation on laIndOff {
+                                    running: root.liveActivityExpanded && Number(modelData.progress) < 0
+                                    loops: Animation.Infinite
+                                    NumberAnimation { from: 0; to: Math.max(0, laBarTrack.width * 0.68); duration: 1050; easing.type: Easing.InOutSine }
+                                    NumberAnimation { from: Math.max(0, laBarTrack.width * 0.68); to: 0; duration: 1050; easing.type: Easing.InOutSine }
+                                }
+                            }
                         }
                     }
                 }

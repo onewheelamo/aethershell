@@ -301,7 +301,7 @@ Item {
         // passe Wi-Fi y a besoin du clavier.
         WlrLayershell.keyboardFocus: (Theme.activePopup === "applet:reseau"
                                       || Theme.activePopup === "calendar"
-                                      || (Theme.barStyle === "island" && (Theme.islandPanelOpen || Theme.wallpaperPickerOpen || Theme.themePickerOpen || Theme.islandLauncherOpen || Theme.islandNotesOpen)))
+                                      || (Theme.barStyle === "island" && (Theme.islandPanelOpen || Theme.wallpaperPickerOpen || Theme.themePickerOpen || Theme.islandLauncherOpen || Theme.islandNotesOpen || Theme.islandLiveActivityOpen)))
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
         WlrLayershell.namespace: "shell-bar"
@@ -1125,7 +1125,7 @@ Item {
             readonly property var w: modelData || ({})
 
             screen: topBarWindow.screen
-            visible: root.widgetVisible(w)
+            visible: Theme.widgetsBureauVisibles && root.widgetVisible(w)
 
             anchors { top: true; left: true }
             // Glissement : les marges suivent le geste pendant qu'on déplace, puis

@@ -655,6 +655,57 @@ Item {
             color: Qt.alpha(Theme.fg, 0.1)
         }
 
+        // Sélecteur rapide de contexte de travail (Normal / Focus / Réunion / Détente)
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Repeater {
+                model: Theme.workContexts || []
+                delegate: Rectangle {
+                    required property var modelData
+                    readonly property bool isActive: Theme.activeContext === modelData.id
+                    Layout.fillWidth: true
+                    height: 28
+                    radius: Math.max(8, Math.round(Theme.globalRadius * 0.5))
+                    color: isActive
+                        ? Qt.alpha(Theme.accent, 0.22)
+                        : (ctxMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.72) : Qt.alpha(Theme.surfaceVariant, 0.4))
+                    border.width: 1
+                    border.color: isActive ? Theme.accent : Qt.alpha(Theme.fg, 0.1)
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 5
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: modelData.icon || "widgets"
+                            size: 12
+                            color: isActive ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.label
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.text2xs
+                            font.bold: isActive
+                            color: isActive ? Theme.accent : Theme.fg
+                        }
+                    }
+
+                    MouseArea {
+                        id: ctxMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Theme.applyContext(modelData.id)
+                    }
+                }
+            }
+        }
+
         // Grille 2x4 des tuiles rapides
         GridLayout {
             Layout.fillWidth: true

@@ -120,6 +120,61 @@ def _cover(image, largeur, hauteur):
     return red.crop((x, y, x + largeur, y + hauteur))
 
 
+def _inpaint_rgb(rgb_img, mask_bool):
+    """Comble les zones masquées (derrière un avant-plan) sans dépendance externe.
+    Utilise cv2.inpaint si présent, sinon une pyramide multi-échelle Pillow/numpy."""
+    np, Image = _numpy()
+    from PIL import ImageFilter
+
+    if not np.any(mask_bool):
+        return rgb_img
+
+    # Dilate légèrement le masque pour absorber le halo de contour (3 px)
+    m_img = Image.fromarray((mask_bool.astype(np.uint8) * 255), mode="L")
+    m_dil = m_img.filter(ImageFilter.MaxFilter(7))
+    dil_bool = np.asarray(m_dil) > 127
+
+    try:
+        import cv2  # type: ignore
+        bgr = np.asarray(rgb_img, dtype=np.uint8)[:, :, ::-1]
+        res = cv2.inpaint(bgr, (dil_bool.astype(np.uint8) * 255), 5, cv2.INPAINT_TELEA)
+        return Image.fromarray(res[:, :, ::-1], mode="RGB")
+    except Exception:
+        pass
+
+    arr = np.asarray(rgb_img, dtype=np.float32).copy()
+    h, w = arr.shape[:2]
+    # Pyramide rapide 1/8 -> diffusion itérative -> remontée douce
+    sw, sh = max(32, w // 8), max(32, h // 8)
+    small_rgb = np.asarray(rgb_img.resize((sw, sh), Image.BILINEAR), dtype=np.float32)
+    small_m = np.asarray(m_dil.resize((sw, sh), Image.NEAREST)) > 127
+
+    valid = ~small_m
+    work = small_rgb.copy()
+    if np.any(valid):
+        mean_col = work[valid].mean(axis=0)
+        work[small_m] = mean_col
+        for _ in range(28):
+            up = np.roll(work, 1, axis=0)
+            dn = np.roll(work, -1, axis=0)
+            lf = np.roll(work, 1, axis=1)
+            rt = np.roll(work, -1, axis=1)
+            avg = 0.25 * (up + dn + lf + rt)
+            work[small_m] = avg[small_m]
+
+    up_fill = np.asarray(
+        Image.fromarray(np.clip(work, 0, 255).astype(np.uint8), mode="RGB")
+        .resize((w, h), Image.BILINEAR)
+        .filter(ImageFilter.GaussianBlur(radius=3)),
+        dtype=np.float32,
+    )
+    # Adoucir la transition sur 2 px autour du trou
+    soft_m = np.asarray(m_dil.filter(ImageFilter.GaussianBlur(radius=2)), dtype=np.float32) / 255.0
+    soft_m = soft_m[:, :, None]
+    blended = arr * (1.0 - soft_m) + up_fill * soft_m
+    return Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8), mode="RGB")
+
+
 def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     """`fond` est l'image à découper ; `masque_de` est l'image dont on tire la
     carte de profondeur quand les deux diffèrent.
@@ -153,12 +208,22 @@ def generate(fond, sortie, seuil_bas, seuil_haut, masque_de=None, ecran=None):
     a = np.asarray(alpha, dtype=float) / 255.0
     proche = _lissage(a, (seuil_haut - 10) / 100.0, (seuil_haut + 5) / 100.0)
     moyen = np.clip(_lissage(a, (seuil_bas - 5) / 100.0, (seuil_bas + 10) / 100.0) - proche, 0.0, 1.0)
-    lointain = np.clip(1.0 - moyen - proche, 0.0, 1.0)
+
+    # Inpainting des plans arrière pour éviter tout trou/halo lors du décalage parallaxe :
+    # - 1-lointain : fond opaque comblé derrière moyen + proche
+    # - 2-moyen    : comblé derrière proche, avec alpha étendu sous proche
+    # - 3-proche   : pixels originaux intacts
+    rgb_lointain = _inpaint_rgb(rgb, (moyen + proche) > 0.25)
+    rgb_moyen = _inpaint_rgb(rgb, proche > 0.25)
+
+    poids_lointain = np.ones_like(proche)
+    poids_moyen = np.clip(moyen + proche, 0.0, 1.0)
+    poids_proche = proche
 
     sortie = Path(sortie).expanduser().resolve()
     sortie.mkdir(parents=True, exist_ok=True)
-    for nom, poids in zip(NOMS, (lointain, moyen, proche)):
-        calque = rgb.copy()
+    for nom, img_base, poids in zip(NOMS, (rgb_lointain, rgb_moyen, rgb), (poids_lointain, poids_moyen, poids_proche)):
+        calque = img_base.copy()
         calque.putalpha(Image.fromarray(np.rint(poids * 255.0).astype(np.uint8)))
         calque.save(sortie / nom, format="PNG", optimize=True)
         print("  %s  %s" % (nom, (sortie / nom).stat().st_size // 1024), "Kio")
