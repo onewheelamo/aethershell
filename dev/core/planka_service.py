@@ -39,6 +39,7 @@ def _cache_dir() -> str:
 
 CACHE_FILE = os.path.join(_cache_dir(), "planka_cache.json")
 AGENT_COLS_FILE = os.path.join(_cache_dir(), "planka_agent_cols.json")
+ACTIVE_BOARD_FILE = os.path.join(_cache_dir(), "planka_active_board.json")
 
 
 def _sortir(data: dict) -> int:
@@ -89,6 +90,20 @@ def invalidate_cache() -> None:
             os.remove(CACHE_FILE)
     except OSError:
         pass
+
+
+def load_active_board() -> str:
+    data = _read_json_file(ACTIVE_BOARD_FILE, {})
+    return str(data.get("board_id") or "") if isinstance(data, dict) else ""
+
+
+def set_active_board(board_id: str) -> dict:
+    bid = str(board_id or "").strip()
+    if not bid:
+        return {"ok": False, "error": "board_id manquant"}
+    _write_private_json(ACTIVE_BOARD_FILE, {"board_id": bid})
+    invalidate_cache()
+    return {"ok": True, "board_id": bid}
 
 
 def load_agent_cols() -> dict:
@@ -189,21 +204,21 @@ def _pick_board(cfg: dict, requested_board_id: str | None = None) -> tuple[list,
                 continue
 
     if not boards:
-        return projects, None
+        return projects, [], None
 
-    target_id = requested_board_id or cfg.get("default_board_id")
+    target_id = requested_board_id or load_active_board() or cfg.get("default_board_id")
     if target_id:
         for b in boards:
             if str(b.get("id")) == str(target_id):
-                return projects, b
+                return projects, boards, b
 
     def_pid = cfg.get("default_project_id")
     if def_pid:
         for b in boards:
             if str(b.get("projectId")) == str(def_pid):
-                return projects, b
+                return projects, boards, b
 
-    return projects, boards[0]
+    return projects, boards, boards[0]
 
 
 def _fetch_board_snapshot(cfg: dict, board_id: str | None = None, force: bool = False) -> dict:
@@ -234,13 +249,14 @@ def _fetch_board_snapshot(cfg: dict, board_id: str | None = None, force: bool = 
         except Exception:
             me_id = None
 
-        projects, board = _pick_board(cfg, board_id)
+        projects, all_boards, board = _pick_board(cfg, board_id)
         if not board:
             return {
                 "ok": True,
                 "statut": "vide",
                 "ts": time.time(),
                 "board": None,
+                "boards": [],
                 "projects": projects,
                 "lists": [],
                 "echeance_proche": False,
@@ -368,6 +384,14 @@ def _fetch_board_snapshot(cfg: dict, board_id: str | None = None, force: bool = 
                 "projectId": str(b_item.get("projectId") or ""),
                 "url": f"{cfg['url']}/boards/{bid}",
             },
+            "boards": [
+                {
+                    "id": str(b.get("id")),
+                    "name": b.get("name") or "Tableau",
+                    "projectId": str(b.get("projectId") or ""),
+                }
+                for b in all_boards if b.get("id")
+            ],
             "projects": [{"id": str(p.get("id")), "name": p.get("name") or "Projet"} for p in projects if p.get("id")],
             "lists": lists_out,
             "open_cards": open_cards,
@@ -493,6 +517,8 @@ def main(argv: list[str]) -> int:
         if action == "board":
             bid = argv[2] if len(argv) > 2 else None
             return _sortir(_fetch_board_snapshot(_planka_config(), bid))
+        if action == "set_board" and len(argv) >= 3:
+            return _sortir(set_active_board(argv[2]))
         if action == "creer" and len(argv) >= 4:
             desc = argv[4] if len(argv) > 4 else ""
             return _sortir(cmd_creer(argv[2], argv[3], desc))

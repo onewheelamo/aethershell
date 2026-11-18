@@ -12,6 +12,7 @@ Item {
     id: root
 
     property var boardData: ({})
+    property var boards: []
     property var lists: []
     property int activeListIndex: 0
     property bool onlyMine: false
@@ -64,6 +65,7 @@ Item {
                 try {
                     const d = JSON.parse(text.trim())
                     root.boardData = d || ({})
+                    root.boards = Array.isArray(d.boards) ? d.boards : []
                     root.lists = Array.isArray(d.lists) ? d.lists : []
                     if (root.activeListIndex >= root.lists.length) {
                         root.activeListIndex = 0
@@ -96,15 +98,59 @@ Item {
                 color: Theme.fg
             }
 
-            Text {
+            Rectangle {
                 Layout.fillWidth: true
-                text: (root.boardData.board && root.boardData.board.name)
-                    ? ("· " + root.boardData.board.name)
-                    : (root.boardData.statut === "non_configure" ? "· Non configuré" : "· Hors ligne")
-                font.family: Theme.fontUi
-                font.pixelSize: Theme.textXs
-                color: root.boardData.ok ? Qt.alpha(Theme.fg, 0.65) : Theme.warn
-                elide: Text.ElideRight
+                Layout.preferredHeight: 24
+                color: "transparent"
+
+                Rectangle {
+                    id: boardSwitchPill
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 22
+                    width: Math.min(parent.width, boardNameLbl.implicitWidth + (root.boards.length > 1 ? 16 : 4))
+                    radius: 6
+                    color: (root.boards.length > 1 && boardSwitchMa.containsMouse)
+                        ? Qt.alpha(Theme.accent, 0.14)
+                        : "transparent"
+
+                    Text {
+                        id: boardNameLbl
+                        anchors.left: parent.left
+                        anchors.leftMargin: root.boards.length > 1 ? 6 : 0
+                        anchors.right: parent.right
+                        anchors.rightMargin: root.boards.length > 1 ? 6 : 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (root.boardData.board && root.boardData.board.name)
+                            ? ("· " + root.boardData.board.name + (root.boards.length > 1 ? " ⇄" : ""))
+                            : (root.boardData.statut === "non_configure" ? "· Non configuré" : "· Hors ligne")
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        color: root.boardData.ok ? Qt.alpha(Theme.fg, 0.78) : Theme.warn
+                        elide: Text.ElideRight
+                    }
+
+                    MouseArea {
+                        id: boardSwitchMa
+                        anchors.fill: parent
+                        enabled: root.boards.length > 1
+                        hoverEnabled: true
+                        cursorShape: root.boards.length > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: {
+                            if (root.boards.length <= 1) return
+                            const curId = root.boardData.board ? String(root.boardData.board.id || "") : ""
+                            let idx = 0
+                            for (let i = 0; i < root.boards.length; i++) {
+                                if (String(root.boards[i].id) === curId) {
+                                    idx = (i + 1) % root.boards.length
+                                    break
+                                }
+                            }
+                            root.activeListIndex = 0
+                            root.runAction(["set_board", String(root.boards[idx].id)])
+                        }
+                    }
+                }
             }
 
             // Filtre bascule [Toutes | Mes cartes]
