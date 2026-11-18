@@ -702,13 +702,6 @@ Item {
                                     elide: Text.ElideRight
                                 }
 
-                                Text {
-                                    text: Number(modelData.signal || 0) + " %"
-                                    font.family: Theme.fontUi
-                                    font.pixelSize: Theme.text2xs
-                                    color: isConnected ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
-                                }
-
                                 Icon {
                                     visible: Boolean(modelData.secured) && !isConnected && !Boolean(modelData.known)
                                     glyph: "lock"
