@@ -504,55 +504,10 @@ Item {
     }
 
     // ── Lanceur d'applications inline (SUPER + R en mode îlot) ───────────
-    property var launcherApps: []
-    property var launcherAliases: ({})
-    property var launcherHistory: []
     property var launcherServiceResults: []
     property string launcherQuery: ""
     property int launcherSelectedIdx: 0
     property bool launcherSearching: false
-
-    FileView {
-        id: launcherAliasFile
-        path: Quickshell.shellPath("core/app_vars.json")
-        watchChanges: root.launcherExpanded
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const d = JSON.parse(text())
-                root.launcherAliases = (d && typeof d === "object" && !Array.isArray(d)) ? d : ({})
-            } catch (e) { root.launcherAliases = ({}) }
-        }
-    }
-
-    FileView {
-        id: launcherAppsFile
-        path: Quickshell.shellPath("core/app_index.json")
-        watchChanges: root.launcherExpanded
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const d = JSON.parse(text())
-                root.launcherApps = Array.isArray(d) ? d : []
-            } catch (e) { root.launcherApps = [] }
-        }
-    }
-
-    FileView {
-        id: launcherHistoryFile
-        path: Quickshell.shellPath("core/launch_history.json")
-        watchChanges: root.launcherExpanded
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const d = JSON.parse(text())
-                root.launcherHistory = Array.isArray(d) ? d : []
-            } catch (e) { root.launcherHistory = [] }
-        }
-    }
 
     Process {
         id: launcherServiceProc
@@ -919,32 +874,10 @@ Item {
             return root.launcherServiceResults.slice(0, 8)
         }
         if (q === "") {
-            if (Theme.launchHistory && root.launcherHistory.length > 0) {
-                return root.launcherHistory.slice(0, 7)
-            }
-            return root.launcherApps.slice(0, 7)
+            const rec = LauncherEngine.recentEntries(7)
+            return rec.length > 0 ? rec : LauncherEngine.appIndex.slice(0, 7)
         }
-        const ql = q.toLowerCase()
-        const exact = []
-        const sub = []
-        for (const aliasName in root.launcherAliases) {
-            const cmd = String(root.launcherAliases[aliasName] || "").trim()
-            if (cmd === "") continue
-            const low = String(aliasName).toLowerCase()
-            const item = { name: aliasName, desc: "Alias · " + cmd, exec: cmd, icon: "rocket", kind: "alias" }
-            if (low.indexOf(ql) === 0) exact.push(item)
-            else if (low.indexOf(ql) !== -1 || cmd.toLowerCase().indexOf(ql) !== -1) sub.push(item)
-        }
-        for (let i = 0; i < root.launcherApps.length; i++) {
-            const a = root.launcherApps[i]
-            if (!a || !a.name) continue
-            const name = String(a.name).toLowerCase()
-            const gen = String(a.generic || "").toLowerCase()
-            const ex = String(a.exec || "").toLowerCase()
-            if (name.indexOf(ql) === 0) exact.push(a)
-            else if (name.indexOf(ql) !== -1 || gen.indexOf(ql) !== -1 || ex.indexOf(ql) !== -1) sub.push(a)
-        }
-        return exact.concat(sub).slice(0, 8)
+        return LauncherEngine.searchAppsAndAliases(q, 8)
     }
 
     Timer {
@@ -993,8 +926,13 @@ Item {
             Theme.islandLauncherOpen = false
             return
         }
+        if (entry.action === "open-config") {
+            Theme.islandLauncherOpen = false
+            Theme.configPanelVisible = true
+            return
+        }
         if ((entry.action === "open" || entry.action === "open-url") && entry.arg) {
-            Theme.launchInScope('exec xdg-open "' + String(entry.arg).replace(/"/g, '\\"') + '"')
+            SystemServices.launchInScope('exec xdg-open "' + String(entry.arg).replace(/"/g, '\\"') + '"')
             Theme.islandLauncherOpen = false
             return
         }
@@ -1004,13 +942,7 @@ Item {
             return
         }
         if (!entry.exec) return
-        const shell = entry.kind === "cmd"
-            ? 'cd "$HOME" && ' + entry.exec
-            : 'cd "$HOME" && exec ' + entry.exec
-        Theme.launchInScope(shell)
-        if (Theme.launchHistory && entry.name) {
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/launch_history.py"), "add", String(entry.name), String(entry.exec), String(entry.icon || "")])
-        }
+        LauncherEngine.launch(entry)
         Theme.islandLauncherOpen = false
     }
 
@@ -1021,9 +953,7 @@ Item {
             expanded = true
             pretGrabLauncher = false
             delaiGrabLauncher.restart()
-            launcherAppsFile.reload()
-            launcherAliasFile.reload()
-            launcherHistoryFile.reload()
+            LauncherEngine.reload()
             launcherInput.text = ""
             root.launcherQuery = ""
             root.launcherSelectedIdx = 0

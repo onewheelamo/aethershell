@@ -21,20 +21,20 @@ Item {
     property string diskSummary: "--"
     property int diskPct: 0
 
-    readonly property var wifiNetworks: root.wifiEnabled ? Theme.wifiNetworks : []
-    readonly property bool wifiEnabled: Theme.wifiEnabled
-    readonly property bool scanning: Theme.wifiScanning
+    readonly property var wifiNetworks: root.wifiEnabled ? SystemServices.wifiNetworks : []
+    readonly property bool wifiEnabled: SystemServices.wifiEnabled
+    readonly property bool scanning: SystemServices.wifiScanning
     property string passwordSsid: ""
     property string pendingConnectSsid: ""
     property string wifiStatusMsg: ""
     property bool wifiConnecting: false
-    readonly property bool qrAvailable: Theme.qrWifiAvailable
+    readonly property bool qrAvailable: SystemServices.qrWifiAvailable
     property bool qrScanning: false
-    readonly property bool btPresent: Theme.btPresent
-    readonly property bool btOn: Theme.btPowered
-    readonly property var btDevices: Theme.btDevices
-    readonly property int btConnectedCount: Theme.btConnectedCount
-    readonly property bool btBusy: Theme.btBusy
+    readonly property bool btPresent: SystemServices.btPresent
+    readonly property bool btOn: SystemServices.btPowered
+    readonly property var btDevices: SystemServices.btDevices
+    readonly property int btConnectedCount: SystemServices.btConnectedCount
+    readonly property bool btBusy: SystemServices.btBusy
     property string homelabLine: ""
 
     readonly property var sysInfo: Theme.systemInfo || ({})
@@ -120,12 +120,12 @@ Item {
         }
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
-        Theme.refreshBluetooth()
-        Theme.checkQrWifi()
-        Theme.checkWifiRadio()
+        SystemServices.refreshBluetooth()
+        SystemServices.checkQrWifi()
+        SystemServices.checkWifiRadio()
         Theme.rafraichirSystemInfo()
-        if (root.wifiEnabled && Theme.wifiNetworks.length === 0) {
-            Theme.scanWifi()
+        if (root.wifiEnabled && SystemServices.wifiNetworks.length === 0) {
+            SystemServices.scanWifi()
         }
         if (Theme.islandSystemeTarget === "wifi") {
             scrollWifiTimer.restart()
@@ -152,11 +152,11 @@ Item {
     }
 
     function btCommand(args) {
-        Theme.btCommand(args)
+        SystemServices.btCommand(args)
     }
 
     function scanWifi() {
-        Theme.scanWifi()
+        SystemServices.scanWifi()
     }
 
     Component.onCompleted: refreshTelemetry()
@@ -226,7 +226,7 @@ Item {
                     Theme.islandNeedsKeyboard = false
                     root.wifiStatusMsg = ""
                     wifiPassInput.text = ""
-                    Theme.scanWifi()
+                    SystemServices.scanWifi()
                 } else {
                     const net = root.wifiNetworks.find(n => String(n.ssid || "") === ssid)
                     const isKnown = Boolean(net && net.known)
@@ -582,7 +582,7 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Theme.toggleWifiRadio()
+                            onClicked: SystemServices.toggleWifiRadio()
                         }
                     }
                 }

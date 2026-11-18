@@ -60,3 +60,5 @@ VinylArt 1.0 VinylArt.qml
 NotifService 1.0 NotifService.qml
 ConfigSwitch 1.0 ConfigSwitch.qml
 ConfigSegmented 1.0 ConfigSegmented.qml
+singleton SystemServices 1.0 SystemServices.qml
+singleton LauncherEngine 1.0 LauncherEngine.qml

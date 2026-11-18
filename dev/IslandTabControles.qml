@@ -29,12 +29,12 @@ Item {
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
 
-    readonly property bool wifiEnabled: Theme.wifiEnabled
+    readonly property bool wifiEnabled: SystemServices.wifiEnabled
     property string wifiSsid: (wifiInfo && wifiInfo.ssid) ? String(wifiInfo.ssid) : ""
     property bool wifiConnected: Boolean(wifiInfo && wifiInfo.connected)
 
-    readonly property bool btPowered: Theme.btPowered
-    readonly property string btDevice: Theme.btDevice
+    readonly property bool btPowered: SystemServices.btPowered
+    readonly property string btDevice: SystemServices.btDevice
 
     property bool nuitActive: false
     property int nuitTemp: 4200
@@ -93,12 +93,12 @@ Item {
     }
 
     function rafraichirEtats() {
-        Theme.refreshBluetooth()
+        SystemServices.refreshBluetooth()
         if (!nuitProc.running) {
             nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py"), "etat"]
             nuitProc.running = true
         }
-        Theme.checkWifiRadio()
+        SystemServices.checkWifiRadio()
         if (!powerProfileReadProc.running) {
             powerProfileReadProc.running = true
         }
@@ -699,7 +699,7 @@ Item {
                     ? "Désactivé"
                     : (root.btDevice !== "" ? root.btDevice : "Actif · Prêt")
                 active: root.btPowered
-                onToggled: Theme.btCommand(["basculer"])
+                onToggled: SystemServices.btCommand(["basculer"])
             }
 
             QuickTile {

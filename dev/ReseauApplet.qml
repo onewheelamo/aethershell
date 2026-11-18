@@ -31,12 +31,12 @@ Item {
     property string netType: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.type) ? String(Theme.systemInfo.wifi.type) : "wifi"
 
     // État du panneau
-    readonly property var wifiNetworks: Theme.wifiNetworks
-    readonly property bool wifiScanning: Theme.wifiScanning
+    readonly property var wifiNetworks: SystemServices.wifiNetworks
+    readonly property bool wifiScanning: SystemServices.wifiScanning
     property string expandedSsid: ""
     property string connectingStatus: ""
     property bool connectingBusy: false
-    readonly property bool qrAvailable: Theme.qrWifiAvailable
+    readonly property bool qrAvailable: SystemServices.qrWifiAvailable
     property bool qrScanning: false
 
     readonly property bool ouvert: Theme.activePopup === "applet:reseau"
@@ -66,8 +66,8 @@ Item {
     }
 
     function scanWifi(rescan) {
-        Theme.checkQrWifi()
-        Theme.scanWifi(rescan)
+        SystemServices.checkQrWifi()
+        SystemServices.scanWifi(rescan)
     }
 
     function connectToWifi(ssid, password) {
@@ -89,7 +89,7 @@ Item {
     Component.onCompleted: {
         root.synchroniserSystemInfo()
         root.lireBluetooth()
-        Theme.checkQrWifi()
+        SystemServices.checkQrWifi()
     }
 
     Connections {
@@ -680,13 +680,13 @@ Item {
 
     // ────────────────────────────────────────────────────────────────────────
 
-    // Bluetooth : centralisé dans Theme.qml (core/bluetooth_service.py)
-    readonly property bool btPresent: Theme.btPresent
-    readonly property bool btAllume: Theme.btPowered
-    readonly property var btAppareils: Theme.btDevices
+    // Bluetooth : centralisé dans SystemServices.qml (core/bluetooth_service.py)
+    readonly property bool btPresent: SystemServices.btPresent
+    readonly property bool btAllume: SystemServices.btPowered
+    readonly property var btAppareils: SystemServices.btDevices
 
-    function lireBluetooth() { Theme.refreshBluetooth() }
-    function btCommande(args) { Theme.btCommand(args) }
+    function lireBluetooth() { SystemServices.refreshBluetooth() }
+    function btCommande(args) { SystemServices.btCommand(args) }
 
     property bool pretGrab: false
     onOuvertChanged: {

@@ -23,9 +23,12 @@ Item {
     id: root
 
     // Remplit la PanelWindow : c'est la pilule qui se pose en bas au centre.
-    property var appIndex: []
-    property var aliases: ({})
-    property var history: []
+    readonly property var appIndex: LauncherEngine.appIndex
+    readonly property var aliases: LauncherEngine.aliases
+    readonly property var history: LauncherEngine.history
+    onAppIndexChanged: root.build()
+    onAliasesChanged: root.build()
+    onHistoryChanged: root.build()
     property string query: ""
     property string mode: "apps"    // "apps" | "cmd"
     property var results: []
@@ -72,65 +75,12 @@ Item {
     readonly property bool cmdMode: mode === "cmd"
 
     // ── index des applications ───────────────────────────────────────────────
-    FileView {
-        id: indexFile
-        path: Quickshell.shellPath("core/app_index.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                root.appIndex = JSON.parse(text())
-            } catch (e) {
-                console.warn("spotlight: app_index.json illisible:", e)
-                root.appIndex = []
-            }
-            root.build()
-        }
-    }
-
-    // ── alias d'applications (partagés avec les raccourcis Hyprland) ─────────
-    FileView {
-        id: aliasFile
-        path: Quickshell.shellPath("core/app_vars.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text())
-                root.aliases = (parsed && typeof parsed === "object") ? parsed : ({})
-            } catch (e) {
-                root.aliases = ({})
-            }
-            root.build()
-        }
-    }
-
-    // ── historique des lancements ────────────────────────────────────────────
-    FileView {
-        id: historyFile
-        path: Quickshell.shellPath("core/launch_history.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text())
-                root.history = Array.isArray(parsed) ? parsed : []
-            } catch (e) {
-                root.history = []
-            }
-            root.build()
-        }
-    }
-
     // Rafraîchit l'index à l'ouverture : une application installée pendant la
     // session doit apparaître sans redémarrer le shell.
     Process {
         id: indexProc
         command: ["python3", Quickshell.shellPath("core/app_index.py"), "--quiet"]
-        onExited: indexFile.reload()
+        onExited: LauncherEngine.reload()
     }
 
     // La table des préfixes vient du service : une seule source pour ce que le
@@ -392,78 +342,12 @@ Item {
 
         // Champ vide : les lancements récents, si l'historique est activé.
         if (q === "") {
-            root.results = Theme.launchHistory
-                    ? root.history.slice(0, root.maxResults).map(h => {
-                          const hasAlias = root.aliases && root.aliases[h.name] !== undefined
-                          const cmd = hasAlias ? String(root.aliases[h.name]) : h.exec
-                          const ic = hasAlias ? root.iconForCommand(cmd)
-                                              : (h.icon || root.iconForCommand(cmd))
-                          return root.entry("recent", h.name, cmd, ic, "récent")
-                      })
-                    : []
+            root.results = LauncherEngine.recentEntries(root.maxResults)
             root.sel = 1
             return
         }
 
-        const needle = q.toLowerCase()
-        const scored = []
-
-        for (const name in root.aliases) {
-            const cmd = String(root.aliases[name] || "")
-            if (cmd === "") continue
-            const low = name.toLowerCase()
-            let score = -1
-            if (low.indexOf(needle) === 0) score = 95 - low.length
-            else if (low.indexOf(" " + needle) >= 0) score = 70 - low.length
-            else if (low.indexOf(needle) >= 0) score = 50 - low.length
-            if (score >= 0) {
-                scored.push({
-                    entry: root.entry("alias", name, cmd,
-                                      root.iconForCommand(cmd), "alias"),
-                    score: score,
-                })
-            }
-        }
-
-        // Alias intégré pour ouvrir le panneau de configuration (SUPER + SHIFT + H)
-        const motsConfig = ["config", "configuration", "reglages", "réglages", "parametres", "paramètres", "aethershell"]
-        let scoreConfig = -1
-        for (let k = 0; k < motsConfig.length; ++k) {
-            const mot = motsConfig[k]
-            if (mot.indexOf(needle) === 0) {
-                scoreConfig = Math.max(scoreConfig, 96 - mot.length)
-            } else if (mot.indexOf(needle) >= 0) {
-                scoreConfig = Math.max(scoreConfig, 55 - mot.length)
-            }
-        }
-        if (scoreConfig >= 0) {
-            const eCfg = root.entry("alias", "Config — Panneau de réglages", "SUPER + SHIFT + H",
-                                    "", "alias")
-            eCfg.action = "open-config"
-            eCfg.glyph = "cog"
-            scored.push({ entry: eCfg, score: scoreConfig })
-        }
-
-        for (let i = 0; i < root.appIndex.length; ++i) {
-            const app = root.appIndex[i]
-            const low = String(app.name).toLowerCase()
-            let score = -1
-            if (low.indexOf(needle) === 0) score = 100 - low.length
-            else if (low.indexOf(" " + needle) >= 0) score = 60 - low.length
-            else if (low.indexOf(needle) >= 0) score = 40 - low.length
-            else if (String(app.comment || "").toLowerCase().indexOf(needle) >= 0) score = 10
-            if (score >= 0) {
-                scored.push({
-                    entry: root.entry("app", app.name, app.exec, app.icon || "",
-                                      app.category || ""),
-                    score: score,
-                })
-            }
-        }
-
-        scored.sort((a, b) => b.score - a.score
-                    || a.entry.name.localeCompare(b.entry.name))
-        root.results = scored.slice(0, root.maxResults).map(x => x.entry)
+        root.results = LauncherEngine.searchAppsAndAliases(q, root.maxResults)
         root.sel = 0
     }
 
@@ -515,7 +399,7 @@ Item {
             return true
         case "open":
         case "open-url":
-            Theme.launchInScope('exec xdg-open "' + String(arg).replace(/"/g, '\\"') + '"')
+            SystemServices.launchInScope('exec xdg-open "' + String(arg).replace(/"/g, '\\"') + '"')
             return true
         case "kill":
             Quickshell.execDetached(["kill", "-TERM", arg])
@@ -534,17 +418,7 @@ Item {
                 return
             }
         }
-        // `cd $HOME` : un lanceur démarre dans le dossier personnel, pas dans
-        // celui du shell (hérité de Quickshell).
-        const shell = entry.kind === "cmd"
-                ? "cd \"$HOME\" && " + entry.exec
-                : "cd \"$HOME\" && exec " + entry.exec
-        Theme.launchInScope(shell)
-        if (Theme.launchHistory && entry.exec) {
-            Quickshell.execDetached(["python3",
-                Quickshell.shellPath("core/launch_history.py"),
-                "add", entry.name, entry.exec, entry.icon || ""])
-        }
+        LauncherEngine.launch(entry)
         Theme.spotlightVisible = false
     }
 
@@ -1077,8 +951,7 @@ Item {
             root.mode = "apps"
             root.sel = 0
             indexFile.reload()
-            aliasFile.reload()
-            historyFile.reload()
+            LauncherEngine.reload()
             root.build()
             searchInput.forceActiveFocus()
             indexProc.running = true
