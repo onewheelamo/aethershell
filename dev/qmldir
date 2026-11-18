@@ -70,3 +70,8 @@ WidgetHomelab 1.0 widgets/homelab.qml
 ScreenshotOverlay 1.0 ScreenshotOverlay.qml
 DesktopWidgetsLayer 1.0 DesktopWidgetsLayer.qml
 FullscreenOverlay 1.0 FullscreenOverlay.qml
+IslandThemePicker 1.0 IslandThemePicker.qml
+IslandWallpaperPicker 1.0 IslandWallpaperPicker.qml
+IslandNotesDrawer 1.0 IslandNotesDrawer.qml
+IslandLiveActivityDrawer 1.0 IslandLiveActivityDrawer.qml
+IslandLauncherDrawer 1.0 IslandLauncherDrawer.qml
