@@ -412,7 +412,7 @@ Column {
                     spacing: 10
 
                     Column {
-                        width: Math.max(90, parent.width - appSegTrack.width - 10)
+                        width: Math.max(90, parent.width - appSegTrack.width - (modelData.styleKey ? 10 : appMoveRow.width + 20))
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 2
 
@@ -430,6 +430,60 @@ Column {
                             font.pixelSize: Theme.text2xs
                             elide: Text.ElideRight
                             width: parent.width
+                        }
+                    }
+
+                    Row {
+                        id: appMoveRow
+                        visible: !modelData.styleKey
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 3
+                        opacity: curMode !== "off" ? 1 : 0.35
+
+                        Rectangle {
+                            width: 16
+                            height: 22
+                            radius: 4
+                            color: moveLeftMa.containsMouse && curMode !== "off" ? Qt.alpha(Theme.surfaceVariant, 0.7) : "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "‹"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                            }
+
+                            MouseArea {
+                                id: moveLeftMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: curMode !== "off" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: if (root && curMode !== "off")
+                                    root.runConfigCmd(["ilot_applet_move", modelData.id, "left"])
+                            }
+                        }
+
+                        Rectangle {
+                            width: 16
+                            height: 22
+                            radius: 4
+                            color: moveRightMa.containsMouse && curMode !== "off" ? Qt.alpha(Theme.surfaceVariant, 0.7) : "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "›"
+                                color: Theme.fg
+                                font.pixelSize: Theme.textSm
+                            }
+
+                            MouseArea {
+                                id: moveRightMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: curMode !== "off" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: if (root && curMode !== "off")
+                                    root.runConfigCmd(["ilot_applet_move", modelData.id, "right"])
+                            }
                         }
                     }
 

@@ -130,6 +130,7 @@ QtObject {
     property string ilotShowWorkspaces: "both"
     property string ilotShowClock: "both"
     property var ilotAppletsMode: ({})
+    property var ilotAppletsOrder: []
     property int ilotAppletsRev: 0
     property bool majSeulementSiDispo: false
 
@@ -837,6 +838,10 @@ QtObject {
             root.ilotAppletsMode = data.ilot_applets_mode
             root.ilotAppletsRev++
         }
+        if (Array.isArray(data.ilot_applets_order)) {
+            root.ilotAppletsOrder = data.ilot_applets_order
+            root.ilotAppletsRev++
+        }
         if (typeof data.maj_seulement_si_dispo === "boolean") root.majSeulementSiDispo = data.maj_seulement_si_dispo
         if (typeof data.idle_suspend_timeout === "number") root.idleSuspendTimeout = Math.max(0, Math.round(data.idle_suspend_timeout))
         if (typeof data.first_run_completed === "boolean") {
@@ -1035,7 +1040,13 @@ QtObject {
             liste.push(entree)
         }
 
+        const ord = Array.isArray(root.ilotAppletsOrder) ? root.ilotAppletsOrder : []
         liste.sort(function(a, b) {
+            const ia = ord.indexOf(String(a.id || ""))
+            const ib = ord.indexOf(String(b.id || ""))
+            if (ia !== -1 && ib !== -1) return ia - ib
+            if (ia !== -1) return -1
+            if (ib !== -1) return 1
             const oa = (typeof a.ordre === "number") ? a.ordre : 100
             const ob = (typeof b.ordre === "number") ? b.ordre : 100
             if (oa !== ob) return oa - ob
@@ -1071,7 +1082,13 @@ QtObject {
             entree.options = choix.options || ({})
             liste.push(entree)
         }
+        const ord = Array.isArray(root.ilotAppletsOrder) ? root.ilotAppletsOrder : []
         liste.sort(function(a, b) {
+            const ia = ord.indexOf(String(a.id || ""))
+            const ib = ord.indexOf(String(b.id || ""))
+            if (ia !== -1 && ib !== -1) return ia - ib
+            if (ia !== -1) return -1
+            if (ib !== -1) return 1
             const oa = (typeof a.ordre === "number") ? a.ordre : 100
             const ob = (typeof b.ordre === "number") ? b.ordre : 100
             if (oa !== ob) return oa - ob

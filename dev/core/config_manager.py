@@ -2354,6 +2354,33 @@ if __name__ == "__main__":
         data["ilot_applets_mode"] = modes
         save_json(STYLE_FILE, data)
         print(json.dumps(get_full_config_state()))
+    elif action == "ilot_applet_move" and len(sys.argv) > 3:
+        aid = str(sys.argv[2]).strip()
+        direction = str(sys.argv[3]).strip().lower()
+        default_order = [
+            "systray", "luminosite", "batterie", "minimise", "volume",
+            "reseau", "notifications", "maj", "todo", "meteo",
+            "presse-papiers", "usb",
+        ]
+        data = load_json(STYLE_FILE)
+        order = data.get("ilot_applets_order")
+        if not isinstance(order, list) or not order:
+            order = list(default_order)
+        else:
+            order = [str(x) for x in order]
+            for x in default_order:
+                if x not in order:
+                    order.append(x)
+        if aid and aid not in order:
+            order.append(aid)
+        if aid in order:
+            idx = order.index(aid)
+            nxt = idx - 1 if direction in ("left", "gauche", "up", "monter") else idx + 1
+            if 0 <= nxt < len(order):
+                order[idx], order[nxt] = order[nxt], order[idx]
+        data["ilot_applets_order"] = order
+        save_json(STYLE_FILE, data)
+        print(json.dumps(get_full_config_state()))
     elif action == "diag_info":
         src = sys.argv[2] if len(sys.argv) > 2 else "quickshell"
         print(json.dumps(get_diag_info(src), ensure_ascii=False))
