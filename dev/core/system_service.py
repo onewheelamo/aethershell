@@ -416,13 +416,15 @@ def get_wifi_networks(rescan=True):
     for line in output.splitlines():
         if not line:
             continue
-        in_use = line.startswith("*:")
-        rest = line[2:] if (line.startswith("*:") or line.startswith(" :")) else line
+        in_use_field, sep, rest = line.partition(":")
+        if not sep:
+            continue
+        in_use = in_use_field.strip() == "*"
         parts = rest.rsplit(":", 2)
         if len(parts) < 3:
             continue
         raw_ssid, sig_str, security = parts[0], parts[1], parts[2]
-        ssid = raw_ssid.replace("\\:", ":").strip()
+        ssid = _unescape_nmcli(raw_ssid).strip()
         if not ssid:
             continue
         signal = int(sig_str) if sig_str.isdigit() else 0
