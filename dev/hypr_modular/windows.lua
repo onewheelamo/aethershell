@@ -27,6 +27,12 @@ hl.window_rule({
 -- n'importe quelle fenêtre. Une règle `workspace = "2"` l'y envoyait à chaque
 -- lancement, y compris quand on travaillait ailleurs.
 hl.window_rule({ name = "pavucontrol", float = true, center = true })
+hl.window_rule({
+    name   = "floating-terminal",
+    match  = { class = "^org\\.aether\\.floating-terminal$" },
+    float  = true,
+    center = true,
+})
 
 -- Demande d'authentification polkit (KDE, Hypr, LXQt) : flottante, centrée,
 -- épinglée et avec focus forcé.
