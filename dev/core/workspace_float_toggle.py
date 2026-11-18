@@ -41,7 +41,7 @@ def main():
         return 0
 
     lua = "; ".join(
-        f'hl.dsp.window.float({{ action = "toggle", window = "address:{addr}" }})'
+        f'hl.dispatch(hl.dsp.window.float({{ action = "toggle", window = "address:{addr}" }}))'
         for addr in targets
     )
     subprocess.run(["hyprctl", "eval", lua], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
