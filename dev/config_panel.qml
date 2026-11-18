@@ -6,44 +6,14 @@ import Quickshell.Wayland
 // ════════════════════════════════════════════════════════════════════════════
 // SYSTEM CONFIGURATION PANEL (config_panel.qml)
 // ════════════════════════════════════════════════════════════════════════════
-// Choix du contrôle numérique (règle du 05/11) :
-//   • plage > 12 unités  → Slider (curseur) : viser une valeur dans une large
-//     plage au glissement est plus rapide qu'au clic.
-//   • plage ≤ 12 unités  → Stepper (compteur [−] valeur [+]) : plus précis, et
-//     la valeur exacte reste lisible.
-//   • exceptions assumées : la position x/y des widgets (plage de 1800 px, mais
-//     on veut du pas régulier), et l'opacité « Fond » des cartes de widgets
-//     (coincée entre trois interrupteurs dans une rangée à largeur calculée).
-// Architecture Overview:
-//   • Section 1: Backend IPC & State Synchronization
-//       - Communicates with core/config_manager.py (CLI commands and state queries)
-//       - Watches core/app_vars.json via FileView
-//       - Synchronized command queue (cmdQueue) to prevent race conditions
-//   • Section 2: Header Frame & Close Control (panelHeader)
-//   • Section 3: Navigation Tabs Bar (Bureau, Quickshell, Widgets, Système & Écrans,
-//     Contrôles, Applications, Connexion)
-//   • Section 4: Tab Content Area (tabContentArea + mainFlickable with auto-scroll reset on tab switch)
-//       - Tab 0: Bureau — seulement le fond d'écran, les thèmes et les fenêtres Hyprland
-//           * CollapsibleSection secTheme: Themes, Matugen presets, palette hex editor, wallpaper directory
-//           * CollapsibleSection secAspect: Gaps, Borders, Rounding, Opacity, Blur passes/size,
-//             Resize step (réglages des fenêtres, pas du shell)
-//       - Tab 1: Gestion Quickshell — la barre et ses applets, en deux tiroirs
-//           * CollapsibleSection secBarre: îlots, hauteur de barre, opacité et flou du shell,
-//             bordure, flou des popups, bouton central
-//           * CollapsibleSection secApplets: quels applets, dans quel îlot, dans quel ordre, à quelle échelle
-//       - Tab 2: Widgets du bureau
-//           * Host detection (desktop vs laptop), multi-monitor grid, resolution/refresh modes, scaling,
-//             and time synchronization (Timezone & NTP toggle)
-//       - Tab 2: Contrôles, Clavier & Raccourcis
-//           * Keyboard layout preview & switcher, Hyprland binds viewer/editor, workspace shortcuts
-//       - Tab 3: Applications & Démarrage
-//           * CollapsibleSection secApps: Default applications (terminal, browser, editor, file manager)
-//           * CollapsibleSection secAutostart: Managed user background daemons & autostart entries
+// Choix du contrôle numérique :
+//   • plage > 12 unités → Slider (curseur)
+//   • plage ≤ 12 unités → Stepper (compteur [−] valeur [+])
+//   • exceptions : position x/y des widgets et opacité « Fond » des cartes.
+//
+// Règle de gel : une option nouvelle naît dans son propre composant Onglet*.qml,
+// chargé par URL depuis ici (`Loader { source: "Onglet….qml" }`).
 // ════════════════════════════════════════════════════════════════════════════
-
-// ── Règle de gel (11/11) ────────────────────────────────────────────────────
-// Ce fichier ne doit plus grossir. Une option nouvelle naît dans son propre
-// composant, chargé par URL depuis ici : `Loader { source: "Onglet….qml" }`.
 // C'est le motif qui a déjà sorti l'onglet Greeter (707 lignes) puis l'onglet
 // Bureau (1 500 lignes dans OngletApparence.qml).
 //

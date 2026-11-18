@@ -12,7 +12,6 @@ import Quickshell.Hyprland
 //   • Exposes global design tokens (palette, corner radii, opacities, heights)
 //   • Injects dynamic styling live into Hyprland via hyprctl eval (borders, blur, rounding)
 //   • Manages cross-island popups (ensuring mutual exclusivity)
-//   • Hosts the IPC interface ("shell") for external CLI commands and keybinds
 // ════════════════════════════════════════════════════════════════════════════
 
 QtObject {
@@ -490,12 +489,7 @@ QtObject {
         if (barre === "bas") return -(popupH + 6)
         if (barre === "cote-gauche" || barre === "cote-droite")
             return -Math.round((popupH - (item ? item.height : 0)) / 2)
-        // Les popups d'applet se posent sous la barre, au niveau du centre de
-        // notifications : `barHeight + 6` laissait un vide de treize pixels entre
-        // le bas de l'îlot et le panneau, et tous les popups paraissaient « trop
-        // bas » par rapport au centre.
-        // Les popups d'applet se posent 6 px sous la barre. La marge est un seul
-        // point pour toutes les surfaces : la changer les déplace toutes ensemble.
+        // Les popups d'applet se posent 6 px sous la barre.
         return barHeight + 6
     }
 
