@@ -13,6 +13,11 @@ Item {
     id: root
     property var options: ({})
     property string widgetId: ""
+    property bool ouvert: false
+    property bool fermerAuClic: false
+    property int limite: 6
+    property bool afficherVider: false
+    onOuvertChanged: if (ouvert) rafraichir()
 
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
@@ -50,7 +55,7 @@ Item {
 
     Process {
         id: liste
-        command: ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "liste", "6"]
+        command: ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "liste", String(root.limite)]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -82,6 +87,12 @@ Item {
     function copier(id) {
         action.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"),
                           "copier", String(id)]
+        action.running = true
+        if (fermerAuClic) Theme.activePopup = ""
+    }
+
+    function vider() {
+        action.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "vider"]
         action.running = true
     }
 
@@ -151,6 +162,30 @@ Item {
             text: "historique vide"
             color: Qt.alpha(Theme.fg, 0.4)
             font.pixelSize: Math.round(9.5 * root.echelle)
+        }
+
+        Rectangle {
+            visible: root.afficherVider
+            width: parent.width
+            height: Math.round(24 * root.echelle)
+            radius: Theme.globalRadius
+            color: viderSouris.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.08)
+
+            Text {
+                anchors.centerIn: parent
+                text: "Vider l'historique"
+                color: viderSouris.containsMouse ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
+                font.pixelSize: Math.round(Theme.textXs * 0.9 * root.echelle)
+                font.bold: true
+            }
+
+            MouseArea {
+                id: viderSouris
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.vider()
+            }
         }
     }
 }

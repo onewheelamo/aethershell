@@ -17,6 +17,8 @@ import Quickshell.Io
 Item {
     id: root
     property var options: ({})
+    property bool ouvert: false
+    onOuvertChanged: if (ouvert) refresh(false)
 
     // Échelle du texte, réglée par widget depuis le panneau (options.text_scale,
     // en pourcentage). 100 = taille du thème ; les widgets de compte LLM partent

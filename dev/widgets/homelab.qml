@@ -14,6 +14,8 @@ Item {
     id: root
     property var options: ({})
     property string widgetId: ""
+    property bool ouvert: false
+    onOuvertChanged: if (ouvert) rafraichir()
 
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
