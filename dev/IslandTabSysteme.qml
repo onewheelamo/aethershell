@@ -233,6 +233,25 @@ Item {
         }
     }
 
+    function pasteWifiKey() {
+        if (!pasteProc.running) pasteProc.running = true
+    }
+
+    Process {
+        id: pasteProc
+        command: ["wl-paste", "--no-newline"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const clip = text.replace(/[\r\n]+$/, "")
+                if (clip === "") return
+                if (wifiPassInput.selectedText !== "") {
+                    wifiPassInput.remove(wifiPassInput.selectionStart, wifiPassInput.selectionEnd)
+                }
+                wifiPassInput.insert(wifiPassInput.cursorPosition, clip)
+            }
+        }
+    }
+
     Process {
         id: qrStatusProc
         command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
@@ -691,6 +710,13 @@ Item {
                             echoMode: TextInput.Password
                             clip: true
                             selectByMouse: true
+                            onActiveFocusChanged: if (activeFocus) Theme.islandNeedsKeyboard = true
+                            Keys.onPressed: event => {
+                                if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_V) {
+                                    event.accepted = true
+                                    root.pasteWifiKey()
+                                }
+                            }
                             Keys.onReturnPressed: root.connectWifi(root.passwordSsid, text)
                             Keys.onEnterPressed: root.connectWifi(root.passwordSsid, text)
                             Keys.onEscapePressed: {
