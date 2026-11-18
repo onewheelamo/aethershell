@@ -1134,6 +1134,39 @@ QtObject {
         onTriggered: root.rafraichirSystemInfo()
     }
 
+    property var wifiNetworks: []
+    property bool wifiScanning: false
+
+    property Process wifiScanProc: Process {
+        command: ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.wifiScanning = false
+                try {
+                    const arr = JSON.parse(text.trim())
+                    root.wifiNetworks = Array.isArray(arr) ? arr : []
+                } catch (e) {
+                    root.wifiNetworks = []
+                }
+            }
+        }
+        onExited: root.wifiScanning = false
+    }
+
+    function scanWifi() {
+        if (wifiScanProc.running) return
+        root.wifiScanning = true
+        wifiScanProc.running = true
+    }
+
+    property Timer wifiScanTimer: Timer {
+        interval: 600000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.scanWifi()
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // Fond d'écran courant partagé (awww query)
     // ────────────────────────────────────────────────────────────────────────

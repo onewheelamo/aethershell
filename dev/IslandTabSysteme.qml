@@ -21,9 +21,9 @@ Item {
     property string diskSummary: "--"
     property int diskPct: 0
 
-    property var wifiNetworks: []
+    readonly property var wifiNetworks: root.wifiEnabled ? Theme.wifiNetworks : []
     property bool wifiEnabled: Boolean(wifiInfo && (wifiInfo.enabled !== false))
-    property bool scanning: false
+    readonly property bool scanning: Theme.wifiScanning
     property string passwordSsid: ""
     property string pendingConnectSsid: ""
     property string wifiStatusMsg: ""
@@ -124,6 +124,9 @@ Item {
         if (!qrStatusProc.running) qrStatusProc.running = true
         if (!wifiCheckProc.running) wifiCheckProc.running = true
         Theme.rafraichirSystemInfo()
+        if (root.wifiEnabled && Theme.wifiNetworks.length === 0) {
+            Theme.scanWifi()
+        }
         if (Theme.islandSystemeTarget === "wifi") {
             scrollWifiTimer.restart()
         }
@@ -178,9 +181,7 @@ Item {
     }
 
     function scanWifi() {
-        if (wifiScanProc.running) return
-        scanning = true
-        wifiScanProc.running = true
+        Theme.scanWifi()
     }
 
     Component.onCompleted: refreshTelemetry()
@@ -227,22 +228,6 @@ Item {
                         root.diskSummary = String(d.compact.barres[0].texte || "--")
                     }
                 } catch (e) {}
-            }
-        }
-    }
-
-    Process {
-        id: wifiScanProc
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.scanning = false
-                try {
-                    let arr = JSON.parse(text.trim())
-                    root.wifiNetworks = arr.slice(0, 4)
-                } catch (e) {
-                    root.wifiNetworks = []
-                }
             }
         }
     }
@@ -715,6 +700,13 @@ Item {
                                     font.weight: isConnected ? Font.Bold : Font.Normal
                                     color: isConnected ? Theme.accent : Theme.fg
                                     elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: Number(modelData.signal || 0) + " %"
+                                    font.family: Theme.fontUi
+                                    font.pixelSize: Theme.text2xs
+                                    color: isConnected ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
                                 }
 
                                 Icon {
