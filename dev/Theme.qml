@@ -1140,6 +1140,33 @@ QtObject {
 
     property var wifiNetworks: []
     property bool wifiScanning: false
+    property bool qrWifiAvailable: false
+
+    property Process qrStatusProc: Process {
+        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim() || "{}")
+                    root.qrWifiAvailable = Boolean(d.available)
+                } catch (e) {
+                    root.qrWifiAvailable = false
+                }
+            }
+        }
+    }
+
+    function checkQrWifi() {
+        if (!qrStatusProc.running) qrStatusProc.running = true
+    }
+
+    function launchInScope(shellCmd) {
+        Quickshell.execDetached([
+            "sh", "-c",
+            'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- sh -c "$1"; else exec setsid sh -c "$1"; fi',
+            "_", String(shellCmd)
+        ])
+    }
 
     property Process wifiScanProc: Process {
         command: ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
@@ -1157,9 +1184,12 @@ QtObject {
         onExited: root.wifiScanning = false
     }
 
-    function scanWifi() {
+    function scanWifi(rescan) {
         if (wifiScanProc.running) return
         root.wifiScanning = true
+        const cmd = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
+        if (rescan === false) cmd.push("--no-rescan")
+        wifiScanProc.command = cmd
         wifiScanProc.running = true
     }
 

@@ -31,14 +31,12 @@ Item {
     property string netType: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.type) ? String(Theme.systemInfo.wifi.type) : "wifi"
 
     // État du panneau
-    property var wifiNetworks: []
-    property bool wifiScanning: false
+    readonly property var wifiNetworks: Theme.wifiNetworks
+    readonly property bool wifiScanning: Theme.wifiScanning
     property string expandedSsid: ""
     property string connectingStatus: ""
     property bool connectingBusy: false
-    property bool wifiScanQueued: false
-    property bool wifiScanQueuedRescan: false
-    property bool qrAvailable: false
+    readonly property bool qrAvailable: Theme.qrWifiAvailable
     property bool qrScanning: false
 
     readonly property bool ouvert: Theme.activePopup === "applet:reseau"
@@ -67,22 +65,9 @@ Item {
         Theme.rafraichirSystemInfo()
     }
 
-    function startWifiScan(rescan) {
-        const args = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
-        if (!rescan) args.push("--no-rescan")
-        wifiScanProc.command = args
-        wifiScanProc.running = true
-    }
-
     function scanWifi(rescan) {
-        if (!qrStatusProc.running) qrStatusProc.running = true
-        wifiScanning = true
-        if (wifiScanProc.running) {
-            wifiScanQueued = true
-            wifiScanQueuedRescan = wifiScanQueuedRescan || Boolean(rescan)
-            return
-        }
-        startWifiScan(rescan)
+        Theme.checkQrWifi()
+        Theme.scanWifi(rescan)
     }
 
     function connectToWifi(ssid, password) {
@@ -104,36 +89,13 @@ Item {
     Component.onCompleted: {
         root.synchroniserSystemInfo()
         root.lireBluetooth()
-        if (!qrStatusProc.running) qrStatusProc.running = true
+        Theme.checkQrWifi()
     }
 
     Connections {
         target: Theme
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
-        }
-    }
-
-    Process {
-        id: wifiScanProc
-        onExited: {
-            if (root.wifiScanQueued) {
-                const rescan = root.wifiScanQueuedRescan
-                root.wifiScanQueued = false
-                root.wifiScanQueuedRescan = false
-                root.startWifiScan(rescan)
-            }
-        }
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (root.wifiScanQueued) return // périmé : un balayage plus récent est en file
-                root.wifiScanning = false
-                try {
-                    root.wifiNetworks = JSON.parse(text.trim())
-                } catch (e) {
-                    root.wifiNetworks = []
-                }
-            }
         }
     }
 
@@ -154,21 +116,6 @@ Item {
                     }
                 } catch (e) {
                     root.connectingStatus = "✕ Erreur de connexion"
-                }
-            }
-        }
-    }
-
-    Process {
-        id: qrStatusProc
-        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim() || "{}")
-                    root.qrAvailable = Boolean(d.available)
-                } catch (e) {
-                    root.qrAvailable = false
                 }
             }
         }

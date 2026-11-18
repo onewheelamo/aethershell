@@ -28,7 +28,7 @@ Item {
     property string pendingConnectSsid: ""
     property string wifiStatusMsg: ""
     property bool wifiConnecting: false
-    property bool qrAvailable: false
+    readonly property bool qrAvailable: Theme.qrWifiAvailable
     property bool qrScanning: false
     property bool btPresent: false
     property bool btOn: false
@@ -121,7 +121,7 @@ Item {
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
         if (!btStateProc.running) btStateProc.running = true
-        if (!qrStatusProc.running) qrStatusProc.running = true
+        Theme.checkQrWifi()
         if (!wifiCheckProc.running) wifiCheckProc.running = true
         Theme.rafraichirSystemInfo()
         if (root.wifiEnabled && Theme.wifiNetworks.length === 0) {
@@ -281,21 +281,6 @@ Item {
                     wifiPassInput.remove(wifiPassInput.selectionStart, wifiPassInput.selectionEnd)
                 }
                 wifiPassInput.insert(wifiPassInput.cursorPosition, clip)
-            }
-        }
-    }
-
-    Process {
-        id: qrStatusProc
-        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let d = JSON.parse(text.trim() || "{}")
-                    root.qrAvailable = Boolean(d.available)
-                } catch (e) {
-                    root.qrAvailable = false
-                }
             }
         }
     }

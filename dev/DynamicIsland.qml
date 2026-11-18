@@ -18,6 +18,78 @@ import "."
 Item {
     id: root
 
+    component LiveActivityChip: Rectangle {
+        id: chip
+        property bool animatePulse: true
+        readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
+        height: Math.max(18, Theme.barHeight - 8)
+        width: chipRow.implicitWidth + 12
+        radius: Math.round(height / 2)
+        anchors.verticalCenter: parent.verticalCenter
+        color: primary ? Qt.alpha(primary.color, 0.16) : "transparent"
+        border.width: 1
+        border.color: primary ? Qt.alpha(primary.color, 0.45) : "transparent"
+
+        Row {
+            id: chipRow
+            anchors.centerIn: parent
+            spacing: 5
+
+            Rectangle {
+                width: 6
+                height: 6
+                radius: 3
+                anchors.verticalCenter: parent.verticalCenter
+                color: chip.primary ? chip.primary.color : Theme.accent
+                SequentialAnimation on opacity {
+                    running: chip.animatePulse && chip.visible && !(chip.primary && chip.primary.paused)
+                    loops: Animation.Infinite
+                    NumberAnimation { from: 1.0; to: 0.25; duration: 700; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 0.25; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
+                }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: {
+                    const p = chip.primary
+                    if (!p) return ""
+                    const t = String(p.title || "")
+                    return t.length > 16 ? (t.substring(0, 15) + "…") : t
+                }
+                font.family: Theme.fontUi
+                font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
+                font.weight: Font.Bold
+                color: chip.primary ? chip.primary.color : Theme.fg
+            }
+
+            Rectangle {
+                visible: root.liveActivities.length > 1
+                width: chipCntTxt.implicitWidth + 8
+                height: 14
+                radius: 7
+                anchors.verticalCenter: parent.verticalCenter
+                color: chip.primary ? chip.primary.color : Theme.accent
+
+                Text {
+                    id: chipCntTxt
+                    anchors.centerIn: parent
+                    text: "+" + (root.liveActivities.length - 1)
+                    font.family: Theme.fontUi
+                    font.pixelSize: 9
+                    font.weight: Font.Bold
+                    color: Theme.bg
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Theme.toggleLiveActivity()
+        }
+    }
+
     readonly property string ile: "haut:milieu"
 
     // Panneau calendrier interactif rattaché à l'îlot dynamique
@@ -869,11 +941,7 @@ Item {
             return
         }
         if ((entry.action === "open" || entry.action === "open-url") && entry.arg) {
-            Quickshell.execDetached([
-                "sh", "-c",
-                'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- xdg-open "$1"; else exec setsid xdg-open "$1"; fi',
-                "_", String(entry.arg)
-            ])
+            Theme.launchInScope('exec xdg-open "' + String(entry.arg).replace(/"/g, '\\"') + '"')
             Theme.islandLauncherOpen = false
             return
         }
@@ -886,11 +954,7 @@ Item {
         const shell = entry.kind === "cmd"
             ? 'cd "$HOME" && ' + entry.exec
             : 'cd "$HOME" && exec ' + entry.exec
-        Quickshell.execDetached([
-            "sh", "-c",
-            'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- sh -c "$1"; else exec setsid sh -c "$1"; fi',
-            "_", shell
-        ])
+        Theme.launchInScope(shell)
         if (Theme.launchHistory && entry.name) {
             Quickshell.execDetached(["python3", Quickshell.shellPath("core/launch_history.py"), "add", String(entry.name), String(entry.exec), String(entry.icon || "")])
         }
@@ -1430,77 +1494,10 @@ Item {
             }
 
             // Live Activity (enregistrement, minuteur, téléchargements, tâches IPC)
-            Rectangle {
+            LiveActivityChip {
                 id: liveActivityPill
                 visible: Theme.ilotVisibleIn(Theme.ilotShowLiveActivity, "compact") && root.liveActivities.length > 0
-                readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
-                height: Math.max(18, Theme.barHeight - 8)
-                width: liveActRow.implicitWidth + 12
-                radius: Math.round(height / 2)
-                anchors.verticalCenter: parent.verticalCenter
-                color: primary ? Qt.alpha(primary.color, 0.16) : "transparent"
-                border.width: 1
-                border.color: primary ? Qt.alpha(primary.color, 0.45) : "transparent"
-
-                Row {
-                    id: liveActRow
-                    anchors.centerIn: parent
-                    spacing: 5
-
-                    Rectangle {
-                        id: livePulseDot
-                        width: 6
-                        height: 6
-                        radius: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.accent
-                        SequentialAnimation on opacity {
-                            running: liveActivityPill.visible && !(liveActivityPill.primary && liveActivityPill.primary.paused)
-                            loops: Animation.Infinite
-                            NumberAnimation { from: 1.0; to: 0.25; duration: 700; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 0.25; to: 1.0; duration: 700; easing.type: Easing.InOutSine }
-                        }
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: {
-                            const p = liveActivityPill.primary
-                            if (!p) return ""
-                            const t = String(p.title || "")
-                            return t.length > 16 ? (t.substring(0, 15) + "…") : t
-                        }
-                        font.family: Theme.fontUi
-                        font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
-                        font.weight: Font.Bold
-                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.fg
-                    }
-
-                    Rectangle {
-                        visible: root.liveActivities.length > 1
-                        width: liveCountTxt.implicitWidth + 8
-                        height: 14
-                        radius: 7
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: liveActivityPill.primary ? liveActivityPill.primary.color : Theme.accent
-
-                        Text {
-                            id: liveCountTxt
-                            anchors.centerIn: parent
-                            text: "+" + (root.liveActivities.length - 1)
-                            font.family: Theme.fontUi
-                            font.pixelSize: 9
-                            font.weight: Font.Bold
-                            color: Theme.bg
-                        }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.toggleLiveActivity()
-                }
+                animatePulse: true
             }
 
             // Point VPN à droite (bleu = connecté, blanc = déconnecté, jaune = erreur)
@@ -1670,70 +1667,10 @@ Item {
             }
 
             // Live Activity visible aussi en mode étendu (au survol)
-            Rectangle {
+            LiveActivityChip {
                 id: expandedLiveActivityPill
                 visible: Theme.ilotVisibleIn(Theme.ilotShowLiveActivity, "expanded") && root.liveActivities.length > 0
-                readonly property var primary: root.liveActivities.length > 0 ? root.liveActivities[0] : null
-                height: Math.max(18, Theme.barHeight - 8)
-                width: expLiveRow.implicitWidth + 12
-                radius: Math.round(height / 2)
-                anchors.verticalCenter: parent.verticalCenter
-                color: primary ? Qt.alpha(primary.color, 0.16) : "transparent"
-                border.width: 1
-                border.color: primary ? Qt.alpha(primary.color, 0.45) : "transparent"
-
-                Row {
-                    id: expLiveRow
-                    anchors.centerIn: parent
-                    spacing: 5
-
-                    Rectangle {
-                        width: 6
-                        height: 6
-                        radius: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.accent
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: {
-                            const p = expandedLiveActivityPill.primary
-                            if (!p) return ""
-                            const t = String(p.title || "")
-                            return t.length > 16 ? (t.substring(0, 15) + "…") : t
-                        }
-                        font.family: Theme.fontUi
-                        font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
-                        font.weight: Font.Bold
-                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.fg
-                    }
-
-                    Rectangle {
-                        visible: root.liveActivities.length > 1
-                        width: expLiveCnt.implicitWidth + 8
-                        height: 14
-                        radius: 7
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: expandedLiveActivityPill.primary ? expandedLiveActivityPill.primary.color : Theme.accent
-
-                        Text {
-                            id: expLiveCnt
-                            anchors.centerIn: parent
-                            text: "+" + (root.liveActivities.length - 1)
-                            font.family: Theme.fontUi
-                            font.pixelSize: 9
-                            font.weight: Font.Bold
-                            color: Theme.bg
-                        }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.toggleLiveActivity()
-                }
+                animatePulse: false
             }
 
             // Côté Droit : Applets droite

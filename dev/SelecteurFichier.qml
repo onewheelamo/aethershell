@@ -36,6 +36,7 @@ Item {
     property var extensions: ["md", "markdown"]
     // Filtre actif par défaut, mais débrayable par l'utilisateur
     property bool filtrerExtensions: true
+    property bool dossierSeulement: false
     property string icone: "file-document"
     property string erreur: ""
 
@@ -66,6 +67,11 @@ Item {
     }
 
     function valider() {
+        if (root.dossierSeulement) {
+            root.accepte(root.chemin)
+            root.ouvert = false
+            return
+        }
         if (root.fichierSelectionne === "")
             return
         root.accepte(root.fichierSelectionne)
@@ -177,7 +183,7 @@ Item {
                     Rectangle {
                         id: filtreToggleBtn
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: (root.extensions || []).length > 0
+                        visible: !root.dossierSeulement && (root.extensions || []).length > 0
                         height: 24
                         width: filtreRow.implicitWidth + 16
                         radius: Theme.globalRadius
@@ -288,7 +294,7 @@ Item {
                         id: listerProc
                         command: {
                             let cmd = ["python3", Quickshell.shellPath("core/lister_fichiers.py"), root.chemin]
-                            if (root.filtrerExtensions) {
+                            if (!root.dossierSeulement && root.filtrerExtensions) {
                                 for (let i = 0; i < (root.extensions || []).length; ++i) {
                                     cmd.push(String(root.extensions[i]))
                                 }
@@ -300,8 +306,11 @@ Item {
                                 modele.clear()
                                 try {
                                     const d = JSON.parse(text)
-                                    for (let i = 0; i < (d.entrees || []).length; ++i)
-                                        modele.append(d.entrees[i])
+                                    for (let i = 0; i < (d.entrees || []).length; ++i) {
+                                        const e = d.entrees[i]
+                                        if (root.dossierSeulement && e.type !== "dossier") continue
+                                        modele.append(e)
+                                    }
                                     root.erreur = String(d.erreur || "")
                                     if (d.chemin)
                                         root.chemin = d.chemin
@@ -444,12 +453,14 @@ Item {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - 24
-                            text: root.fichierSelectionne !== ""
-                                  ? root.nomFichier(root.fichierSelectionne)
-                                  : ("Sélectionnez un fichier" + (root.filtrerExtensions && (root.extensions || []).length > 0 ? " (." + root.extensions.join(", .") + ")" : ""))
-                            color: root.fichierSelectionne !== "" ? Theme.fg : Qt.alpha(Theme.fg, 0.4)
+                            text: root.dossierSeulement
+                                  ? root.chemin
+                                  : (root.fichierSelectionne !== ""
+                                     ? root.nomFichier(root.fichierSelectionne)
+                                     : ("Sélectionnez un fichier" + (root.filtrerExtensions && (root.extensions || []).length > 0 ? " (." + root.extensions.join(", .") + ")" : "")))
+                            color: (root.dossierSeulement || root.fichierSelectionne !== "") ? Theme.fg : Qt.alpha(Theme.fg, 0.4)
                             font.pixelSize: Theme.textXs
-                            font.bold: root.fichierSelectionne !== ""
+                            font.bold: root.dossierSeulement || root.fichierSelectionne !== ""
                             elide: Text.ElideMiddle
                         }
                     }
@@ -484,7 +495,7 @@ Item {
                         width: 110
                         height: 30
                         radius: Theme.globalRadius
-                        readonly property bool actif: root.fichierSelectionne !== ""
+                        readonly property bool actif: root.dossierSeulement || root.fichierSelectionne !== ""
                         color: !actif ? Qt.alpha(Theme.surfaceVariant, 0.5)
                                       : (choisirMa.containsMouse ? Theme.accentMuted : Theme.accent)
                         opacity: actif ? 1.0 : 0.45

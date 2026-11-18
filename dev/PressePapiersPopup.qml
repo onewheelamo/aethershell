@@ -12,6 +12,7 @@ Item {
 
     property var options: ({})
     property bool ouvert: false
+    property bool fermerAuClic: true
     property string widgetId: ""
     readonly property real echelle: {
         const v = Number(options && options.text_scale)
@@ -59,7 +60,7 @@ Item {
                           "copier", String(id)]
         action.running = true
         // Le panneau se referme : on a ce qu'on voulait, il n'a plus à occuper l'écran.
-        Theme.activePopup = ""
+        if (fermerAuClic) Theme.activePopup = ""
     }
 
     function vider() {
