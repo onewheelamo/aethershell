@@ -98,7 +98,7 @@ hl.bind(mainMod .. " + ALT + agrave",  hl.dsp.window.move({ workspace = 10 }), {
 
 --: Applications
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal), { description = "terminal" })  -- essentiel
-hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd("[float; center] " .. terminal), { description = "terminal flottant" })
+hl.bind(mainMod .. " + SHIFT + Return", hl.dsp.exec_cmd("hyprctl dispatch exec '[float; center] " .. terminal .. "'"), { description = "terminal flottant" })
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser1), { description = "navigateur" })  -- essentiel
 hl.bind(mainMod .. " + Z", hl.dsp.exec_cmd(browser2), { description = "navigateur secondaire" })
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(file_explorer), { description = "fichiers" })  -- essentiel
