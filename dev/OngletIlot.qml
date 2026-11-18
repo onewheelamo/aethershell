@@ -311,50 +311,13 @@ Column {
                         }
                     }
 
-                    Rectangle {
+                    ConfigSegmented {
                         id: segTrack
-                        width: segRow.implicitWidth + 6
-                        height: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
-                        color: Theme.bg
-                        border.color: Theme.surfaceVariant
-                        border.width: 1
-
-                        Row {
-                            id: segRow
-                            anchors.centerIn: parent
-                            spacing: 2
-
-                            Repeater {
-                                model: bloc.modeChoices
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    readonly property var rowItem: parent.parent.parent.parent.modelData
-                                    readonly property bool active: rowItem.mode === modelData.code
-                                    width: segLbl.implicitWidth + 12
-                                    height: 22
-                                    radius: Math.max(4, Math.round(Theme.globalRadius * 0.4))
-                                    color: active ? Theme.accent : (segMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.6) : "transparent")
-
-                                    Text {
-                                        id: segLbl
-                                        anchors.centerIn: parent
-                                        text: modelData.label
-                                        color: active ? Theme.bg : Qt.alpha(Theme.fg, 0.8)
-                                        font.pixelSize: Theme.text2xs
-                                        font.bold: active
-                                    }
-
-                                    MouseArea {
-                                        id: segMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: if (root) root.runConfigCmd(["style", rowItem.key, modelData.code])
-                                    }
-                                }
-                            }
+                        choices: bloc.modeChoices
+                        currentCode: modelData.mode
+                        onSelected: code => {
+                            if (root) root.runConfigCmd(["style", modelData.key, code])
                         }
                     }
                 }
@@ -487,56 +450,17 @@ Column {
                         }
                     }
 
-                    Rectangle {
+                    ConfigSegmented {
                         id: appSegTrack
-                        width: appSegRow.implicitWidth + 6
-                        height: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
-                        color: Theme.bg
-                        border.color: Theme.surfaceVariant
-                        border.width: 1
-
-                        Row {
-                            id: appSegRow
-                            anchors.centerIn: parent
-                            spacing: 2
-
-                            Repeater {
-                                model: bloc.modeChoices
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    readonly property var appRow: parent.parent.parent.parent
-                                    readonly property bool active: appRow.curMode === modelData.code
-                                    width: appSegLbl.implicitWidth + 12
-                                    height: 22
-                                    radius: Math.max(4, Math.round(Theme.globalRadius * 0.4))
-                                    color: active ? Theme.accent : (appSegMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.6) : "transparent")
-
-                                    Text {
-                                        id: appSegLbl
-                                        anchors.centerIn: parent
-                                        text: modelData.label
-                                        color: active ? Theme.bg : Qt.alpha(Theme.fg, 0.8)
-                                        font.pixelSize: Theme.text2xs
-                                        font.bold: active
-                                    }
-
-                                    MouseArea {
-                                        id: appSegMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (!root) return
-                                            if (appRow.modelData.styleKey) {
-                                                root.runConfigCmd(["style", appRow.modelData.styleKey, modelData.code])
-                                            } else {
-                                                root.runConfigCmd(["ilot_applet_mode", appRow.modelData.id, modelData.code])
-                                            }
-                                        }
-                                    }
-                                }
+                        choices: bloc.modeChoices
+                        currentCode: curMode
+                        onSelected: code => {
+                            if (!root) return
+                            if (modelData.styleKey) {
+                                root.runConfigCmd(["style", modelData.styleKey, code])
+                            } else {
+                                root.runConfigCmd(["ilot_applet_mode", modelData.id, code])
                             }
                         }
                     }
@@ -575,31 +499,12 @@ Column {
                             elide: Text.ElideRight
                         }
 
-                        Rectangle {
+                        ConfigSwitch {
                             id: majCondSwitch
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 34
-                            height: 18
-                            radius: 9
-                            color: Theme.majSeulementSiDispo ? Theme.accent : Qt.alpha(Theme.fg, 0.22)
-                            Behavior on color { ColorAnimation { duration: 140 } }
-
-                            Rectangle {
-                                width: 14
-                                height: 14
-                                radius: 7
-                                y: 2
-                                x: Theme.majSeulementSiDispo ? (parent.width - width - 2) : 2
-                                color: Theme.majSeulementSiDispo ? Theme.bg : Theme.fg
-                                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: if (root) root.runConfigCmd(["style", "maj_seulement_si_dispo", String(!Theme.majSeulementSiDispo)])
+                            checked: Theme.majSeulementSiDispo
+                            onToggled: if (root) root.runConfigCmd(["style", "maj_seulement_si_dispo", String(!Theme.majSeulementSiDispo)])
                         }
                     }
 
@@ -626,53 +531,18 @@ Column {
                             elide: Text.ElideRight
                         }
 
-                        Rectangle {
+                        ConfigSegmented {
                             id: majWinTrack
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            width: majWinRow.implicitWidth + 6
-                            height: 24
-                            radius: Math.max(5, Math.round(Theme.globalRadius * 0.45))
-                            color: Theme.bg
-                            border.color: Theme.surfaceVariant
-                            border.width: 1
-
-                            Row {
-                                id: majWinRow
-                                anchors.centerIn: parent
-                                spacing: 2
-
-                                Repeater {
-                                    model: [
-                                        { code: "float", label: "Flottante" },
-                                        { code: "tiling", label: "Tiling" }
-                                    ]
-                                    delegate: Rectangle {
-                                        required property var modelData
-                                        readonly property bool active: Theme.majTerminalMode === modelData.code
-                                        width: majWinLbl.implicitWidth + 12
-                                        height: 18
-                                        radius: Math.max(4, Math.round(Theme.globalRadius * 0.35))
-                                        color: active ? Theme.accent : (majWinMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.6) : "transparent")
-
-                                        Text {
-                                            id: majWinLbl
-                                            anchors.centerIn: parent
-                                            text: modelData.label
-                                            color: active ? Theme.bg : Qt.alpha(Theme.fg, 0.8)
-                                            font.pixelSize: Theme.text2xs
-                                            font.bold: active
-                                        }
-
-                                        MouseArea {
-                                            id: majWinMa
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: if (root) root.runConfigCmd(["style", "maj_terminal_mode", modelData.code])
-                                        }
-                                    }
-                                }
+                            itemHeight: 18
+                            choices: [
+                                { code: "float", label: "Flottante" },
+                                { code: "tiling", label: "Tiling" }
+                            ]
+                            currentCode: Theme.majTerminalMode
+                            onSelected: code => {
+                                if (root) root.runConfigCmd(["style", "maj_terminal_mode", code])
                             }
                         }
                     }

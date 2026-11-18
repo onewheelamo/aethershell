@@ -90,6 +90,59 @@ Item {
         }
     }
 
+    component CaptureDot: Rectangle {
+        property string ilotState: "compact"
+        visible: Theme.ilotVisibleIn(Theme.ilotShowCapture, ilotState) && root.captureState !== "none"
+        width: 6
+        height: 6
+        radius: 3
+        anchors.verticalCenter: parent.verticalCenter
+        color: root.captureState === "video" ? "#ef4444" : "#f97316"
+        Behavior on color { ColorAnimation { duration: 150 } }
+    }
+
+    component VpnDot: Rectangle {
+        property string ilotState: "compact"
+        visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, ilotState)
+        width: 6
+        height: 6
+        radius: 3
+        anchors.verticalCenter: parent.verticalCenter
+        color: root.vpnState === "connected" ? "#00a3d5" : (root.vpnState === "error" ? "#eab308" : "#ffffff")
+        Behavior on color { ColorAnimation { duration: 150 } }
+    }
+
+    component PlankaAlertIcon: Item {
+        property string ilotState: "compact"
+        property int boxSize: 20
+        visible: Theme.ilotProjetsActif && Theme.ilotVisibleIn(Theme.ilotShowPlanka, ilotState) && root.plankaEcheanceProche
+        width: boxSize
+        height: boxSize
+        anchors.verticalCenter: parent.verticalCenter
+
+        Icon {
+            anchors.centerIn: parent
+            glyph: "columns-3"
+            size: Theme.iconSm
+            color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+        }
+
+        Rectangle {
+            width: 6
+            height: 6
+            radius: 3
+            anchors.top: parent.top
+            anchors.right: parent.right
+            color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.ouvrirPanneau(4)
+        }
+    }
+
     readonly property string ile: "haut:milieu"
 
     // Panneau calendrier interactif rattaché à l'îlot dynamique
@@ -1353,15 +1406,7 @@ Item {
             visible: !Theme.osdVisible
 
             // Point capture vidéo (rouge) / audio seule (orange) avant les ws
-            Rectangle {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowCapture, "compact") && root.captureState !== "none"
-                width: 6
-                height: 6
-                radius: 3
-                anchors.verticalCenter: parent.verticalCenter
-                color: root.captureState === "video" ? "#ef4444" : "#f97316"
-                Behavior on color { ColorAnimation { duration: 150 } }
-            }
+            CaptureDot { ilotState: "compact" }
 
             WorkspacesApplet {
                 id: compactWorkspaces
@@ -1430,34 +1475,7 @@ Item {
             }
 
             // Icône Projets (columns-3) si échéance Planka < 24h
-            Item {
-                visible: Theme.ilotProjetsActif && Theme.ilotVisibleIn(Theme.ilotShowPlanka, "compact") && root.plankaEcheanceProche
-                width: 20
-                height: 20
-                anchors.verticalCenter: parent.verticalCenter
-
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: "columns-3"
-                    size: Theme.iconSm
-                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
-                }
-
-                Rectangle {
-                    width: 6
-                    height: 6
-                    radius: 3
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.ouvrirPanneau(4)
-                }
-            }
+            PlankaAlertIcon { ilotState: "compact"; boxSize: 20 }
 
             // Badge contexte actif (si différent de « normal »)
             Rectangle {
@@ -1501,17 +1519,7 @@ Item {
             }
 
             // Point VPN à droite (bleu = connecté, blanc = déconnecté, jaune = erreur)
-            Rectangle {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, "compact")
-                width: 6
-                height: 6
-                radius: 3
-                anchors.verticalCenter: parent.verticalCenter
-                color: root.vpnState === "connected"
-                    ? "#00a3d5"
-                    : (root.vpnState === "error" ? "#eab308" : "#ffffff")
-                Behavior on color { ColorAnimation { duration: 150 } }
-            }
+            VpnDot { ilotState: "compact" }
         }
 
         // Seconde barre (et +) vers le bas pour les téléchargements / activités secondaires
@@ -1578,15 +1586,7 @@ Item {
             spacing: 10
 
             // Côté Gauche : Point capture (si actif) + Workspaces (points/tiret maintenus) + Applets gauche
-            Rectangle {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowCapture, "expanded") && root.captureState !== "none"
-                width: 6
-                height: 6
-                anchors.verticalCenter: parent.verticalCenter
-                radius: 3
-                color: root.captureState === "video" ? "#ef4444" : "#f97316"
-                Behavior on color { ColorAnimation { duration: 150 } }
-            }
+            CaptureDot { ilotState: "expanded" }
 
             WorkspacesApplet {
                 id: expandedWorkspaces
@@ -1710,47 +1710,10 @@ Item {
             }
 
             // Icône Projets (columns-3) maintenue au survol si échéance Planka < 24h
-            Item {
-                visible: Theme.ilotProjetsActif && Theme.ilotVisibleIn(Theme.ilotShowPlanka, "expanded") && root.plankaEcheanceProche
-                width: 22
-                height: 22
-                anchors.verticalCenter: parent.verticalCenter
-
-                Icon {
-                    anchors.centerIn: parent
-                    glyph: "columns-3"
-                    size: Theme.iconSm
-                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
-                }
-
-                Rectangle {
-                    width: 6
-                    height: 6
-                    radius: 3
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    color: root.plankaUrgence === "rouge" ? "#ef4444" : "#f97316"
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.ouvrirPanneau(4)
-                }
-            }
+            PlankaAlertIcon { ilotState: "expanded"; boxSize: 22 }
 
             // Point VPN à droite en mode étendu
-            Rectangle {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowVpn, "expanded")
-                width: 6
-                height: 6
-                anchors.verticalCenter: parent.verticalCenter
-                radius: 3
-                color: root.vpnState === "connected"
-                    ? "#00a3d5"
-                    : (root.vpnState === "error" ? "#eab308" : "#ffffff")
-                Behavior on color { ColorAnimation { duration: 150 } }
-            }
+            VpnDot { ilotState: "expanded" }
         }
     }
 

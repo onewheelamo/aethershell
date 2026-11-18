@@ -58,3 +58,5 @@ IslandTabApparence 1.0 IslandTabApparence.qml
 IlotProjets 1.0 IlotProjets.qml
 VinylArt 1.0 VinylArt.qml
 NotifService 1.0 NotifService.qml
+ConfigSwitch 1.0 ConfigSwitch.qml
+ConfigSegmented 1.0 ConfigSegmented.qml
