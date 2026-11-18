@@ -3,25 +3,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
-// ────────────────────────────────────────────────────────────────────────────
-// ASSISTANT DE PREMIER LANCEMENT
-// ────────────────────────────────────────────────────────────────────────────
-// Cinq pages, une seule fois dans la vie de l'installation :
-//   0  disposition du clavier (réécrit input.lua et la nomenclature de binds.lua)
-//   1  dossiers Images / Vidéos / Documents / Musique (dossiers XDG)
-//   2  programmes par défaut (alias d'app_vars, avec les programmes réellement
-//      installés en proposition)
-//   3  widgets du bureau (une case par nature, comme dans le panneau)
-//   4  l'astuce des raccourcis, en gras, et le bouton devient « Terminé ! »
-//
-// Rien n'est appliqué avant la dernière page : les choix vivent en mémoire, et
-// `core/first_run_apply.py` les applique d'un bloc puis pose la marque de premier
-// lancement. Un abandon à mi-chemin ne laisse donc pas d'environnement à moitié
-// configuré — et l'assistant revient au lancement suivant.
-//
-// L'état initial vient de `core/first_run_state.py` : dossiers XDG courants,
-// alias d'app_vars et présence de leur binaire, widgets déjà posés.
-// ────────────────────────────────────────────────────────────────────────────
+// Assistant de premier lancement (5 pages : clavier, dossiers XDG, apps, widgets, raccourcis).
+// État initial via `core/first_run_state.py` ; application atomique en fin via `core/first_run_apply.py`.
 Item {
     id: root
 

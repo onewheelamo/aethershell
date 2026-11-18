@@ -1,33 +1,9 @@
 import QtQuick
 import Quickshell
 
-// POPUP — la fenêtre commune à tous les panneaux accrochés aux applets.
-//
-// Pourquoi ce fichier existe : les popups étaient construits deux fois, une fois
-// dans `Applet.qml` pour les applets « service » (homelab, presse-papiers, quotas)
-// et une fois dans chaque composant « qml » (notifications, volume, réseau,
-// alimentation). Tout réglage transversal — position, marges, ajustement — devait
-// donc être écrit deux fois, et un oubli ne se voyait qu'à l'œil.
-//
-// Ce que la mesure a appris, et qui justifie la forme ci-dessous :
-//  - `anchor.rect.y` n'est PAS appliqué par Quickshell 0.3.2 sur ces fenêtres :
-//    ancre forcée à 200 px, panneau immobile. La position réelle vient de l'item
-//    d'ancrage, plus un écart fixe d'environ 14 px.
-//  - le seul levier qui agit est `anchor.margins.top` : à 0 le panneau est 14 px
-//    sous l'applet, à -12 il touche la barre.
-// D'où `Theme.popupGap`, une valeur unique, au lieu de littéraux dispersés.
-//
-// Usage — le contenu reste dans le fichier de l'appelant :
-//   Popup {
-//       id: fenetre
-//       ancre: root            // l'item auquel le popup s'accroche
-//       ile: root.applet.ile   // « barre:place », donne l'orientation
-//       alignement: "centre"   // gauche | centre | droite
-//       visible: root.ouvert
-//       implicitWidth: 324
-//       implicitHeight: panneau.implicitHeight
-//       Rectangle { anchors.fill: parent; ... }
-//   }
+// Fenêtre PopupWindow commune aux panneaux d'applets.
+// Note Quickshell 0.3.2 : `anchor.rect.y` étant ignoré ici, le décalage vertical
+// passe par `anchor.margins.top` (`Theme.popupGap`).
 PopupWindow {
     id: fenetre
 

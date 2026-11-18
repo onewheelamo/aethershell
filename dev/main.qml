@@ -1227,24 +1227,8 @@ Item {
                     }
                 }
 
-                // Déplacement à la souris.
-                //
-                // Constat mesuré sur une surface layer : `press`, `release` et
-                // `enter` arrivent, mais **pas** les mouvements — ni MouseArea ni
-                // DragHandler ne reçoivent de delta, et un PointHandler n'en reçoit
-                // que tant que le pointeur reste au-dessus de la surface, donc pas
-                // assez pour suivre le geste. On garde donc l'appui d'un PointHandler
-                // (fiable) et on lit la position du curseur chez le compositeur.
-                //
-                // `hyprctl cursorpos` toutes les 30 ms pendant le geste : la surface
-                // est repositionnée sous le pointeur, et comme on ne dépend plus des
-                // événements de mouvement, le widget suit même quand le pointeur sort
-                // de son rectangle.
-                // Le widget lui-même ne capte plus rien : le déclencheur est le bind
-                // Hyprland SUPER + SHIFT + clic (voir binds.lua), parce que
-                // `mouse.modifiers` vaut 0 dans les événements souris de cette
-                // surface — le modificateur y est invisible.
-
+                // Déplacement à la souris via `hyprctl cursorpos` toutes les 30 ms (une surface
+                // layer ne reçoit pas les deltas hors de son rectangle, et `mouse.modifiers` vaut 0).
                 Text {
                     id: brokenText
                     anchors.centerIn: parent

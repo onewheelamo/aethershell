@@ -4,40 +4,8 @@ import Quickshell
 import Quickshell.Io
 import "."
 
-// ════════════════════════════════════════════════════════════════════════════
-// VISUALISEUR AUDIO — la source unique des colonnes, une seule capture
-// ════════════════════════════════════════════════════════════════════════════
-// Un singleton, donc un seul processus de capture quel que soit le nombre de
-// visualiseurs affichés (deux par barre). C'est la leçon du plugin Noctalia
-// d'origine : plusieurs instances partagent une seule source, sinon chacune
-// ouvrirait son propre flux PipeWire.
-//
-// Deux fournisseurs, un même modèle de sortie (`hauteurs` / `bas`, 0..1) :
-//
-//   • « onde »    — pwscope (C, PipeWire) : enveloppe min/max par colonne du
-//                   signal temporel, phase verrouillée par YIN. Une ligne qui
-//                   ne défile pas.
-//   • « barres »  — cava : spectre du monitor du sink, 24 bandes. Des barres
-//                   qui montent et redescendent avec la musique.
-//
-// Le choix appartient à l'utilisateur et vit dans le registre des applets
-// (`bar_applets.json`, option `style` de l'applet « visualiseur »), comme les
-// autres options d'applet : le panneau n'a rien de spécial à savoir.
-//
-// ── Veille ──────────────────────────────────────────────────────────────────
-// Un visualiseur qui écoute en permanence coûte 2 à 3 % d'un cœur, même quand
-// rien ne joue : inacceptable pour un applet qu'on laisse allumé. D'où trois
-// mécanismes, du moins cher au plus cher :
-//
-//   1. après 10 s sans une seule trame non silencieuse, la capture s'arrête ;
-//   2. en veille, `pactl subscribe` (un processus au repos, coût nul) réveille
-//      dès qu'un flux audio apparaît ou change d'état ;
-//   3. toutes les 20 s en veille, une écoute de 3 s rattrape le cas qu'aucun
-//      événement ne signale (une application qui garde son flux ouvert et se
-//      remet à écrire sans changer de propriété).
-//
-// Le réveil par événement est instantané ; l'écoute périodique coûte ~0,3 %
-// d'un cœur en veille, contre 2-3 % en capture continue.
+// Singleton de capture audio partagé (pwscope « onde » / cava « barres »).
+// Veille automatique : arrêt après 10 s de silence, réveil sur `pactl subscribe` + sondage 20 s.
 Singleton {
     id: racine
 

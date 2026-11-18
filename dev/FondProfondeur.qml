@@ -4,26 +4,9 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 
-// Fond de bureau « en profondeur » : trois calques PNG **avec alpha**, empilés
-// sur le fond du démon (awww) et décalés différemment quand on change de bureau
-// — parallaxe de quelques pixels, du lointain au proche.
-//
-// Format décidé le 2026-11-07 : trois PNG découpés avec alpha, 1920×1080. Les
-// calques sont transparents : ce qui n'est pas peint laisse voir le fond du
-// démon, donc l'image de base reste fournie par awww et rien n'est dupliqué.
-// Sans les trois fichiers, la surface ne s'affiche pas — un fond à moitié chargé
-// serait pire que le fond du démon.
-//
-// Les calques suivent le fond d'écran courant : le dossier est
-// `<dossier de fonds>/profondeur/<nom du fond>/`, avec repli sur
-// `<dossier de fonds>/profondeur/` pour un jeu commun à tous les fonds. Changer
-// de fond d'écran ne *recalcule* donc rien (QML ne découpe pas une image) ; le
-// shell relit le jeu correspondant, et s'il n'existe pas il n'affiche rien.
-//
-// Limite de plateforme, à ne pas oublier : « les îlots entre les calques » n'est
-// pas réalisable. layer-shell n'offre que background < bottom < fenêtres < top <
-// overlay ; un calque ne peut pas passer entre la barre et les fenêtres. Le fond
-// est en `background`, la barre au-dessus de tout.
+// Fond de bureau en profondeur : 3 calques PNG transparents (1920×1080) en `background`
+// au-dessus de `awww`, décalés en parallaxe au changement de bureau.
+// Dossier : `<wallpaperDir>/profondeur/<nom>/` (repli `<wallpaperDir>/profondeur/`).
 PanelWindow {
     id: fenetre
 

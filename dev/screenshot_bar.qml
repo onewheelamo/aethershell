@@ -1,29 +1,7 @@
 import QtQuick
 
-// ────────────────────────────────────────────────────────────────────────────
-// BARRE DE CAPTURE (SUPER + SHIFT + S) — pastille verticale, bord gauche.
-// ────────────────────────────────────────────────────────────────────────────
-// Quatre entrées sur une seule page, en deux paires : la photo (accent) puis
-// la vidéo (rouge), séparées par un trait. Chaque paire va du plus petit au plus
-// grand — région puis écran entier — pour que le regard n'ait qu'un axe à suivre
-// (« la même chose, en plus large »).
-//
-//   région photo  sélection pointillée      vidéo région  caméra dans un cadre
-//   écran photo   moniteur + cadre          vidéo écran   caméra
-//
-// La version précédente cachait le choix vidéo derrière une seconde page (le
-// bouton vidéo basculait la pastille) : le chemin existait mais ne se voyait pas,
-// et « la vidéo ne marche pas » voulait dire « je n'ai jamais atteint l'entrée ».
-// Quatre icônes tiennent dans la même pastille : plus de page, plus de chevron.
-//
-// Pendant un enregistrement, les deux entrées vidéo laissent la place à un seul
-// carré « arrêter » : il n'y a rien d'autre à faire tant que ça tourne.
-//
-// La surface qui héberge la pastille (main.qml) est plein écran pour attraper le
-// clic extérieur ; la pastille, elle, ne prend pas la hauteur : elle est centrée
-// et glisse depuis le bord gauche. Géométrie maquettée à part, sur la machine
-// (les maquettes ne sont pas dans le dépôt).
-// ────────────────────────────────────────────────────────────────────────────
+// Barre de capture (SUPER + SHIFT + S) : 4 modes (photo région/écran, vidéo région/écran)
+// ou bouton d'arrêt pendant un enregistrement, hébergée dans une surface plein écran (main.qml).
 Item {
     id: root
 

@@ -3,26 +3,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
-// ────────────────────────────────────────────────────────────────────────────
-// TIROIR DE L'HISTORIQUE DES NOTIFICATIONS
-// ────────────────────────────────────────────────────────────────────────────
-// Surface indépendante du petit panneau de notifications : celui-ci montre les
-// notifications courantes (avec toast et boutons d'action), ce tiroir garde la
-// trace de TOUT ce qui est arrivé, y compris ce qui a été effacé du panneau ou
-// fermé par l'application émettrice.
-//
-// Source : `~/.cache/quickshell/notifications-history.jsonl`, écrit par
-// core/notif_target.py (une ligne par notification, la plus récente en fin de
-// fichier, plafond 200 tenu par core/notif_history.py).
-//
-// Un clic sur le titre rouvre la cible déjà résolue à la réception — la
-// notification peut être morte depuis longtemps, la commande est figée dans
-// l'entrée. Une cible de type « action » n'est pas rouvrable (il faudrait le
-// client) : son titre reste du texte.
-//
-// Le tiroir utilise `SurfaceFloutee` (teinte + bordure) sur une fenêtre plein
-// écran portant le capteur de clic extérieur.
-// ────────────────────────────────────────────────────────────────────────────
+// Tiroir de l'historique des notifications (`~/.cache/quickshell/notifications-history.jsonl`,
+// plafond 200 via `core/notif_history.py`, cibles figées via `core/notif_target.py`).
 Item {
     id: root
 

@@ -3,22 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 9. SPOTLIGHT PILL — launcher bas-centre qui remplace fuzzel
-// ─────────────────────────────────────────────────────────────────────────────
-// Chargée par la PanelWindow `shell-spotlight` de main.qml, elle-même pilotée
-// par Theme.spotlightVisible (IPC `quickshell ipc call shell toggleSpotlight`).
-//
-// Trois sources, une seule liste de résultats :
-//   • applications — core/app_index.json (core/app_index.py)
-//   • alias        — core/app_vars.json, les mêmes que les raccourcis Hyprland
-//   • commandes    — préfixe « > », passées telles quelles à sh
-//   • prestataires — tout autre préfixe (« = » calcul, « / » fichiers, « ? » aide…)
-//     passe à core/launcher_service.py, qui rend la même forme de résultat. La
-//     liste des préfixes est lue depuis ce service au démarrage : elle n'est pas
-//     recopiée ici, donc elle ne peut pas diverger de ce qui existe vraiment.
-// Et, si `launch_history` est activé dans le panneau, les lancements récents
-// (core/launch_history.json) affichés à l'ouverture dans le champ vide.
+// Spotlight Pill (`shell-spotlight` dans `main.qml`), moteur partagé via `LauncherEngine.qml`.
 Item {
     id: root
 
