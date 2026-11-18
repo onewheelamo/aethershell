@@ -1239,13 +1239,8 @@ Rectangle {
         return s
     }
 
-    // Sélecteurs de dossier et de fichier : feuilles modales du panneau
-    // (SelecteurDossier.qml / SelecteurFichier.qml), pas des dialogues Qt.
-    property string selecteurCible: ""
+    // Sélecteur unifié de fichier / dossier (SelecteurFichier.qml).
     property string selecteurFichierCible: ""
-    // Paramètres en attente pour les feuilles modales : le premier clic sur
-    // « Choisir » crée le composant, et c'est `onLoaded` qui les applique.
-    property var selecteurParams: ({})
     property var selecteurFichierParams: ({})
 
     // Installation des paquets manquants (onglet « Apps & Alertes »). Le script
@@ -2266,51 +2261,7 @@ Rectangle {
         liberationSelecteur.restart()
     }
 
-    Loader {
-        id: selecteurLoader
-        anchors.fill: parent
-        z: 1000
-        active: false
-        source: "SelecteurDossier.qml"
-        onLoaded: {
-            item.accepte.connect(function (chemin) {
-                root.validerSelecteur(chemin)
-                root.libererSelecteur(selecteurLoader)
-            })
-            item.annule.connect(function () {
-                root.selecteurCible = ""
-                root.libererSelecteur(selecteurLoader)
-            })
-            // Premier clic : l'item n'existait pas encore quand `ouvrirSelecteur` a
-            // posé la cible, c'est ici qu'on lui passe ses paramètres.
-            root.appliquerSelecteur()
-        }
-    }
-
-    function ouvrirSelecteur(cible, titre, chemin) {
-        root.selecteurCible = String(cible)
-        root.selecteurParams = ({ titre: String(titre), chemin: root.cheminAbsolu(chemin) })
-        selecteurLoader.active = true
-        root.appliquerSelecteur()
-    }
-
-    function appliquerSelecteur() {
-        const it = selecteurLoader.item
-        if (!it || root.selecteurCible === "")
-            return
-        it.titre = String(root.selecteurParams.titre || "")
-        it.chemin = String(root.selecteurParams.chemin || "")
-        it.ouvert = true
-    }
-
-    function validerSelecteur(chemin) {
-        if (root.selecteurCible === "")
-            return
-        root.runConfigCmd(["style", root.selecteurCible, String(chemin) + "/"])
-        root.selecteurCible = ""
-    }
-
-    // Feuille modale du sélecteur de fichier (ex: Markdown pour les tâches)
+    // Feuille modale unifiée (fichiers et dossiers via dossierSeulement)
     Loader {
         id: selecteurFichierLoader
         anchors.fill: parent
@@ -2330,11 +2281,25 @@ Rectangle {
         }
     }
 
+    function ouvrirSelecteur(cible, titre, chemin) {
+        root.selecteurFichierCible = String(cible)
+        root.selecteurFichierParams = ({
+            dossierSeulement: true,
+            titre: String(titre),
+            chemin: root.cheminAbsolu(chemin),
+            extensions: [],
+            icone: "folder"
+        })
+        selecteurFichierLoader.active = true
+        root.appliquerSelecteurFichier()
+    }
+
     function ouvrirSelecteurFichier(cible, titre, chemin, extensions, icone) {
         root.selecteurFichierCible = String(cible)
         let chem = String(chemin || "")
         if (chem === "") chem = "~"
         root.selecteurFichierParams = ({
+            dossierSeulement: false,
             titre: String(titre),
             chemin: root.cheminAbsolu(chem),
             extensions: extensions || [],
@@ -2349,10 +2314,11 @@ Rectangle {
         if (!it || root.selecteurFichierCible === "")
             return
         const p = root.selecteurFichierParams
+        it.dossierSeulement = Boolean(p.dossierSeulement)
         it.titre = String(p.titre || "")
         if (p.extensions && p.extensions.length > 0)
             it.extensions = p.extensions
-        it.filtrerExtensions = true
+        it.filtrerExtensions = !it.dossierSeulement
         it.icone = String(p.icone || "file-document")
         it.chemin = String(p.chemin || "")
         it.fichierSelectionne = ""
@@ -2360,16 +2326,20 @@ Rectangle {
     }
 
     function validerSelecteurFichier(chemin) {
-        if (root.selecteurFichierCible === "todo_md") {
+        const c = root.selecteurFichierCible
+        if (c === "") return
+        if (root.selecteurFichierParams && root.selecteurFichierParams.dossierSeulement) {
+            root.runConfigCmd(["style", c, String(chemin) + "/"])
+        } else if (c === "todo_md") {
             nouveauTodoChemin.text = root.abregerHome(chemin)
             if (nouveauTodoNom.text.trim() === "") {
                 const base = String(chemin).split("/").pop().replace(/\.md$/i, "").replace(/\.markdown$/i, "")
                 if (base)
                     nouveauTodoNom.text = base
             }
-        } else if (root.selecteurFichierCible === "install_theme_colors") {
+        } else if (c === "install_theme_colors") {
             root.installerThemeCouleur(chemin)
-        } else if (root.selecteurFichierCible === "lock_bg_image") {
+        } else if (c === "lock_bg_image") {
             root.runConfigCmd(["style", "lock_bg_image", String(chemin)])
             root.runConfigCmd(["style", "lock_bg_mode", "image"])
         }
