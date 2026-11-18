@@ -31,8 +31,8 @@ Item {
 
     property var meteoLocal: ({})
     property bool loadedLocal: false
-    readonly property var meteo: root.cityOption === "" ? Theme.meteoData : meteoLocal
-    readonly property bool loaded: root.cityOption === "" ? Theme.meteoLoaded : loadedLocal
+    readonly property var meteo: root.cityOption === "" ? SystemServices.meteoData : meteoLocal
+    readonly property bool loaded: root.cityOption === "" ? SystemServices.meteoLoaded : loadedLocal
 
     readonly property bool ok: loaded && meteo && meteo.ok === true
     readonly property bool withSeconds: {
@@ -68,7 +68,7 @@ Item {
 
     function refresh(force) {
         if (root.cityOption === "") {
-            Theme.rafraichirMeteo(force)
+            SystemServices.rafraichirMeteo(force)
             return
         }
         const args = ["python3", Quickshell.shellPath("core/weather_service.py"),

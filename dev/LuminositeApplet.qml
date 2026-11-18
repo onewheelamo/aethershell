@@ -34,7 +34,7 @@ Item {
     implicitHeight: rangee.implicitHeight
 
     function lire() {
-        Theme.rafraichirSystemInfo()
+        SystemServices.rafraichirSystemInfo()
     }
 
     Process {
@@ -115,16 +115,16 @@ Item {
     }
 
     function synchroniserSystemInfo() {
-        const d = Theme.systemInfo || ({})
-        if (!Theme.systemInfoPret && Object.keys(d).length === 0) return
+        const d = SystemServices.systemInfo || ({})
+        if (!SystemServices.systemInfoPret && Object.keys(d).length === 0) return
         if (d.hostname) root.hote = String(d.hostname)
         root.briPresente = Boolean(d.has_backlight)
         if (typeof d.brightness === "number") root.briPourcent = d.brightness
-        root.pret = Theme.systemInfoPret
+        root.pret = SystemServices.systemInfoPret
     }
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
         }

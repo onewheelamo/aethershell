@@ -7,10 +7,129 @@ import Quickshell.Io
 QtObject {
     id: root
 
+    // ── État système partagé (core/system_service.py info) ──────────────────
+    property var systemInfo: ({})
+    property bool systemInfoPret: false
+
+    property Process systemInfoProc: Process {
+        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (d && typeof d === "object") {
+                        root.systemInfo = d
+                        root.systemInfoPret = true
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    function rafraichirSystemInfo() {
+        if (systemInfoProc.running) return
+        systemInfoProc.running = true
+    }
+
+    property Timer systemInfoTimer: Timer {
+        interval: 10000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: root.rafraichirSystemInfo()
+    }
+
+    // ── Caffeine (inhibition mise en veille) ─────────────────────────────────
+    property bool caffeineActif: false
+    property Process caffeineProc: Process {
+        command: ["systemd-inhibit", "--what=idle", "--who=AetherShell", "--why=Mode Caffeine", "sleep", "infinity"]
+        running: root.caffeineActif
+    }
+
+    // ── Météo partagée (core/weather_service.py) ─────────────────────────────
+    property var meteoData: ({})
+    property string meteoStatut: ""
+    property bool meteoLoaded: false
+    property bool meteoActif: false
+
+    property Process meteoProc: Process {
+        command: ["python3", Quickshell.shellPath("core/weather_service.py")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.meteoLoaded = true
+                try {
+                    const d = JSON.parse(String(text).trim())
+                    if (d && d.ok) {
+                        root.meteoData = d
+                        root.meteoStatut = ""
+                    } else {
+                        root.meteoData = ({})
+                        root.meteoStatut = String((d && d.error) || "météo indisponible")
+                    }
+                } catch (e) {
+                    root.meteoData = ({})
+                    root.meteoStatut = "réponse météo illisible"
+                }
+            }
+        }
+    }
+
+    function rafraichirMeteo(force) {
+        meteoActif = true
+        if (meteoProc.running) return
+        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
+        if (force) args.push("--force")
+        meteoProc.command = args
+        meteoProc.running = true
+    }
+
+    property Timer meteoTimer: Timer {
+        interval: 600000
+        repeat: true
+        running: root.meteoActif
+        onTriggered: root.rafraichirMeteo(false)
+    }
+
+    // ── Démon de métriques partagé (CPU / RAM / GPU / Réseau) ───────────────
+    property var systemeData: ({})
+    property bool systemeCharge: false
+    property var reseauData: ({})
+    property bool reseauCharge: false
+    property bool metriquesActif: false
+
+    property Process metriquesDaemonProc: Process {
+        running: root.metriquesActif
+        command: ["python3", Quickshell.shellPath("core/metriques_daemon.py"), "2"]
+        stdout: SplitParser {
+            onRead: line => {
+                const s = String(line || "").trim()
+                if (!s) return
+                try {
+                    const d = JSON.parse(s)
+                    if (d && d.systeme) {
+                        root.systemeData = d.systeme
+                        root.systemeCharge = true
+                    }
+                    if (d && d.reseau) {
+                        root.reseauData = d.reseau
+                        root.reseauCharge = true
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    property Timer metriquesGardeTimer: Timer {
+        interval: 10000
+        repeat: true
+        running: root.metriquesActif && !root.metriquesDaemonProc.running
+        onTriggered: root.metriquesDaemonProc.running = true
+    }
+
     // ── Wi-Fi ────────────────────────────────────────────────────────────────
     property var wifiNetworks: []
     property bool wifiScanning: false
-    property bool wifiEnabled: Boolean(Theme.systemInfo && Theme.systemInfo.wifi && (Theme.systemInfo.wifi.enabled !== false))
+    property bool wifiEnabled: Boolean(root.systemInfo && root.systemInfo.wifi && (root.systemInfo.wifi.enabled !== false))
     property bool qrWifiAvailable: false
 
     property Process wifiCheckProc: Process {
@@ -26,7 +145,7 @@ QtObject {
     property Process wifiToggleProc: Process {
         onExited: {
             if (!wifiCheckProc.running) wifiCheckProc.running = true
-            Theme.rafraichirSystemInfo()
+            root.rafraichirSystemInfo()
             if (root.wifiEnabled) root.scanWifi()
         }
     }

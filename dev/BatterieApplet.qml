@@ -43,7 +43,7 @@ Item {
     implicitHeight: batPresente ? rangee.implicitHeight : 0
 
     function lire() {
-        Theme.rafraichirSystemInfo()
+        SystemServices.rafraichirSystemInfo()
     }
 
     Process {
@@ -79,8 +79,8 @@ Item {
     Component.onCompleted: root.synchroniserSystemInfo()
 
     function synchroniserSystemInfo() {
-        const d = Theme.systemInfo || ({})
-        if (!Theme.systemInfoPret && Object.keys(d).length === 0) return
+        const d = SystemServices.systemInfo || ({})
+        if (!SystemServices.systemInfoPret && Object.keys(d).length === 0) return
         if (d.hostname) root.hote = String(d.hostname)
         root.batPresente = Boolean(d.has_battery)
         if (d.battery) {
@@ -91,11 +91,11 @@ Item {
             root.batLimite = Boolean(d.battery.limit_80)
             root.batPlafond = Number(d.battery.limit_pct || 80)
         }
-        root.pret = Theme.systemInfoPret
+        root.pret = SystemServices.systemInfoPret
     }
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
         }

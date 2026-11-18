@@ -20,7 +20,7 @@ Item {
     property bool tabletMode: false
 
     function synchroniserSystemInfo() {
-        const d = Theme.systemInfo
+        const d = SystemServices.systemInfo
         if (d && typeof d.tablet_mode === "boolean")
             islandRight.tabletMode = d.tablet_mode
     }
@@ -28,7 +28,7 @@ Item {
     Component.onCompleted: islandRight.synchroniserSystemInfo()
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemInfoChanged() {
             islandRight.synchroniserSystemInfo()
         }

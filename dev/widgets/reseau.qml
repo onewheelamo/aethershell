@@ -22,8 +22,8 @@ Item {
         return 1.0
     }
 
-    readonly property var reseau: Theme.reseauData
-    readonly property bool charge: Theme.reseauCharge
+    readonly property var reseau: SystemServices.reseauData
+    readonly property bool charge: SystemServices.reseauCharge
 
     readonly property bool connecte: reseau && reseau.connecte === true
     readonly property string ssid: String(reseau.ssid || reseau.connexion || reseau.interface || "")
@@ -49,7 +49,7 @@ Item {
         return String(reseau.ssid || reseau.connexion || "")
     }
 
-    Component.onCompleted: Theme.metriquesActif = true
+    Component.onCompleted: SystemServices.metriquesActif = true
 
     // Largeur **fixe** : un ping qui passe de 6 à 1200 ms, ou un débit qui passe de
     // « 1 ko/s » à « 12,3 Mo/s », ne doit pas redimensionner la carte sous le

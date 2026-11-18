@@ -22,7 +22,7 @@ Item {
     property string mediaTitle: ""
     property bool isMediaActive: false
 
-    readonly property var sysInfo: Theme.systemInfo || ({})
+    readonly property var sysInfo: SystemServices.systemInfo || ({})
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
 

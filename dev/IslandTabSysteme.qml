@@ -37,7 +37,7 @@ Item {
     readonly property bool btBusy: SystemServices.btBusy
     property string homelabLine: ""
 
-    readonly property var sysInfo: Theme.systemInfo || ({})
+    readonly property var sysInfo: SystemServices.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
@@ -105,16 +105,16 @@ Item {
     }
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemeDataChanged() {
-            if (root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 2 && Theme.metriquesActif)
-                root.appliquerSysteme(Theme.systemeData)
+            if (root.visible && Theme.islandPanelOpen && Theme.islandPanelTab === 2 && SystemServices.metriquesActif)
+                root.appliquerSysteme(SystemServices.systemeData)
         }
     }
 
     function refreshTelemetry() {
-        if (Theme.metriquesActif && Theme.systemeData && Theme.systemeData.ok) {
-            root.appliquerSysteme(Theme.systemeData)
+        if (SystemServices.metriquesActif && SystemServices.systemeData && SystemServices.systemeData.ok) {
+            root.appliquerSysteme(SystemServices.systemeData)
         } else if (!sysStatsProc.running) {
             sysStatsProc.running = true
         }
@@ -123,7 +123,7 @@ Item {
         SystemServices.refreshBluetooth()
         SystemServices.checkQrWifi()
         SystemServices.checkWifiRadio()
-        Theme.rafraichirSystemInfo()
+        SystemServices.rafraichirSystemInfo()
         if (root.wifiEnabled && SystemServices.wifiNetworks.length === 0) {
             SystemServices.scanWifi()
         }
@@ -289,7 +289,7 @@ Item {
 
     Process {
         id: batLimitProc
-        onExited: Theme.rafraichirSystemInfo()
+        onExited: SystemServices.rafraichirSystemInfo()
     }
 
     Process {

@@ -25,8 +25,8 @@ Item {
         return 1.0
     }
 
-    readonly property var donnees: Theme.systemeData
-    readonly property bool charge: Theme.systemeCharge
+    readonly property var donnees: SystemServices.systemeData
+    readonly property bool charge: SystemServices.systemeCharge
 
     readonly property var barres: {
         if (donnees && donnees.compact && donnees.compact.barres)
@@ -109,7 +109,7 @@ Item {
         return Theme.accent
     }
 
-    Component.onCompleted: Theme.metriquesActif = true
+    Component.onCompleted: SystemServices.metriquesActif = true
 
     implicitWidth: colonne.implicitWidth
     implicitHeight: colonne.implicitHeight

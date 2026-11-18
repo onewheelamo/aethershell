@@ -65,12 +65,12 @@ Item {
     implicitHeight: cote
 
     function relire() {
-        Theme.rafraichirSystemInfo()
+        SystemServices.rafraichirSystemInfo()
     }
 
     function synchroniserSystemInfo() {
-        const d = Theme.systemInfo || ({})
-        if (!Theme.systemInfoPret && Object.keys(d).length === 0) return
+        const d = SystemServices.systemInfo || ({})
+        if (!SystemServices.systemInfoPret && Object.keys(d).length === 0) return
         if (d.hostname) root.hote = String(d.hostname)
         root.batPresente = Boolean(d.has_battery)
         if (d.battery) {
@@ -86,7 +86,7 @@ Item {
     Component.onCompleted: root.synchroniserSystemInfo()
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
         }

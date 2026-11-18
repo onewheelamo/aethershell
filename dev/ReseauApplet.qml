@@ -25,10 +25,10 @@ Item {
     readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
                                                   * (verticale ? 1.45 : 1))
 
-    property bool wifiConnected: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.connected) ? true : false
-    property string wifiSsid: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.ssid) ? String(Theme.systemInfo.wifi.ssid) : ""
-    property int wifiSignal: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.signal) ? Number(Theme.systemInfo.wifi.signal) : 0
-    property string netType: (Theme.systemInfo && Theme.systemInfo.wifi && Theme.systemInfo.wifi.type) ? String(Theme.systemInfo.wifi.type) : "wifi"
+    property bool wifiConnected: (SystemServices.systemInfo && SystemServices.systemInfo.wifi && SystemServices.systemInfo.wifi.connected) ? true : false
+    property string wifiSsid: (SystemServices.systemInfo && SystemServices.systemInfo.wifi && SystemServices.systemInfo.wifi.ssid) ? String(SystemServices.systemInfo.wifi.ssid) : ""
+    property int wifiSignal: (SystemServices.systemInfo && SystemServices.systemInfo.wifi && SystemServices.systemInfo.wifi.signal) ? Number(SystemServices.systemInfo.wifi.signal) : 0
+    property string netType: (SystemServices.systemInfo && SystemServices.systemInfo.wifi && SystemServices.systemInfo.wifi.type) ? String(SystemServices.systemInfo.wifi.type) : "wifi"
 
     // État du panneau
     readonly property var wifiNetworks: SystemServices.wifiNetworks
@@ -45,7 +45,7 @@ Item {
     implicitHeight: Math.max(22, Math.round(28 * echelle))
 
     function synchroniserSystemInfo() {
-        const w = (Theme.systemInfo && Theme.systemInfo.wifi) || null
+        const w = (SystemServices.systemInfo && SystemServices.systemInfo.wifi) || null
         if (!w) return
         root.wifiConnected = Boolean(w.connected)
         root.wifiSsid = String(w.ssid || "")
@@ -62,7 +62,7 @@ Item {
     }
 
     function rafraichir() {
-        Theme.rafraichirSystemInfo()
+        SystemServices.rafraichirSystemInfo()
     }
 
     function scanWifi(rescan) {
@@ -93,7 +93,7 @@ Item {
     }
 
     Connections {
-        target: Theme
+        target: SystemServices
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
         }

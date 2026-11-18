@@ -1101,28 +1101,10 @@ CollapsibleSection {
                 }
             }
 
-            Rectangle {
-                width: 38
-                height: 20
-                radius: 10
+            ConfigSwitch {
                 anchors.verticalCenter: parent.verticalCenter
-                color: root.todoSurveillance ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
-
-                Rectangle {
-                    width: 16
-                    height: 16
-                    radius: 8
-                    y: 2
-                    x: root.todoSurveillance ? parent.width - width - 2 : 2
-                    color: root.todoSurveillance ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
-                    Behavior on x { NumberAnimation { duration: 130 } }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["todo_surveillance"])
-                }
+                checked: root.todoSurveillance
+                onToggled: root.runConfigCmd(["todo_surveillance"])
             }
         }
     }

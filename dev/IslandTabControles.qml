@@ -24,7 +24,7 @@ Item {
     property bool miniLecteurRetracte: false
 
     // ── État local synchronisé avec les services système ──────────────
-    readonly property var sysInfo: Theme.systemInfo || ({})
+    readonly property var sysInfo: SystemServices.systemInfo || ({})
     readonly property var wifiInfo: sysInfo.wifi || ({})
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
@@ -124,6 +124,10 @@ Item {
                 initDelayTimer.restart()
             }
         }
+    }
+
+    Connections {
+        target: SystemServices
         function onSystemInfoChanged() {
             if (root.batInfo) {
                 root.batLimit80 = Boolean(root.batInfo.limit_80)
@@ -169,7 +173,7 @@ Item {
                 Quickshell.execDetached(["notify-send", "-a", "AetherShell", "-u", "normal", "Réglage non appliqué", motif])
             }
             actionProc.sortie = ""
-            Theme.rafraichirSystemInfo()
+            SystemServices.rafraichirSystemInfo()
         }
     }
 
@@ -820,9 +824,9 @@ Item {
             QuickTile {
                 glyphName: "coffee"
                 title: "Caffeine"
-                subtitle: Theme.caffeineActif ? "Veille bloquée" : "Inactif"
-                active: Theme.caffeineActif
-                onToggled: Theme.caffeineActif = !Theme.caffeineActif
+                subtitle: SystemServices.caffeineActif ? "Veille bloquée" : "Inactif"
+                active: SystemServices.caffeineActif
+                onToggled: SystemServices.caffeineActif = !SystemServices.caffeineActif
             }
 
             // Tuile 8 : Profil de performance

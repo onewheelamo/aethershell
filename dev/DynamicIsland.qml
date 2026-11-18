@@ -611,7 +611,7 @@ Item {
 
         const catalog = [
             { name: "as dnd", desc: Theme.doNotDisturb ? "Désactiver Ne Pas Déranger" : "Activer Ne Pas Déranger", icon: Theme.doNotDisturb ? "bell" : "bell-off", kind: "as", asAction: "dnd" },
-            { name: "as caffeine", desc: Theme.caffeineActif ? "Désactiver Caffeine" : "Activer Caffeine (empêche la veille)", icon: "coffee", kind: "as", asAction: "caffeine" },
+            { name: "as caffeine", desc: SystemServices.caffeineActif ? "Désactiver Caffeine" : "Activer Caffeine (empêche la veille)", icon: "coffee", kind: "as", asAction: "caffeine" },
             { name: "as nuit", desc: "Basculer le mode nuit (ou « as nuit 3500 »)", icon: "weather-night", kind: "as", asAction: "nuit" },
             { name: "as theme", desc: "Choisir un jeu de couleurs (ou « as theme <nom> »)", icon: "palette", kind: "as", asAction: "theme_picker" },
             { name: "as fond", desc: "Ouvrir le sélecteur de fond d'écran", icon: "image", kind: "as", asAction: "fond" },
@@ -650,7 +650,7 @@ Item {
             Theme.doNotDisturb = !Theme.doNotDisturb
             Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"])
         } else if (act === "caffeine") {
-            Theme.caffeineActif = !Theme.caffeineActif
+            SystemServices.caffeineActif = !SystemServices.caffeineActif
         } else if (act === "nuit") {
             Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "basculer"])
         } else if (act === "nuit_temp") {
@@ -1104,7 +1104,7 @@ Item {
             expanded = true
             pretGrabMeteo = false
             delaiGrabMeteo.restart()
-            Theme.rafraichirMeteo(false)
+            SystemServices.rafraichirMeteo(false)
             meteoContainer.forceActiveFocus()
         } else {
             delaiGrabMeteo.stop()
@@ -1863,8 +1863,8 @@ Item {
         visible: opacity > 0.05
         Behavior on opacity { NumberAnimation { duration: root.fadeDuration; easing.type: Easing.OutCubic } }
 
-        readonly property var meteo: Theme.meteoData
-        readonly property bool ok: Theme.meteoLoaded && meteo && meteo.ok === true
+        readonly property var meteo: SystemServices.meteoData
+        readonly property bool ok: SystemServices.meteoLoaded && meteo && meteo.ok === true
         readonly property var previsions: (meteo && meteo.previsions) ? meteo.previsions.slice(1, 6) : []
 
         function meteoNombre(v, suffixe) {
@@ -1923,7 +1923,7 @@ Item {
                         width: parent.width
                         text: meteoContainer.ok
                             ? String(meteoContainer.meteo.label || "")
-                            : (Theme.meteoStatut !== "" ? Theme.meteoStatut : "Chargement…")
+                            : (SystemServices.meteoStatut !== "" ? SystemServices.meteoStatut : "Chargement…")
                         color: Theme.fg
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textSm
@@ -1956,7 +1956,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Theme.rafraichirMeteo(true)
+                        onClicked: SystemServices.rafraichirMeteo(true)
                     }
                 }
 

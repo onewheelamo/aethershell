@@ -324,29 +324,11 @@ CollapsibleSection {
                 font.pixelSize: Theme.textSm
             }
 
-            Rectangle {
+            ConfigSwitch {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: 44
-                height: 22
-                radius: 11
-                color: root.dndActif ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
-
-                Rectangle {
-                    width: 18
-                    height: 18
-                    radius: 9
-                    y: 2
-                    x: root.dndActif ? parent.width - width - 2 : 2
-                    color: root.dndActif ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
-                    Behavior on x { NumberAnimation { duration: 130 } }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.reglerDnd(!root.dndActif)
-                }
+                checked: root.dndActif
+                onToggled: root.reglerDnd(!root.dndActif)
             }
         }
 
