@@ -1069,37 +1069,18 @@ CollapsibleSection {
     elide: Text.ElideRight
     }
 
-    Repeater {
-    model: [
-    { key: "haut-gauche", tip: "↖" },
-    { key: "haut-centre", tip: "↑" },
-    { key: "haut-droit",  tip: "↗" },
-    { key: "bas-gauche",  tip: "↙" },
-    { key: "bas-centre",  tip: "↓" },
-    { key: "bas-droit",   tip: "↘" }
-    ]
-
-    Rectangle {
-    required property var modelData
-    width: 30
-    height: 26
-    radius: Theme.globalRadius
-    color: root.launcherPosition === modelData.key ? Theme.accent : Theme.surfaceVariant
-    border.width: 1
-    border.color: Theme.accent
-
-    Text {
-    anchors.centerIn: parent
-    text: modelData.tip
-    color: root.launcherPosition === modelData.key ? Theme.bg : Theme.fg
-    font.pixelSize: Theme.textSm
-    }
-    MouseArea {
-    anchors.fill: parent
-    cursorShape: Qt.PointingHandCursor
-    onClicked: root.runConfigCmd(["style", "launcher_position", modelData.key])
-    }
-    }
+    ConfigSegmented {
+        itemHeight: 22
+        choices: [
+            { code: "haut-gauche", label: "↖" },
+            { code: "haut-centre", label: "↑" },
+            { code: "haut-droit",  label: "↗" },
+            { code: "bas-gauche",  label: "↙" },
+            { code: "bas-centre",  label: "↓" },
+            { code: "bas-droit",   label: "↘" }
+        ]
+        currentCode: root.launcherPosition
+        onSelected: function(code) { root.runConfigCmd(["style", "launcher_position", code]) }
     }
     }
 

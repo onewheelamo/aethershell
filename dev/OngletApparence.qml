@@ -791,38 +791,14 @@ onValueModified: newVal => root.runConfigCmd([
             font.bold: true
         }
 
-        Repeater {
-            model: [
-                { id: "solid", label: "Couleur unie" },
-                { id: "image", label: "Image" }
+        ConfigSegmented {
+            anchors.verticalCenter: parent.verticalCenter
+            choices: [
+                { code: "solid", label: "Couleur unie" },
+                { code: "image", label: "Image" }
             ]
-            delegate: Rectangle {
-                required property var modelData
-                readonly property bool actif: Theme.lockBgMode === modelData.id
-                width: lockModeLbl.implicitWidth + 20
-                height: 28
-                radius: Theme.globalRadius
-                color: actif ? Theme.accent : (lockModeMa.containsMouse ? Theme.surfaceVariant : Theme.bg)
-                border.color: actif ? Theme.accent : Theme.surfaceVariant
-                border.width: 1
-
-                Text {
-                    id: lockModeLbl
-                    anchors.centerIn: parent
-                    text: modelData.label
-                    color: actif ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: actif
-                }
-
-                MouseArea {
-                    id: lockModeMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "lock_bg_mode", modelData.id])
-                }
-            }
+            currentCode: Theme.lockBgMode
+            onSelected: function(code) { root.runConfigCmd(["style", "lock_bg_mode", code]) }
         }
     }
 
@@ -1255,31 +1231,13 @@ font.pixelSize: Theme.textSm
 elide: Text.ElideRight
         }
 
-        Rectangle {
-anchors.verticalCenter: parent.verticalCenter
-width: 160
-height: 26
-radius: Theme.globalRadius
-color: root.blurEnabled ? Theme.accent : Theme.surfaceVariant
-border.color: Theme.accent
-border.width: 1
-
-Text {
-    anchors.centerIn: parent
-    text: root.blurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
-    color: root.blurEnabled ? Theme.bg : Theme.fg
-    font.pixelSize: Theme.textXs
-    font.bold: true
-}
-
-MouseArea {
-    anchors.fill: parent
-    cursorShape: Qt.PointingHandCursor
-    onClicked: {
-        root.blurEnabled = !root.blurEnabled
-        root.runConfigCmd(["style", "blur_enabled", root.blurEnabled ? "true" : "false"])
-    }
-}
+        ConfigSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            checked: root.blurEnabled
+            onToggled: {
+                root.blurEnabled = !root.blurEnabled
+                root.runConfigCmd(["style", "blur_enabled", root.blurEnabled ? "true" : "false"])
+            }
         }
     }
 
@@ -1356,32 +1314,14 @@ Text {
     elide: Text.ElideRight
 }
 
-Rectangle {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 160
-    height: 26
-    radius: Theme.globalRadius
-    color: root.shellBlurEnabled ? Theme.accent : Theme.surfaceVariant
-    border.color: Theme.accent
-    border.width: 1
-
-    Text {
-        anchors.centerIn: parent
-        text: root.shellBlurEnabled ? "✓ Flou Actif" : "✕ Désactivé"
-        color: root.shellBlurEnabled ? Theme.bg : Theme.fg
-        font.pixelSize: Theme.textXs
-        font.bold: true
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            root.shellBlurEnabled = !root.shellBlurEnabled
-            root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
+        ConfigSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            checked: root.shellBlurEnabled
+            onToggled: {
+                root.shellBlurEnabled = !root.shellBlurEnabled
+                root.runConfigCmd(["style", "shell_blur_enabled", root.shellBlurEnabled ? "true" : "false"])
+            }
         }
-    }
-}
         }
 
         // 14. Seuil de transparence (ignore_alpha)
@@ -1433,32 +1373,14 @@ Text {
     elide: Text.ElideRight
 }
 
-Rectangle {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 160
-    height: 26
-    radius: Theme.globalRadius
-    color: root.shellBlurPopups ? Theme.accent : Theme.surfaceVariant
-    border.color: Theme.accent
-    border.width: 1
-
-    Text {
-        anchors.centerIn: parent
-        text: root.shellBlurPopups ? "✓ Flou Actif" : "✕ Désactivé"
-        color: root.shellBlurPopups ? Theme.bg : Theme.fg
-        font.pixelSize: Theme.textXs
-        font.bold: true
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            root.shellBlurPopups = !root.shellBlurPopups
-            root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
+        ConfigSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            checked: root.shellBlurPopups
+            onToggled: {
+                root.shellBlurPopups = !root.shellBlurPopups
+                root.runConfigCmd(["style", "shell_blur_popups", root.shellBlurPopups ? "true" : "false"])
+            }
         }
-    }
-}
         }
         // 16. Effet d'accordéon : un seul tiroir ouvert par onglet.
         Row {
@@ -1474,31 +1396,11 @@ Text {
     elide: Text.ElideRight
 }
 
-Rectangle {
-    anchors.verticalCenter: parent.verticalCenter
-    width: 160
-    height: 26
-    radius: Theme.globalRadius
-    color: Theme.panelAccordion ? Theme.accent : Theme.surfaceVariant
-    border.color: Theme.accent
-    border.width: 1
-
-    Text {
-        anchors.centerIn: parent
-        text: Theme.panelAccordion ? "✓ Actif" : "✕ Désactivé"
-        color: Theme.panelAccordion ? Theme.bg : Theme.fg
-        font.pixelSize: Theme.textXs
-        font.bold: true
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.runConfigCmd([
-            "style", "panel_accordion", Theme.panelAccordion ? "false" : "true"
-        ])
-    }
-}
+        ConfigSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            checked: Theme.panelAccordion
+            onToggled: root.runConfigCmd(["style", "panel_accordion", Theme.panelAccordion ? "false" : "true"])
+        }
 
 Text {
     anchors.verticalCenter: parent.verticalCenter

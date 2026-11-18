@@ -106,39 +106,15 @@ CollapsibleSection {
                 elide: Text.ElideRight
             }
 
-            Row {
-                spacing: 8
+            ConfigSegmented {
                 anchors.verticalCenter: parent.verticalCenter
-
-                Repeater {
-                    model: [
-                        { key: "classic", label: "Classique (3 îlots)" },
-                        { key: "island",  label: "Îlot dynamique" }
-                    ]
-
-                    Rectangle {
-                        width: 140
-                        height: 28
-                        radius: 6
-                        color: Theme.barStyle === modelData.key ? Theme.accent : Qt.alpha(Theme.surfaceVariant, 0.4)
-                        border.color: Theme.barStyle === modelData.key ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: modelData.label
-                            font.pixelSize: 11
-                            font.weight: Theme.barStyle === modelData.key ? Font.DemiBold : Font.Normal
-                            color: Theme.barStyle === modelData.key ? (Theme.activeTheme === "light" ? "#ffffff" : "#101010") : Theme.fg
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfigCmd(["style", "bar_style", modelData.key])
-                        }
-                    }
-                }
+                itemHeight: 24
+                choices: [
+                    { code: "classic", label: "Classique (3 îlots)" },
+                    { code: "island",  label: "Îlot dynamique" }
+                ]
+                currentCode: Theme.barStyle
+                onSelected: function(code) { root.runConfigCmd(["style", "bar_style", code]) }
             }
         }
 
