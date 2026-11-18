@@ -382,7 +382,7 @@ Column {
                 { id: "batterie",        label: "Batterie",            desc: "Niveau et charge (laptop)" },
                 { id: "minimise",        label: "Fenêtres minimisées", desc: "Icônes des fenêtres réduites" },
                 { id: "volume",          label: "Volume",              desc: "Sortie audio et muet" },
-                { id: "reseau",          label: "Réseau",              desc: "Wi-Fi et connexion" },
+                { id: "reseau",          label: "Wi-Fi / Réseau",      desc: "Wi-Fi et connexion" },
                 { id: "notifications",   label: "Notifications",       desc: "Cloche et compteur d'alertes" },
                 { id: "maj",             label: "Mises à jour",        desc: "Paquets en attente" },
                 { id: "todo",            label: "Tâches Todo",         desc: "Compteur de tâches ouvertes" },

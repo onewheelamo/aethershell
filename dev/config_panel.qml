@@ -123,7 +123,7 @@ Rectangle {
           tab: 2, section: "ilot_config", target: "secIlotConfig" },
         { label: "Indicateurs de la pilule (VPN, capture, Live Activity...)", words: "ilot indicateurs pilule vpn capture live activity media planka workspaces horloge",
           tab: 2, section: "ilot_indicateurs", target: "secIlotIndicateurs" },
-        { label: "Applets de l'îlot (systray, musique, nuit, usb...)", words: "ilot applets systray musique audio nuit batterie volume reseau usb repos etendu",
+        { label: "Applets de l'îlot (systray, musique, nuit, usb...)", words: "ilot applets systray musique audio nuit batterie volume reseau wifi usb repos etendu",
           tab: 2, section: "ilot_applets", target: "secIlotApplets" },
         { label: "Applets de la barre", words: "applets barre ilot ordre position echelle cloche volume reseau",
           tab: 1, section: "quickshell_applets", target: "secApplets" },
