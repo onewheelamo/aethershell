@@ -869,7 +869,11 @@ Item {
             return
         }
         if ((entry.action === "open" || entry.action === "open-url") && entry.arg) {
-            Quickshell.execDetached(["xdg-open", String(entry.arg)])
+            Quickshell.execDetached([
+                "sh", "-c",
+                'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- xdg-open "$1"; else exec setsid xdg-open "$1"; fi',
+                "_", String(entry.arg)
+            ])
             Theme.islandLauncherOpen = false
             return
         }
@@ -882,7 +886,11 @@ Item {
         const shell = entry.kind === "cmd"
             ? 'cd "$HOME" && ' + entry.exec
             : 'cd "$HOME" && exec ' + entry.exec
-        Quickshell.execDetached(["setsid", "sh", "-c", shell])
+        Quickshell.execDetached([
+            "sh", "-c",
+            'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- sh -c "$1"; else exec setsid sh -c "$1"; fi',
+            "_", shell
+        ])
         if (Theme.launchHistory && entry.name) {
             Quickshell.execDetached(["python3", Quickshell.shellPath("core/launch_history.py"), "add", String(entry.name), String(entry.exec), String(entry.icon || "")])
         }

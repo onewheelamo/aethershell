@@ -515,7 +515,11 @@ Item {
             return true
         case "open":
         case "open-url":
-            Quickshell.execDetached(["xdg-open", arg])
+            Quickshell.execDetached([
+                "sh", "-c",
+                'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- xdg-open "$1"; else exec setsid xdg-open "$1"; fi',
+                "_", arg
+            ])
             return true
         case "kill":
             Quickshell.execDetached(["kill", "-TERM", arg])
@@ -539,7 +543,11 @@ Item {
         const shell = entry.kind === "cmd"
                 ? "cd \"$HOME\" && " + entry.exec
                 : "cd \"$HOME\" && exec " + entry.exec
-        Quickshell.execDetached(["setsid", "sh", "-c", shell])
+        Quickshell.execDetached([
+            "sh", "-c",
+            'if command -v systemd-run >/dev/null 2>&1; then exec systemd-run --user --scope --quiet -- sh -c "$1"; else exec setsid sh -c "$1"; fi',
+            "_", shell
+        ])
         if (Theme.launchHistory && entry.exec) {
             Quickshell.execDetached(["python3",
                 Quickshell.shellPath("core/launch_history.py"),
