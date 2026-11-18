@@ -285,8 +285,8 @@ Item {
     readonly property bool isPopupOpen: Theme.activePopup !== ""
     readonly property bool panelOpen: Theme.islandPanelOpen
     readonly property bool notifToastActive: Theme.barStyle === "island"
-        && Theme.notifToastVisible
-        && Theme.notifToast !== null
+        && ShellState.notifToastVisible
+        && ShellState.notifToast !== null
         && !panelOpen
     readonly property bool meteoExpanded: Theme.barStyle === "island"
         && Theme.activePopup === "applet:meteo"
@@ -610,7 +610,7 @@ Item {
         }
 
         const catalog = [
-            { name: "as dnd", desc: Theme.doNotDisturb ? "Désactiver Ne Pas Déranger" : "Activer Ne Pas Déranger", icon: Theme.doNotDisturb ? "bell" : "bell-off", kind: "as", asAction: "dnd" },
+            { name: "as dnd", desc: ShellState.doNotDisturb ? "Désactiver Ne Pas Déranger" : "Activer Ne Pas Déranger", icon: ShellState.doNotDisturb ? "bell" : "bell-off", kind: "as", asAction: "dnd" },
             { name: "as caffeine", desc: SystemServices.caffeineActif ? "Désactiver Caffeine" : "Activer Caffeine (empêche la veille)", icon: "coffee", kind: "as", asAction: "caffeine" },
             { name: "as nuit", desc: "Basculer le mode nuit (ou « as nuit 3500 »)", icon: "weather-night", kind: "as", asAction: "nuit" },
             { name: "as theme", desc: "Choisir un jeu de couleurs (ou « as theme <nom> »)", icon: "palette", kind: "as", asAction: "theme_picker" },
@@ -647,8 +647,8 @@ Item {
         }
         Theme.islandLauncherOpen = false
         if (act === "dnd") {
-            Theme.doNotDisturb = !Theme.doNotDisturb
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"])
+            ShellState.doNotDisturb = !ShellState.doNotDisturb
+            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"])
         } else if (act === "caffeine") {
             SystemServices.caffeineActif = !SystemServices.caffeineActif
         } else if (act === "nuit") {
@@ -1663,7 +1663,7 @@ Item {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-                if (Theme.notifOps && Theme.notifOps.dismissToast) Theme.notifOps.dismissToast()
+                if (ShellState.notifOps && ShellState.notifOps.dismissToast) ShellState.notifOps.dismissToast()
                 root.ouvrirPanneau(1)
             }
         }
@@ -1690,7 +1690,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: Theme.notifToast ? String(Theme.notifToast.appName || "Système") : ""
+                    text: ShellState.notifToast ? String(ShellState.notifToast.appName || "Système") : ""
                     color: Theme.accent
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textXs
@@ -1699,7 +1699,7 @@ Item {
                 }
 
                 Text {
-                    text: Theme.notifToast ? String(Theme.notifToast.time || "") : ""
+                    text: ShellState.notifToast ? String(ShellState.notifToast.time || "") : ""
                     color: Qt.alpha(Theme.fg, 0.5)
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textXs
@@ -1722,7 +1722,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (Theme.notifOps && Theme.notifOps.quietToast) Theme.notifOps.quietToast()
+                            if (ShellState.notifOps && ShellState.notifOps.quietToast) ShellState.notifOps.quietToast()
                         }
                     }
                 }
@@ -1744,7 +1744,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (Theme.notifOps && Theme.notifOps.dismissToast) Theme.notifOps.dismissToast()
+                            if (ShellState.notifOps && ShellState.notifOps.dismissToast) ShellState.notifOps.dismissToast()
                         }
                     }
                 }
@@ -1758,7 +1758,7 @@ Item {
                 Text {
                     id: islandToastTitle
                     width: parent.width
-                    text: Theme.notifToast ? String(Theme.notifToast.summary || "") : ""
+                    text: ShellState.notifToast ? String(ShellState.notifToast.summary || "") : ""
                     color: (islandToastTitleMa.containsMouse && islandToastTitleMa.enabled)
                         ? Theme.accent : Theme.fg
                     font.family: Theme.fontUi
@@ -1773,12 +1773,12 @@ Item {
                 MouseArea {
                     id: islandToastTitleMa
                     anchors.fill: parent
-                    enabled: Boolean(Theme.notifToast && Theme.notifOps && Theme.notifOps.hasTarget && Theme.notifOps.hasTarget(Theme.notifToast))
+                    enabled: Boolean(ShellState.notifToast && ShellState.notifOps && ShellState.notifOps.hasTarget && ShellState.notifOps.hasTarget(ShellState.notifToast))
                     hoverEnabled: true
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
-                        if (Theme.notifToast && Theme.notifOps && Theme.notifOps.open) {
-                            Theme.notifOps.open(Theme.notifToast, false)
+                        if (ShellState.notifToast && ShellState.notifOps && ShellState.notifOps.open) {
+                            ShellState.notifOps.open(ShellState.notifToast, false)
                         }
                     }
                 }
@@ -1786,9 +1786,9 @@ Item {
 
             // Corps du message
             Text {
-                visible: Boolean(Theme.notifToast && Theme.notifToast.body && Theme.notifToast.body !== "")
+                visible: Boolean(ShellState.notifToast && ShellState.notifToast.body && ShellState.notifToast.body !== "")
                 width: parent.width
-                text: Theme.notifToast ? String(Theme.notifToast.body || "") : ""
+                text: ShellState.notifToast ? String(ShellState.notifToast.body || "") : ""
                 color: Qt.alpha(Theme.fg, 0.85)
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
@@ -1800,12 +1800,12 @@ Item {
             // Boutons d'actions D-Bus de la notification
             Flow {
                 width: parent.width
-                visible: Boolean(Theme.notifToast && Theme.notifOps && Theme.notifOps.actions && Theme.notifOps.actions(Theme.notifToast).length > 0)
+                visible: Boolean(ShellState.notifToast && ShellState.notifOps && ShellState.notifOps.actions && ShellState.notifOps.actions(ShellState.notifToast).length > 0)
                 spacing: Theme.space1
 
                 Repeater {
-                    model: (Theme.notifToast && Theme.notifOps && Theme.notifOps.actions)
-                        ? Theme.notifOps.actions(Theme.notifToast) : []
+                    model: (ShellState.notifToast && ShellState.notifOps && ShellState.notifOps.actions)
+                        ? ShellState.notifOps.actions(ShellState.notifToast) : []
 
                     Rectangle {
                         required property var modelData
@@ -1838,9 +1838,9 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (Theme.notifToast && Theme.notifOps && Theme.notifOps.invoke) {
-                                    Theme.notifOps.invoke(Theme.notifToast, modelData.identifier)
-                                    if (Theme.notifOps.dismissToast) Theme.notifOps.dismissToast()
+                                if (ShellState.notifToast && ShellState.notifOps && ShellState.notifOps.invoke) {
+                                    ShellState.notifOps.invoke(ShellState.notifToast, modelData.identifier)
+                                    if (ShellState.notifOps.dismissToast) ShellState.notifOps.dismissToast()
                                 }
                             }
                         }

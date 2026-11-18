@@ -4,7 +4,7 @@ import Quickshell
 // ════════════════════════════════════════════════════════════════════════════
 // ÎLOT DROIT — conteneur des applets de fin de barre et bouton tablette.
 // ════════════════════════════════════════════════════════════════════════════
-// Le serveur de notifications, les toasts et `Theme.notifOps` vivent désormais
+// Le serveur de notifications, les toasts et `ShellState.notifOps` vivent désormais
 // dans `NotifService.qml` afin de rester actifs en mode `island`.
 // ════════════════════════════════════════════════════════════════════════════
 

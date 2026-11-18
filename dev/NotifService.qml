@@ -7,8 +7,8 @@ import Quickshell.Services.Notifications
 // SERVICE DE NOTIFICATIONS — serveur D-Bus, historique, cibles et toasts.
 // ════════════════════════════════════════════════════════════════════════════
 // Séparé de `island_right.qml` afin de rester actif quel que soit le style de
-// barre (`classic` ou `island`). Alimente `Theme.notifCount`, `Theme.notifList`,
-// `Theme.notifArchive`, `Theme.notifOps` et les crochets IPC de diagnostic.
+// barre (`classic` ou `island`). Alimente `ShellState.notifCount`, `ShellState.notifList`,
+// `ShellState.notifArchive`, `ShellState.notifOps` et les crochets IPC de diagnostic.
 // ════════════════════════════════════════════════════════════════════════════
 Item {
     id: service
@@ -22,18 +22,18 @@ Item {
     property var latestToast: null
 
     onNotificationsListChanged: {
-        Theme.notifCount = notificationsList.length
-        Theme.notifList = notificationsList
+        ShellState.notifCount = notificationsList.length
+        ShellState.notifList = notificationsList
     }
 
     readonly property bool toastVisible: latestToast !== null
         && Theme.activePopup === ""
-        && !Theme.notifHistoryVisible
+        && !ShellState.notifHistoryVisible
         && !Theme.islandPanelOpen
-        && Theme.quietNotifApps.indexOf(latestToast ? latestToast.appName : "") < 0
+        && ShellState.quietNotifApps.indexOf(latestToast ? latestToast.appName : "") < 0
 
-    onLatestToastChanged: Theme.notifToast = latestToast
-    onToastVisibleChanged: Theme.notifToastVisible = toastVisible
+    onLatestToastChanged: ShellState.notifToast = latestToast
+    onToastVisibleChanged: ShellState.notifToastVisible = toastVisible
 
     function clampPopupX(item, relX, popupW) {
         const win = item ? item.QsWindow.window : null
@@ -44,7 +44,7 @@ Item {
     }
 
     function isQuietApp(appName) {
-        return Boolean(appName && Theme.quietNotifApps.indexOf(appName) >= 0)
+        return Boolean(appName && ShellState.quietNotifApps.indexOf(appName) >= 0)
     }
 
     function pruneQuietNotifs() {
@@ -112,7 +112,7 @@ Item {
                 try { all[i].raw.tracked = false } catch (e) {}
             }
             service.notificationsList = all.slice(0, 30)
-            if (!Theme.doNotDisturb) {
+            if (!ShellState.doNotDisturb) {
                 service.latestToast = entry
                 if (toastTimer.running) toastTimer.restart()
                 toastPeremption.restart()
@@ -154,14 +154,14 @@ Item {
             } catch (err) {}
         }
         service.notifArchive = out
-        Theme.notifArchive = out
+        ShellState.notifArchive = out
     }
 
     Timer {
         id: toastTimer
         interval: 4500
         repeat: false
-        running: service.toastVisible && !Theme.notifToastHovered
+        running: service.toastVisible && !ShellState.notifToastHovered
         onTriggered: service.latestToast = null
     }
 
@@ -403,7 +403,7 @@ Item {
     property Process quietNotifProc: Process {}
 
     Component.onCompleted: {
-        Theme.notifOps = ({
+        ShellState.notifOps = ({
             clear: function () { service.clearNotifications() },
             forget: function (e) { service.forgetNotif(e) },
             open: function (e, fermer) { service.openNotifTarget(e, fermer) },
@@ -415,7 +415,7 @@ Item {
             quietToast: function () { service.quietToastSource() }
         })
 
-        Theme.notifTargetsHook = function() {
+        ShellState.notifTargetsHook = function() {
             const out = []
             const list = service.notificationsList
             for (let i = 0; i < list.length; i++) {
@@ -432,18 +432,18 @@ Item {
             }
             return JSON.stringify(out)
         }
-        Theme.notifClearHook = function() {
+        ShellState.notifClearHook = function() {
             service.clearNotifications()
             return true
         }
-        Theme.notifOpenHook = function() {
+        ShellState.notifOpenHook = function() {
             const list = service.notificationsList
             for (let i = 0; i < list.length; i++)
                 if (service.notifHasTarget(list[i]))
                     return service.openNotifTarget(list[i], true)
             return false
         }
-        Theme.notifInvokeHook = function(actionId) {
+        ShellState.notifInvokeHook = function(actionId) {
             const list = service.notificationsList
             for (let i = 0; i < list.length; i++) {
                 const acts = service.notifActions(list[i])

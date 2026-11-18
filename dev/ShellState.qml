@@ -28,6 +28,24 @@ QtObject {
     property var captureHook: null
 
     // ──────────────────────────────────────────────────────────────────────────
+    // NOTIFICATIONS (état partagé + crochets IPC)
+    // ──────────────────────────────────────────────────────────────────────────
+    property int notifCount: 0
+    property var quietNotifApps: []
+    property bool doNotDisturb: false
+    property var notifList: []
+    property var notifArchive: []
+    property var notifOps: ({})
+    property var notifToast: null
+    property bool notifToastVisible: false
+    property bool notifToastHovered: false
+    property bool notifHistoryVisible: false
+    property var notifTargetsHook: null
+    property var notifOpenHook: null
+    property var notifClearHook: null
+    property var notifInvokeHook: null
+
+    // ──────────────────────────────────────────────────────────────────────────
     // FOND D'ÉCRAN COURANT PARTAGÉ (awww query)
     // ──────────────────────────────────────────────────────────────────────────
     property string wallpaperCourant: ""
@@ -255,7 +273,7 @@ QtObject {
         }
         if (!found) return false
         root.activeContext = found.id
-        Theme.doNotDisturb = found.dnd
+        root.doNotDisturb = found.dnd
         SystemServices.caffeineActif = found.caffeine
         Theme.widgetsBureauVisibles = found.widgets
         Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", found.dnd ? "true" : "false"])
@@ -698,28 +716,28 @@ QtObject {
                 root.captureHook(mode)
         }
         function notifTargets(): string {
-            return Theme.notifTargetsHook ? String(Theme.notifTargetsHook()) : "[]"
+            return root.notifTargetsHook ? String(root.notifTargetsHook()) : "[]"
         }
         function notifOpenLatest(): bool {
-            return Theme.notifOpenHook ? Boolean(Theme.notifOpenHook()) : false
+            return root.notifOpenHook ? Boolean(root.notifOpenHook()) : false
         }
         function notifClear(): bool {
-            return Theme.notifClearHook ? Boolean(Theme.notifClearHook()) : false
+            return root.notifClearHook ? Boolean(root.notifClearHook()) : false
         }
         function notifInvoke(actionId: string): bool {
-            return Theme.notifInvokeHook ? Boolean(Theme.notifInvokeHook(actionId)) : false
+            return root.notifInvokeHook ? Boolean(root.notifInvokeHook(actionId)) : false
         }
         function toggleNotifHistory() {
-            Theme.notifHistoryVisible = !Theme.notifHistoryVisible
+            root.notifHistoryVisible = !root.notifHistoryVisible
         }
         function showNotifHistory() {
-            Theme.notifHistoryVisible = true
+            root.notifHistoryVisible = true
         }
         function hideNotifHistory() {
-            Theme.notifHistoryVisible = false
+            root.notifHistoryVisible = false
         }
         function notifHistoryState(): bool {
-            return Theme.notifHistoryVisible
+            return root.notifHistoryVisible
         }
         function minimiser(): bool {
             return root.minimiserFenetre("")

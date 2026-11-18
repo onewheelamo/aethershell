@@ -718,17 +718,17 @@ Item {
             }
 
             QuickTile {
-                glyphName: Theme.doNotDisturb ? "bell-off" : "bell"
+                glyphName: ShellState.doNotDisturb ? "bell-off" : "bell"
                 title: "Ne pas déranger"
-                subtitle: Theme.doNotDisturb
+                subtitle: ShellState.doNotDisturb
                     ? "Silencieux"
-                    : ("Désactivé (" + Theme.notifCount + " alerte" + (Theme.notifCount > 1 ? "s" : "") + ")")
-                active: Theme.doNotDisturb
+                    : ("Désactivé (" + ShellState.notifCount + " alerte" + (ShellState.notifCount > 1 ? "s" : "") + ")")
+                active: ShellState.doNotDisturb
                 hasChevron: true
                 onToggled: {
-                    Theme.doNotDisturb = !Theme.doNotDisturb
+                    ShellState.doNotDisturb = !ShellState.doNotDisturb
                     dndBridge.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
-                                         "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"]
+                                         "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"]
                     dndBridge.running = true
                 }
                 onChevronClicked: Theme.islandPanelTab = 1

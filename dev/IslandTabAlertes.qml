@@ -47,7 +47,7 @@ Item {
                         if (!items[i].fait && !items[i].done) open.push(items[i])
                     }
                     root.todoOpenCount = open.length
-                    root.todoItems = open.slice(0, Theme.notifCount === 0 ? 5 : 3)
+                    root.todoItems = open.slice(0, ShellState.notifCount === 0 ? 5 : 3)
                 } catch (e) {
                     root.todoItems = []
                 }
@@ -126,9 +126,9 @@ Item {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: dndLbl.implicitWidth + 14
                 radius: 7
-                color: Theme.doNotDisturb ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
+                color: ShellState.doNotDisturb ? Qt.alpha(Theme.accent, 0.25) : Qt.alpha(Theme.fg, 0.08)
                 border.width: 1
-                border.color: Theme.doNotDisturb ? Theme.accent : "transparent"
+                border.color: ShellState.doNotDisturb ? Theme.accent : "transparent"
 
                 Row {
                     id: dndLbl
@@ -137,17 +137,17 @@ Item {
 
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
-                        glyph: Theme.doNotDisturb ? "bell-off" : "bell"
+                        glyph: ShellState.doNotDisturb ? "bell-off" : "bell"
                         size: 12
-                        color: Theme.doNotDisturb ? Theme.accent : Theme.fg
+                        color: ShellState.doNotDisturb ? Theme.accent : Theme.fg
                     }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: Theme.doNotDisturb ? "N.P.D. ON" : "N.P.D."
+                        text: ShellState.doNotDisturb ? "N.P.D. ON" : "N.P.D."
                         font.family: Theme.fontUi
                         font.pixelSize: Theme.textXs
-                        color: Theme.doNotDisturb ? Theme.accent : Theme.fg
+                        color: ShellState.doNotDisturb ? Theme.accent : Theme.fg
                     }
                 }
 
@@ -155,9 +155,9 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        Theme.doNotDisturb = !Theme.doNotDisturb
+                        ShellState.doNotDisturb = !ShellState.doNotDisturb
                         dndBridge.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
-                                             "style", "do_not_disturb", Theme.doNotDisturb ? "true" : "false"]
+                                             "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"]
                         dndBridge.running = true
                     }
                 }
@@ -167,8 +167,8 @@ Item {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: clearLbl.implicitWidth + 14
                 radius: 7
-                color: Theme.notifCount > 0 ? Qt.alpha(Theme.error, 0.18) : Qt.alpha(Theme.fg, 0.05)
-                opacity: Theme.notifCount > 0 ? 1.0 : 0.45
+                color: ShellState.notifCount > 0 ? Qt.alpha(Theme.error, 0.18) : Qt.alpha(Theme.fg, 0.05)
+                opacity: ShellState.notifCount > 0 ? 1.0 : 0.45
 
                 Text {
                     id: clearLbl
@@ -176,15 +176,15 @@ Item {
                     text: "Tout effacer"
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textXs
-                    color: Theme.notifCount > 0 ? Theme.error : Theme.fg
+                    color: ShellState.notifCount > 0 ? Theme.error : Theme.fg
                 }
 
                 MouseArea {
                     anchors.fill: parent
-                    enabled: Theme.notifCount > 0
+                    enabled: ShellState.notifCount > 0
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (Theme.notifOps && Theme.notifOps.clear) Theme.notifOps.clear()
+                        if (ShellState.notifOps && ShellState.notifOps.clear) ShellState.notifOps.clear()
                     }
                 }
             }
@@ -202,7 +202,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "NOTIFICATIONS ACTIVES (" + Theme.notifCount + ")"
+                text: "NOTIFICATIONS ACTIVES (" + ShellState.notifCount + ")"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 font.weight: Font.Bold
@@ -221,7 +221,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         Theme.islandPanelOpen = false
-                        Theme.notifHistoryVisible = true
+                        ShellState.notifHistoryVisible = true
                     }
                 }
             }
@@ -230,7 +230,7 @@ Item {
         // Liste Notifications
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.notifCount === 0 ? 40 : 112
+            Layout.preferredHeight: ShellState.notifCount === 0 ? 40 : 112
             clip: true
             radius: Math.max(10, Math.round(Theme.pillRadius * 0.65))
             color: Qt.alpha(Theme.surfaceVariant, 0.25)
@@ -238,7 +238,7 @@ Item {
             border.color: Qt.alpha(Theme.fg, 0.07)
 
             Text {
-                visible: Theme.notifCount === 0
+                visible: ShellState.notifCount === 0
                 anchors.centerIn: parent
                 text: "Aucune notification récente"
                 font.family: Theme.fontUi
@@ -247,7 +247,7 @@ Item {
             }
 
             Flickable {
-                visible: Theme.notifCount > 0
+                visible: ShellState.notifCount > 0
                 anchors.fill: parent
                 anchors.margins: 6
                 contentHeight: notifCol.implicitHeight
@@ -259,7 +259,7 @@ Item {
                     spacing: 6
 
                     Repeater {
-                        model: Theme.notifList || []
+                        model: ShellState.notifList || []
                         delegate: Rectangle {
                             required property var modelData
                             Layout.fillWidth: true
@@ -316,8 +316,8 @@ Item {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            if (Theme.notifOps && Theme.notifOps.forget) {
-                                                Theme.notifOps.forget(modelData)
+                                            if (ShellState.notifOps && ShellState.notifOps.forget) {
+                                                ShellState.notifOps.forget(modelData)
                                             }
                                         }
                                     }
@@ -331,8 +331,8 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    if (Theme.notifOps && Theme.notifOps.open) {
-                                        Theme.notifOps.open(modelData, function() { Theme.islandPanelOpen = false })
+                                    if (ShellState.notifOps && ShellState.notifOps.open) {
+                                        ShellState.notifOps.open(modelData, function() { Theme.islandPanelOpen = false })
                                     }
                                 }
                             }

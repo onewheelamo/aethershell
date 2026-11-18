@@ -978,7 +978,7 @@ Item {
     // ────────────────────────────────────────────────────────────────────────
     NotifHistory {
         id: notifHistoryDrawer
-        onCloseRequested: Theme.notifHistoryVisible = false
+        onCloseRequested: ShellState.notifHistoryVisible = false
     }
 
     // ────────────────────────────────────────────────────────────────────────

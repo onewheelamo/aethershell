@@ -220,7 +220,7 @@ Item {
                 }
 
                 Text {
-                    text: Theme.notifCount + " alerte" + (Theme.notifCount > 1 ? "s" : "") + (Theme.doNotDisturb ? " · N.P.D." : "")
+                    text: ShellState.notifCount + " alerte" + (ShellState.notifCount > 1 ? "s" : "") + (ShellState.doNotDisturb ? " · N.P.D." : "")
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.textXs
                     color: Qt.alpha(Theme.fg, 0.65)

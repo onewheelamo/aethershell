@@ -396,19 +396,8 @@ QtObject {
     onSpotlightVisibleChanged: {
         if (spotlightVisible) spotlightOpenedAt = Date.now()
     }
-    // Compte des notifications en cours : publié par l'îlot droit (qui possède
-    // le serveur) pour que l'applet de la cloche puisse l'afficher.
-    property int notifCount: 0
-    // Clés des panneaux : celles des îlots ("calendar", "media", "notifications")
-    // et celles des applets ("applet:<id>", rendues par le composant lui-même).
     property string activePopup: ""
-    // Clic milieu sur un applet : nom de la section du panneau à déplier.
-    // Consommé (et remis à vide) par config_panel.qml à l'ouverture.
     property string configTarget: ""
-
-    // Applications dont les notifications n'apparaissent pas en toast (elles vont
-    // directement au centre). Alimentée par core/style_vars.json.
-    property var quietNotifApps: []
 
     function toggleLiveActivity() {
         if (root.barStyle !== "island") return
@@ -420,19 +409,6 @@ QtObject {
         root.islandNotesOpen = false
         root.islandLiveActivityOpen = !root.islandLiveActivityOpen
     }
-    // « Ne pas déranger » : les notifications continuent d'arriver dans
-    // l'historique, mais aucun toast ne s'affiche. Réglé depuis le centre de
-    // notifications, mémorisé dans style_vars.json (do_not_disturb).
-    property bool doNotDisturb: false
-    // Pont vers le centre de notifications : l'îlot droit possède le serveur, la
-    // liste et les actions ; l'applet possède le panneau (pour s'ancrer à la
-    // cloche). Ces trois propriétés sont la seule surface d'échange.
-    property var notifList: []
-    property var notifArchive: []
-    property var notifOps: ({})
-    property var notifToast: null
-    property bool notifToastVisible: false
-    property bool notifToastHovered: false
 
     // Ouvre le panneau de configuration sur une section précise. Le clic milieu
     // d'un applet passe par ici (`Theme.openConfigSection`), comme l'IPC : une
@@ -652,8 +628,8 @@ QtObject {
         if (typeof data.lock_bg_mode === "string") root.lockBgMode = data.lock_bg_mode
         if (typeof data.lock_bg_color === "string") root.lockBgColor = data.lock_bg_color
         if (typeof data.lock_bg_image === "string") root.lockBgImage = data.lock_bg_image
-        if (Array.isArray(data.quiet_notif_apps)) root.quietNotifApps = data.quiet_notif_apps
-        if (typeof data.do_not_disturb === "boolean") root.doNotDisturb = data.do_not_disturb
+        if (Array.isArray(data.quiet_notif_apps)) ShellState.quietNotifApps = data.quiet_notif_apps
+        if (typeof data.do_not_disturb === "boolean") ShellState.doNotDisturb = data.do_not_disturb
         if (typeof data.launch_history === "boolean") root.launchHistory = data.launch_history
         if (typeof data.ilot_projets_actif === "boolean") root.ilotProjetsActif = data.ilot_projets_actif
         if (data.ilot_show_vpn !== undefined) root.ilotShowVpn = root.normIlotMode(data.ilot_show_vpn, "both")
@@ -770,19 +746,5 @@ QtObject {
             }
         }
     }
-
-    // Tiroir de l'historique des notifications (surface `shell-notif-history`),
-    // indépendant du panneau de notifications et de son toast.
-    property bool notifHistoryVisible: false
-
-    // Crochets de diagnostic des notifications, branchés par island_right :
-    //   quickshell ipc call shell notifTargets     → JSON des cibles résolues
-    //   quickshell ipc call shell notifOpenLatest  → ouvre la cible la plus récente
-    property var notifTargetsHook: null
-    property var notifOpenHook: null
-    //   quickshell ipc call shell notifClear        → vide le centre (pas l'historique)
-    property var notifClearHook: null
-    //   quickshell ipc call shell notifInvoke <actionId> → invoque l'action de la notification la plus récente
-    property var notifInvokeHook: null
 
 }

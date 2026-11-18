@@ -9,7 +9,7 @@ import "."
 // Le centre de notifications (serveur, toasts, historique, actions) reste dans
 // l'îlot droit : c'est un service, pas un élément de barre. L'applet n'est que
 // le bouton — elle ouvre la même clé `notifications`, que le panneau écoute.
-// Le compteur lui est passé par `Theme.notifCount`, pont posé par l'îlot qui
+// Le compteur lui est passé par `ShellState.notifCount`, pont posé par l'îlot qui
 // possède la liste : un applet ne peut pas lire les identifiants d'un autre
 // fichier.
 Item {
@@ -35,13 +35,13 @@ Item {
     property var notifications: []
 
     // Le pont d'actions est posé par l'ilot droit à son achèvement : tant qu'il
-    // ne l'est pas, appeler Theme.notifOps.actions lèverait un TypeError et
+    // ne l'est pas, appeler ShellState.notifOps.actions lèverait un TypeError et
     // casserait tout le panneau. Ces enveloppes rendent le pont facultatif.
-    function actionsDe(e) { return (Theme.notifOps && Theme.notifOps.actions) ? Theme.notifOps.actions(e) : [] }
-    function aCible(e) { return (Theme.notifOps && Theme.notifOps.hasTarget) ? Theme.notifOps.hasTarget(e) : false }
+    function actionsDe(e) { return (ShellState.notifOps && ShellState.notifOps.actions) ? ShellState.notifOps.actions(e) : [] }
+    function aCible(e) { return (ShellState.notifOps && ShellState.notifOps.hasTarget) ? ShellState.notifOps.hasTarget(e) : false }
     function oublier(e) {
         if (!e) return
-        if (Theme.notifOps && Theme.notifOps.forget) Theme.notifOps.forget(e)
+        if (ShellState.notifOps && ShellState.notifOps.forget) ShellState.notifOps.forget(e)
         // Et dans l'historique : sinon le centre la ressert par son repli dès que
         // la liste vive se vide — ce qui est justement le cas après une relance du
         // shell. Mesuré : quatre clics sans effet, « absente de la liste vive ».
@@ -52,10 +52,10 @@ Item {
         root.archive = root.archive.filter(garde)
         root.notifications = root.notifications.filter(garde)
     }
-    function ouvrir(e, fermer) { if (Theme.notifOps && Theme.notifOps.open) Theme.notifOps.open(e, fermer) }
-    function invoquer(e, ident) { if (Theme.notifOps && Theme.notifOps.invoke) Theme.notifOps.invoke(e, ident) }
+    function ouvrir(e, fermer) { if (ShellState.notifOps && ShellState.notifOps.open) ShellState.notifOps.open(e, fermer) }
+    function invoquer(e, ident) { if (ShellState.notifOps && ShellState.notifOps.invoke) ShellState.notifOps.invoke(e, ident) }
     function toutEffacer() {
-        if (Theme.notifOps && Theme.notifOps.clear) Theme.notifOps.clear()
+        if (ShellState.notifOps && ShellState.notifOps.clear) ShellState.notifOps.clear()
         // « Tout effacer » vide aussi le fichier : sans ça, les cartes reviennent
         // par le repli dès que la liste vive est vide, et le bouton semble n'avoir
         // rien fait.
@@ -64,7 +64,7 @@ Item {
         root.archive = []
         root.notifications = []
     }
-    function rendreMuet(nom, muet) { if (Theme.notifOps && Theme.notifOps.setQuiet) Theme.notifOps.setQuiet(nom, muet) }
+    function rendreMuet(nom, muet) { if (ShellState.notifOps && ShellState.notifOps.setQuiet) ShellState.notifOps.setQuiet(nom, muet) }
 
     // Retrait d'une entrée de l'historique (fichier). Le centre affiche ce fichier
     // en repli quand la liste vive est vide — après une relance du shell — et ces
@@ -77,7 +77,7 @@ Item {
     }
 
     function majListe() {
-        const vive = Theme.notifList || []
+        const vive = ShellState.notifList || []
         root.notifications = vive.length > 0 ? vive : root.archive
     }
 
@@ -151,7 +151,7 @@ Item {
         windows: Theme.fenetresGrab(notificationsPopup, root)
         onCleared: if (root.ouvert) Theme.activePopup = ""
     }
-    readonly property int compte: Theme.notifCount
+    readonly property int compte: ShellState.notifCount
 
     implicitWidth: rangee.implicitWidth + Math.round(10 * echelle)
     implicitHeight: Math.max(22, Math.round(26 * echelle))
@@ -175,7 +175,7 @@ Item {
                 // Cloche barrée uniquement en « Ne pas déranger » : avant, elle
                 // l'était dès qu'il n'y avait aucune notification, ce qui
                 // laissait croire à un mode silencieux permanent.
-                glyph: Theme.doNotDisturb ? "bell-off" : "bell"
+                glyph: ShellState.doNotDisturb ? "bell-off" : "bell"
                 size: root.tailleIcone
                 color: root.ouvert ? Theme.bg : (root.compte > 0 ? Theme.warn : Theme.fg)
             }
@@ -265,8 +265,8 @@ Item {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            visible: Theme.notifList.length > 0
-                            text: Theme.notifList.length
+                            visible: ShellState.notifList.length > 0
+                            text: ShellState.notifList.length
                             color: Theme.accent
                             font.pixelSize: Theme.textXs
                             font.bold: true
@@ -295,10 +295,10 @@ Item {
                                 anchors.centerIn: parent
                                 glyph: "bell-off"
                                 size: 12
-                                color: Theme.doNotDisturb
+                                color: ShellState.doNotDisturb
                                        ? Theme.accent
                                        : (dndMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.5))
-                                opacityLevel: Theme.doNotDisturb ? 1 : 0.9
+                                opacityLevel: ShellState.doNotDisturb ? 1 : 0.9
 
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -310,7 +310,7 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    Theme.doNotDisturb = !Theme.doNotDisturb
+                                    ShellState.doNotDisturb = !ShellState.doNotDisturb
                                     dndBridge.running = true
                                 }
                             }
@@ -345,7 +345,7 @@ Item {
                                 // ici d'abord démaillait la surface du popup pendant le
                                 // clic, et le relâchement atterrissait sur le tiroir
                                 // plein écran — qui le prenait pour un clic extérieur.
-                                onClicked: Theme.notifHistoryVisible = true
+                                onClicked: ShellState.notifHistoryVisible = true
                             }
                         }
 
@@ -353,7 +353,7 @@ Item {
                         // Le rouge reste un signal, pas une décoration.
                         Item {
                             id: clearBtn
-                            visible: Theme.notifList.length > 0
+                            visible: ShellState.notifList.length > 0
                             width: clearText.implicitWidth + 12
                             height: 20
 
@@ -389,7 +389,7 @@ Item {
                         id: dndBridge
                         command: ["python3", Quickshell.shellPath("core/config_manager.py"),
                                   "style", "do_not_disturb",
-                                  Theme.doNotDisturb ? "true" : "false"]
+                                  ShellState.doNotDisturb ? "true" : "false"]
                     }
                 }
 
@@ -414,7 +414,7 @@ Item {
                         // État vide
                         Item {
                             // La liste affichée est `root.notifications` (vive, ou
-                            // repli sur l'historique) : tester `Theme.notifList`
+                            // repli sur l'historique) : tester `ShellState.notifList`
                             // affichait « Aucune notification » par-dessus des
                             // entrées pourtant présentes.
                             visible: root.notifications.length === 0
@@ -637,7 +637,7 @@ Item {
                     id: quietFooter
                     width: parent.width
                     height: visible ? quietCol.implicitHeight + 12 : 0
-                    visible: Theme.quietNotifApps.length > 0
+                    visible: ShellState.quietNotifApps.length > 0
 
                     Rectangle {
                         anchors.top: parent.top
@@ -676,7 +676,7 @@ Item {
                             spacing: 6
 
                             Repeater {
-                                model: Theme.quietNotifApps
+                                model: ShellState.quietNotifApps
 
                                 Rectangle {
                                     required property var modelData
