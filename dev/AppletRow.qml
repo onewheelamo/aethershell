@@ -3,7 +3,7 @@ import "."
 import Quickshell
 
 // RANGÉE D'APPLETS d'un îlot — résolue de manière instantanée et réactive
-// via Theme.appletsPourIle(ile) en JS pur, sans sous-processus Python.
+// via ShellState.appletsPourIle(ile) en JS pur, sans sous-processus Python.
 Item {
     id: root
     property string ile: "haut:fin"
@@ -13,7 +13,7 @@ Item {
     readonly property var applets: {
         if (root.directModel !== null) return root.directModel
         if (root.ile === "") return []
-        let list = Theme.appletsPourIle(root.ile)
+        let list = ShellState.appletsPourIle(root.ile)
         if (root.include && root.include.length > 0) {
             list = list.filter(function(a) { return root.include.indexOf(a.id) !== -1 })
         }

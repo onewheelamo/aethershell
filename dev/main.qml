@@ -48,7 +48,7 @@ Item {
     property real menuWidgetY: 0
     readonly property var menuWidget: {
         if (menuWidgetId === "") return ({})
-        const l = Theme.widgets || []
+        const l = ShellState.widgets || []
         for (let i = 0; i < l.length; ++i)
             if (String(l[i].id) === menuWidgetId) return l[i]
         return ({})
@@ -122,7 +122,7 @@ Item {
             // Un identifiant vide referme : c'est ce que fait l'IPC pour les tests,
             // et ça évite d'ajouter une seconde fonction au gestionnaire.
             if (String(id) === "") { root.menuWidgetId = ""; return }
-            const l = Theme.widgets || []
+            const l = ShellState.widgets || []
             for (let i = 0; i < l.length; ++i) {
                 if (String(l[i].id) !== String(id)) continue
                 root.menuWidgetX = Number(l[i].x) || 0
@@ -511,7 +511,7 @@ Item {
     PanelWindow {
         id: osdWindow
         screen: topBarWindow.screen
-        visible: (Theme.barStyle !== "island") && (Theme.osdVisible || osdBox.opacity > 0)
+        visible: (Theme.barStyle !== "island") && (ShellState.osdVisible || osdBox.opacity > 0)
         anchors {
             bottom: true
             left: true
@@ -537,7 +537,7 @@ Item {
             color: Theme.surfaceBg
             border.color: Theme.accent
             border.width: 1
-            opacity: Theme.osdVisible ? 1 : 0
+            opacity: ShellState.osdVisible ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 160 } }
 
             Row {
@@ -546,9 +546,9 @@ Item {
 
                 Icon {
                     anchors.verticalCenter: parent.verticalCenter
-                    glyph: Theme.osdKind === "brightness" ? "brightness"
-                        : Theme.osdKind === "mute" ? "volume-off"
-                        : (Theme.osdValue <= 0 ? "mute" : Theme.osdValue < 50 ? "volume-medium" : "volume-high")
+                    glyph: ShellState.osdKind === "brightness" ? "brightness"
+                        : ShellState.osdKind === "mute" ? "volume-off"
+                        : (ShellState.osdValue <= 0 ? "mute" : ShellState.osdValue < 50 ? "volume-medium" : "volume-high")
                     size: Theme.textXxl
                     color: Theme.accent
                 }
@@ -557,9 +557,9 @@ Item {
                     width: 200
                     spacing: 6
                     Text {
-                        text: Theme.osdKind === "brightness" ? "Luminosité"
-                            : Theme.osdKind === "mute" ? "Micro coupé"
-                            : (Theme.osdValue <= 0 ? "Volume coupé" : "Volume")
+                        text: ShellState.osdKind === "brightness" ? "Luminosité"
+                            : ShellState.osdKind === "mute" ? "Micro coupé"
+                            : (ShellState.osdValue <= 0 ? "Volume coupé" : "Volume")
                         color: Theme.fg
                         font.pixelSize: Theme.textXs
                     }
@@ -569,7 +569,7 @@ Item {
                         radius: 1
                         color: Theme.surfaceVariant
                         Rectangle {
-                            width: parent.width * (Theme.osdValue / 100)
+                            width: parent.width * (ShellState.osdValue / 100)
                             height: parent.height
                             radius: 1
                             color: Theme.accent
@@ -579,7 +579,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Math.round(Theme.osdValue) + "%"
+                    text: Math.round(ShellState.osdValue) + "%"
                     color: Theme.fg
                     font.pixelSize: Theme.textMd
                     font.bold: true
@@ -1117,7 +1117,7 @@ Item {
     // fenêtre plus grande que le widget rendrait le bureau incliquable.
     // ────────────────────────────────────────────────────────────────────────
     Variants {
-        model: Theme.widgets
+        model: ShellState.widgets
 
         PanelWindow {
             id: widgetWindow

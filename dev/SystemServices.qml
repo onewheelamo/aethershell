@@ -291,4 +291,55 @@ QtObject {
             "_", String(shellCmd)
         ])
     }
+
+    // ── Icônes de zone de notification (core/tray_icons.json) ───────────────
+    property var trayIconMap: ({})
+
+    property FileView trayIconsFile: FileView {
+        path: Quickshell.shellPath("core/tray_icons.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.trayIconMap = (parsed && typeof parsed === "object") ? parsed : ({})
+            } catch (e) {
+                root.trayIconMap = ({})
+            }
+        }
+    }
+
+    function trayIconFor(itemId) {
+        if (!itemId) return ""
+        const entry = (root.trayIconMap || ({}))[itemId]
+        if (!entry) return ""
+        const value = (typeof entry === "string") ? entry : (entry.icon || "")
+        if (!value) return ""
+        if (value.charAt(0) === "/")
+            return "file://" + value
+        return "file://" + Quickshell.shellPath("assets/tray/" + value)
+    }
+
+    // ── Variables d'application (core/app_vars.json) ────────────────────────
+    property var appVars: ({})
+
+    property FileView appVarsFile: FileView {
+        path: Quickshell.shellPath("core/app_vars.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const parsed = JSON.parse(text())
+                root.appVars = (parsed && typeof parsed === "object") ? parsed : ({})
+            } catch (e) {
+                root.appVars = ({})
+            }
+        }
+    }
+
+    function program(name) {
+        return (root.appVars && root.appVars[name]) ? String(root.appVars[name]) : ""
+    }
 }

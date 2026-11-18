@@ -101,7 +101,7 @@ Item {
                                                  : (lastName !== "" ? lastName : "Aucune lecture")
     readonly property string subtitleLabel: hasTrack ? artistLabel
         : (lastArtist !== "" ? lastArtist
-                             : "Play pour lancer " + (Theme.program("Music") || "le lecteur"))
+                             : "Play pour lancer " + (SystemServices.program("Music") || "le lecteur"))
 
     readonly property string shownArt: artSource !== "" ? artSource : lastArt
 
@@ -132,7 +132,7 @@ Item {
 
     function launchPlayer() {
         if (launching) return
-        const prog = Theme.program("Music")
+        const prog = SystemServices.program("Music")
         if (prog === "") return
         launching = true
         launcherProc.command = [prog]

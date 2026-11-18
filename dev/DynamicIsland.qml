@@ -221,7 +221,7 @@ Item {
 
     // Respecte le filtre navigateur activé dans les réglages de l'applet musique
     readonly property bool ignorerNavigateurs: {
-        let a = (Theme.barAppletsActifs && Theme.barAppletsActifs["musique"]) ? Theme.barAppletsActifs["musique"].options : null
+        let a = (ShellState.barAppletsActifs && ShellState.barAppletsActifs["musique"]) ? ShellState.barAppletsActifs["musique"].options : null
         return (a && a.ignorer_navigateurs !== undefined) ? Boolean(a.ignorer_navigateurs) : true
     }
 
@@ -825,7 +825,7 @@ Item {
     }
 
     readonly property var compactBarsList: root.liveActivities.slice(0, 3)
-    readonly property real compactExtraHeight: (!Theme.osdVisible && root.compactBarsList.length > 1)
+    readonly property real compactExtraHeight: (!ShellState.osdVisible && root.compactBarsList.length > 1)
         ? (root.compactBarsList.length * 3 + 2)
         : 0
 
@@ -1231,7 +1231,7 @@ Item {
     // Largeur dynamique animée selon l'état
     readonly property real osdWidth: Math.max(160, osdRow.implicitWidth + Theme.padH * 2 + 16)
     readonly property real compactRestWidth: Math.max(90, compactContentRow.implicitWidth + Theme.padH * 2)
-    readonly property real compactWidth: Theme.osdVisible ? osdWidth : compactRestWidth
+    readonly property real compactWidth: ShellState.osdVisible ? osdWidth : compactRestWidth
     readonly property real meteoWidth: Math.max(410, meteoContentCol.implicitWidth + 32)
     readonly property real wallpaperWidth: 880
     readonly property real launcherWidth: 560
@@ -1290,13 +1290,13 @@ Item {
             id: osdRow
             anchors.centerIn: parent
             spacing: 8
-            visible: Theme.osdVisible
+            visible: ShellState.osdVisible
 
             Icon {
                 anchors.verticalCenter: parent.verticalCenter
-                glyph: Theme.osdKind === "brightness" ? "brightness"
-                    : Theme.osdKind === "mute" ? "volume-off"
-                    : (Theme.osdValue <= 0 ? "mute" : Theme.osdValue < 50 ? "volume-medium" : "volume-high")
+                glyph: ShellState.osdKind === "brightness" ? "brightness"
+                    : ShellState.osdKind === "mute" ? "volume-off"
+                    : (ShellState.osdValue <= 0 ? "mute" : ShellState.osdValue < 50 ? "volume-medium" : "volume-high")
                 size: Theme.iconSm
                 color: Theme.accent
             }
@@ -1308,7 +1308,7 @@ Item {
                 radius: 2
                 color: Theme.surfaceVariant
                 Rectangle {
-                    width: parent.width * (Theme.osdValue / 100)
+                    width: parent.width * (ShellState.osdValue / 100)
                     height: parent.height
                     radius: 2
                     color: Theme.accent
@@ -1318,7 +1318,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(Theme.osdValue) + "%"
+                text: Math.round(ShellState.osdValue) + "%"
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 font.weight: Font.Bold
@@ -1333,7 +1333,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             height: Theme.barHeight
             spacing: 10
-            visible: !Theme.osdVisible
+            visible: !ShellState.osdVisible
 
             // Point capture vidéo (rouge) / audio seule (orange) avant les ws
             CaptureDot { ilotState: "compact" }
@@ -1399,7 +1399,7 @@ Item {
             // Applets configurés en mode « Repos » ou « Les deux »
             AppletRow {
                 id: compactApplets
-                directModel: Theme.appletsPourIlot("compact", "all")
+                directModel: ShellState.appletsPourIlot("compact", "all")
                 visible: compactApplets.applets.length > 0
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -1457,7 +1457,7 @@ Item {
         // Barres de progression fines (2px, espacées de 1px) collées en bas de la pilule
         Column {
             id: compactBarsCol
-            visible: root.compactBarsList.length > 0 && !Theme.osdVisible
+            visible: root.compactBarsList.length > 0 && !ShellState.osdVisible
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 2
             anchors.left: parent.left
@@ -1527,7 +1527,7 @@ Item {
 
             AppletRow {
                 id: leftApplets
-                directModel: Theme.appletsPourIlot("expanded", "left")
+                directModel: ShellState.appletsPourIlot("expanded", "left")
                 visible: applets.length > 0
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -1606,7 +1606,7 @@ Item {
             // Côté Droit : Applets droite
             AppletRow {
                 id: rightApplets
-                directModel: Theme.appletsPourIlot("expanded", "right")
+                directModel: ShellState.appletsPourIlot("expanded", "right")
                 visible: applets.length > 0
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -2568,7 +2568,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             root.saveQuickNotes()
-                            const list = Theme.widgets || []
+                            const list = ShellState.widgets || []
                             let existing = null
                             for (let i = 0; i < list.length; i++) {
                                 if (list[i] && list[i].type === "notes") {

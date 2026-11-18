@@ -3,11 +3,11 @@ import "."
 import Quickshell
 
 // RANGÉE VERTICALE D'APPLETS — résolue de manière instantanée et réactive
-// via Theme.appletsPourIle(ile) en JS pur, sans sous-processus Python.
+// via ShellState.appletsPourIle(ile) en JS pur, sans sous-processus Python.
 Item {
     id: root
     property string ile: "cote-gauche:milieu"
-    readonly property var applets: root.ile !== "" ? Theme.appletsPourIle(root.ile) : []
+    readonly property var applets: root.ile !== "" ? ShellState.appletsPourIle(root.ile) : []
 
     implicitWidth: colonne.implicitWidth
     implicitHeight: colonne.implicitHeight

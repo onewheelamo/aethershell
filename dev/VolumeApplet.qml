@@ -141,7 +141,7 @@ Item {
         onClicked: mouse => {
             if (mouse.button === Qt.RightButton) {
                 root.basculerMuet()
-                Theme.showOsd("volume", root.muet ? 0 : root.pourcent)
+                ShellState.showOsd("volume", root.muet ? 0 : root.pourcent)
             } else {
                 Theme.togglePopup("applet:volume")
             }
@@ -149,7 +149,7 @@ Item {
         onWheel: wheel => {
             const pas = wheel.angleDelta.y > 0 ? 5 : -5
             root.regler(root.pourcent + pas)
-            Theme.showOsd("volume", root.pourcent)
+            ShellState.showOsd("volume", root.pourcent)
         }
     }
 

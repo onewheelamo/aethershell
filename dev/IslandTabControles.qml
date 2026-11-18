@@ -43,8 +43,8 @@ Item {
     property int batPlafond: Number((batInfo && batInfo.limit_pct) || 80)
 
     readonly property bool vizActif: {
-        let _rev = Theme.barAppletsRev
-        let a = Theme.barAppletsActifs ? Theme.barAppletsActifs["visualiseur"] : null
+        let _rev = ShellState.barAppletsRev
+        let a = ShellState.barAppletsActifs ? ShellState.barAppletsActifs["visualiseur"] : null
         return a ? Boolean(a.enabled !== false) : false
     }
 

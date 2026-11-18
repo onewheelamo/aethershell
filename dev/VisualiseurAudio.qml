@@ -159,7 +159,7 @@ Singleton {
 
     function lireRegistre() {
         try {
-            const entrees = Theme.barAppletsActifs || ({})
+            const entrees = ShellState.barAppletsActifs || ({})
             const moi = entrees["visualiseur"] || null
             racine.actif = moi !== null
             const opt = (moi && moi.options) ? moi.options : ({})

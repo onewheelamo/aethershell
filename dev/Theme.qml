@@ -230,10 +230,6 @@ QtObject {
     // PROPOSITION_widgets.md), pas une position libre. Les marges sont calculées
     // dans main.qml à partir de cette clé et de la largeur de la capsule.
     property string launcherPosition: "bas-centre"
-    // Widgets de bureau (core/widgets.json) : liste de dicts
-    // { id, type, workspace, x, y, enabled, options }. main.qml en fait une
-    // surface par entrée.
-    property var widgets: []
     property string primaryMonitor: ""
     property string wallpaperDir: "$HOME/Images/wallpapers/"
     property string screenshotsDir: "$HOME/Images/Screenshots/"
@@ -369,25 +365,6 @@ QtObject {
     property int depthMaskAdouci: 8
 
     // ────────────────────────────────────────────────────────────────────────
-    // SECTION 4: OSD (ON-SCREEN DISPLAY) STATE & CONTROLLER
-    // ────────────────────────────────────────────────────────────────────────
-    property bool osdVisible: false
-    property string osdKind: ""     // "volume" | "brightness" | "mute"
-    property real osdValue: 0       // 0..100
-    property Timer osdTimer: Timer {
-        interval: 1600
-        repeat: false
-        onTriggered: root.osdVisible = false
-    }
-    function showOsd(kind, value) {
-        root.osdKind = kind
-        root.osdValue = Math.max(0, Math.min(100, value))
-        root.osdVisible = true
-        root.osdTimer.restart()
-        if (kind === "volume") root.volumeUpdated()
-    }
-    signal volumeUpdated()
-
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 5: POPUP COORDINATION ACROSS ISLANDS
     // ────────────────────────────────────────────────────────────────────────
@@ -806,164 +783,6 @@ QtObject {
         }
     }
 
-    // Widgets de bureau : fichier d'état séparé, surveillé comme style_vars.
-    // Sans ce FileView, une entrée ajoutée par le panneau n'atteindrait jamais
-    // le rendu (le shell ne relit pas les fichiers qu'il ne surveille pas).
-    property FileView widgetsFile: FileView {
-        path: Quickshell.shellPath("core/widgets.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text())
-                root.widgets = Array.isArray(parsed.widgets) ? parsed.widgets : []
-            } catch (e) {
-                console.warn("Theme.qml: Failed to parse core/widgets.json:", e)
-            }
-        }
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Registre des applets de barre (bar_applets.json + applets_catalogue.json)
-    // ────────────────────────────────────────────────────────────────────────
-    // Centralisé ici en pur JS pour éliminer les 22 FileView et les dizaines de
-    // processus concurrents `bar_applets.py resoudre`.
-    property var barAppletsCatalogue: []
-    property var barAppletsActifs: ({})
-    property int barAppletsRev: 0
-
-    readonly property var barAnciens: ({
-        "gauche": "haut:debut", "centre": "haut:milieu", "droite": "haut:fin",
-        "haut-gauche": "haut:debut", "haut-centre": "haut:milieu", "haut-droite": "haut:fin",
-        "bas": "bas:milieu",
-        "cote-gauche": "cote-gauche:milieu",
-        "cote-droite": "cote-droite:milieu"
-    })
-
-    property FileView appletsCatalogueFile: FileView {
-        path: Quickshell.shellPath("core/applets_catalogue.json")
-        watchChanges: false
-        printErrors: false
-        onLoaded: {
-            try {
-                const d = JSON.parse(text())
-                root.barAppletsCatalogue = (d && Array.isArray(d.applets)) ? d.applets : []
-                root.barAppletsRev++
-            } catch (e) {
-                root.barAppletsCatalogue = []
-            }
-        }
-    }
-
-    property FileView barAppletsFile: FileView {
-        path: Quickshell.shellPath("core/bar_applets.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const d = JSON.parse(text())
-                const rawActifs = (d && typeof d.actifs === "object" && d.actifs) ? d.actifs : ({})
-                const normActifs = ({})
-                for (const cle in rawActifs) {
-                    const item = Object.assign({}, rawActifs[cle])
-                    if (item.ile && root.barAnciens[item.ile]) {
-                        item.ile = root.barAnciens[item.ile]
-                    }
-                    normActifs[cle] = item
-                }
-                root.barAppletsActifs = normActifs
-                root.barAppletsRev++
-            } catch (e) {
-                root.barAppletsActifs = ({})
-            }
-        }
-    }
-
-    function appletsPourIle(ile) {
-        const _ = root.barAppletsRev
-        if (!ile || !root.barAppletsCatalogue.length) return []
-        const cible = root.barAnciens[ile] || ile
-        const liste = []
-        for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
-            const cat = root.barAppletsCatalogue[i]
-            if (!cat || !cat.id || cat.fixe) continue
-            const choix = root.barAppletsActifs[cat.id]
-            if (!choix) continue
-
-            let itemIle = String(choix.ile || cat.ile || "haut:fin")
-            itemIle = root.barAnciens[itemIle] || itemIle
-            if (itemIle !== cible) continue
-
-            const entree = Object.assign({}, cat)
-            entree.actif = true
-            entree.ile = itemIle
-            const ordre = parseInt(choix.ordre, 10)
-            entree.ordre = isNaN(ordre) ? (cat.ordre || 100) : ordre
-            const echelle = parseInt(choix.text_scale, 10)
-            entree.text_scale = isNaN(echelle) ? 100 : Math.max(60, Math.min(160, echelle))
-            entree.options = choix.options || ({})
-            liste.push(entree)
-        }
-
-        const ord = Array.isArray(root.ilotAppletsOrder) ? root.ilotAppletsOrder : []
-        liste.sort(function(a, b) {
-            const ia = ord.indexOf(String(a.id || ""))
-            const ib = ord.indexOf(String(b.id || ""))
-            if (ia !== -1 && ib !== -1) return ia - ib
-            if (ia !== -1) return -1
-            if (ib !== -1) return 1
-            const oa = (typeof a.ordre === "number") ? a.ordre : 100
-            const ob = (typeof b.ordre === "number") ? b.ordre : 100
-            if (oa !== ob) return oa - ob
-            return String(a.id || "").localeCompare(String(b.id || ""))
-        })
-        return liste
-    }
-
-    function appletsPourIlot(state, side) {
-        const _ = root.barAppletsRev + root.ilotAppletsRev
-        if (!root.barAppletsCatalogue.length) return []
-        const liste = []
-        for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
-            const cat = root.barAppletsCatalogue[i]
-            if (!cat || !cat.id || cat.fixe) continue
-            if (cat.id === "visualiseur" || cat.id === "workspaces" || cat.id === "horloge" || cat.id === "musique") continue
-            const mode = root.ilotAppletModeFor(cat.id)
-            if (!root.ilotVisibleIn(mode, state)) continue
-
-            const choix = root.barAppletsActifs[cat.id] || ({})
-            let itemIle = String(choix.ile || cat.ile || "haut:fin")
-            itemIle = root.barAnciens[itemIle] || itemIle
-            if (side === "left" && itemIle !== "haut:debut") continue
-            if (side === "right" && itemIle === "haut:debut") continue
-
-            const entree = Object.assign({}, cat)
-            entree.actif = true
-            entree.ile = itemIle
-            const ordre = parseInt(choix.ordre, 10)
-            entree.ordre = isNaN(ordre) ? (cat.ordre || 100) : ordre
-            const echelle = parseInt(choix.text_scale, 10)
-            entree.text_scale = isNaN(echelle) ? 100 : Math.max(60, Math.min(160, echelle))
-            entree.options = choix.options || ({})
-            liste.push(entree)
-        }
-        const ord = Array.isArray(root.ilotAppletsOrder) ? root.ilotAppletsOrder : []
-        liste.sort(function(a, b) {
-            const ia = ord.indexOf(String(a.id || ""))
-            const ib = ord.indexOf(String(b.id || ""))
-            if (ia !== -1 && ib !== -1) return ia - ib
-            if (ia !== -1) return -1
-            if (ib !== -1) return 1
-            const oa = (typeof a.ordre === "number") ? a.ordre : 100
-            const ob = (typeof b.ordre === "number") ? b.ordre : 100
-            if (oa !== ob) return oa - ob
-            return String(a.id || "").localeCompare(String(b.id || ""))
-        })
-        return liste
-    }
-
     // ────────────────────────────────────────────────────────────────────────
     // Fond d'écran courant partagé (awww query)
     // ────────────────────────────────────────────────────────────────────────
@@ -1008,64 +827,6 @@ QtObject {
     // Certains items SNI ne publient aucune image (IconPixmap vide, IconName
     // vide) : le shell dessinait alors un pixmap illisible — le rectangle bruité
     // qu'on voyait pour le moniteur de casque. On peut leur associer une icône par
-    // leur propriété Id, ici ou avec un chemin absolu.
-    property var trayIconMap: ({})
-
-    property FileView trayIconsFile: FileView {
-        path: Quickshell.shellPath("core/tray_icons.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text())
-                root.trayIconMap = (parsed && typeof parsed === "object") ? parsed : ({})
-            } catch (e) {
-                root.trayIconMap = ({})
-            }
-        }
-    }
-
-    // Rendu d'URL : chemin absolu tel quel, sinon relatif à assets/tray/.
-    // Chaîne vide = pas de correspondance, l'appelant garde l'icône de l'item.
-    function trayIconFor(itemId) {
-        if (!itemId) return ""
-        const entry = (root.trayIconMap || ({}))[itemId]
-        if (!entry) return ""
-        const value = (typeof entry === "string") ? entry : (entry.icon || "")
-        if (!value) return ""
-        if (value.charAt(0) === "/")
-            return "file://" + value
-        return "file://" + Quickshell.shellPath("assets/tray/" + value)
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Variables d'application (core/app_vars.json)
-    // ────────────────────────────────────────────────────────────────────────
-    // Mêmes valeurs que les raccourcis Hyprland (programs.lua), réglables dans
-    // l'onglet Applications du panneau. `program("Music")` -> "strawberry".
-    property var appVars: ({})
-
-    property FileView appVarsFile: FileView {
-        path: Quickshell.shellPath("core/app_vars.json")
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                const parsed = JSON.parse(text())
-                root.appVars = (parsed && typeof parsed === "object") ? parsed : ({})
-            } catch (e) {
-                root.appVars = ({})
-            }
-        }
-    }
-
-    function program(name) {
-        return (root.appVars && root.appVars[name]) ? String(root.appVars[name]) : ""
-    }
-
-
     // ────────────────────────────────────────────────────────────────────────
     // SECTION 8: IPC HANDLER ("shell")
     // ────────────────────────────────────────────────────────────────────────

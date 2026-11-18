@@ -76,7 +76,7 @@ Item {
                         // core/tray_icons.json (par Id). Un item qui ne publie aucune
                         // image — IconPixmap vide, IconName vide — n'a pas de case du
                         // tout : c'est ce qui dessinait un pixmap illisible.
-                        readonly property string itemIcon: Theme.trayIconFor(trayDelegate.modelData.id)
+                        readonly property string itemIcon: SystemServices.trayIconFor(trayDelegate.modelData.id)
                         readonly property string iconSource: itemIcon !== ""
                             ? itemIcon
                             : (trayDelegate.modelData.icon ? String(trayDelegate.modelData.icon) : "")
