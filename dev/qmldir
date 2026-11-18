@@ -62,6 +62,7 @@ ConfigSwitch 1.0 ConfigSwitch.qml
 ConfigSegmented 1.0 ConfigSegmented.qml
 singleton SystemServices 1.0 SystemServices.qml
 singleton LauncherEngine 1.0 LauncherEngine.qml
+singleton ShellState 1.0 ShellState.qml
 WidgetPressePapiers 1.0 widgets/presse_papiers.qml
 WidgetMeteo 1.0 widgets/meteo.qml
 WidgetDisques 1.0 widgets/disques.qml

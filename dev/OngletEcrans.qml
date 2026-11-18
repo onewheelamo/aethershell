@@ -515,31 +515,22 @@ Row {
         elide: Text.ElideRight
     }
 
-    Repeater {
-        model: ["1", "1.25", "1.5"]
-        Rectangle {
-            required property string modelData
-            readonly property bool activeScale: root.currentMonitorObj && Math.abs(Number(root.currentMonitorObj.scale) - Number(modelData)) < 0.05
-            width: 58
-            height: 26
-            radius: Theme.globalRadius
-            color: activeScale ? Theme.accent : Theme.surfaceVariant
-            Text {
-                anchors.centerIn: parent
-                text: modelData + "x"
-                color: parent.activeScale ? Theme.bg : Theme.fg
-                font.pixelSize: Theme.textXs
-                font.bold: true
-            }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    const m = root.currentMonitorObj
-                    const curMode = m ? (m.width + "x" + m.height + "@" + m.refreshRate) : "preferred"
-                    root.runConfigCmd(["monitor_mode", root.selectedMonitorName, curMode, modelData])
-                }
-            }
+    ConfigSegmented {
+        choices: [
+            { code: "1",    label: "1x" },
+            { code: "1.25", label: "1.25x" },
+            { code: "1.5",  label: "1.5x" }
+        ]
+        currentCode: {
+            const s = root.currentMonitorObj ? Number(root.currentMonitorObj.scale) : 1
+            if (Math.abs(s - 1.25) < 0.05) return "1.25"
+            if (Math.abs(s - 1.5) < 0.05) return "1.5"
+            return "1"
+        }
+        onSelected: function(code) {
+            const m = root.currentMonitorObj
+            const curMode = m ? (m.width + "x" + m.height + "@" + m.refreshRate) : "preferred"
+            root.runConfigCmd(["monitor_mode", root.selectedMonitorName, curMode, code])
         }
     }
 }

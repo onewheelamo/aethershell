@@ -626,10 +626,10 @@ Item {
             spacing: 6
 
             Repeater {
-                model: Theme.workContexts || []
+                model: ShellState.workContexts || []
                 delegate: Rectangle {
                     required property var modelData
-                    readonly property bool isActive: Theme.activeContext === modelData.id
+                    readonly property bool isActive: ShellState.activeContext === modelData.id
                     Layout.fillWidth: true
                     height: 28
                     radius: Math.max(8, Math.round(Theme.globalRadius * 0.5))
@@ -665,7 +665,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Theme.applyContext(modelData.id)
+                        onClicked: ShellState.applyContext(modelData.id)
                     }
                 }
             }

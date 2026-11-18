@@ -44,7 +44,7 @@ Item {
         for (let i = 0; i < tops.length; i++) {
             const t = tops[i]
             if (!t || !t.address) continue
-            if (!Theme.estMinimisee(t)) continue
+            if (!ShellState.estMinimisee(t)) continue
             const client = t.lastIpcObject || ({})
             liste.push({
                 adresse: String(t.address),
@@ -141,7 +141,7 @@ Item {
 
     // ── rappel ───────────────────────────────────────────────────────────────
     function rappeler(adresse) {
-        Theme.rappelerFenetre(adresse)
+        ShellState.rappelerFenetre(adresse)
     }
 
     // ── suivi vivant ─────────────────────────────────────────────────────────

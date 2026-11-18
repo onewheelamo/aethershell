@@ -592,13 +592,13 @@ Item {
 
         if (rl === "contexte" || rl.indexOf("contexte ") === 0) {
             const qCtx = rl.slice(8).trim()
-            const ctxs = Theme.workContexts || []
+            const ctxs = ShellState.workContexts || []
             for (let i = 0; i < ctxs.length; i++) {
                 const c = ctxs[i]
                 if (qCtx === "" || c.id.indexOf(qCtx) !== -1 || c.label.toLowerCase().indexOf(qCtx) !== -1) {
                     out.push({
                         name: "as contexte " + c.id,
-                        desc: (c.id === Theme.activeContext ? "Actif · " : "") + c.label + " — " + c.desc,
+                        desc: (c.id === ShellState.activeContext ? "Actif · " : "") + c.label + " — " + c.desc,
                         icon: c.icon,
                         kind: "as",
                         asAction: "contexte",
@@ -679,9 +679,9 @@ Item {
         } else if (act === "eteindre") {
             Quickshell.execDetached(["systemctl", "poweroff"])
         } else if (act === "timer" && entry.asArg) {
-            Theme.startTimer(entry.asArg, "")
+            ShellState.startTimer(entry.asArg, "")
         } else if (act === "contexte" && entry.asArg) {
-            Theme.applyContext(String(entry.asArg))
+            ShellState.applyContext(String(entry.asArg))
         }
     }
 
@@ -738,18 +738,18 @@ Item {
                 color: "#ef4444"
             })
         }
-        if (Theme.timerRunning) {
-            const pct = Theme.timerTotalSec > 0
-                ? Math.max(0, Math.min(100, Math.round(100 * (Theme.timerTotalSec - Theme.timerRemainingSec) / Theme.timerTotalSec)))
+        if (ShellState.timerRunning) {
+            const pct = ShellState.timerTotalSec > 0
+                ? Math.max(0, Math.min(100, Math.round(100 * (ShellState.timerTotalSec - ShellState.timerRemainingSec) / ShellState.timerTotalSec)))
                 : 0
             list.push({
                 id: "timer",
                 kind: "timer",
-                title: (Theme.timerPaused ? "⏸ " : "") + root.formatLiveDuration(Theme.timerRemainingSec),
-                subtitle: Theme.timerLabel,
-                etaText: "Reste ~ " + root.formatLiveDuration(Theme.timerRemainingSec),
+                title: (ShellState.timerPaused ? "⏸ " : "") + root.formatLiveDuration(ShellState.timerRemainingSec),
+                subtitle: ShellState.timerLabel,
+                etaText: "Reste ~ " + root.formatLiveDuration(ShellState.timerRemainingSec),
                 progress: pct,
-                paused: Theme.timerPaused,
+                paused: ShellState.timerPaused,
                 color: Theme.accent
             })
         }
@@ -800,7 +800,7 @@ Item {
                 color: Theme.info
             })
         }
-        const ipcs = Array.isArray(Theme.ipcActivities) ? Theme.ipcActivities : []
+        const ipcs = Array.isArray(ShellState.ipcActivities) ? ShellState.ipcActivities : []
         for (let j = 0; j < ipcs.length; j++) {
             const x = ipcs[j]
             if (!x || !x.id) continue
@@ -1409,7 +1409,7 @@ Item {
 
             // Badge contexte actif (si différent de « normal »)
             Rectangle {
-                visible: Theme.activeContext !== "" && Theme.activeContext !== "normal"
+                visible: ShellState.activeContext !== "" && ShellState.activeContext !== "normal"
                 height: Math.max(18, Theme.barHeight - 8)
                 width: ctxPillTxt.implicitWidth + 12
                 radius: Math.round(height / 2)
@@ -1422,11 +1422,11 @@ Item {
                     id: ctxPillTxt
                     anchors.centerIn: parent
                     text: {
-                        const ctxs = Theme.workContexts || []
+                        const ctxs = ShellState.workContexts || []
                         for (let i = 0; i < ctxs.length; i++) {
-                            if (ctxs[i].id === Theme.activeContext) return ctxs[i].label
+                            if (ctxs[i].id === ShellState.activeContext) return ctxs[i].label
                         }
-                        return Theme.activeContext
+                        return ShellState.activeContext
                     }
                     font.family: Theme.fontUi
                     font.pixelSize: Math.max(8, Math.round(10 * Theme.barScale))
@@ -2935,7 +2935,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onEntered: p5Btn.hovered = true
                         onExited: p5Btn.hovered = false
-                        onClicked: { p5Btn.hovered = false; Theme.startTimer(5, "Minuteur 5m") }
+                        onClicked: { p5Btn.hovered = false; ShellState.startTimer(5, "Minuteur 5m") }
                     }
                 }
 
@@ -2953,7 +2953,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onEntered: p25Btn.hovered = true
                         onExited: p25Btn.hovered = false
-                        onClicked: { p25Btn.hovered = false; Theme.startTimer(25, "Pomodoro 25m") }
+                        onClicked: { p25Btn.hovered = false; ShellState.startTimer(25, "Pomodoro 25m") }
                     }
                 }
 
@@ -2986,7 +2986,7 @@ Item {
                             onAccepted: {
                                 const m = parseInt(text, 10)
                                 if (!isNaN(m) && m > 0) {
-                                    Theme.startTimer(m, "Minuteur " + m + "m")
+                                    ShellState.startTimer(m, "Minuteur " + m + "m")
                                     text = ""
                                 }
                             }
@@ -3015,7 +3015,7 @@ Item {
                                 onClicked: {
                                     const m = parseInt(customTimerInput.text, 10)
                                     if (!isNaN(m) && m > 0) {
-                                        Theme.startTimer(m, "Minuteur " + m + "m")
+                                        ShellState.startTimer(m, "Minuteur " + m + "m")
                                         customTimerInput.text = ""
                                     } else {
                                         customTimerInput.forceActiveFocus()
@@ -3161,7 +3161,7 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: Theme.togglePauseTimer()
+                                    onClicked: ShellState.togglePauseTimer()
                                 }
                             }
 
@@ -3187,9 +3187,9 @@ Item {
                                         if (modelData.kind === "record") {
                                             Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"])
                                         } else if (modelData.kind === "timer") {
-                                            Theme.stopTimer()
+                                            ShellState.stopTimer()
                                         } else if (modelData.kind === "ipc") {
-                                            Theme.handleLiveActivity("stop", modelData.id, "", -1)
+                                            ShellState.handleLiveActivity("stop", modelData.id, "", -1)
                                         }
                                     }
                                 }

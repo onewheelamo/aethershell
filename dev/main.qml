@@ -10,6 +10,7 @@ import Quickshell.Wayland
 // Item n'est pas nécessaire (ShellRoot est optionnel).
 Item {
     id: root
+    readonly property var _shellState: ShellState
 
     // Transitions de fond d'écran par shader (inspiré de diegoMalagrida/pocket-dots)
     WallpaperFx { id: wallpaperFx }

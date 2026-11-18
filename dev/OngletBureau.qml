@@ -1152,28 +1152,10 @@ CollapsibleSection {
     }
     }
 
-    Rectangle {
-    width: 32
-    height: 32
-    radius: Theme.globalRadius
-    color: Theme.surfaceVariant
-    border.color: root.launchHistory ? Theme.success : Theme.error
-    border.width: 1
-
-    Text {
-    anchors.centerIn: parent
-    text: root.launchHistory ? "✓" : "✕"
-    color: root.launchHistory ? Theme.success : Theme.error
-    font.pixelSize: root.launchHistory ? Theme.textMd : Theme.textSm
-    font.bold: true
-    }
-
-    MouseArea {
-    anchors.fill: parent
-    cursorShape: Qt.PointingHandCursor
-    onClicked: root.runConfigCmd(["style", "launch_history",
-    String(!root.launchHistory)])
-    }
+    ConfigSwitch {
+        anchors.verticalCenter: parent.verticalCenter
+        checked: root.launchHistory
+        onToggled: root.runConfigCmd(["style", "launch_history", String(!root.launchHistory)])
     }
 
     }

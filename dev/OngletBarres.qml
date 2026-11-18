@@ -157,27 +157,10 @@ CollapsibleSection {
                 elide: Text.ElideRight
             }
 
-            Rectangle {
-                width: 96
-                height: 28
-                radius: Theme.globalRadius
-                color: Theme.ilotProjetsActif ? Theme.accent : Theme.bg
-                border.color: Theme.ilotProjetsActif ? Theme.accent : Theme.surfaceVariant
-                border.width: 1
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.ilotProjetsActif ? "Activé" : "Masqué"
-                    color: Theme.ilotProjetsActif ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: Theme.ilotProjetsActif
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "ilot_projets_actif", Theme.ilotProjetsActif ? "false" : "true"])
-                }
+            ConfigSwitch {
+                anchors.verticalCenter: parent.verticalCenter
+                checked: Theme.ilotProjetsActif
+                onToggled: root.runConfigCmd(["style", "ilot_projets_actif", Theme.ilotProjetsActif ? "false" : "true"])
             }
         }
 
@@ -456,28 +439,10 @@ CollapsibleSection {
                 elide: Text.ElideRight
             }
 
-            Rectangle {
+            ConfigSwitch {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 160
-                height: 26
-                radius: Theme.globalRadius
-                color: Theme.showConfigButton ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.showConfigButton ? "✓ Affiché" : "Masqué (SUPER+SHIFT+H)"
-                    color: Theme.showConfigButton ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "show_config_button", String(!Theme.showConfigButton)])
-                }
+                checked: Theme.showConfigButton
+                onToggled: root.runConfigCmd(["style", "show_config_button", String(!Theme.showConfigButton)])
             }
         }
     }   // end Grid
@@ -511,29 +476,11 @@ CollapsibleSection {
                     font.pixelSize: Theme.textXs
                 }
 
-                Rectangle {
-                    width: 110
-                    height: 20
+                ConfigSwitch {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: Theme.globalRadius
-                    color: modelData.val ? Theme.accent : Theme.surfaceVariant
-                    border.color: Theme.accent
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData.val ? "✓ Affichée" : "Masquée"
-                        color: modelData.val ? Theme.bg : Theme.fg
-                        font.pixelSize: Theme.textXs
-                        font.bold: true
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.runConfigCmd(["style", modelData.key, String(!modelData.val)])
-                    }
+                    checked: modelData.val
+                    onToggled: root.runConfigCmd(["style", modelData.key, String(!modelData.val)])
                 }
             }
         }
