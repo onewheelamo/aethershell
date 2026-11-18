@@ -84,6 +84,17 @@ chmod +x "$WRAPPER"
 
 COMMANDE_FINALE="$(printf '%q %q' "$WRAPPER" "$CORPS")"
 
+STYLE_FILE="$(dirname "$(readlink -f "$0")")/style_vars.json"
+MAJ_MODE="float"
+if [ -f "$STYLE_FILE" ]; then
+    MAJ_MODE=$(python3 -c 'import json,sys
+try:
+    v = str(json.load(open(sys.argv[1])).get("maj_terminal_mode","float") or "float").lower()
+    print("tiling" if v == "tiling" else "float")
+except Exception:
+    print("float")' "$STYLE_FILE" 2>/dev/null)
+fi
+
 lancer_hors_cgroup() {
     if command -v systemd-run >/dev/null 2>&1 && systemctl --user is-system-running >/dev/null 2>&1; then
         exec systemd-run --user --scope --quiet -- "$@"
@@ -92,9 +103,21 @@ lancer_hors_cgroup() {
     fi
 }
 
-case "$TERMINAL_CHOISI" in
-    ghostty|kitty|foot|alacritty) lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
-    konsole)                      lancer_hors_cgroup konsole -e bash -lc "$COMMANDE_FINALE" ;;
-    xterm)                        lancer_hors_cgroup xterm -e bash -lc "$COMMANDE_FINALE" ;;
-    *)                            lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
-esac
+if [ "$MAJ_MODE" = "float" ]; then
+    case "$TERMINAL_CHOISI" in
+        ghostty)   lancer_hors_cgroup ghostty --class=org.aether.floating-terminal -e bash -lc "$COMMANDE_FINALE" ;;
+        kitty)     lancer_hors_cgroup kitty --class org.aether.floating-terminal -e bash -lc "$COMMANDE_FINALE" ;;
+        alacritty) lancer_hors_cgroup alacritty --class org.aether.floating-terminal -e bash -lc "$COMMANDE_FINALE" ;;
+        foot)      lancer_hors_cgroup foot --app-id org.aether.floating-terminal -e bash -lc "$COMMANDE_FINALE" ;;
+        konsole)   lancer_hors_cgroup konsole -e bash -lc "$COMMANDE_FINALE" ;;
+        xterm)     lancer_hors_cgroup xterm -e bash -lc "$COMMANDE_FINALE" ;;
+        *)         lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+    esac
+else
+    case "$TERMINAL_CHOISI" in
+        ghostty|kitty|foot|alacritty) lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+        konsole)                      lancer_hors_cgroup konsole -e bash -lc "$COMMANDE_FINALE" ;;
+        xterm)                        lancer_hors_cgroup xterm -e bash -lc "$COMMANDE_FINALE" ;;
+        *)                            lancer_hors_cgroup "$TERMINAL_CHOISI" -e bash -lc "$COMMANDE_FINALE" ;;
+    esac
+fi

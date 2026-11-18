@@ -396,7 +396,7 @@ Column {
                 readonly property string curMode: modelData.styleKey ? Theme.ilotShowMedia : Theme.ilotAppletModeFor(modelData.id)
                 readonly property bool isMaj: modelData.id === "maj"
                 width: parent ? parent.width : 0
-                height: isMaj ? 78 : 46
+                height: isMaj ? 112 : 46
                 radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
                 color: Qt.alpha(Theme.surfaceVariant, 0.35)
                 border.color: Qt.alpha(Theme.fg, 0.08)
@@ -542,60 +542,139 @@ Column {
                     }
                 }
 
-                // Option spécifique à « Mises à jour » : masquer s'il n'y a aucune MAJ
-                Item {
+                // Option spécifique à « Mises à jour » : masquer s'il n'y a aucune MAJ + mode fenêtre
+                Column {
                     visible: isMaj
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     anchors.leftMargin: 12
                     anchors.rightMargin: 10
-                    height: 32
+                    height: 66
 
-                    Rectangle {
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        height: 1
-                        color: Qt.alpha(Theme.fg, 0.06)
-                    }
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.right: majCondSwitch.left
-                        anchors.rightMargin: 8
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Uniquement s'il y a des mises à jour"
-                        color: Qt.alpha(Theme.fg, 0.8)
-                        font.pixelSize: Theme.text2xs
-                        elide: Text.ElideRight
-                    }
-
-                    Rectangle {
-                        id: majCondSwitch
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 34
-                        height: 18
-                        radius: 9
-                        color: Theme.majSeulementSiDispo ? Theme.accent : Qt.alpha(Theme.fg, 0.22)
-                        Behavior on color { ColorAnimation { duration: 140 } }
+                    Item {
+                        width: parent.width
+                        height: 32
 
                         Rectangle {
-                            width: 14
-                            height: 14
-                            radius: 7
-                            y: 2
-                            x: Theme.majSeulementSiDispo ? (parent.width - width - 2) : 2
-                            color: Theme.majSeulementSiDispo ? Theme.bg : Theme.fg
-                            Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: 1
+                            color: Qt.alpha(Theme.fg, 0.06)
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: majCondSwitch.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Uniquement s'il y a des mises à jour"
+                            color: Qt.alpha(Theme.fg, 0.8)
+                            font.pixelSize: Theme.text2xs
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            id: majCondSwitch
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 34
+                            height: 18
+                            radius: 9
+                            color: Theme.majSeulementSiDispo ? Theme.accent : Qt.alpha(Theme.fg, 0.22)
+                            Behavior on color { ColorAnimation { duration: 140 } }
+
+                            Rectangle {
+                                width: 14
+                                height: 14
+                                radius: 7
+                                y: 2
+                                x: Theme.majSeulementSiDispo ? (parent.width - width - 2) : 2
+                                color: Theme.majSeulementSiDispo ? Theme.bg : Theme.fg
+                                Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: if (root) root.runConfigCmd(["style", "maj_seulement_si_dispo", String(!Theme.majSeulementSiDispo)])
                         }
                     }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: if (root) root.runConfigCmd(["style", "maj_seulement_si_dispo", String(!Theme.majSeulementSiDispo)])
+                    Item {
+                        width: parent.width
+                        height: 34
+
+                        Rectangle {
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: 1
+                            color: Qt.alpha(Theme.fg, 0.06)
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: majWinTrack.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Fenêtre de mise à jour"
+                            color: Qt.alpha(Theme.fg, 0.8)
+                            font.pixelSize: Theme.text2xs
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            id: majWinTrack
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: majWinRow.implicitWidth + 6
+                            height: 24
+                            radius: Math.max(5, Math.round(Theme.globalRadius * 0.45))
+                            color: Theme.bg
+                            border.color: Theme.surfaceVariant
+                            border.width: 1
+
+                            Row {
+                                id: majWinRow
+                                anchors.centerIn: parent
+                                spacing: 2
+
+                                Repeater {
+                                    model: [
+                                        { code: "float", label: "Flottante" },
+                                        { code: "tiling", label: "Tiling" }
+                                    ]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool active: Theme.majTerminalMode === modelData.code
+                                        width: majWinLbl.implicitWidth + 12
+                                        height: 18
+                                        radius: Math.max(4, Math.round(Theme.globalRadius * 0.35))
+                                        color: active ? Theme.accent : (majWinMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.6) : "transparent")
+
+                                        Text {
+                                            id: majWinLbl
+                                            anchors.centerIn: parent
+                                            text: modelData.label
+                                            color: active ? Theme.bg : Qt.alpha(Theme.fg, 0.8)
+                                            font.pixelSize: Theme.text2xs
+                                            font.bold: active
+                                        }
+
+                                        MouseArea {
+                                            id: majWinMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: if (root) root.runConfigCmd(["style", "maj_terminal_mode", modelData.code])
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

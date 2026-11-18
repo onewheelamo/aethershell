@@ -810,6 +810,9 @@ def update_style_var(key, value):
             data[key] = value
         else:
             data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "maj_terminal_mode":
+        v = str(value).strip().lower()
+        data[key] = "tiling" if v in ("tiling", "tile") else "float"
     elif key == "matugen_scheme" and str(value) in MATUGEN_SCHEMES:
         data["matugen_scheme"] = str(value)
     elif key == "matugen_contrast":

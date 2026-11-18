@@ -133,6 +133,7 @@ QtObject {
     property var ilotAppletsOrder: []
     property int ilotAppletsRev: 0
     property bool majSeulementSiDispo: false
+    property string majTerminalMode: "float"
 
     function normIlotMode(val, defVal) {
         if (val === true) return defVal || "both"
@@ -843,6 +844,9 @@ QtObject {
             root.ilotAppletsRev++
         }
         if (typeof data.maj_seulement_si_dispo === "boolean") root.majSeulementSiDispo = data.maj_seulement_si_dispo
+        if (typeof data.maj_terminal_mode === "string") {
+            root.majTerminalMode = (data.maj_terminal_mode === "tiling") ? "tiling" : "float"
+        }
         if (typeof data.idle_suspend_timeout === "number") root.idleSuspendTimeout = Math.max(0, Math.round(data.idle_suspend_timeout))
         if (typeof data.first_run_completed === "boolean") {
             root.firstRunCompleted = data.first_run_completed
