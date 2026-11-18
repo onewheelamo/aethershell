@@ -723,12 +723,13 @@ Item {
                 active: root.wifiEnabled
                 hasChevron: true
                 onToggled: {
-                    let target = root.wifiEnabled ? "off" : "on"
-                    root.wifiEnabled = !root.wifiEnabled
-                    wifiToggleProc.command = ["nmcli", "radio", "wifi", target]
-                    wifiToggleProc.running = true
+                    Theme.islandSystemeTarget = "wifi"
+                    Theme.islandPanelTab = 2
                 }
-                onChevronClicked: Theme.islandPanelTab = 2
+                onChevronClicked: {
+                    Theme.islandSystemeTarget = "wifi"
+                    Theme.islandPanelTab = 2
+                }
             }
 
             QuickTile {

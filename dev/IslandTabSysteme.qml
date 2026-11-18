@@ -22,6 +22,7 @@ Item {
     property int diskPct: 0
 
     property var wifiNetworks: []
+    property bool wifiEnabled: Boolean(wifiInfo && (wifiInfo.enabled !== false))
     property bool scanning: false
     property string passwordSsid: ""
     property string pendingConnectSsid: ""
@@ -121,7 +122,52 @@ Item {
         if (!homelabProc.running) homelabProc.running = true
         if (!btStateProc.running) btStateProc.running = true
         if (!qrStatusProc.running) qrStatusProc.running = true
+        if (!wifiCheckProc.running) wifiCheckProc.running = true
         Theme.rafraichirSystemInfo()
+        if (Theme.islandSystemeTarget === "wifi") {
+            scrollWifiTimer.restart()
+        }
+    }
+
+    Timer {
+        id: scrollWifiTimer
+        interval: 40
+        repeat: false
+        onTriggered: {
+            if (Theme.islandSystemeTarget === "wifi") {
+                Theme.islandSystemeTarget = ""
+                sysFlick.contentY = Math.min(reseauHeader.y, Math.max(0, sysFlick.contentHeight - sysFlick.height))
+            }
+        }
+    }
+
+    Connections {
+        target: Theme
+        function onIslandSystemeTargetChanged() {
+            if (Theme.islandSystemeTarget === "wifi") scrollWifiTimer.restart()
+        }
+    }
+
+    Process {
+        id: wifiCheckProc
+        command: ["nmcli", "radio", "wifi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let s = text.trim().toLowerCase()
+                if (s === "enabled" || s === "disabled") {
+                    root.wifiEnabled = (s === "enabled")
+                }
+            }
+        }
+    }
+
+    Process {
+        id: wifiToggleProc
+        onExited: {
+            if (!wifiCheckProc.running) wifiCheckProc.running = true
+            Theme.rafraichirSystemInfo()
+            if (root.wifiEnabled) root.scanWifi()
+        }
     }
 
     function btCommand(args) {
@@ -476,6 +522,7 @@ Item {
         }
 
         Flickable {
+            id: sysFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -520,6 +567,7 @@ Item {
         }
 
         Text {
+            id: reseauHeader
             text: "RÉSEAU"
             font.family: Theme.fontUi
             font.pixelSize: Theme.textXs
@@ -583,6 +631,41 @@ Item {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.scanWifi()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: wifiPowerLbl.implicitWidth + 14
+                        radius: 7
+                        color: root.wifiEnabled
+                            ? Qt.alpha(Theme.accent, 0.22)
+                            : Qt.alpha(Theme.error, 0.18)
+                        border.width: 1
+                        border.color: root.wifiEnabled
+                            ? Qt.alpha(Theme.accent, 0.55)
+                            : Qt.alpha(Theme.error, 0.45)
+
+                        Text {
+                            id: wifiPowerLbl
+                            anchors.centerIn: parent
+                            text: root.wifiEnabled ? "Wi-Fi ON" : "Wi-Fi OFF"
+                            font.family: Theme.fontUi
+                            font.pixelSize: Theme.textXs
+                            font.weight: Font.DemiBold
+                            color: root.wifiEnabled ? Theme.accent : Theme.error
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (wifiToggleProc.running) return
+                                let target = root.wifiEnabled ? "off" : "on"
+                                root.wifiEnabled = !root.wifiEnabled
+                                wifiToggleProc.command = ["nmcli", "radio", "wifi", target]
+                                wifiToggleProc.running = true
+                            }
                         }
                     }
                 }

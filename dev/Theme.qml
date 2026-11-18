@@ -102,6 +102,7 @@ QtObject {
         }
     }
     property int islandPanelTab: 0
+    property string islandSystemeTarget: ""
     property string islandSidePanel: ""
     property bool islandCalendarRetracted: false
     property int todoRev: 0
