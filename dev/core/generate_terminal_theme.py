@@ -56,6 +56,51 @@ def adjust_lightness(h_color, factor):
     return rgb_to_hex(r2, g2, b2)
 
 
+def _rel_lum(hex_c):
+    """Luminance relative WCAG 2.1 (0.0 .. 1.0)."""
+    def _lin(v):
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = hex_to_rgb(hex_c)
+    return 0.2126 * _lin(r) + 0.7152 * _lin(g) + 0.0722 * _lin(b)
+
+
+def _contrast_ratio(c1, c2):
+    l1, l2 = _rel_lum(c1), _rel_lum(c2)
+    hi, lo = max(l1, l2), min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def ensure_contrast(color_hex, bg_hex, min_ratio=4.5):
+    """Ajuste la luminosité de `color_hex` pour garantir `min_ratio` sur `bg_hex`."""
+    try:
+        if _contrast_ratio(color_hex, bg_hex) >= min_ratio:
+            return color_hex
+    except Exception:
+        return color_hex
+    r, g, b = hex_to_rgb(color_hex)
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    dark_bg = is_dark(bg_hex)
+    lo, hi = (l, 1.0) if dark_bg else (0.0, l)
+    best = color_hex
+    for _ in range(18):
+        mid = (lo + hi) / 2.0
+        cand = rgb_to_hex(*colorsys.hls_to_rgb(h, mid, s))
+        if _contrast_ratio(cand, bg_hex) >= min_ratio:
+            best = cand
+            if dark_bg:
+                hi = mid
+            else:
+                lo = mid
+        else:
+            if dark_bg:
+                lo = mid
+            else:
+                hi = mid
+    if _contrast_ratio(best, bg_hex) < min_ratio:
+        return "#ffffff" if dark_bg else "#000000"
+    return best
+
+
 def find_style_file():
     base_dir = Path(__file__).resolve().parent
     local_style = base_dir / "style_vars.json"
@@ -122,6 +167,8 @@ def compute_terminal_palette(style_data):
         c15 = "#000000"
 
     ansi_colors = [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]
+    min_ratios = [3.0, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 7.0, 3.6, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 7.0]
+    ansi_colors = [ensure_contrast(c, bg, r) for c, r in zip(ansi_colors, min_ratios)]
 
     return {
         "theme": active,
