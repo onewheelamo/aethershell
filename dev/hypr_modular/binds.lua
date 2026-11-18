@@ -8,6 +8,7 @@ hl.bind(mainMod .. " + Q", hl.dsp.window.close(), { description = "fermer la fen
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("quickshell ipc -n call shell minimiser"), { description = "mettre la fenêtre de côté" })
 hl.bind(mainMod .. " + SHIFT + D", hl.dsp.exec_cmd("quickshell ipc -n call shell rappelerDerniere"), { description = "rappeler la dernière fenêtre de côté" })
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }), { description = "fenêtre flottante" })
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("python3 $HOME/.config/quickshell/core/workspace_float_toggle.py"), { description = "basculer tout le bureau flottant / tiling" })
 hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }), { description = "fenêtre flottante" })  -- essentiel
 hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }), { description = "plein écran" })
 hl.bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }), { description = "maximiser" })
