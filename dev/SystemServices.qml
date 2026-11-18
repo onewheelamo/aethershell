@@ -342,4 +342,53 @@ QtObject {
     function program(name) {
         return (root.appVars && root.appVars[name]) ? String(root.appVars[name]) : ""
     }
+
+    // ── Démons et veilles d'arrière-plan (tray, xdg, thèmes, nuit) ──────────
+    property Process trayWatchdogProc: Process {
+        running: true
+        command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
+    }
+
+    property Process lienSystemeProc: Process {
+        running: true
+        command: ["python3", Quickshell.shellPath("core/lien_systeme.py"), "--appliquer"]
+    }
+
+    property Process themesScanProc: Process {
+        running: true
+        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        onExited: Theme.relireCatalogue()
+    }
+
+    property Process themesVeilleProc: Process {
+        running: true
+        command: ["sh", Quickshell.shellPath("core/veille_themes.sh")]
+        stdout: SplitParser {
+            onRead: line => { if (line.indexOf(".colors") >= 0) themesDebounce.restart() }
+        }
+    }
+
+    property Timer themesDebounce: Timer {
+        interval: 600
+        repeat: false
+        onTriggered: {
+            if (themesScanProc.running) return
+            themesScanProc.running = true
+        }
+    }
+
+    property Process nuitApplyProc: Process {
+        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
+    }
+
+    property Timer nuitApplyTimer: Timer {
+        interval: 60000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: {
+            if (nuitApplyProc.running) return
+            nuitApplyProc.running = true
+        }
+    }
 }

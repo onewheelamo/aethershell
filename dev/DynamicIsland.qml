@@ -1294,9 +1294,7 @@ Item {
 
             Icon {
                 anchors.verticalCenter: parent.verticalCenter
-                glyph: ShellState.osdKind === "brightness" ? "brightness"
-                    : ShellState.osdKind === "mute" ? "volume-off"
-                    : (ShellState.osdValue <= 0 ? "mute" : ShellState.osdValue < 50 ? "volume-medium" : "volume-high")
+                glyph: ShellState.osdGlyph
                 size: Theme.iconSm
                 color: Theme.accent
             }
@@ -1318,7 +1316,7 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(ShellState.osdValue) + "%"
+                text: ShellState.osdPercent
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 font.weight: Font.Bold

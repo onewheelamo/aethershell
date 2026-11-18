@@ -67,3 +67,6 @@ WidgetPressePapiers 1.0 widgets/presse_papiers.qml
 WidgetMeteo 1.0 widgets/meteo.qml
 WidgetDisques 1.0 widgets/disques.qml
 WidgetHomelab 1.0 widgets/homelab.qml
+ScreenshotOverlay 1.0 ScreenshotOverlay.qml
+DesktopWidgetsLayer 1.0 DesktopWidgetsLayer.qml
+FullscreenOverlay 1.0 FullscreenOverlay.qml

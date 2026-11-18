@@ -11,6 +11,7 @@ import Quickshell.Wayland
 Item {
     id: root
     readonly property var _shellState: ShellState
+    readonly property var _systemServices: SystemServices
 
     // Transitions de fond d'écran par shader (inspiré de diegoMalagrida/pocket-dots)
     WallpaperFx { id: wallpaperFx }
@@ -21,251 +22,6 @@ Item {
         id: fondProfondeur
     }
 
-
-    // ────────────────────────────────────────────────────────────────────────
-    // MODE PLACEMENT D'UN WIDGET (SUPER + clic sur le widget)
-    // ────────────────────────────────────────────────────────────────────────
-    // Le glisser direct est impossible : sur une petite surface layer, les
-    // mouvements ne sont pas délivrés au client et le geste meurt dès que le
-    // pointeur sort du rectangle (mesuré : press et release arrivent, pas les
-    // déplacements). On passe donc par une surface plein écran qui reçoit le
-    // pointeur partout : le widget suit le curseur en aperçu, et un clic le pose.
-    property var placingWindow: null
-    property real placingX: 0
-    property real placingY: 0
-    property real placingGrabX: 0
-    property real placingGrabY: 0
-    property bool placingArmed: false
-    readonly property bool placing: placingWindow !== null
-
-    // Fenêtres des widgets, pour retrouver laquelle est sous le curseur quand le
-    // déclencheur vient de Hyprland (qui, lui, connaît le modificateur).
-    property var widgetWindows: []
-
-    // Menu du widget (clic milieu) : quelle entrée, et où poser la fenêtre.
-    property string menuWidgetId: ""
-    property real menuWidgetX: 0
-    property real menuWidgetY: 0
-    readonly property var menuWidget: {
-        if (menuWidgetId === "") return ({})
-        const l = ShellState.widgets || []
-        for (let i = 0; i < l.length; ++i)
-            if (String(l[i].id) === menuWidgetId) return l[i]
-        return ({})
-    }
-
-    // Un widget peut viser plusieurs bureaux (`workspaces: [1,3]`) ; 0 = tous.
-    // `workspace` reste la forme historique : un widget écrit avant la liste
-    // continue de s'afficher au même endroit, sans migration de fichier.
-    function widgetVisible(w) {
-        if (!w || w.enabled === false) return false
-        // Une liste venue du JSON reste un tableau JS, mais on la reconstruit
-        // élément par élément : `.map` n'existe pas si la valeur arrive en
-        // QVariantList, et la liaison échouait alors en silence (widget invisible
-        // quel que soit le réglage).
-        const brut = (w.workspaces && w.workspaces.length > 0)
-            ? w.workspaces : [w.workspace]
-        const liste = []
-        for (let i = 0; i < brut.length; ++i) {
-            const n = Number(brut[i])
-            if (!isNaN(n)) liste.push(n)
-        }
-        if (liste.length === 0) return true
-        if (liste.indexOf(0) >= 0) return true
-        const ici = Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : -1
-        return liste.indexOf(ici) >= 0
-    }
-
-    // Appelé par `quickshell ipc call shell placeWidget` (bind SUPER + SHIFT + clic).
-    function startPlacementFromCursor() {
-        // Cadenas posé dans le panneau : un SUPER + SHIFT + clic ne déplace plus
-        // rien (et annule un déplacement en cours sans rien écrire).
-        if (Theme.widgetsLocked) {
-            if (placingWindow) endPlacement(false)
-            return
-        }
-        if (placingWindow) { endPlacement(false); return }
-        findWidgetProc.running = true
-    }
-
-    Process {
-        id: findWidgetProc
-        command: ["hyprctl", "cursorpos"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const parts = String(text).trim().split(",")
-                const cx = parseInt(parts[0], 10)
-                const cy = parseInt(parts[1], 10)
-                if (isNaN(cx) || isNaN(cy)) return
-                for (let i = 0; i < root.widgetWindows.length; i++) {
-                    const win = root.widgetWindows[i]
-                    if (!win || !win.visible) continue
-                    const wx = Number(win.w.x) || 0
-                    const wy = Number(win.w.y) || 0
-                    if (cx >= wx && cx <= wx + win.implicitWidth
-                            && cy >= wy && cy <= wy + win.implicitHeight) {
-                        root.beginPlacement(win, cx - wx, cy - wy)
-                        return
-                    }
-                }
-            }
-        }
-    }
-
-    // Les deux crochets IPC du shell (placement d'un widget, lancement d'une
-    // capture) : un seul gestionnaire, QML n'en accepte qu'un par objet.
-    Component.onCompleted: {
-        ShellState.placeWidgetHook = function() { root.startPlacementFromCursor() }
-        // Ouverture du menu d'un widget sans souris : l'IPC s'en sert, le clic
-        // milieu passe par la même propriété d'état.
-        ShellState.widgetMenuHook = function(id) {
-            // Un identifiant vide referme : c'est ce que fait l'IPC pour les tests,
-            // et ça évite d'ajouter une seconde fonction au gestionnaire.
-            if (String(id) === "") { root.menuWidgetId = ""; return }
-            const l = ShellState.widgets || []
-            for (let i = 0; i < l.length; ++i) {
-                if (String(l[i].id) !== String(id)) continue
-                root.menuWidgetX = Number(l[i].x) || 0
-                root.menuWidgetY = Number(l[i].y) || 0
-                root.menuWidgetId = String(id)
-                return
-            }
-        }
-        ShellState.captureHook = function(mode) { root.requestCapture(mode) }
-    }
-
-    // Changer de bureau referme le panneau ouvert. Le clic sur l'applet des
-    // bureaux part de la barre, qui fait partie des fenêtres tenues par
-    // l'attrapeur de focus : le grab ne se libérait donc pas, et le popup
-    // restait affiché par-dessus le nouveau bureau — vu sur le panneau média.
-    Connections {
-        target: Hyprland
-        function onFocusedWorkspaceChanged() {
-            if (Theme.activePopup !== "") Theme.activePopup = ""
-        }
-        function onRawEvent(event) {
-            if (event && event.name === "submap") {
-                ShellState.activeSubmap = String(event.data || "").trim()
-            }
-        }
-    }
-
-    function beginPlacement(win, grabX, grabY) {
-        placingWindow = win
-        placingGrabX = grabX
-        placingGrabY = grabY
-        placingX = Number(win.w.x) || 0
-        placingY = Number(win.w.y) || 0
-        placingArmed = false
-        placementArmTimer.restart()
-    }
-
-    function endPlacement(commit) {
-        if (commit && placingWindow) {
-            const fx = Theme.widgetsSnapGrid ? Math.round(placingX / 16) * 16 : Math.round(placingX)
-            const fy = Theme.widgetsSnapGrid ? Math.round(placingY / 16) * 16 : Math.round(placingY)
-            moveWidget(placingWindow.w.id, fx, fy)
-        }
-        placingWindow = null
-    }
-
-    // Le relâchement du clic qui a ouvert le mode ne doit pas poser le widget.
-    Timer {
-        id: placementArmTimer
-        interval: 220
-        onTriggered: root.placingArmed = true
-    }
-
-    // Certaines applications (ProtonVPN) ne se réenregistrent pas auprès d'un
-    // nouveau StatusNotifierWatcher : après un redémarrage du shell leur icône
-    // reste absente jusqu'au redémarrage de l'app. Ce gardien compare les services
-    // SNI vivants à la liste du watcher et ré-enregistre les absents (une fois par
-    // cycle, sans doublon). Il meurt avec le shell et se relance avec lui.
-    Process {
-        id: trayWatchdogProc
-        running: true
-        command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
-    }
-
-    // Programmes par défaut : le shell les tient dans `core/app_vars.json`, le
-    // reste du système ne connaît que deux registres — `~/.config/xfce4/helpers.rc`
-    // (exo, donc le clic droit de Thunar) et `mimeapps.list` (xdg-open). On les
-    // réécrit au démarrage : un `app_vars.json` modifié à la main ou restauré
-    // d'une sauvegarde reste ainsi valable pour tout le bureau.
-    Process {
-        id: lienSystemeProc
-        running: true
-        command: ["python3", Quickshell.shellPath("core/lien_systeme.py"), "--appliquer"]
-    }
-
-    // Schémas de couleurs : le catalogue est lu **une fois** au démarrage, puis
-    // relu quand un `.colors` apparaît ou disparaît dans l'un des deux dossiers
-    // de schémas (veille inotify, un seul processus, pas de sondage). Le panneau
-    // liste le catalogue — il ne le recopie pas dans la configuration.
-    Process {
-        id: themesScanProc
-        running: true
-        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
-        onExited: Theme.relireCatalogue()
-    }
-    Process {
-        id: themesVeilleProc
-        running: true
-        command: ["sh", Quickshell.shellPath("core/veille_themes.sh")]
-        stdout: SplitParser {
-            // La veille signale aussi l'ouverture des dossiers : seuls les
-            // événements qui nomment un `.colors` concernent le catalogue.
-            onRead: line => { if (line.indexOf(".colors") >= 0) themesDebounce.restart() }
-        }
-    }
-    // Un seul scan pour un dépôt de plusieurs fichiers : on attend que la rafale
-    // d'événements se calme.
-    Timer {
-        id: themesDebounce
-        interval: 600
-        repeat: false
-        onTriggered: {
-            if (themesScanProc.running) return
-            themesScanProc.running = true
-        }
-    }
-
-    // Mode nuit : la plage horaire s'applique **d'ici**, pas depuis l'applet
-    // luminosité. Un minuteur posé dans un applet s'arrête avec lui, et la
-    // modularisation permet de retirer cet applet : l'automatisme disparaissait
-    // alors sans le moindre signe. `main.qml` est toujours monté, sur la tour
-    // comme sur le portable, donc c'est le seul endroit qui garantit la règle.
-    // `appliquer` est idempotent et ne fait rien tant que la plage est vide.
-    Process {
-        id: nuitApplyProc
-        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
-    }
-    Timer {
-        interval: 60000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (nuitApplyProc.running) return
-            nuitApplyProc.running = true
-        }
-    }
-
-
-    // Écrit la nouvelle position dans core/widgets.json (le shell la relira par
-    // FileView : c'est le fichier qui fait foi, pas l'état local du glissement).
-    Process {
-        id: moveWidgetProc
-    }
-
-    function moveWidget(id, x, y) {
-        if (!id) return
-        moveWidgetProc.command = [
-            "python3", Quickshell.shellPath("core/config_manager.py"),
-            "widget_move", String(id), String(Math.round(x)), String(Math.round(y))
-        ]
-        moveWidgetProc.running = true
-    }
 
     // Top Bar Window hosting the 3 distinct islands (Left, Center, Right)
     PanelWindow {
@@ -546,9 +302,7 @@ Item {
 
                 Icon {
                     anchors.verticalCenter: parent.verticalCenter
-                    glyph: ShellState.osdKind === "brightness" ? "brightness"
-                        : ShellState.osdKind === "mute" ? "volume-off"
-                        : (ShellState.osdValue <= 0 ? "mute" : ShellState.osdValue < 50 ? "volume-medium" : "volume-high")
+                    glyph: ShellState.osdGlyph
                     size: Theme.textXxl
                     color: Theme.accent
                 }
@@ -557,9 +311,7 @@ Item {
                     width: 200
                     spacing: 6
                     Text {
-                        text: ShellState.osdKind === "brightness" ? "Luminosité"
-                            : ShellState.osdKind === "mute" ? "Micro coupé"
-                            : (ShellState.osdValue <= 0 ? "Volume coupé" : "Volume")
+                        text: ShellState.osdLabel
                         color: Theme.fg
                         font.pixelSize: Theme.textXs
                     }
@@ -579,7 +331,7 @@ Item {
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Math.round(ShellState.osdValue) + "%"
+                    text: ShellState.osdPercent
                     color: Theme.fg
                     font.pixelSize: Theme.textMd
                     font.bold: true
@@ -589,107 +341,54 @@ Item {
     }
 
     // Floating Configuration Panel Window (couche Top pour laisser passer les boîtes modales polkit)
-    PanelWindow {
+    FullscreenOverlay {
         id: configOverlayWindow
+        property bool charge: false
         screen: topBarWindow.screen
-        visible: Theme.configPanelVisible && !Theme.configPanelYieldFocus
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: (Theme.configPanelVisible && !Theme.configPanelYieldFocus)
-            ? WlrKeyboardFocus.OnDemand
-            : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-config"
-
-        MouseArea {
-            anchors.fill: parent
-            enabled: !Theme.configPanelYieldFocus
-            onClicked: Theme.configPanelVisible = false
-        }
-
-        Loader {
-            id: configLoader
-            // Chargé à la **première** ouverture, puis gardé en mémoire : aucune
-            // analyse des 7 500 lignes au démarrage du shell, et la réouverture
-            // est immédiate (onglet, tiroirs et défilement restent en place).
-            // Le décharger à la fermeture ferait rejouer son Component.onCompleted
-            // — donc un appel `state` à config_manager et un scan de thèmes — à
-            // chaque ouverture : ce n'est pas gratuit.
-            property bool charge: false
-            anchors.centerIn: parent
-            // 740 px : le rail d'onglets porte des libellés (168 px) et le
-            // contenu garde ses 540 px utiles.
-            width: 740
-            // Hauteur bornée : le panneau flotte au centre au lieu de coller à
-            // la barre et au bas de l'écran.
-            height: Math.min(parent.height - Theme.barHeight - Theme.gutterV * 4, 900)
-            active: charge
-            source: "config_panel.qml"
-        }
+        open: Theme.configPanelVisible && !Theme.configPanelYieldFocus
+        layerLevel: WlrLayer.Top
+        focusMode: WlrKeyboardFocus.OnDemand
+        namespaceName: "shell-config"
+        backdropClose: !Theme.configPanelYieldFocus
+        fillLoader: false
+        loaderWidth: 740
+        loaderHeight: Math.min(height - Theme.barHeight - Theme.gutterV * 4, 900)
+        loaderActive: charge
+        loaderSource: "config_panel.qml"
+        onCloseRequested: Theme.configPanelVisible = false
 
         Connections {
             target: Theme
             function onConfigPanelVisibleChanged() {
-                if (Theme.configPanelVisible)
-                    configLoader.charge = true
+                if (Theme.configPanelVisible) configOverlayWindow.charge = true
             }
         }
     }
 
-    // Peinture du masque de parallaxe : fenêtre propre, ouverte par le panneau
-    // (Apparence → Thème & Fond d'écran → « Masque à la main… »).
     MasqueParallaxe {
         screen: topBarWindow.screen
     }
 
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
-    PanelWindow {
+    FullscreenOverlay {
         id: spotlightWindow
         property bool loaded: false
         screen: topBarWindow.screen
-        visible: Theme.spotlightVisible
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
+        open: Theme.spotlightVisible
         aboveWindows: true
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: Theme.spotlightVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-spotlight"
+        namespaceName: "shell-spotlight"
+        loaderActive: loaded
+        loaderSource: "spotlight.qml"
+        onCloseRequested: {
+            if (Date.now() - Theme.spotlightOpenedAt > 300)
+                Theme.spotlightVisible = false
+        }
 
         Connections {
             target: Theme
             function onSpotlightVisibleChanged() {
                 if (Theme.spotlightVisible) spotlightWindow.loaded = true
             }
-        }
-
-        // Un clic hors de la pilule ferme la surface — sauf juste après
-        // l'ouverture, où le relâchement du clic d'invocation arrive ici.
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {
-                if (Date.now() - Theme.spotlightOpenedAt > 300)
-                    Theme.spotlightVisible = false
-            }
-        }
-
-        Loader {
-            id: spotlightLoader
-            anchors.fill: parent
-            active: spotlightWindow.loaded
-            visible: Theme.spotlightVisible
-            source: "spotlight.qml"
         }
     }
 
@@ -776,12 +475,7 @@ Item {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // ÉCRAN DES RACCOURCIS (SUPER + K) — surface fixe, centrée, comme le panneau
-    // de configuration. La liste vient de binds.lua (via config_manager.py state)
-    // et ne retient que les binds qui portent une `description` : rien n'est
-    // dupliqué ici, un raccourci ajouté dans le Lua apparaît tel quel.
-    // ────────────────────────────────────────────────────────────────────────
+    // ÉCRAN DES RACCOURCIS (SUPER + K)
     property var cheatsheetBinds: []
 
     Process {
@@ -803,60 +497,29 @@ Item {
     Connections {
         target: Theme
         function onCheatsheetVisibleChanged() {
-            // Relire à chaque ouverture : un bind ajouté dans binds.lua apparaît
-            // sans redémarrer la coquille.
             if (Theme.cheatsheetVisible)
                 cheatsheetProc.running = true
         }
     }
 
-    PanelWindow {
+    FullscreenOverlay {
         id: cheatsheetWindow
         screen: topBarWindow.screen
-        visible: Theme.cheatsheetVisible
-        anchors { top: true; bottom: true; left: true; right: true }
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        // Exclusif tant qu'il est ouvert : sans ça Échap part à la fenêtre en
-        // dessous et l'écran ne se ferme qu'au clic. La sortie est garantie par
-        // le handler ci-dessous (piège classique : une surface qui avale le
-        // clavier sans porte de sortie testée).
-        WlrLayershell.keyboardFocus: Theme.cheatsheetVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-cheatsheet"
-
-        Item {
-            anchors.fill: parent
-            focus: Theme.cheatsheetVisible
-            Keys.onEscapePressed: Theme.cheatsheetVisible = false
-        }
-
-        // Fond cliquable : se referme comme le panneau.
-        MouseArea {
-            anchors.fill: parent
-            onClicked: Theme.cheatsheetVisible = false
-        }
-
-        Loader {
-            anchors.centerIn: parent
-            source: Theme.cheatsheetVisible ? "Cheatsheet.qml" : ""
-            onLoaded: {
-                if (item) {
-                    // Liaisons, pas des affectations : le Process peut répondre
-                    // APRÈS le chargement du composant, et une affectation
-                    // laisserait la liste vide pour toujours.
-                    item.binds = Qt.binding(function () { return root.cheatsheetBinds })
-                    item.surfaceColor = Qt.binding(function () {
-                        return Theme.surfaceBg
-                    })
-                }
-            }
+        open: Theme.cheatsheetVisible
+        namespaceName: "shell-cheatsheet"
+        escapeClose: true
+        fillLoader: false
+        loaderWidth: loaderItem ? loaderItem.implicitWidth : 0
+        loaderHeight: loaderItem ? loaderItem.implicitHeight : 0
+        loaderSource: Theme.cheatsheetVisible ? "Cheatsheet.qml" : ""
+        onCloseRequested: Theme.cheatsheetVisible = false
+        onContentLoaded: item => {
+            item.binds = Qt.binding(function () { return root.cheatsheetBinds })
+            item.surfaceColor = Qt.binding(function () { return Theme.surfaceBg })
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // WHICH-KEY PAR SUBMAP — overlay deux colonnes des raccourcis du submap
-    // ────────────────────────────────────────────────────────────────────────
+    // WHICH-KEY PAR SUBMAP
     property var submapBinds: []
 
     Process {
@@ -880,7 +543,7 @@ Item {
     }
 
     Connections {
-        target: Theme
+        target: ShellState
         function onActiveSubmapChanged() {
             if (ShellState.activeSubmap !== "") {
                 if (!submapBindsProc.running) submapBindsProc.running = true
@@ -916,9 +579,7 @@ Item {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────
     // VUE D'ENSEMBLE DES FENÊTRES — MISSION CONTROL (SUPER + G)
-    // ────────────────────────────────────────────────────────────────────────
     property var overviewClients: []
 
     Process {
@@ -945,28 +606,19 @@ Item {
         }
     }
 
-    PanelWindow {
+    FullscreenOverlay {
         id: overviewWindow
         screen: topBarWindow.screen
-        visible: Theme.overviewVisible
-        anchors { top: true; bottom: true; left: true; right: true }
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: Theme.overviewVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-overview"
-
-        Loader {
-            anchors.fill: parent
-            source: Theme.overviewVisible ? "OverviewOverlay.qml" : ""
-            onLoaded: {
-                if (!item) return
-                item.clients = Qt.binding(() => root.overviewClients)
-                item.closeRequested.connect(() => { Theme.overviewVisible = false })
-                item.refreshRequested.connect(() => {
-                    if (!overviewClientsProc.running) overviewClientsProc.running = true
-                })
-            }
+        open: Theme.overviewVisible
+        namespaceName: "shell-overview"
+        backdropClose: false
+        loaderSource: Theme.overviewVisible ? "OverviewOverlay.qml" : ""
+        onContentLoaded: item => {
+            item.clients = Qt.binding(() => root.overviewClients)
+            item.closeRequested.connect(() => { Theme.overviewVisible = false })
+            item.refreshRequested.connect(() => {
+                if (!overviewClientsProc.running) overviewClientsProc.running = true
+            })
         }
     }
 
@@ -993,499 +645,12 @@ Item {
         source: "first_run.qml"
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    // BARRE DE CAPTURE (SUPER + SHIFT + S) — surface plein écran transparente :
-    // elle attrape le clic extérieur et le clavier (Échap), tandis que la
-    // pastille, elle, glisse depuis le bord gauche sans prendre la hauteur.
-    // Le lancement de la capture attend que la surface ait disparu (340 ms),
-    // sinon la barre figurerait sur la capture d'écran.
-    // ────────────────────────────────────────────────────────────────────────
-    property string pendingCapture: ""
-
-    Timer {
-        id: captureLaunchTimer
-        interval: 340
-        onTriggered: {
-            if (root.pendingCapture === "") return
-            Quickshell.execDetached([
-                "bash", Quickshell.shellPath("core/screenshot.sh"), root.pendingCapture
-            ])
-            root.pendingCapture = ""
-        }
+    ScreenshotOverlay {
+        targetScreen: topBarWindow.screen
     }
 
-    function requestCapture(mode) {
-        // Arrêter un enregistrement ne capture rien : attendre que la pastille
-        // sorte n'ajouterait qu'un tiers de seconde de vidéo au fichier.
-        if (mode === "record-stop") {
-            Theme.screenshotPickerVisible = false
-            Quickshell.execDetached([
-                "bash", Quickshell.shellPath("core/screenshot.sh"), mode
-            ])
-            return
-        }
-        root.pendingCapture = mode
-        Theme.screenshotPickerVisible = false
-        captureLaunchTimer.restart()
-    }
-
-    PanelWindow {
-        id: screenshotPickerWindow
-        screen: topBarWindow.screen
-        // Reste montée le temps de la sortie (220 ms + marge) : sinon la
-        // pastille disparaîtrait d'un coup au lieu de rentrer à gauche.
-        visible: Theme.screenshotPickerVisible || closeTimer.running
-        anchors { top: true; bottom: true; left: true; right: true }
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: Theme.screenshotPickerVisible
-            ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-shotbar"
-
-        property bool shown: false
-
-        Timer { id: closeTimer; interval: 300 }
-
-        // L'animation est armée une frame après le montage : la surface layer
-        // n'est pas encore mappée quand la visibilité bascule, et l'animation
-        // se jouerait dans le vide (première image déjà à l'arrivée).
-        Timer {
-            id: openTimer
-            interval: 40
-            onTriggered: screenshotPickerWindow.shown = true
-        }
-
-        Connections {
-            target: Theme
-            function onScreenshotPickerVisibleChanged() {
-                if (Theme.screenshotPickerVisible) {
-                    closeTimer.stop()
-                    openTimer.restart()
-                    recordingCheckProc.running = true
-                } else {
-                    openTimer.stop()
-                    screenshotPickerWindow.shown = false
-                    closeTimer.restart()
-                }
-            }
-        }
-
-        Item {
-            anchors.fill: parent
-            focus: Theme.screenshotPickerVisible
-            Keys.onEscapePressed: Theme.screenshotPickerVisible = false
-        }
-
-        // Fond cliquable : se referme comme le panneau et l'écran des raccourcis.
-        MouseArea {
-            anchors.fill: parent
-            onClicked: Theme.screenshotPickerVisible = false
-        }
-
-        ScreenshotBar {
-            id: shotBar
-            anchors.verticalCenter: parent.verticalCenter
-            x: screenshotPickerWindow.shown ? 18 : -(width + 24)
-            Behavior on x {
-                NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
-            }
-
-            onRegionRequested: root.requestCapture("region")
-            onFullRequested: root.requestCapture("full")
-            onRecordRegionRequested: root.requestCapture("record-region")
-            onRecordFullRequested: root.requestCapture("record-full")
-            onRecordStopRequested: root.requestCapture("record-stop")
-        }
-
-        // Un enregistrement peut être en cours depuis une ouverture précédente :
-        // dans ce cas l'entrée vidéo devient « arrêter ».
-        Process {
-            id: recordingCheckProc
-            command: ["pgrep", "-x", "wf-recorder"]
-            stdout: StdioCollector {
-                onStreamFinished: shotBar.recording = String(text).trim().length > 0
-            }
-        }
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // WIDGETS DE BUREAU — une surface layer par entrée de core/widgets.json.
-    // Couche `Bottom`, jamais le clavier : le widget vit derrière les fenêtres et
-    // n'est cliquable que là où rien ne le couvre. Sa taille suit son contenu :
-    // une surface layer consomme les clics sur toute son étendue, donc une
-    // fenêtre plus grande que le widget rendrait le bureau incliquable.
-    // ────────────────────────────────────────────────────────────────────────
-    Variants {
-        model: ShellState.widgets
-
-        PanelWindow {
-            id: widgetWindow
-            required property var modelData
-
-            readonly property var w: modelData || ({})
-
-            screen: topBarWindow.screen
-            visible: Theme.widgetsBureauVisibles && root.widgetVisible(w)
-
-            anchors { top: true; left: true }
-            // Glissement : les marges suivent le geste pendant qu'on déplace, puis
-            // reprennent la valeur du fichier d'état une fois le relâchement écrit.
-            property bool dragging: false
-            property real dragStartX: 0
-            property real dragStartY: 0
-            property real liveX: Number(w.x) || 0
-            property real liveY: Number(w.y) || 0
-            // En mode placement, c'est l'aperçu qui pilote la position ; sinon le
-            // fichier d'état fait foi.
-            readonly property bool isPlacing: root.placingWindow === widgetWindow
-            margins.top: widgetWindow.isPlacing ? Math.round(root.placingY) : (Number(w.y) || 0)
-            margins.left: widgetWindow.isPlacing ? Math.round(root.placingX) : (Number(w.x) || 0)
-            // La carte : transparence propre à chaque widget (0,35 par défaut,
-            // donc au-dessus du seuil de flou 0,30). Le padding fait partie de
-            // la surface : il consomme les clics, il reste donc serré (18 px).
-            readonly property int pad: 18
-            // L'opacité ne porte que le FOND de la carte. À 0 il n'y a plus de fond
-            // du tout et le texte reste net, posé sur le wallpaper.
-            readonly property bool hasOpacity: w.opacity !== undefined && w.opacity !== null
-                                               && !isNaN(Number(w.opacity))
-            readonly property real cardOpacity: hasOpacity
-                ? Math.max(0, Math.min(1, Number(w.opacity))) : 0.35
-            readonly property bool isTransparentStyle: String(w.style || "") === "transparent"
-                || (!w.style && cardOpacity <= 0.01)
-            readonly property bool isGlassStyle: !isTransparentStyle && cardOpacity > 0.01
-            // Un type sans composant (meteo.qml absent, faute de frappe) donnait une
-            // carte de pad*2 = 36×36 avec le rayon global : un rond vide, illisible
-            // comme diagnostic. On affiche un libellé explicite à la place.
-            readonly property bool broken: widgetLoader.status === Loader.Error
-            implicitWidth: (broken ? brokenText.implicitWidth : widgetLoader.implicitWidth) + pad * 2
-            implicitHeight: (broken ? brokenText.implicitHeight : widgetLoader.implicitHeight) + pad * 2
-            Component.onCompleted: {
-                const list = root.widgetWindows.slice()
-                list.push(widgetWindow)
-                root.widgetWindows = list
-            }
-            Component.onDestruction: {
-                const i = root.widgetWindows.indexOf(widgetWindow)
-                if (i >= 0) {
-                    const list = root.widgetWindows.slice()
-                    list.splice(i, 1)
-                    root.widgetWindows = list
-                }
-            }
-
-            exclusionMode: ExclusionMode.Ignore
-            color: "transparent"
-            WlrLayershell.layer: WlrLayer.Bottom
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-            // Un namespace par widget : c'est lui qui porte la règle de flou
-            // (voir build_shell_blur_block dans core/config_manager.py).
-            WlrLayershell.namespace: "shell-widget-" + (w.id || "x")
-
-            Rectangle {
-                id: carteWidget
-                anchors.fill: parent
-                radius: Theme.globalRadius
-                // Style Transparent : fond nul ; style Glass : SurfaceFloutee.
-                color: "transparent"
-                border.width: Theme.widgetsEditMode ? 2 : ((widgetWindow.isTransparentStyle || widgetWindow.w.border === false) ? 0 : 1)
-                border.color: Theme.widgetsEditMode ? Theme.accent : Qt.alpha(Theme.accent, 0.16)
-
-                SurfaceFloutee {
-                    anchors.fill: parent
-                    visible: widgetWindow.isGlassStyle
-                    rayon: Theme.globalRadius
-                    teinte: Qt.alpha(Theme.surface, widgetWindow.cardOpacity)
-                    bordureLargeur: 0
-                    actif: widgetWindow.isGlassStyle
-                }
-
-                // Clic milieu : les réglages de ce widget. Déclaré avant les
-                // autres surfaces de la carte, donc dessous : le glissement
-                // garde le bouton gauche, seul le milieu remonte jusqu'ici.
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.MiddleButton
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.menuWidgetX = Number(widgetWindow.w.x) || 0
-                        root.menuWidgetY = Number(widgetWindow.w.y) || 0
-                        root.menuWidgetId = String(widgetWindow.w.id || "")
-                    }
-                }
-
-                // Mode édition directe : clic gauche déplace le widget
-                MouseArea {
-                    anchors.fill: parent
-                    visible: Theme.widgetsEditMode
-                    acceptedButtons: Qt.LeftButton
-                    cursorShape: Qt.SizeAllCursor
-                    onPressed: mouse => {
-                        root.beginPlacement(widgetWindow,
-                            (Number(widgetWindow.w.x) || 0) + mouse.x,
-                            (Number(widgetWindow.w.y) || 0) + mouse.y)
-                    }
-                }
-
-                // Déplacement à la souris via `hyprctl cursorpos` toutes les 30 ms (une surface
-                // layer ne reçoit pas les deltas hors de son rectangle, et `mouse.modifiers` vaut 0).
-                Text {
-                    id: brokenText
-                    anchors.centerIn: parent
-                    visible: widgetWindow.broken
-                    text: "Widget « " + (widgetWindow.w.type || "?") + " » introuvable"
-                    color: Qt.alpha(Theme.error, 0.9)
-                    font.pixelSize: Theme.textXs
-                }
-
-                Loader {
-                    id: widgetLoader
-                    // Surtout pas `anchors.fill: parent` : le Loader imposerait sa
-                    // taille (1×1 au premier paint) au widget, qui resterait écrasé
-                    // (pitfall 68). Ici le contenu garde sa taille implicite et la
-                    // fenêtre suit.
-                    anchors.centerIn: parent
-                    // Les widgets de compte partagent un seul composant : le
-                    // fournisseur se déduit de l'id (« deepseek-3 » → deepseek),
-                    // donc widgets.json, les positions et les réglages déjà
-                    // enregistrés n'ont pas bougé.
-                    source: {
-                        const t = widgetWindow.w.type
-                        if (!t) return ""
-                        const partages = ["deepseek", "ollama", "antigravity"]
-                        return "widgets/" + (partages.indexOf(t) >= 0 ? "llm" : t) + ".qml"
-                    }
-                    onLoaded: {
-                        if (item) {
-                            item.options = widgetWindow.w.options || ({})
-                            item.widgetId = widgetWindow.w.id || ""
-                        }
-                    }
-                }
-
-                Connections {
-                    target: widgetWindow
-                    function onWChanged() {
-                        if (widgetLoader.item) {
-                            widgetLoader.item.options = widgetWindow.w.options || ({})
-                        }
-                    }
-                }
-
-                // Poignées de coin + barre d'actions rapides en mode édition
-                Repeater {
-                    model: Theme.widgetsEditMode ? 4 : 0
-                    delegate: Rectangle {
-                        required property int index
-                        width: 7
-                        height: 7
-                        radius: 2
-                        color: Theme.accent
-                        anchors.top: (index < 2) ? parent.top : undefined
-                        anchors.bottom: (index >= 2) ? parent.bottom : undefined
-                        anchors.left: (index % 2 === 0) ? parent.left : undefined
-                        anchors.right: (index % 2 === 1) ? parent.right : undefined
-                        anchors.margins: -2
-                    }
-                }
-
-                Rectangle {
-                    visible: Theme.widgetsEditMode
-                    z: 10
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.margins: 4
-                    width: editToolsRow.implicitWidth + 8
-                    height: 22
-                    radius: 6
-                    color: Qt.alpha(Theme.bg, 0.88)
-                    border.width: 1
-                    border.color: Qt.alpha(Theme.accent, 0.55)
-
-                    Row {
-                        id: editToolsRow
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        Rectangle {
-                            width: 18; height: 18; radius: 4
-                            color: decScaleMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
-                            Text { anchors.centerIn: parent; text: "−"; color: Theme.fg; font.pixelSize: 11; font.bold: true }
-                            MouseArea {
-                                id: decScaleMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
-                                    const nxt = Math.max(60, Math.round(cur - 10))
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 18; height: 18; radius: 4
-                            color: incScaleMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
-                            Text { anchors.centerIn: parent; text: "+"; color: Theme.fg; font.pixelSize: 11; font.bold: true }
-                            MouseArea {
-                                id: incScaleMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
-                                    const nxt = Math.min(160, Math.round(cur + 10))
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 18; height: 18; radius: 4
-                            color: styleTogMa.containsMouse ? Qt.alpha(Theme.accent, 0.25) : "transparent"
-                            Text { anchors.centerIn: parent; text: widgetWindow.isGlassStyle ? "◆" : "◇"; color: Theme.accent; font.pixelSize: 11 }
-                            MouseArea {
-                                id: styleTogMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    const nxt = widgetWindow.isGlassStyle ? "transparent" : "glass"
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "style", nxt])
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 18; height: 18; radius: 4
-                            color: delWidMa.containsMouse ? Qt.alpha(Theme.error, 0.28) : "transparent"
-                            Text { anchors.centerIn: parent; text: "✕"; color: Theme.error; font.pixelSize: 10; font.bold: true }
-                            MouseArea {
-                                id: delWidMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_remove", String(widgetWindow.w.id)])
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Bandeau flottant de contrôle quand le mode édition des widgets est actif
-    PanelWindow {
-        id: widgetsEditBanner
-        screen: topBarWindow.screen
-        visible: Theme.widgetsEditMode
-        anchors { top: true }
-        margins.top: Theme.barHeight + 14
-        implicitWidth: editBannerRow.implicitWidth + 28
-        implicitHeight: 36
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "shell-whichkey"
-
-        SurfaceFloutee {
-            anchors.fill: parent
-            rayon: Theme.pillRadius
-            teinte: Theme.surfaceBg
-            bordureCouleur: Theme.accent
-            bordureLargeur: 1
-            actif: true
-        }
-
-        Row {
-            id: editBannerRow
-            anchors.centerIn: parent
-            spacing: 12
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "ÉDITION WIDGETS"
-                font.family: Theme.fontUi
-                font.pixelSize: Theme.textXs
-                font.bold: true
-                color: Theme.accent
-            }
-
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: bannerSnapTxt.implicitWidth + 14
-                height: 22
-                radius: 6
-                color: Theme.widgetsSnapGrid ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.08)
-                Text {
-                    id: bannerSnapTxt
-                    anchors.centerIn: parent
-                    text: Theme.widgetsSnapGrid ? "Grille 16 px" : "Libre"
-                    font.pixelSize: Theme.text2xs
-                    color: Theme.widgetsSnapGrid ? Theme.accent : Theme.fg
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.widgetsSnapGrid = !Theme.widgetsSnapGrid
-                }
-            }
-
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: bannerDoneTxt.implicitWidth + 16
-                height: 22
-                radius: 6
-                color: Theme.accent
-                Text {
-                    id: bannerDoneTxt
-                    anchors.centerIn: parent
-                    text: "Terminer"
-                    font.pixelSize: Theme.text2xs
-                    font.bold: true
-                    color: Theme.bg
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Theme.widgetsEditMode = false
-                }
-            }
-        }
-    }
-
-    // Surface de placement : plein écran, transparente, elle reçoit le pointeur
-    // partout (contrairement au widget) et applique l'aperçu, puis pose au clic.
-    PanelWindow {
-        id: placementCatcher
-        visible: root.placing
-        screen: topBarWindow.screen
-        anchors { top: true; bottom: true; left: true; right: true }
-        color: "transparent"
-        exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: WlrLayer.Overlay
-        // Namespace hors liste de flou : rien à flouter ici.
-        WlrLayershell.namespace: "shell-widget-placement"
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.CrossCursor
-
-            onPositionChanged: mouse => {
-                if (!root.placingWindow) return
-                const maxX = parent.width - root.placingWindow.implicitWidth
-                const maxY = parent.height - root.placingWindow.implicitHeight
-                root.placingX = Math.max(0, Math.min(maxX, mouse.x - root.placingGrabX))
-                root.placingY = Math.max(0, Math.min(maxY, mouse.y - root.placingGrabY))
-            }
-
-            onClicked: if (root.placingArmed) root.endPlacement(true)
-            onWheel: if (root.placing) root.endPlacement(false)
-
-            Keys.onEscapePressed: root.endPlacement(false)
-            focus: true
-        }
-    }
-
-    // Menu d'un widget du bureau (clic milieu) : retirer, ou choisir les bureaux.
-    WidgetMenu {
-        ouvert: root.menuWidgetId !== ""
-        widget: root.menuWidget
-        xEcran: root.menuWidgetX
-        yEcran: root.menuWidgetY
-        onFermer: root.menuWidgetId = ""
+    DesktopWidgetsLayer {
+        targetScreen: topBarWindow.screen
     }
 
     // Barres supplémentaires : bas et côtés. Elles ne s'affichent que si elles

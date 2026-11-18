@@ -88,7 +88,26 @@ QtObject {
     property bool osdVisible: false
     property string osdKind: ""     // "volume" | "brightness" | "mute"
     property real osdValue: 0       // 0..100
+    readonly property string osdGlyph: osdKind === "brightness" ? "brightness"
+        : osdKind === "mute" ? "volume-off"
+        : (osdValue <= 0 ? "mute" : osdValue < 50 ? "volume-medium" : "volume-high")
+    readonly property string osdLabel: osdKind === "brightness" ? "Luminosité"
+        : osdKind === "mute" ? "Micro coupé"
+        : (osdValue <= 0 ? "Volume coupé" : "Volume")
+    readonly property string osdPercent: Math.round(osdValue) + "%"
     signal volumeUpdated()
+
+    property Connections hyprEvents: Connections {
+        target: Hyprland
+        function onFocusedWorkspaceChanged() {
+            if (Theme.activePopup !== "") Theme.activePopup = ""
+        }
+        function onRawEvent(event) {
+            if (event && event.name === "submap") {
+                root.activeSubmap = String(event.data || "").trim()
+            }
+        }
+    }
 
     property Timer osdTimer: Timer {
         interval: 1600
