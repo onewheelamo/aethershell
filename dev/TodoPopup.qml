@@ -21,7 +21,7 @@ Item {
     }
     readonly property real corps: Theme.textXs * 1.15
 
-    property var etat: ({})
+    readonly property var etat: SystemServices.todoData
     readonly property var items: root.etat.items || []
     readonly property var demandes: root.etat.demandes || []
 
@@ -55,10 +55,7 @@ Item {
         return out
     }
 
-    function charger() {
-        proc.running = false
-        proc.running = true
-    }
+    function charger() { SystemServices.rafraichirTodo() }
 
     function basculer(item) {
         geste.identifiant = String(item.id || "")
@@ -77,21 +74,6 @@ Item {
         running: root.ouvert
         repeat: true
         onTriggered: root.charger()
-    }
-
-    Process {
-        id: proc
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "etat"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.etat = (d.detail && d.detail.todo) ? d.detail.todo : d
-                } catch (e) {
-                    root.etat = ({})
-                }
-            }
-        }
     }
 
     Process {

@@ -24,8 +24,8 @@ Item {
     // Un panneau se lit à 60 cm : même corps que le popup homelab.
     readonly property real corps: Theme.textXs * 1.15
 
-    property var etat: ({})
-    property bool charge: false
+    readonly property var etat: SystemServices.hermesData
+    readonly property bool charge: SystemServices.hermesCharge
 
     // Nombre de sessions visibles : au-delà, la liste ne dit plus rien.
     readonly property int maxSessions: 6
@@ -46,38 +46,16 @@ Item {
         action.running = true
     }
 
-    function charger() {
-        proc.running = false
-        proc.running = true
-    }
+    function charger() { SystemServices.rafraichirHermes() }
 
     Component.onCompleted: charger()
     onOuvertChanged: if (ouvert) charger()
 
-    // Une demande d'approbation peut arriver alors que le popup est déjà ouvert :
-    // sans cette relecture, elle n'apparaîtrait qu'après l'avoir fermé et rouvert.
-    // Cinq secondes, et seulement pendant l'ouverture — le reste du temps, rien.
     Timer {
         interval: 5000
         running: root.ouvert
         repeat: true
         onTriggered: root.charger()
-    }
-
-    Process {
-        id: proc
-        command: ["python3", Quickshell.shellPath("core/hermes_applet.py")]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.etat = (d.detail || ({})).hermes || ({})
-                } catch (e) {
-                    root.etat = ({})
-                }
-                root.charge = true
-            }
-        }
     }
 
     Process {

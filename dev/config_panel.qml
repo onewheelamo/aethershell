@@ -443,15 +443,6 @@ Rectangle {
         // Fusion des trois précédents : un seul widget, blocs empilés.
         { type: "comptes",  label: "Quotas IA" }
     ]
-    // Libellé lisible d'une nature de widget : la carte de réglages affichait le
-    // nom technique (« combo ») alors que la grille du dessus dit « Aperçu du jour ».
-    function libelleWidget(nature) {
-        const n = String(nature || "")
-        for (let i = 0; i < widgetTypes.length; ++i)
-            if (String(widgetTypes[i].type) === n) return widgetTypes[i].label
-        return n
-    }
-
     readonly property var widgetTypeRows: {
         const poses = ({})
         for (let i = 0; i < widgetsList.length; i++) {
@@ -536,16 +527,6 @@ Rectangle {
         { code: "milieu", labelA: "C", labelB: "●" },
         { code: "fin", labelA: "D", labelB: "⇥" }
     ]
-
-    function barreDe(donnee) {
-        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
-        return p[0] || "haut"
-    }
-
-    function zoneDe(donnee) {
-        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
-        return p[1] || "milieu"
-    }
 
     Process {
         id: appletsEtatProc
@@ -800,27 +781,13 @@ Rectangle {
         onTriggered: root.appletsRafraichir()
     }
 
-    function basculerVisualiseur() {
-        root.appletCommande([root.vizActif ? "desactiver" : "activer", "visualiseur"])
+    function rechargerVisualiseur() {
         vizRafraichir.restart()
     }
 
     function appletCommande(args) {
         appletsCmdProc.command = ["python3", Quickshell.shellPath("core/bar_applets.py")].concat(args)
         appletsCmdProc.running = true
-    }
-
-    // Placer un applet dans une barre éteinte le rendrait invisible : on allume
-    // la barre dans le même geste. C'était le cas vécu « je choisis → et l'applet
-    // disparaît ».
-    function placerApplet(id, ile) {
-        appletCommande(["placer", id, ile])
-        if (ile === "bas" && !Theme.barBottomVisible)
-            runConfigCmd(["style", "bar_bottom", "true"])
-        else if (ile === "cote-gauche" && !Theme.barLeftVisible)
-            runConfigCmd(["style", "bar_left", "true"])
-        else if (ile === "cote-droite" && !Theme.barRightVisible)
-            runConfigCmd(["style", "bar_right", "true"])
     }
 
     // ── Disques : la sélection se fait sur la liste réelle des montages ──────
@@ -841,131 +808,6 @@ Rectangle {
         }
     }
 
-    // Sans choix enregistré, le service affiche tout sauf la racine : la case doit
-    // refléter ce défaut, sinon la première coche décocherait tout le reste.
-    function montagesChoisis(donnee) {
-        const o = (donnee && donnee.options) || ({})
-        if (Array.isArray(o.montages)) return o.montages.slice()
-        const defaut = []
-        for (let i = 0; i < root.disquesListe.length; ++i) {
-            const m = String(root.disquesListe[i].montage || "")
-            if (m !== "" && m !== "/") defaut.push(m)
-        }
-        return defaut
-    }
-
-    function montageCoche(donnee, montage) {
-        return montagesChoisis(donnee).indexOf(String(montage)) >= 0
-    }
-
-    // L'entrée telle que le panneau la connaît **maintenant** : le délégué peut
-    // porter un `modelData` périmé, et c'est ce qui faisait repartir la sélection
-    // du défaut (tout sauf la racine) au lieu du choix courant.
-    function entreeApplet(id) {
-        const cle = String(id || "")
-        for (let i = 0; i < root.appletRows.length; ++i) {
-            if (String(root.appletRows[i].id) === cle) return root.appletRows[i]
-        }
-        return null
-    }
-
-    function basculerMontage(donnee, montage) {
-        const vive = entreeApplet(donnee && donnee.id) || donnee
-        const liste = montagesChoisis(vive)
-        const i = liste.indexOf(String(montage))
-        if (i >= 0) liste.splice(i, 1)
-        else liste.push(String(montage))
-        appletCommande(["option", (vive && vive.id) || donnee.id, "montages", JSON.stringify(liste)])
-    }
-
-    function appletBasculer(id, actif) {
-        appletCommande([actif ? "desactiver" : "activer", id])
-    }
-
-    function appletEchelle(id, valeur) {
-        const v = Math.max(60, Math.min(160, Math.round(valeur)))
-        appletCommande(["echelle", id, String(v)])
-    }
-
-    // Fichiers suivis par le widget Tâches : une option vide veut dire « tous »,
-    // donc on matérialise la liste complète avant d'en retirer un — sinon la
-    // première case décochée ne changerait rien.
-    function basculerFichierWidget(wid, nom) {
-        let vive = null
-        for (let i = 0; i < root.widgetsList.length; ++i) {
-            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
-        }
-        if (!vive) return
-        const o = vive.options || ({})
-        let liste = Array.isArray(o.fichiers)
-                  ? o.fichiers.map(function (s) { return String(s) })
-                  : (typeof o.fichiers === "string" && o.fichiers !== ""
-                     ? o.fichiers.split(",").map(function (s) { return s.trim() }) : [])
-        liste = liste.filter(function (s) { return s !== "" })
-        if (liste.length === 0) {
-            for (let i = 0; i < root.todoFichiers.length; ++i)
-                liste.push(String(root.todoFichiers[i].nom || ""))
-        }
-        const i = liste.indexOf(String(nom))
-        if (i >= 0) liste.splice(i, 1)
-        else liste.push(String(nom))
-        root.runConfigCmd(["widget_set", wid, "fichiers", JSON.stringify(liste)])
-    }
-
-    // Services suivis par le widget Comptes (Quotas IA) : une option vide veut
-    // dire « tous », donc on matérialise la liste complète avant d'en retirer un.
-    function basculerServiceWidget(wid, serviceId) {
-        let vive = null
-        for (let i = 0; i < root.widgetsList.length; ++i) {
-            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
-        }
-        if (!vive) return
-        const o = vive.options || ({})
-        let liste = null
-        if (o.services !== undefined && o.services !== null) {
-            liste = []
-            if (o.services.length !== undefined && typeof o.services !== "string") {
-                for (let i = 0; i < o.services.length; i++) {
-                    const s = String(o.services[i] || "").trim()
-                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
-                }
-            } else if (typeof o.services === "string" && o.services.trim() !== "") {
-                const parts = o.services.split(",")
-                for (let i = 0; i < parts.length; i++) {
-                    const s = parts[i].trim()
-                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
-                }
-            }
-        }
-        if (liste === null) {
-            liste = []
-            const provs = (root.llmProviders && root.llmProviders.length > 0)
-                        ? root.llmProviders
-                        : [{id: "deepseek"}, {id: "ollama"}, {id: "antigravity"}]
-            for (let j = 0; j < provs.length; ++j) {
-                const sid = String(provs[j].id || "").trim()
-                if (sid !== "" && liste.indexOf(sid) < 0) liste.push(sid)
-            }
-        }
-        const s = String(serviceId).trim()
-        const idx = liste.indexOf(s)
-        if (idx >= 0) liste.splice(idx, 1)
-        else liste.push(s)
-        root.runConfigCmd(["widget_set", wid, "services", JSON.stringify(liste)])
-    }
-
-    // Cocher pose le widget (bureau 1, position par défaut) ; décocher retire
-    // toutes ses instances — il ne doit pas y en avoir plusieurs.
-    function toggleWidgetType(nature, present) {
-        if (present) {
-            for (let i = 0; i < widgetsList.length; i++) {
-                if (String(widgetsList[i].type) === String(nature))
-                    root.runConfigCmd(["widget_remove", widgetsList[i].id])
-            }
-            return
-        }
-        root.runConfigCmd(["widget_add", String(nature), "1", "120", "160"])
-    }
     property string launcherPosition: "bas-centre"
     property var appVarsModel: []
     // Cible du clic sur une notification (core/notif_targets.json) : lignes
@@ -1028,9 +870,6 @@ Rectangle {
         { code: "warn", nom: "Alerte" },
         { code: "success", nom: "Succès" }
     ]
-    function couleurViz(code) {
-        return Theme.resolveVizColor(code)
-    }
     property real shellBlurAlpha: 0.4
     property bool shellBlurPopups: true
     property int resizeStep: 15
@@ -1250,16 +1089,6 @@ Rectangle {
         const q = cmdQueue.slice()
         q.push(args)
         cmdQueue = q
-    }
-
-    // Vide core/launch_history.json (bouton « Vider » du panneau).
-    Process {
-        id: clearHistoryProc
-        command: ["python3", Quickshell.shellPath("core/launch_history.py"), "clear"]
-    }
-
-    function clearLaunchHistory() {
-        if (!clearHistoryProc.running) clearHistoryProc.running = true
     }
 
     function applyStateJson(data) {

@@ -21,17 +21,14 @@ Item {
     }
     readonly property real corps: Theme.textXs * 1.15
 
-    property var etat: ({})
+    readonly property var etat: SystemServices.usbData
     readonly property var disques: root.etat.disques || []
     // Le périphérique dont la phrase de déverrouillage est saisie.
     property string deverrouillage: ""
     property string phrase: ""
     property string dernierMessage: ""
 
-    function charger() {
-        proc.running = false
-        proc.running = true
-    }
+    function charger() { SystemServices.rafraichirUsb() }
 
     function agir(geste, cible) {
         action.nom = String(geste)
@@ -56,21 +53,6 @@ Item {
         running: root.ouvert
         repeat: true
         onTriggered: root.charger()
-    }
-
-    Process {
-        id: proc
-        command: ["python3", Quickshell.shellPath("core/usb_applet.py"), "etat"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.etat = (d.detail && d.detail.usb) ? d.detail.usb : d
-                } catch (e) {
-                    root.etat = ({})
-                }
-            }
-        }
     }
 
     // La phrase LUKS passe par un fichier temporaire dans $XDG_RUNTIME_DIR,

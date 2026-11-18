@@ -391,4 +391,64 @@ QtObject {
             nuitApplyProc.running = true
         }
     }
+
+    // ── Cache partagé des paires Popup ↔ Widget (USB, Todo, Hermes) ──────────
+    property var usbData: ({})
+    property Process usbPollProc: Process {
+        command: ["python3", Quickshell.shellPath("core/usb_applet.py"), "etat"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.usbData = (d.detail && d.detail.usb) ? d.detail.usb : d
+                } catch (e) {
+                    root.usbData = ({})
+                }
+            }
+        }
+    }
+    function rafraichirUsb() {
+        usbPollProc.running = false
+        usbPollProc.running = true
+    }
+
+    property var todoData: ({})
+    property Process todoPollProc: Process {
+        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "etat", "--options={\"fichier\": \"*\"}"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.todoData = (d.detail && d.detail.todo) ? d.detail.todo : d
+                } catch (e) {
+                    root.todoData = ({})
+                }
+            }
+        }
+    }
+    function rafraichirTodo() {
+        todoPollProc.running = false
+        todoPollProc.running = true
+    }
+
+    property var hermesData: ({})
+    property bool hermesCharge: false
+    property Process hermesPollProc: Process {
+        command: ["python3", Quickshell.shellPath("core/hermes_applet.py")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    root.hermesData = (d.detail || ({})).hermes || ({})
+                } catch (e) {
+                    root.hermesData = ({})
+                }
+                root.hermesCharge = true
+            }
+        }
+    }
+    function rafraichirHermes() {
+        hermesPollProc.running = false
+        hermesPollProc.running = true
+    }
 }

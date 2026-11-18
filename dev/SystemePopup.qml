@@ -64,8 +64,8 @@ Item {
         l.sort(function (a, b) { return (Number(b[cle]) || 0) - (Number(a[cle]) || 0) })
         return l.slice(0, 9)
     }
-    property var barres: []
-    property var detail: ({})
+    readonly property var barres: (SystemServices.systemeData.compact && SystemServices.systemeData.compact.barres) || []
+    readonly property var detail: SystemServices.systemeData.detail || ({})
 
     // Le service publie la VRAM et la température du GPU dans `detail`, pas sous
     // forme de mesures : on leur ajoute deux lignes ici, avec les mêmes valeurs
@@ -110,8 +110,7 @@ Item {
     function charger() {
         etat.running = false
         etat.running = true
-        valeurs.running = false
-        valeurs.running = true
+        SystemServices.rafraichirSysteme()
     }
 
     // Un seul gestionnaire de démarrage par objet : deux `Component.onCompleted`
@@ -181,22 +180,6 @@ Item {
                         return
                     }
                 } catch (e) { /* registre illisible : on garde les quatre */ }
-            }
-        }
-    }
-
-    Process {
-        id: valeurs
-        command: ["python3", Quickshell.shellPath("core/systeme_applet.py")]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.barres = (d.compact && d.compact.barres) || []
-                    root.detail = d.detail || ({})
-                } catch (e) {
-                    root.barres = []
-                }
             }
         }
     }

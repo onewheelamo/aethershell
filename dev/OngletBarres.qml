@@ -62,6 +62,76 @@ Column {
         }
         return chercher(bloc)
     }
+
+    function barreDe(donnee) {
+        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
+        return p[0] || "haut"
+    }
+
+    function zoneDe(donnee) {
+        const p = String((donnee && donnee.ile) || "haut:fin").split(":")
+        return p[1] || "milieu"
+    }
+
+    function montagesChoisis(donnee) {
+        const o = (donnee && donnee.options) || ({})
+        if (Array.isArray(o.montages)) return o.montages.slice()
+        const defaut = []
+        for (let i = 0; i < root.disquesListe.length; ++i) {
+            const m = String(root.disquesListe[i].montage || "")
+            if (m !== "" && m !== "/") defaut.push(m)
+        }
+        return defaut
+    }
+
+    function montageCoche(donnee, montage) {
+        return montagesChoisis(donnee).indexOf(String(montage)) >= 0
+    }
+
+    function entreeApplet(id) {
+        const cle = String(id || "")
+        for (let i = 0; i < root.appletRows.length; ++i) {
+            if (String(root.appletRows[i].id) === cle) return root.appletRows[i]
+        }
+        return null
+    }
+
+    function basculerMontage(donnee, montage) {
+        const vive = entreeApplet(donnee && donnee.id) || donnee
+        const liste = montagesChoisis(vive)
+        const i = liste.indexOf(String(montage))
+        if (i >= 0) liste.splice(i, 1)
+        else liste.push(String(montage))
+        root.appletCommande(["option", (vive && vive.id) || donnee.id, "montages", JSON.stringify(liste)])
+    }
+
+    function appletBasculer(id, actif) {
+        root.appletCommande([actif ? "desactiver" : "activer", id])
+    }
+
+    function appletEchelle(id, valeur) {
+        const v = Math.max(60, Math.min(160, Math.round(valeur)))
+        root.appletCommande(["echelle", id, String(v)])
+    }
+
+    function basculerVisualiseur() {
+        root.appletCommande([root.vizActif ? "desactiver" : "activer", "visualiseur"])
+        root.rechargerVisualiseur()
+    }
+
+    function placerApplet(id, ile) {
+        root.appletCommande(["placer", id, ile])
+        if (ile === "bas" && !Theme.barBottomVisible)
+            root.runConfigCmd(["style", "bar_bottom", "true"])
+        else if (ile === "cote-gauche" && !Theme.barLeftVisible)
+            root.runConfigCmd(["style", "bar_left", "true"])
+        else if (ile === "cote-droite" && !Theme.barRightVisible)
+            root.runConfigCmd(["style", "bar_right", "true"])
+    }
+
+    function couleurViz(code) {
+        return Theme.resolveVizColor(code)
+    }
 spacing: 11
 
 
@@ -567,7 +637,7 @@ CollapsibleSection {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.appletBasculer(appletRow.donnee.id,
+                        onClicked: bloc.appletBasculer(appletRow.donnee.id,
                                                        appletRow.donnee.actif)
                     }
 
@@ -598,7 +668,7 @@ CollapsibleSection {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.appletBasculer(appletRow.donnee.id,
+                                onClicked: bloc.appletBasculer(appletRow.donnee.id,
                                                                appletRow.donnee.actif)
                             }
                         }
@@ -694,7 +764,7 @@ CollapsibleSection {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.appletEchelle(appletRow.donnee.id,
+                                    onClicked: bloc.appletEchelle(appletRow.donnee.id,
                                                                   appletRow.donnee.text_scale - 5)
                                 }
                             }
@@ -722,7 +792,7 @@ CollapsibleSection {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.appletEchelle(appletRow.donnee.id,
+                                    onClicked: bloc.appletEchelle(appletRow.donnee.id,
                                                                   appletRow.donnee.text_scale + 5)
                                 }
                             }
@@ -743,7 +813,7 @@ CollapsibleSection {
                                 Rectangle {
                                     required property var modelData
                                     readonly property bool choisi:
-                                        root.barreDe(appletRow.donnee) === modelData.code
+                                        bloc.barreDe(appletRow.donnee) === modelData.code
                                     width: 17
                                     height: 16
                                     radius: 4
@@ -764,8 +834,8 @@ CollapsibleSection {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.placerApplet(appletRow.donnee.id,
-                                            modelData.code + ":" + root.zoneDe(appletRow.donnee))
+                                        onClicked: bloc.placerApplet(appletRow.donnee.id,
+                                            modelData.code + ":" + bloc.zoneDe(appletRow.donnee))
                                     }
                                 }
                             }
@@ -784,9 +854,9 @@ CollapsibleSection {
                                 Rectangle {
                                     required property var modelData
                                     readonly property bool choisi:
-                                        root.zoneDe(appletRow.donnee) === modelData.code
+                                        bloc.zoneDe(appletRow.donnee) === modelData.code
                                     readonly property bool enHaut:
-                                        root.barreDe(appletRow.donnee) === "haut"
+                                        bloc.barreDe(appletRow.donnee) === "haut"
                                     width: 17
                                     height: 16
                                     radius: 4
@@ -807,8 +877,8 @@ CollapsibleSection {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.placerApplet(appletRow.donnee.id,
-                                            root.barreDe(appletRow.donnee) + ":" + modelData.code)
+                                        onClicked: bloc.placerApplet(appletRow.donnee.id,
+                                            bloc.barreDe(appletRow.donnee) + ":" + modelData.code)
                                     }
                                 }
                             }
@@ -917,9 +987,9 @@ CollapsibleSection {
                                         // reste figé sur l'ancienne copie
                                         // quand la liste est réaffectée.
                                         const _ = root.appletSignature
-                                        const vive = root.entreeApplet(appletRow.donnee.id)
+                                        const vive = bloc.entreeApplet(appletRow.donnee.id)
                                                      || appletRow.donnee
-                                        return root.montageCoche(vive, montage)
+                                        return bloc.montageCoche(vive, montage)
                                     }
 
                                     width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
@@ -970,7 +1040,7 @@ CollapsibleSection {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.basculerMontage(appletRow.donnee,
+                                        onClicked: bloc.basculerMontage(appletRow.donnee,
                                                                         parent.montage)
                                     }
                                 }
@@ -996,7 +1066,7 @@ CollapsibleSection {
                                 required property var modelData
                                 readonly property bool coche: {
                                     const _ = root.appletSignature
-                                    const vive = root.entreeApplet(appletRow.donnee.id)
+                                    const vive = bloc.entreeApplet(appletRow.donnee.id)
                                                  || appletRow.donnee
                                     const o = vive.options || ({})
                                     const v = o[modelData.cle]
@@ -1092,7 +1162,7 @@ CollapsibleSection {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.basculerVisualiseur()
+                        onClicked: bloc.basculerVisualiseur()
                     }
                 }
 
@@ -1300,14 +1370,14 @@ CollapsibleSection {
                             required property var modelData
                             readonly property bool choisi: root.vizCouleur === modelData.code
                             width: 74; height: 22; radius: Theme.globalRadius
-                            color: choisi ? root.couleurViz(modelData.code) : "transparent"
-                            border.color: root.couleurViz(modelData.code)
+                            color: choisi ? bloc.couleurViz(modelData.code) : "transparent"
+                            border.color: bloc.couleurViz(modelData.code)
                             border.width: 1
 
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData.nom
-                                color: parent.choisi ? Theme.bg : root.couleurViz(modelData.code)
+                                color: parent.choisi ? Theme.bg : bloc.couleurViz(modelData.code)
                                 font.pixelSize: Math.max(8, Theme.textXs - 2)
                                 font.bold: parent.choisi
                             }
@@ -1343,14 +1413,14 @@ CollapsibleSection {
                             required property var modelData
                             readonly property bool choisi: root.vizCouleurIsland === modelData.code
                             width: 74; height: 22; radius: Theme.globalRadius
-                            color: choisi ? root.couleurViz(modelData.code) : "transparent"
-                            border.color: root.couleurViz(modelData.code)
+                            color: choisi ? bloc.couleurViz(modelData.code) : "transparent"
+                            border.color: bloc.couleurViz(modelData.code)
                             border.width: 1
 
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData.nom
-                                color: parent.choisi ? Theme.bg : root.couleurViz(modelData.code)
+                                color: parent.choisi ? Theme.bg : bloc.couleurViz(modelData.code)
                                 font.pixelSize: Math.max(8, Theme.textXs - 2)
                                 font.bold: parent.choisi
                             }

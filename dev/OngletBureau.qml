@@ -22,6 +22,95 @@ Column {
     visible: root ? root.currentTab === 3 : false
     width: mainFlickable ? mainFlickable.width : 0
 
+    function libelleWidget(nature) {
+        const n = String(nature || "")
+        for (let i = 0; i < root.widgetTypes.length; ++i)
+            if (String(root.widgetTypes[i].type) === n) return root.widgetTypes[i].label
+        return n
+    }
+
+    function basculerFichierWidget(wid, nom) {
+        let vive = null
+        for (let i = 0; i < root.widgetsList.length; ++i) {
+            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
+        }
+        if (!vive) return
+        const o = vive.options || ({})
+        let liste = Array.isArray(o.fichiers)
+                  ? o.fichiers.map(function (s) { return String(s) })
+                  : (typeof o.fichiers === "string" && o.fichiers !== ""
+                     ? o.fichiers.split(",").map(function (s) { return s.trim() }) : [])
+        liste = liste.filter(function (s) { return s !== "" })
+        if (liste.length === 0) {
+            for (let i = 0; i < root.todoFichiers.length; ++i)
+                liste.push(String(root.todoFichiers[i].nom || ""))
+        }
+        const i = liste.indexOf(String(nom))
+        if (i >= 0) liste.splice(i, 1)
+        else liste.push(String(nom))
+        root.runConfigCmd(["widget_set", wid, "fichiers", JSON.stringify(liste)])
+    }
+
+    function basculerServiceWidget(wid, serviceId) {
+        let vive = null
+        for (let i = 0; i < root.widgetsList.length; ++i) {
+            if (String(root.widgetsList[i].id) === String(wid)) vive = root.widgetsList[i]
+        }
+        if (!vive) return
+        const o = vive.options || ({})
+        let liste = null
+        if (o.services !== undefined && o.services !== null) {
+            liste = []
+            if (o.services.length !== undefined && typeof o.services !== "string") {
+                for (let i = 0; i < o.services.length; i++) {
+                    const s = String(o.services[i] || "").trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
+            } else if (typeof o.services === "string" && o.services.trim() !== "") {
+                const parts = o.services.split(",")
+                for (let i = 0; i < parts.length; i++) {
+                    const s = parts[i].trim()
+                    if (s !== "" && liste.indexOf(s) < 0) liste.push(s)
+                }
+            }
+        }
+        if (liste === null) {
+            liste = []
+            const provs = (root.llmProviders && root.llmProviders.length > 0)
+                        ? root.llmProviders
+                        : [{id: "deepseek"}, {id: "ollama"}, {id: "antigravity"}]
+            for (let j = 0; j < provs.length; ++j) {
+                const sid = String(provs[j].id || "").trim()
+                if (sid !== "" && liste.indexOf(sid) < 0) liste.push(sid)
+            }
+        }
+        const s = String(serviceId).trim()
+        const idx = liste.indexOf(s)
+        if (idx >= 0) liste.splice(idx, 1)
+        else liste.push(s)
+        root.runConfigCmd(["widget_set", wid, "services", JSON.stringify(liste)])
+    }
+
+    function toggleWidgetType(nature, present) {
+        if (present) {
+            for (let i = 0; i < root.widgetsList.length; i++) {
+                if (String(root.widgetsList[i].type) === String(nature))
+                    root.runConfigCmd(["widget_remove", root.widgetsList[i].id])
+            }
+            return
+        }
+        root.runConfigCmd(["widget_add", String(nature), "1", "120", "160"])
+    }
+
+    Process {
+        id: clearHistoryProc
+        command: ["python3", Quickshell.shellPath("core/launch_history.py"), "clear"]
+    }
+
+    function clearLaunchHistory() {
+        if (!clearHistoryProc.running) clearHistoryProc.running = true
+    }
+
     readonly property var sections: ({
         "widgets": secWidgets,
         "widgets_pilule": secPilule
@@ -263,7 +352,7 @@ CollapsibleSection {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - 14 - 18 - Theme.space2 * 2
-                            text: root.libelleWidget(widgetCard.wtype)
+                            text: bloc.libelleWidget(widgetCard.wtype)
                                   + "  ·  " + widgetCard.wid
                             color: Theme.fg
                             font.pixelSize: Theme.textSm
@@ -674,7 +763,7 @@ CollapsibleSection {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.basculerFichierWidget(
+                                        onClicked: bloc.basculerFichierWidget(
                                                        widgetCard.wid, modelData.nom)
                                     }
                                 }
@@ -831,7 +920,7 @@ CollapsibleSection {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.basculerServiceWidget(
+                                        onClicked: bloc.basculerServiceWidget(
                                                        widgetCard.wid, sId)
                                     }
                                 }
@@ -978,7 +1067,7 @@ CollapsibleSection {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggleWidgetType(typeCell.modelData.type,
+                                    onClicked: bloc.toggleWidgetType(typeCell.modelData.type,
                                                                     typeCell.modelData.present)
                                 }
                             }
@@ -1129,7 +1218,7 @@ CollapsibleSection {
     MouseArea {
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
-    onClicked: root.clearLaunchHistory()
+    onClicked: bloc.clearLaunchHistory()
     }
     }
 

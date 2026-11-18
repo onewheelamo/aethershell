@@ -21,7 +21,7 @@ Item {
         return 1.0
     }
 
-    property var etat: ({})
+    readonly property var etat: SystemServices.todoData
 
     // Options du widget (widgets.json, écrites par le panneau) : quels fichiers
     // suivis, combien de lignes d'items, et si les items cochés comptent. Une
@@ -65,10 +65,7 @@ Item {
     }
     readonly property var ouverts: itemsAffiches.slice(0, root.lignesAffichees)
 
-    function rafraichir() {
-        proc.running = false
-        proc.running = true
-    }
+    function rafraichir() { SystemServices.rafraichirTodo() }
 
     Component.onCompleted: rafraichir()
 
@@ -77,23 +74,6 @@ Item {
         running: true
         repeat: true
         onTriggered: root.rafraichir()
-    }
-
-    Process {
-        id: proc
-        // Le widget voit **tous** les fichiers ; l'applet n'en montre qu'un.
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "etat",
-                  "--options={\"fichier\": \"*\"}"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const d = JSON.parse(text.trim())
-                    root.etat = (d.detail && d.detail.todo) ? d.detail.todo : d
-                } catch (e) {
-                    root.etat = ({})
-                }
-            }
-        }
     }
 
     implicitWidth: Math.round(246 * echelle)
