@@ -8,6 +8,63 @@ QtObject {
     id: root
 
     // ──────────────────────────────────────────────────────────────────────────
+    // SUBMAP HYPRLAND & HOOKS SHELL/IPC
+    // ──────────────────────────────────────────────────────────────────────────
+    property string activeSubmap: ""
+
+    function setSubmap(name) {
+        if (Hyprland.usingLua) {
+            Hyprland.dispatch('hl.dsp.submap("' + name + '")')
+        } else {
+            Hyprland.dispatch("submap " + name)
+        }
+    }
+
+    property var wallpaperNavHook: null
+    property var themeNavHook: null
+    property var islandNavHook: null
+    property var placeWidgetHook: null
+    property var widgetMenuHook: null
+    property var captureHook: null
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // FOND D'ÉCRAN COURANT PARTAGÉ (awww query)
+    // ──────────────────────────────────────────────────────────────────────────
+    property string wallpaperCourant: ""
+    property double wallpaperLockUntil: 0
+
+    function setWallpaperCourant(path) {
+        if (!path) return
+        root.wallpaperLockUntil = Date.now() + 4500
+        root.wallpaperCourant = String(path)
+    }
+
+    property Process wallpaperSondeProc: Process {
+        command: ["awww", "query"]
+        running: Theme.depthWallpaper || Theme.depthMask
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (Date.now() < root.wallpaperLockUntil) return
+                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
+                if (m) root.wallpaperCourant = m[1]
+            }
+        }
+    }
+
+    function rafraichirWallpaper() {
+        if (Date.now() < root.wallpaperLockUntil) return
+        if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
+    }
+
+    property Timer wallpaperSondeTimer: Timer {
+        interval: 2500
+        repeat: true
+        running: Theme.depthWallpaper || Theme.depthMask
+        triggeredOnStart: true
+        onTriggered: root.rafraichirWallpaper()
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // OSD (ON-SCREEN DISPLAY)
     // ──────────────────────────────────────────────────────────────────────────
     property bool osdVisible: false
@@ -418,12 +475,12 @@ QtObject {
     property IpcHandler ipc: IpcHandler {
         target: "shell"
         function placeWidget() {
-            if (Theme.placeWidgetHook)
-                Theme.placeWidgetHook()
+            if (root.placeWidgetHook)
+                root.placeWidgetHook()
         }
         function openWidgetMenu(id: string) {
-            if (Theme.widgetMenuHook)
-                Theme.widgetMenuHook(id)
+            if (root.widgetMenuHook)
+                root.widgetMenuHook(id)
         }
         function toggleConfig() {
             Theme.configPanelVisible = !Theme.configPanelVisible
@@ -495,8 +552,8 @@ QtObject {
                 Theme.islandPanelTab = (Theme.islandPanelTab + nTabs - 1) % nTabs
                 return "ok"
             }
-            if (Theme.islandNavHook) {
-                Theme.islandNavHook(a)
+            if (root.islandNavHook) {
+                root.islandNavHook(a)
                 return "ok"
             }
             return "no_hook"
@@ -593,7 +650,7 @@ QtObject {
                 Theme.themePickerOpen = false
                 return
             }
-            if (Theme.themeNavHook) Theme.themeNavHook(a)
+            if (root.themeNavHook) root.themeNavHook(a)
         }
         function wpNav(action: string) {
             const a = String(action || "").toLowerCase()
@@ -601,7 +658,7 @@ QtObject {
                 Theme.wallpaperPickerOpen = false
                 return
             }
-            if (Theme.wallpaperNavHook) Theme.wallpaperNavHook(a)
+            if (root.wallpaperNavHook) root.wallpaperNavHook(a)
         }
         function showCheatsheet() {
             Theme.cheatsheetVisible = true
@@ -637,8 +694,8 @@ QtObject {
             return Theme.screenshotPickerVisible
         }
         function captureMode(mode: string) {
-            if (Theme.captureHook)
-                Theme.captureHook(mode)
+            if (root.captureHook)
+                root.captureHook(mode)
         }
         function notifTargets(): string {
             return Theme.notifTargetsHook ? String(Theme.notifTargetsHook()) : "[]"

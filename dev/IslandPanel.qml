@@ -148,7 +148,7 @@ Item {
     }
 
     Component.onCompleted: {
-        Theme.islandNavHook = root.handleNav
+        ShellState.islandNavHook = root.handleNav
     }
 
     RowLayout {

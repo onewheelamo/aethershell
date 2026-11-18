@@ -77,28 +77,18 @@ QtObject {
     property bool widgetsEditMode: false
     property bool widgetsBureauVisibles: true
     property bool widgetsSnapGrid: true
-    function setSubmap(name) {
-        if (Hyprland.usingLua) {
-            Hyprland.dispatch('hl.dsp.submap("' + name + '")')
-        } else {
-            Hyprland.dispatch("submap " + name)
-        }
-    }
-
-    property var wallpaperNavHook: null
-    property var themeNavHook: null
     onWallpaperPickerOpenChanged: {
         if (wallpaperPickerOpen) {
-            setSubmap("aether-wp")
+            ShellState.setSubmap("aether-wp")
         } else {
-            setSubmap("reset")
+            ShellState.setSubmap("reset")
         }
     }
     onThemePickerOpenChanged: {
         if (themePickerOpen) {
-            setSubmap("aether-theme")
+            ShellState.setSubmap("aether-theme")
         } else {
-            setSubmap("reset")
+            ShellState.setSubmap("reset")
         }
     }
     property int islandPanelTab: 0
@@ -108,11 +98,9 @@ QtObject {
     property int todoRev: 0
     property bool islandNeedsKeyboard: false
     property bool islandNavActive: false
-    property var islandNavHook: null
-    property string activeSubmap: ""
     onIslandNavActiveChanged: {
         if (!islandNavActive) {
-            setSubmap("reset")
+            ShellState.setSubmap("reset")
         }
     }
     property int panelAnimDuration: 240
@@ -782,68 +770,6 @@ QtObject {
             }
         }
     }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Fond d'écran courant partagé (awww query)
-    // ────────────────────────────────────────────────────────────────────────
-    // Sonde partagée pour `FondProfondeur`, déclenchée uniquement quand actif.
-    property string wallpaperCourant: ""
-    property double wallpaperLockUntil: 0
-
-    function setWallpaperCourant(path) {
-        if (!path) return
-        root.wallpaperLockUntil = Date.now() + 4500
-        root.wallpaperCourant = String(path)
-    }
-
-    property Process wallpaperSondeProc: Process {
-        command: ["awww", "query"]
-        running: root.depthWallpaper || root.depthMask
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (Date.now() < root.wallpaperLockUntil) return
-                const m = String(text).match(/currently displaying:.*?(?:image|video):\s*(\S+)/)
-                if (m) root.wallpaperCourant = m[1]
-            }
-        }
-    }
-
-    function rafraichirWallpaper() {
-        if (Date.now() < root.wallpaperLockUntil) return
-        if (!wallpaperSondeProc.running) wallpaperSondeProc.running = true
-    }
-
-    property Timer wallpaperSondeTimer: Timer {
-        interval: 2500
-        repeat: true
-        running: root.depthWallpaper || root.depthMask
-        triggeredOnStart: true
-        onTriggered: root.rafraichirWallpaper()
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    // Icônes de remplacement pour les items du systray
-    // ────────────────────────────────────────────────────────────────────────
-    // Certains items SNI ne publient aucune image (IconPixmap vide, IconName
-    // vide) : le shell dessinait alors un pixmap illisible — le rectangle bruité
-    // qu'on voyait pour le moniteur de casque. On peut leur associer une icône par
-    // ────────────────────────────────────────────────────────────────────────
-    // SECTION 8: IPC HANDLER ("shell")
-    // ────────────────────────────────────────────────────────────────────────
-    // Allows scripts, keybindings and sub-processes to control Quickshell:
-    //   qs -p /path/to/shell ipc shell toggleConfig
-    //   qs -p /path/to/shell ipc shell osd volume 75
-    // Crochet : main.qml y branche le mode placement d'un widget. Le déclencheur
-    // vient de Hyprland (SUPER + SHIFT + clic), seul endroit où le modificateur est
-    // fiable — dans un événement souris QML, `mouse.modifiers` vaut 0.
-    property var placeWidgetHook: null
-    // Même principe pour le menu d'un widget de bureau : main.qml y branche
-    // l'ouverture, l'IPC permet de le piloter sans souris (tests).
-    property var widgetMenuHook: null
-
-    // Crochet symétrique pour la capture : main.qml y branche requestCapture,
-    // ce qui rend les modes lançables par IPC (tests scriptés).
-    property var captureHook: null
 
     // Tiroir de l'historique des notifications (surface `shell-notif-history`),
     // indépendant du panneau de notifications et de son toast.

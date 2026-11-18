@@ -355,7 +355,7 @@ Item {
                     root.wallpaperList = Array.isArray(arr) ? arr : []
                     let curIdx = 0
                     for (let i = 0; i < root.wallpaperList.length; i++) {
-                        if (root.wallpaperList[i].path === Theme.wallpaperCourant) {
+                        if (root.wallpaperList[i].path === ShellState.wallpaperCourant) {
                             curIdx = i
                             break
                         }
@@ -370,7 +370,7 @@ Item {
 
     function applyWallpaper(path) {
         if (!path) return
-        Theme.setWallpaperCourant(String(path))
+        ShellState.setWallpaperCourant(String(path))
         Quickshell.execDetached(["bash", Quickshell.shellPath("hyprquickpaper/commands.sh"), String(path)])
         Theme.wallpaperPickerOpen = false
     }
@@ -396,8 +396,8 @@ Item {
     }
 
     Component.onCompleted: {
-        Theme.wallpaperNavHook = root.handleWallpaperNav
-        Theme.themeNavHook = root.handleThemeNav
+        ShellState.wallpaperNavHook = root.handleWallpaperNav
+        ShellState.themeNavHook = root.handleThemeNav
     }
 
     // ── Sélecteur de jeu de couleurs inline (SUPER + C) ──────────────────
@@ -2206,7 +2206,7 @@ Item {
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
-                        readonly property bool isCurrent: modelData.path === Theme.wallpaperCourant
+                        readonly property bool isCurrent: modelData.path === ShellState.wallpaperCourant
                         readonly property bool isSelected: index === root.wallpaperSelectedIdx
                         width: 212
                         height: wpListView.height

@@ -115,10 +115,10 @@ Item {
     // Les deux crochets IPC du shell (placement d'un widget, lancement d'une
     // capture) : un seul gestionnaire, QML n'en accepte qu'un par objet.
     Component.onCompleted: {
-        Theme.placeWidgetHook = function() { root.startPlacementFromCursor() }
+        ShellState.placeWidgetHook = function() { root.startPlacementFromCursor() }
         // Ouverture du menu d'un widget sans souris : l'IPC s'en sert, le clic
         // milieu passe par la même propriété d'état.
-        Theme.widgetMenuHook = function(id) {
+        ShellState.widgetMenuHook = function(id) {
             // Un identifiant vide referme : c'est ce que fait l'IPC pour les tests,
             // et ça évite d'ajouter une seconde fonction au gestionnaire.
             if (String(id) === "") { root.menuWidgetId = ""; return }
@@ -131,7 +131,7 @@ Item {
                 return
             }
         }
-        Theme.captureHook = function(mode) { root.requestCapture(mode) }
+        ShellState.captureHook = function(mode) { root.requestCapture(mode) }
     }
 
     // Changer de bureau referme le panneau ouvert. Le clic sur l'applet des
@@ -145,7 +145,7 @@ Item {
         }
         function onRawEvent(event) {
             if (event && event.name === "submap") {
-                Theme.activeSubmap = String(event.data || "").trim()
+                ShellState.activeSubmap = String(event.data || "").trim()
             }
         }
     }
@@ -866,7 +866,7 @@ Item {
             onStreamFinished: {
                 try {
                     const all = JSON.parse(text)
-                    const cur = Theme.activeSubmap
+                    const cur = ShellState.activeSubmap
                     if (Array.isArray(all) && cur !== "") {
                         root.submapBinds = all.filter(b => b && String(b.submap || "") === cur)
                     } else {
@@ -882,7 +882,7 @@ Item {
     Connections {
         target: Theme
         function onActiveSubmapChanged() {
-            if (Theme.activeSubmap !== "") {
+            if (ShellState.activeSubmap !== "") {
                 if (!submapBindsProc.running) submapBindsProc.running = true
             } else {
                 root.submapBinds = []
@@ -893,7 +893,7 @@ Item {
     PanelWindow {
         id: submapWhichKeyWindow
         screen: topBarWindow.screen
-        visible: Theme.activeSubmap !== "" && root.submapBinds.length > 0
+        visible: ShellState.activeSubmap !== "" && root.submapBinds.length > 0
         anchors { bottom: true }
         margins.bottom: 24
         implicitWidth: whichKeyLoader.item ? whichKeyLoader.item.implicitWidth : 460
@@ -907,10 +907,10 @@ Item {
         Loader {
             id: whichKeyLoader
             anchors.fill: parent
-            source: (Theme.activeSubmap !== "" && root.submapBinds.length > 0) ? "SubmapWhichKey.qml" : ""
+            source: (ShellState.activeSubmap !== "" && root.submapBinds.length > 0) ? "SubmapWhichKey.qml" : ""
             onLoaded: {
                 if (!item) return
-                item.submapName = Qt.binding(() => Theme.activeSubmap)
+                item.submapName = Qt.binding(() => ShellState.activeSubmap)
                 item.binds = Qt.binding(() => root.submapBinds)
             }
         }

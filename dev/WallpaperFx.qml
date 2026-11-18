@@ -52,7 +52,7 @@ Scope {
         if (!n) return
         if (!o || o === n) {
             Quickshell.execDetached(["awww", "img", n, "--transition-type", "fade", "--transition-duration", "0.5"])
-            Theme.setWallpaperCourant(n)
+            ShellState.setWallpaperCourant(n)
             return
         }
         if (root.phase !== "idle") root.finish()
@@ -184,7 +184,7 @@ Scope {
                 root.finish()
                 if (n) {
                     Quickshell.execDetached(["awww", "img", n, "--transition-type", "fade", "--transition-duration", "0.5"])
-                    Theme.setWallpaperCourant(n)
+                    ShellState.setWallpaperCourant(n)
                 }
             }
         }
@@ -195,7 +195,7 @@ Scope {
         onExited: (code) => {
             if (root.swapGen !== root.gen) return
             if (code === 0) {
-                Theme.setWallpaperCourant(root.newPath)
+                ShellState.setWallpaperCourant(root.newPath)
                 settle.restart()
                 return
             }
@@ -203,7 +203,7 @@ Scope {
             root.finish()
             if (n) {
                 Quickshell.execDetached(["awww", "img", n, "--transition-type", "fade", "--transition-duration", "0.5"])
-                Theme.setWallpaperCourant(n)
+                ShellState.setWallpaperCourant(n)
             }
         }
     }
@@ -226,7 +226,7 @@ Scope {
             root.finish()
             if (loading && n) {
                 Quickshell.execDetached(["awww", "img", n, "--transition-type", "fade", "--transition-duration", "0.5"])
-                Theme.setWallpaperCourant(n)
+                ShellState.setWallpaperCourant(n)
             }
         }
     }

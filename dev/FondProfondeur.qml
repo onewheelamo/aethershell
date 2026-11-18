@@ -48,7 +48,7 @@ PanelWindow {
     readonly property int bureau: Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
 
     // Fond courant, partagé par Theme (`awww query`).
-    readonly property string fondCourant: Theme.wallpaperCourant
+    readonly property string fondCourant: ShellState.wallpaperCourant
     // Le dossier de fonds vient de style_vars sous forme « $HOME/Images/… » :
     // QML ne développe pas les variables, on les résout ici.
     readonly property string racineFonds: {

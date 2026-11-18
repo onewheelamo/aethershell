@@ -41,7 +41,7 @@ PanelWindow {
     property string masque: ""
     property string erreur: ""
     property string generateurFond: ""
-    readonly property string fondCourant: Theme.wallpaperCourant
+    readonly property string fondCourant: ShellState.wallpaperCourant
     readonly property int bureau: Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
 
     readonly property real seuil: Math.max(0, Math.min(100, Theme.depthMaskSeuil)) / 100
