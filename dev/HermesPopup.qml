@@ -34,19 +34,8 @@ Item {
 
     // Jetons en forme courte : un chiffre à sept positions dans une barre ne se
     // lit pas, « 3,4 M » si.
-    function jeton(n) {
-        n = Number(n) || 0
-        if (n >= 1e6) return (n / 1e6).toFixed(1).replace(".", ",") + " M"
-        if (n >= 1e3) return Math.round(n / 1e3) + " k"
-        return String(n)
-    }
-
-    function duree(s) {
-        s = Number(s) || 0
-        if (s >= 3600) return Math.round(s / 3600) + " h"
-        if (s >= 60) return Math.round(s / 60) + " min"
-        return s + " s"
-    }
+    function jeton(n) { return SystemServices.formatTokens(n) }
+    function duree(s) { return SystemServices.formatDuration(s) }
 
     // Répondre à une demande : le démon tient la socket, le CLI envoie le
     // verdict, puis on relit l'état pour que la ligne disparaisse tout de suite.

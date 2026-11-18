@@ -38,12 +38,8 @@ Item {
         return vivantes.concat(autres).slice(0, 3)
     }
 
-    function jeton(n) {
-        n = Number(n) || 0
-        if (n >= 1e6) return (n / 1e6).toFixed(1).replace(".", ",") + " M"
-        if (n >= 1e3) return Math.round(n / 1e3) + " k"
-        return String(n)
-    }
+    function jeton(n) { return SystemServices.formatTokens(n) }
+    function duree(s) { return SystemServices.formatDuration(s) }
 
     function duree(s) {
         s = Number(s) || 0

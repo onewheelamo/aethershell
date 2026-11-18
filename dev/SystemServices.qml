@@ -140,6 +140,30 @@ QtObject {
         btActionProc.running = true
     }
 
+    // ── Formatage partagé (USB / Hermes) ─────────────────────────────────────
+    function formatBytes(o) {
+        const go = Number(o || 0) / 1073741824
+        if (go >= 1000) return (go / 1000).toFixed(1).replace(".", ",") + " To"
+        if (go >= 1) return Math.round(go) + " Go"
+        return Math.round(go * 1000) + " Mo"
+    }
+
+    function formatTokens(n) {
+        n = Number(n) || 0
+        if (n >= 1e6) return (n / 1e6).toFixed(1).replace(".", ",") + " M"
+        if (n >= 1e3) return Math.round(n / 1e3) + " k"
+        return String(n)
+    }
+
+    function formatDuration(s) {
+        s = Number(s) || 0
+        if (s < 60) return Math.round(s) + " s"
+        const m = Math.floor(s / 60)
+        if (m < 60) return m + " min"
+        const h = Math.floor(m / 60)
+        return h + " h " + String(m % 60).padStart(2, "0")
+    }
+
     // ── Lancement d'applications isolé (hors cgroup quickshell.service) ─────
     function launchInScope(shellCmd) {
         Quickshell.execDetached([

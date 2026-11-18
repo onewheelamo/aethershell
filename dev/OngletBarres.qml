@@ -493,114 +493,47 @@ CollapsibleSection {
             font.pixelSize: Math.max(9, Theme.textXs - 1)
             wrapMode: Text.WordWrap
         }
-        Item {
-            width: parent.width
-            height: 22
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Barre du bas"
-                color: Theme.fg
-                font.pixelSize: Theme.textXs
-            }
-
-            Rectangle {
-                width: 110
-                height: 20
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: Theme.barBottomVisible ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
+        Repeater {
+            model: [
+                { label: "Barre du bas",    key: "bar_bottom", val: Theme.barBottomVisible },
+                { label: "Barre de gauche", key: "bar_left",   val: Theme.barLeftVisible },
+                { label: "Barre de droite", key: "bar_right",  val: Theme.barRightVisible }
+            ]
+            delegate: Item {
+                required property var modelData
+                width: parent ? parent.width : 0
+                height: 22
 
                 Text {
-                    anchors.centerIn: parent
-                    text: Theme.barBottomVisible ? "✓ Affichée" : "Masquée"
-                    color: Theme.barBottomVisible ? Theme.bg : Theme.fg
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: modelData.label
+                    color: Theme.fg
                     font.pixelSize: Theme.textXs
-                    font.bold: true
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "bar_bottom",
-                        String(!Theme.barBottomVisible)])
-                }
-            }
-        }
-        Item {
-            width: parent.width
-            height: 22
+                Rectangle {
+                    width: 110
+                    height: 20
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: Theme.globalRadius
+                    color: modelData.val ? Theme.accent : Theme.surfaceVariant
+                    border.color: Theme.accent
+                    border.width: 1
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Barre de gauche"
-                color: Theme.fg
-                font.pixelSize: Theme.textXs
-            }
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData.val ? "✓ Affichée" : "Masquée"
+                        color: modelData.val ? Theme.bg : Theme.fg
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
+                    }
 
-            Rectangle {
-                width: 110
-                height: 20
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: Theme.barLeftVisible ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.barLeftVisible ? "✓ Affichée" : "Masquée"
-                    color: Theme.barLeftVisible ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "bar_left",
-                        String(!Theme.barLeftVisible)])
-                }
-            }
-        }
-        Item {
-            width: parent.width
-            height: 22
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Barre de droite"
-                color: Theme.fg
-                font.pixelSize: Theme.textXs
-            }
-
-            Rectangle {
-                width: 110
-                height: 20
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                radius: Theme.globalRadius
-                color: Theme.barRightVisible ? Theme.accent : Theme.surfaceVariant
-                border.color: Theme.accent
-                border.width: 1
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Theme.barRightVisible ? "✓ Affichée" : "Masquée"
-                    color: Theme.barRightVisible ? Theme.bg : Theme.fg
-                    font.pixelSize: Theme.textXs
-                    font.bold: true
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runConfigCmd(["style", "bar_right",
-                        String(!Theme.barRightVisible)])
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.runConfigCmd(["style", modelData.key, String(!modelData.val)])
+                    }
                 }
             }
         }
