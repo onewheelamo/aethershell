@@ -680,45 +680,13 @@ Item {
 
     // ────────────────────────────────────────────────────────────────────────
 
-    // Bluetooth : même panneau que le WiFi, bloc séparé. Tout vient de
-    // core/bluetooth_service.py — le shell n'invente aucun état.
-    property bool btPresent: false
-    property bool btAllume: false
-    property var btAppareils: []
+    // Bluetooth : centralisé dans Theme.qml (core/bluetooth_service.py)
+    readonly property bool btPresent: Theme.btPresent
+    readonly property bool btAllume: Theme.btPowered
+    readonly property var btAppareils: Theme.btDevices
 
-    function majBluetooth(txt) {
-        try {
-            const d = JSON.parse(txt.trim())
-            root.btPresent = d.present === true
-            root.btAllume = d.allume === true
-            root.btAppareils = d.appaires || []
-        } catch (e) { /* réponse partielle : on garde l'état précédent */ }
-    }
-
-    function lireBluetooth() {
-        if (btProc.running) return
-        btProc.running = true
-    }
-
-    function btCommande(args) {
-        btAction.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py")].concat(args)
-        btAction.running = true
-    }
-
-    Process {
-        id: btProc
-        command: ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
-        stdout: StdioCollector {
-            onStreamFinished: root.majBluetooth(text)
-        }
-    }
-
-    Process {
-        id: btAction
-        stdout: StdioCollector {
-            onStreamFinished: root.majBluetooth(text)
-        }
-    }
+    function lireBluetooth() { Theme.refreshBluetooth() }
+    function btCommande(args) { Theme.btCommand(args) }
 
     property bool pretGrab: false
     onOuvertChanged: {

@@ -29,12 +29,12 @@ Item {
     readonly property var batInfo: sysInfo.battery || ({})
     readonly property bool isLaptop: Boolean(sysInfo.has_battery || (batInfo && batInfo.present))
 
-    property bool wifiEnabled: Boolean(wifiInfo && (wifiInfo.enabled !== false))
+    readonly property bool wifiEnabled: Theme.wifiEnabled
     property string wifiSsid: (wifiInfo && wifiInfo.ssid) ? String(wifiInfo.ssid) : ""
     property bool wifiConnected: Boolean(wifiInfo && wifiInfo.connected)
 
-    property bool btPowered: false
-    property string btDevice: ""
+    readonly property bool btPowered: Theme.btPowered
+    readonly property string btDevice: Theme.btDevice
 
     property bool nuitActive: false
     property int nuitTemp: 4200
@@ -93,17 +93,12 @@ Item {
     }
 
     function rafraichirEtats() {
-        if (!btProc.running) {
-            btProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
-            btProc.running = true
-        }
+        Theme.refreshBluetooth()
         if (!nuitProc.running) {
             nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py"), "etat"]
             nuitProc.running = true
         }
-        if (!wifiCheckProc.running) {
-            wifiCheckProc.running = true
-        }
+        Theme.checkWifiRadio()
         if (!powerProfileReadProc.running) {
             powerProfileReadProc.running = true
         }
@@ -139,41 +134,6 @@ Item {
 
     Component.onCompleted: {
         if (Theme.islandPanelOpen) initDelayTimer.restart()
-    }
-
-    Process {
-        id: wifiCheckProc
-        command: ["nmcli", "radio", "wifi"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let s = text.trim().toLowerCase()
-                if (s === "enabled" || s === "disabled") {
-                    root.wifiEnabled = (s === "enabled")
-                }
-            }
-        }
-    }
-
-    Process {
-        id: wifiToggleProc
-        onExited: wifiCheckProc.running = true
-    }
-
-    Process {
-        id: btProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let d = JSON.parse(text.trim())
-                    root.btPowered = Boolean(d.allume || d.powered)
-                    let dev = ""
-                    if (d.connectes && d.connectes.length > 0) {
-                        dev = String(d.connectes[0].nom || d.connectes[0].name || "")
-                    }
-                    root.btDevice = dev
-                } catch (e) {}
-            }
-        }
     }
 
     Process {
@@ -739,10 +699,7 @@ Item {
                     ? "Désactivé"
                     : (root.btDevice !== "" ? root.btDevice : "Actif · Prêt")
                 active: root.btPowered
-                onToggled: {
-                    btProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "basculer"]
-                    btProc.running = true
-                }
+                onToggled: Theme.btCommand(["basculer"])
             }
 
             QuickTile {

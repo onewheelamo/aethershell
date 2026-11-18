@@ -22,7 +22,7 @@ Item {
     property int diskPct: 0
 
     readonly property var wifiNetworks: root.wifiEnabled ? Theme.wifiNetworks : []
-    property bool wifiEnabled: Boolean(wifiInfo && (wifiInfo.enabled !== false))
+    readonly property bool wifiEnabled: Theme.wifiEnabled
     readonly property bool scanning: Theme.wifiScanning
     property string passwordSsid: ""
     property string pendingConnectSsid: ""
@@ -30,11 +30,11 @@ Item {
     property bool wifiConnecting: false
     readonly property bool qrAvailable: Theme.qrWifiAvailable
     property bool qrScanning: false
-    property bool btPresent: false
-    property bool btOn: false
-    property var btDevices: []
-    property int btConnectedCount: 0
-    property bool btBusy: false
+    readonly property bool btPresent: Theme.btPresent
+    readonly property bool btOn: Theme.btPowered
+    readonly property var btDevices: Theme.btDevices
+    readonly property int btConnectedCount: Theme.btConnectedCount
+    readonly property bool btBusy: Theme.btBusy
     property string homelabLine: ""
 
     readonly property var sysInfo: Theme.systemInfo || ({})
@@ -120,9 +120,9 @@ Item {
         }
         if (!diskStatsProc.running) diskStatsProc.running = true
         if (!homelabProc.running) homelabProc.running = true
-        if (!btStateProc.running) btStateProc.running = true
+        Theme.refreshBluetooth()
         Theme.checkQrWifi()
-        if (!wifiCheckProc.running) wifiCheckProc.running = true
+        Theme.checkWifiRadio()
         Theme.rafraichirSystemInfo()
         if (root.wifiEnabled && Theme.wifiNetworks.length === 0) {
             Theme.scanWifi()
@@ -151,33 +151,8 @@ Item {
         }
     }
 
-    Process {
-        id: wifiCheckProc
-        command: ["nmcli", "radio", "wifi"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let s = text.trim().toLowerCase()
-                if (s === "enabled" || s === "disabled") {
-                    root.wifiEnabled = (s === "enabled")
-                }
-            }
-        }
-    }
-
-    Process {
-        id: wifiToggleProc
-        onExited: {
-            if (!wifiCheckProc.running) wifiCheckProc.running = true
-            Theme.rafraichirSystemInfo()
-            if (root.wifiEnabled) root.scanWifi()
-        }
-    }
-
     function btCommand(args) {
-        if (btActionProc.running) return
-        root.btBusy = true
-        btActionProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py")].concat(args)
-        btActionProc.running = true
+        Theme.btCommand(args)
     }
 
     function scanWifi() {
@@ -309,30 +284,6 @@ Item {
                     root.wifiStatusMsg = "Lecture QR impossible"
                 }
             }
-        }
-    }
-
-    Process {
-        id: btStateProc
-        command: ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let d = JSON.parse(text.trim())
-                    root.btPresent = d.present === true
-                    root.btOn = d.allume === true
-                    root.btDevices = Array.isArray(d.appaires) ? d.appaires : []
-                    root.btConnectedCount = Array.isArray(d.connectes) ? d.connectes.length : 0
-                } catch (e) {}
-            }
-        }
-    }
-
-    Process {
-        id: btActionProc
-        onExited: {
-            root.btBusy = false
-            if (!btStateProc.running) btStateProc.running = true
         }
     }
 
@@ -631,13 +582,7 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (wifiToggleProc.running) return
-                                let target = root.wifiEnabled ? "off" : "on"
-                                root.wifiEnabled = !root.wifiEnabled
-                                wifiToggleProc.command = ["nmcli", "radio", "wifi", target]
-                                wifiToggleProc.running = true
-                            }
+                            onClicked: Theme.toggleWifiRadio()
                         }
                     }
                 }
