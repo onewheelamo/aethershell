@@ -443,7 +443,7 @@ Item {
                                         }
 
                                         Icon {
-                                            visible: Boolean(netItemCol.modelData.secured)
+                                            visible: Boolean(netItemCol.modelData.secured) && !netItemCol.modelData.in_use && !Boolean(netItemCol.modelData.known)
                                             anchors.verticalCenter: parent.verticalCenter
                                             glyph: "lock"
                                             size: 10
@@ -458,8 +458,9 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             if (netItemCol.modelData.in_use) return
-                                            if (!netItemCol.modelData.secured) {
-                                                // Open network -> connect immediately
+                                            if (!netItemCol.modelData.secured || Boolean(netItemCol.modelData.known)) {
+                                                // Open or known network -> connect immediately
+                                                root.expandedSsid = ""
                                                 root.connectToWifi(netItemCol.modelData.ssid, "")
                                             } else {
                                                 // Toggle inline password field right below this network
@@ -472,7 +473,7 @@ Item {
                                 // Inline Password Box directly underneath the clicked network
                                 Rectangle {
                                     id: inlinePassBox
-                                    visible: netItemCol.isExpanded
+                                    visible: netItemCol.isExpanded && !Boolean(netItemCol.modelData.known)
                                     width: parent.width
                                     height: visible ? 44 : 0
                                     color: Theme.surfaceVariant

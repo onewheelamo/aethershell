@@ -251,14 +251,16 @@ Item {
                     Theme.islandNeedsKeyboard = false
                     root.wifiStatusMsg = ""
                     wifiPassInput.text = ""
-                    if (wifiScanProc.running) wifiScanProc.running = false
-                    wifiScanProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi", "--no-rescan"]
-                    wifiScanProc.running = true
+                    Theme.scanWifi()
                 } else {
-                    root.passwordSsid = ssid
-                    Theme.islandNeedsKeyboard = true
-                    wifiPassInput.forceActiveFocus()
-                    root.wifiStatusMsg = msg !== "" ? msg : "Clé requise ou échec de connexion"
+                    const net = root.wifiNetworks.find(n => String(n.ssid || "") === ssid)
+                    const isKnown = Boolean(net && net.known)
+                    if (!isKnown) {
+                        root.passwordSsid = ssid
+                        Theme.islandNeedsKeyboard = true
+                        wifiPassInput.forceActiveFocus()
+                    }
+                    root.wifiStatusMsg = msg !== "" ? msg : (isKnown ? "Échec de connexion" : "Clé requise ou échec de connexion")
                 }
             }
         }
