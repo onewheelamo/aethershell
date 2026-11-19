@@ -37,6 +37,7 @@ Column {
         summary: (Theme.barStyle === "island" ? "Mode actif" : "Mode barre classique")
             + " · hauteur " + Theme.barHeight + " px · anim " + Theme.panelAnimDuration + " ms"
         expanded: root ? root.sectionOpen("ilot_config", true) : true
+        espacementContenu: 8
         onToggled: {
             if (!root) return
             root.setPanelSection("ilot_config", expanded)
