@@ -4,8 +4,8 @@ import Quickshell.Wayland
 import "."
 
 // APPLETS SORTIS DE L'ÎLOT : condensés en un cercle sur la même ligne que
-// la pilule (ExclusionMode.Ignore), s'étendant au survol de la souris, et
-// positionnés soit dans les coins de l'écran, soit resserrés autour de l'îlot.
+// la pilule (ExclusionMode.Ignore), s'étendant au survol de la souris sans
+// redimensionner la surface Wayland à chaque image (mask: Region sur `pilule`).
 Scope {
     id: root
 
@@ -35,9 +35,11 @@ Scope {
             required property var modelData
             readonly property var applets: ShellState.appletsPourCoinIlot(modelData.id)
             readonly property bool groupes: Theme.ilotCoinsGroupes
+            readonly property bool ancreADroite: (groupes && modelData.left) || (!groupes && modelData.right)
             readonly property int ecranW: screen ? screen.width : 1920
             readonly property string premiereIcone: (applets.length > 0 && applets[0].icone) ? String(applets[0].icone) : "apps"
             readonly property bool estSvg: root.svgIcones.indexOf(premiereIcone) >= 0
+            readonly property real largeurEtendue: Math.max(Theme.barHeight, rangee.implicitWidth + Theme.padH * 2)
             property bool etendu: false
 
             screen: root.ecranPrincipal
@@ -52,34 +54,42 @@ Scope {
             anchors {
                 top: modelData.top
                 bottom: modelData.bottom
-                left: coinWin.groupes ? modelData.right : modelData.left
-                right: coinWin.groupes ? modelData.left : modelData.right
+                left: !coinWin.ancreADroite
+                right: coinWin.ancreADroite
             }
             margins {
                 top: modelData.top ? Theme.gutterV : 0
                 bottom: modelData.bottom ? Theme.gutterV : 0
                 left: {
+                    if (coinWin.ancreADroite) return 0
                     if (coinWin.groupes) {
-                        if (!modelData.right) return 0
                         return modelData.top
                             ? Math.round((coinWin.ecranW + ShellState.ilotWidth) / 2 + 10)
                             : Math.round(coinWin.ecranW / 2 + 6)
                     }
-                    return modelData.left ? Theme.gutterH : 0
+                    return Theme.gutterH
                 }
                 right: {
+                    if (!coinWin.ancreADroite) return 0
                     if (coinWin.groupes) {
-                        if (!modelData.left) return 0
                         return modelData.top
                             ? Math.round((coinWin.ecranW + ShellState.ilotWidth) / 2 + 10)
                             : Math.round(coinWin.ecranW / 2 + 6)
                     }
-                    return modelData.right ? Theme.gutterH : 0
+                    return Theme.gutterH
                 }
             }
 
-            implicitWidth: pilule.implicitWidth
+            // Taille de fenêtre constante : évite la réallocation du buffer Wayland
+            // à chaque image pendant l'animation de déploiement.
+            implicitWidth: coinWin.largeurEtendue
             implicitHeight: Theme.barHeight
+
+            Region {
+                id: masqueSaisie
+                item: pilule
+            }
+            mask: masqueSaisie
 
             Timer {
                 id: timerReplier
@@ -92,15 +102,16 @@ Scope {
 
             Item {
                 id: pilule
-                implicitWidth: coinWin.etendu
-                    ? Math.max(Theme.barHeight, rangee.implicitWidth + Theme.padH * 2)
-                    : Theme.barHeight
-                implicitHeight: Theme.barHeight
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: coinWin.ancreADroite ? undefined : parent.left
+                anchors.right: coinWin.ancreADroite ? parent.right : undefined
+                width: coinWin.etendu ? coinWin.largeurEtendue : Theme.barHeight
                 clip: true
 
-                Behavior on implicitWidth {
+                Behavior on width {
                     NumberAnimation {
-                        duration: Math.max(160, Theme.panelAnimDuration)
+                        duration: Math.max(180, Theme.panelAnimDuration)
                         easing.type: Easing.OutCubic
                     }
                 }
@@ -108,6 +119,12 @@ Scope {
                 SurfaceFloutee {
                     anchors.fill: parent
                     rayon: coinWin.etendu ? Theme.pillRadius : Math.round(Theme.barHeight / 2)
+                    Behavior on rayon {
+                        NumberAnimation {
+                            duration: Math.max(160, Theme.panelAnimDuration)
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                     teinte: Theme.barBg
                     bordureCouleur: Theme.accent
                     bordureLargeur: Theme.barBorder ? 1 : 0
@@ -120,8 +137,7 @@ Scope {
                     width: Theme.barHeight
                     height: Theme.barHeight
                     opacity: coinWin.etendu ? 0.0 : 1.0
-                    visible: opacity > 0.02
-                    Behavior on opacity { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
                     IconSvg {
                         anchors.centerIn: parent
@@ -140,14 +156,14 @@ Scope {
                     }
                 }
 
-                // Contenu complet au survol
+                // Contenu complet au survol (toujours monté pour garder largeurEtendue stable)
                 AppletRow {
                     id: rangee
-                    anchors.centerIn: parent
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.horizontalCenter: parent.horizontalCenter
                     directModel: coinWin.applets
                     opacity: coinWin.etendu ? 1.0 : 0.0
-                    visible: opacity > 0.02
-                    Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                 }
 
                 HoverHandler {
