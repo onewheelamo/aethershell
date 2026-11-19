@@ -113,32 +113,24 @@ Scope {
             implicitWidth: coinWin.largeurSurface
             implicitHeight: Theme.barHeight
 
-            function rafraichirMasque() {
-                Qt.callLater(function() {
-                    if (!coinWin.visible) return
-                    coinWin.mask = null
-                    coinWin.mask = masqueSaisie
-                })
-            }
-
-            onAppletsChanged: rafraichirMasque()
-            onVisibleChanged: if (visible) rafraichirMasque()
-
             Region {
                 id: masqueSaisie
-                item: rangeeRonds
+                item: zoneMasque
             }
             mask: masqueSaisie
 
-            Row {
-                id: rangeeRonds
+            Item {
+                id: zoneMasque
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: coinWin.ancreADroite ? undefined : parent.left
                 anchors.right: coinWin.ancreADroite ? parent.right : undefined
-                spacing: coinWin.espacement
-                onWidthChanged: coinWin.rafraichirMasque()
-                onXChanged: coinWin.rafraichirMasque()
+                width: Math.max(Theme.barHeight, rangeeRonds.implicitWidth)
+
+                Row {
+                    id: rangeeRonds
+                    anchors.fill: parent
+                    spacing: coinWin.espacement
 
                 Repeater {
                     model: coinWin.applets
@@ -248,6 +240,7 @@ Scope {
                         }
                     }
                 }
+            }
             }
         }
     }
