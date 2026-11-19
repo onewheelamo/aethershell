@@ -111,6 +111,8 @@ Rectangle {
           tab: 0, section: "esthetique_theme", target: "secTheme" },
         { label: "Dossier des fonds d'écran", words: "dossier wallpaper repertoire images",
           tab: 0, section: "esthetique_fonds", target: "wallpaperDirRow" },
+        { label: "Glissement du fond d'écran", words: "glissement slide wallpaper parallaxe bureau",
+          tab: 0, section: "esthetique_fonds", target: "wallpaperSlideRow" },
         { label: "Masque de profondeur du fond", words: "masque profondeur relief parallaxe wallpaper widgets seuil adouci",
           tab: 0, section: "esthetique_fonds", target: "masqueProfondeurRow" },
         { label: "Dossier des captures d'écran", words: "capture ecran screenshot dossier chemin enregistrement image",

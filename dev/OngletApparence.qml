@@ -631,6 +631,56 @@ onClicked: root.runConfigCmd([
     }
 }
 
+Row {
+    id: wallpaperSlideRow
+    objectName: "wallpaperSlideRow"
+    width: parent.width
+    spacing: 8
+    opacity: Theme.depthWallpaper ? 0.5 : 1.0
+
+    Text {
+        width: 160
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Glissement du fond :"
+        color: Theme.fg
+        font.pixelSize: Theme.textSm
+        elide: Text.ElideRight
+    }
+
+    Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        width: 160
+        height: 26
+        radius: Theme.globalRadius
+        color: Theme.wallpaperSlide ? Theme.accent : Theme.surfaceVariant
+        border.color: Theme.accent
+        border.width: 1
+
+        Text {
+anchors.centerIn: parent
+text: Theme.wallpaperSlide ? "✓ Actif" : "✕ Désactivé"
+color: Theme.wallpaperSlide ? Theme.bg : Theme.fg
+font.pixelSize: Theme.textXs
+        }
+
+        MouseArea {
+anchors.fill: parent
+cursorShape: Qt.PointingHandCursor
+onClicked: root.runConfigCmd([
+    "style", "wallpaper_slide", Theme.wallpaperSlide ? "false" : "true"
+])
+        }
+    }
+
+    Text {
+        anchors.verticalCenter: parent.verticalCenter
+        visible: Theme.depthWallpaper
+        text: "(inactif si parallaxe active)"
+        color: Qt.alpha(Theme.fg, 0.55)
+        font.pixelSize: Theme.textXs
+    }
+}
+
 // Le modèle de profondeur ne suit pas toujours l'intention : sur
 // Fantasy-Landscape1 il range la rive de l'étang à 0,45 et les
 // bosquets de gauche à 0,19, presque comme l'eau (0,14). Ce bouton

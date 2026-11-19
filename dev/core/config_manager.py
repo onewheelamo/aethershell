@@ -831,6 +831,10 @@ def update_style_var(key, value):
         # Fond en profondeur (parallaxe au changement de bureau), rendu par
         # FondProfondeur.qml sur une couche `background`.
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "wallpaper_slide":
+        # Glissement horizontal du fond au changement de bureau lorsque la
+        # parallaxe (depth_wallpaper) n'est pas activée.
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "depth_mask":
         # Masque de premier plan (idée du plugin Noctalia `wallpaper_depth`) :
         # les widgets de bureau passent derrière les objets proches du fond.
@@ -2097,6 +2101,7 @@ def get_full_config_state():
         "shell_blur_alpha": float(style_data.get("shell_blur_alpha", 0.3)),
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
+        "wallpaper_slide": bool(style_data.get("wallpaper_slide", False)),
         "panel_accordion": bool(style_data.get("panel_accordion", True)),
         "user_location_ville": str(style_data.get("user_location_ville", "") or ""),
         "user_location_lat": style_data.get("user_location_lat"),

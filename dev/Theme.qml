@@ -331,6 +331,8 @@ QtObject {
     // au changement de bureau. Faux par défaut, le fond d'écran du démon reste
     // intact tant qu'on ne l'allume pas.
     property bool depthWallpaper: false
+    // Glissement du fond au changement de bureau si la parallaxe est inactive.
+    property bool wallpaperSlide: false
     // Masque de premier plan (CalqueProfondeur.qml) : les widgets de bureau
     // passent derrière les objets proches du fond. Seuil et adoucissement sont
     // ceux du plugin Noctalia, exposés tels quels (0-100 et 0-50).
@@ -568,6 +570,7 @@ QtObject {
         if (typeof data.hypr_rounding === "number") root.hyprRounding = data.hypr_rounding
         if (typeof data.global_opacity === "number") root.globalOpacity = data.global_opacity
         if (typeof data.depth_wallpaper === "boolean") root.depthWallpaper = data.depth_wallpaper
+        if (typeof data.wallpaper_slide === "boolean") root.wallpaperSlide = data.wallpaper_slide
         if (typeof data.panel_accordion === "boolean") root.panelAccordion = data.panel_accordion
         if (typeof data.panel_anim_duration === "number") root.panelAnimDuration = Math.max(80, Math.min(500, Math.round(data.panel_anim_duration)))
         if (typeof data.user_location_ville === "string") root.userLocationVille = data.user_location_ville

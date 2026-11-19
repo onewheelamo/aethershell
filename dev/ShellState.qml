@@ -59,7 +59,7 @@ QtObject {
 
     property Process wallpaperSondeProc: Process {
         command: ["awww", "query"]
-        running: Theme.depthWallpaper || Theme.depthMask
+        running: Theme.depthWallpaper || Theme.depthMask || Theme.wallpaperSlide
         stdout: StdioCollector {
             onStreamFinished: {
                 if (Date.now() < root.wallpaperLockUntil) return
@@ -77,7 +77,7 @@ QtObject {
     property Timer wallpaperSondeTimer: Timer {
         interval: 2500
         repeat: true
-        running: Theme.depthWallpaper || Theme.depthMask
+        running: Theme.depthWallpaper || Theme.depthMask || Theme.wallpaperSlide
         triggeredOnStart: true
         onTriggered: root.rafraichirWallpaper()
     }

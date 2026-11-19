@@ -68,6 +68,7 @@
     "shell_blur_alpha": 0.3,
     "shell_blur_popups": true,
     "depth_wallpaper": false,
+    "wallpaper_slide": false,
     "shell_opacity": 0.5,
     "primary_monitor": "DP-1",
     "launcher_position": "bas-centre",

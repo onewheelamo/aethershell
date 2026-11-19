@@ -22,6 +22,11 @@ Item {
         id: fondProfondeur
     }
 
+    // Glissement du fond au changement de bureau (si parallaxe inactive).
+    FondGlissement {
+        id: fondGlissement
+    }
+
 
     // Top Bar Window hosting the 3 distinct islands (Left, Center, Right)
     PanelWindow {
