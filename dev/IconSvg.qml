@@ -55,7 +55,11 @@ Item {
         // Réseau : trois nœuds reliés.
         "reseau": "M12 3.5h0 M12 6.5v3 M5 14.5h14 M12 9.5v5"
                 + " M12 4.5a2 2 0 1 0 0.01 0"
-                + " M5 16.5a2 2 0 1 0 0.01 0 M19 16.5a2 2 0 1 0 0.01 0"
+                + " M5 16.5a2 2 0 1 0 0.01 0 M19 16.5a2 2 0 1 0 0.01 0",
+        // Charge système (load) : cadran et aiguille.
+        "load": "M4.5 16.5a8.5 8.5 0 1 1 15 0 M12 14l4-4.5 M12 14a1.2 1.2 0 1 0 0.01 0",
+        // Swap : deux flèches opposées.
+        "swap": "M5 9h14l-3.5-3.5 M19 15H5l3.5 3.5"
     })
 
     readonly property string chemin: chemins[nom] || ""

@@ -58,14 +58,23 @@ Item {
                 niveau: String(b.niveau || "ok"),
                 precision: ""
             }
-            if (ligne.cle === "cpu" && d.temp && d.temp.cpu)
-                ligne.precision = Math.round(d.temp.cpu) + "°"
-            else if (ligne.cle === "ram" && d.ram && d.ram.totale_go)
+            if (ligne.cle === "cpu") {
+                const parts = []
+                if (d.temp && d.temp.cpu) parts.push(Math.round(d.temp.cpu) + "°")
+                if (d.cpu && d.cpu.freq_ghz) parts.push(d.cpu.freq_ghz + " GHz")
+                ligne.precision = parts.join(" · ")
+            } else if (ligne.cle === "ram" && d.ram && d.ram.totale_go) {
                 ligne.precision = formatGo(d.ram.utilisee_go) + " / " + formatGo(d.ram.totale_go) + " Go"
+            } else if (ligne.cle === "gpu" && d.gpu && d.gpu.power_w) {
+                ligne.precision = d.gpu.power_w + " W"
+            }
             // « temp » garde sa jauge, sans la ligne « paquet » : la température
             // du CPU est déjà annoncée sous la ligne CPU.
             out.push(ligne)
         }
+
+        const deja = {}
+        for (let j = 0; j < out.length; ++j) deja[out[j].cle] = true
 
         if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
             const part = 100 * (Number(d.gpu.vram_go) || 0) / Number(d.gpu.vram_totale_go)
@@ -89,6 +98,38 @@ Item {
                 remplissage: Math.min(100, 100 * chaleur / 85),
                 niveau: chaleur >= 85 ? "critique" : (chaleur >= 70 ? "attention" : "ok"),
                 precision: ""
+            })
+        }
+
+        if (d.swap && Number(d.swap.totale_go) > 0 && !deja.swap) {
+            const sp = Number(d.swap.pct) || 0
+            out.push({
+                cle: "swap", nom: "Swap", icone: "swap",
+                texte: Math.round(sp) + "%",
+                remplissage: sp,
+                niveau: sp >= 85 ? "critique" : (sp >= 60 ? "attention" : "ok"),
+                precision: formatGo(d.swap.utilisee_go) + " / " + formatGo(d.swap.totale_go) + " Go"
+            })
+        }
+
+        if (d.disk && Number(d.disk.total_go) > 0 && !deja.disk) {
+            const dp = Number(d.disk.pct) || 0
+            out.push({
+                cle: "disk", nom: "Disque", icone: "disque",
+                texte: Math.round(dp) + "%",
+                remplissage: dp,
+                niveau: dp >= 92 ? "critique" : (dp >= 80 ? "attention" : "ok"),
+                precision: formatGo(d.disk.utilise_go) + " / " + formatGo(d.disk.total_go) + " Go (/)"
+            })
+        }
+
+        if (d.net && !deja.net) {
+            out.push({
+                cle: "net", nom: "Réseau", icone: "reseau",
+                texte: "↓" + String(d.net.rx_texte || "0"),
+                remplissage: Number(d.net.pct) || 0,
+                niveau: "ok",
+                precision: "↑ " + String(d.net.tx_texte || "0")
             })
         }
 
@@ -117,6 +158,38 @@ Item {
     Column {
         id: colonne
         spacing: 7
+
+        Row {
+            readonly property var al: (root.detail && root.detail.alerts) || ({})
+            readonly property var up: (root.detail && root.detail.uptime) || null
+            readonly property var ld: (root.detail && root.detail.load) || null
+            visible: Boolean(up || ld || Number(al.total || 0) > 0)
+            spacing: 8
+
+            Text {
+                visible: Boolean(parent.up && parent.up.texte)
+                text: parent.up ? ("⏱ " + parent.up.texte) : ""
+                color: Qt.alpha(Theme.fg, 0.55)
+                font.pixelSize: Math.round(11 * root.echelle)
+                font.features: { "tnum": 1 }
+            }
+
+            Text {
+                visible: Boolean(parent.ld && parent.ld.l1 !== undefined)
+                text: parent.ld ? ("Load " + parent.ld.l1) : ""
+                color: Qt.alpha(Theme.fg, 0.55)
+                font.pixelSize: Math.round(11 * root.echelle)
+                font.features: { "tnum": 1 }
+            }
+
+            Text {
+                visible: Number(parent.al.total || 0) > 0
+                text: "⚠ " + parent.al.total
+                color: Theme.warn
+                font.pixelSize: Math.round(11 * root.echelle)
+                font.features: { "tnum": 1 }
+            }
+        }
 
         Repeater {
             model: root.lignes

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import signal
 import subprocess
 import sys
@@ -33,15 +34,37 @@ from applet_contrat import compact, presenter, sortir
 
 ICI = Path(__file__).resolve().parent
 CACHE = ICI / "systeme_applet_cache.json"
-ETAT_CPU = Path(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))) / "quickshell" / "systeme_cpu_cache.json"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))) / "quickshell"
+ETAT_CPU = CACHE_DIR / "systeme_cpu_cache.json"
+ETAT_NET = CACHE_DIR / "systeme_net_cache.json"
 _MEM_ETAT_CPU = None
+_MEM_ETAT_NET = None
 CACHE_TTL = 3          # s : quatre appels rapprochés ne doivent pas refaire nvidia-smi
 ECHANTILLON = 0.2      # s
 
-MESURES = ("cpu", "ram", "gpu", "temp")
-NOMS = {"cpu": "CPU", "ram": "RAM", "gpu": "GPU", "temp": "Temp"}
+MESURES_DEFAUT = ("cpu", "ram", "gpu", "temp")
+MESURES = ("cpu", "ram", "gpu", "temp", "load", "swap", "disk", "net")
+NOMS = {
+    "cpu": "CPU",
+    "ram": "RAM",
+    "gpu": "GPU",
+    "temp": "Temp",
+    "load": "Load",
+    "swap": "Swap",
+    "disk": "Disque",
+    "net": "Réseau",
+}
 # Noms de tracés d'IconSvg.qml, pas de glyphes Nerd (absents de la fonte).
-ICONES = {"cpu": "cpu", "ram": "ram", "gpu": "gpu", "temp": "temp"}
+ICONES = {
+    "cpu": "cpu",
+    "ram": "ram",
+    "gpu": "gpu",
+    "temp": "temp",
+    "load": "load",
+    "swap": "swap",
+    "disk": "disque",
+    "net": "reseau",
+}
 SEUIL_ATTENTION = 60
 SEUIL_CRITIQUE = 85
 TEMP_ATTENTION = 70
@@ -50,19 +73,33 @@ TEMP_CRITIQUE = 85
 
 # ── CPU ───────────────────────────────────────────────────────────────────────
 def _lire_stat():
+    total = idle = 0
+    coeurs = {}
     with open("/proc/stat", encoding="utf-8") as f:
-        champs = f.readline().split()[1:]
-    valeurs = [int(v) for v in champs]
-    # idle + iowait : ce qui n'est pas du travail utile.
-    return sum(valeurs), valeurs[3] + (valeurs[4] if len(valeurs) > 4 else 0)
+        for ligne in f:
+            morceaux = ligne.split()
+            if not morceaux:
+                continue
+            nom = morceaux[0]
+            if nom == "cpu":
+                valeurs = [int(v) for v in morceaux[1:]]
+                # idle + iowait : ce qui n'est pas du travail utile.
+                total = sum(valeurs)
+                idle = valeurs[3] + (valeurs[4] if len(valeurs) > 4 else 0)
+            elif nom.startswith("cpu") and nom[3:].isdigit():
+                valeurs = [int(v) for v in morceaux[1:]]
+                coeurs[nom] = [sum(valeurs), valeurs[3] + (valeurs[4] if len(valeurs) > 4 else 0)]
+            elif not nom.startswith("cpu"):
+                break
+    return total, idle, coeurs
 
 
-def _sauver_etat_cpu(total, idle, maintenant):
+def _sauver_etat_cpu(total, idle, coeurs, maintenant):
     tmp = f"{ETAT_CPU}.tmp.{os.getpid()}"
     try:
         ETAT_CPU.parent.mkdir(parents=True, exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"total": total, "idle": idle, "ts": maintenant}, f)
+            json.dump({"total": total, "idle": idle, "coeurs": coeurs, "ts": maintenant}, f)
         os.replace(tmp, ETAT_CPU)
     except OSError:
         if os.path.exists(tmp):
@@ -72,12 +109,28 @@ def _sauver_etat_cpu(total, idle, maintenant):
                 pass
 
 
-def cpu_pourcent(persister=True):
+def _cpu_freq_ghz():
+    freqs = []
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as f:
+            for ligne in f:
+                if ligne.startswith("cpu MHz"):
+                    _, val = ligne.split(":", 1)
+                    freqs.append(float(val.strip()))
+    except (OSError, ValueError):
+        return None
+    if not freqs:
+        return None
+    return round(sum(freqs) / len(freqs) / 1000.0, 2)
+
+
+def cpu_mesures(persister=True):
     global _MEM_ETAT_CPU
     try:
         maintenant = time.monotonic()
-        total2, idle2 = _lire_stat()
+        total2, idle2, coeurs2 = _lire_stat()
         total1 = idle1 = None
+        coeurs1 = {}
         if not persister:
             prev = _MEM_ETAT_CPU
         else:
@@ -93,29 +146,46 @@ def cpu_pourcent(persister=True):
                 if 0 < (maintenant - ts_prev) <= 30.0:
                     total1 = int(prev["total"])
                     idle1 = int(prev["idle"])
+                    if isinstance(prev.get("coeurs"), dict):
+                        coeurs1 = prev["coeurs"]
             except (ValueError, KeyError, TypeError):
                 pass
 
         if total1 is None or (total2 - total1) <= 0:
-            total1, idle1 = total2, idle2
+            total1, idle1, coeurs1 = total2, idle2, coeurs2
             time.sleep(ECHANTILLON)
-            total2, idle2 = _lire_stat()
+            total2, idle2, coeurs2 = _lire_stat()
             maintenant = time.monotonic()
 
         if persister:
-            _sauver_etat_cpu(total2, idle2, maintenant)
+            _sauver_etat_cpu(total2, idle2, coeurs2, maintenant)
         else:
-            _MEM_ETAT_CPU = {"total": total2, "idle": idle2, "ts": maintenant}
+            _MEM_ETAT_CPU = {"total": total2, "idle": idle2, "coeurs": coeurs2, "ts": maintenant}
         dt, di = total2 - total1, idle2 - idle1
         if dt <= 0:
-            return None
-        return max(0.0, min(100.0, 100.0 * (dt - di) / dt))
+            return None, [], None
+        pct = max(0.0, min(100.0, 100.0 * (dt - di) / dt))
+        coeurs_pct = []
+        for nom in sorted(coeurs2, key=lambda k: int(k[3:])):
+            t2, i2 = coeurs2[nom]
+            c1 = coeurs1.get(nom)
+            if c1 and len(c1) == 2 and (t2 - c1[0]) > 0:
+                cdt, cdi = t2 - c1[0], i2 - c1[1]
+                coeurs_pct.append(round(max(0.0, min(100.0, 100.0 * (cdt - cdi) / cdt)), 1))
+            else:
+                coeurs_pct.append(round(pct, 1))
+        return pct, coeurs_pct, _cpu_freq_ghz()
     except (OSError, ValueError):
-        return None
+        return None, [], None
 
 
-# ── RAM ───────────────────────────────────────────────────────────────────────
-def ram_pourcent():
+def cpu_pourcent(persister=True):
+    pct, _, _ = cpu_mesures(persister=persister)
+    return pct
+
+
+# ── RAM & Swap ────────────────────────────────────────────────────────────────
+def memoire_mesures():
     try:
         with open("/proc/meminfo", encoding="utf-8") as f:
             infos = {}
@@ -126,26 +196,65 @@ def ram_pourcent():
         total = infos.get("MemTotal", 0)
         dispo = infos.get("MemAvailable", 0)
         if total <= 0:
-            return None, None, None
+            return None
         utilises = total - dispo
-        return 100.0 * utilises / total, utilises / 1024 / 1024, total / 1024 / 1024
+        cache_kio = infos.get("Buffers", 0) + infos.get("Cached", 0) + infos.get("SReclaimable", 0)
+        swap_total = infos.get("SwapTotal", 0)
+        swap_free = infos.get("SwapFree", 0)
+        swap_util = max(0, swap_total - swap_free)
+        return {
+            "ram_pct": 100.0 * utilises / total,
+            "utilisee_go": round(utilises / 1048576.0, 1),
+            "totale_go": round(total / 1048576.0, 1),
+            "cache_go": round(cache_kio / 1048576.0, 1),
+            "swap_pct": (100.0 * swap_util / swap_total) if swap_total > 0 else 0.0,
+            "swap_utilisee_go": round(swap_util / 1048576.0, 1),
+            "swap_totale_go": round(swap_total / 1048576.0, 1),
+        }
     except (OSError, ValueError):
+        return None
+
+
+def ram_pourcent():
+    m = memoire_mesures()
+    if not m:
         return None, None, None
+    return m["ram_pct"], m["utilisee_go"], m["totale_go"]
 
 
 # ── GPU ───────────────────────────────────────────────────────────────────────
+def _parse_float(val):
+    try:
+        return float(val.strip())
+    except (ValueError, AttributeError):
+        return None
+
+
 def gpu_mesures():
     try:
         res = subprocess.run(
-            ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total",
+            ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw",
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=5,
         )
         if res.returncode != 0:
             return None
         ligne = res.stdout.strip().splitlines()[0]
-        util, temp, vram, vram_tot = [float(x) for x in ligne.split(",")]
-        return {"utilisation": util, "temperature": temp, "vram": vram, "vram_total": vram_tot}
+        champs = ligne.split(",")
+        util = _parse_float(champs[0])
+        temp = _parse_float(champs[1])
+        vram = _parse_float(champs[2])
+        vram_tot = _parse_float(champs[3])
+        power = _parse_float(champs[4]) if len(champs) > 4 else None
+        if util is None or temp is None or vram is None or vram_tot is None:
+            return None
+        return {
+            "utilisation": util,
+            "temperature": temp,
+            "vram": vram,
+            "vram_total": vram_tot,
+            "power_w": round(power, 1) if power is not None else None,
+        }
     except (OSError, ValueError, IndexError, subprocess.TimeoutExpired):
         return None
 
@@ -178,6 +287,194 @@ def temp_cpu():
     return max(candidats) if candidats else None
 
 
+# ── Load, Disque, Réseau, Uptime, Alertes (inspiration YASSM) ────────────────
+def load_mesures():
+    try:
+        l1, l5, l15 = os.getloadavg()
+        coeurs = os.cpu_count() or 1
+        pct = min(100.0, 100.0 * l1 / coeurs)
+        return {
+            "l1": round(l1, 2),
+            "l5": round(l5, 2),
+            "l15": round(l15, 2),
+            "coeurs": coeurs,
+            "pct": round(pct, 1),
+        }
+    except OSError:
+        return None
+
+
+def disque_racine():
+    try:
+        st = os.statvfs("/")
+        total = st.f_blocks * st.f_frsize
+        dispo = st.f_bavail * st.f_frsize
+        if total <= 0:
+            return None
+        utilise = max(0, total - dispo)
+        pct = 100.0 * utilise / total
+        return {
+            "utilise_go": round(utilise / 1073741824.0, 1),
+            "total_go": round(total / 1073741824.0, 1),
+            "pct": round(pct, 1),
+        }
+    except OSError:
+        return None
+
+
+def _lire_net_dev():
+    rx = tx = 0
+    with open("/proc/net/dev", encoding="utf-8") as f:
+        for ligne in f.readlines()[2:]:
+            if ":" not in ligne:
+                continue
+            iface, reste = ligne.split(":", 1)
+            if iface.strip() == "lo":
+                continue
+            cols = reste.split()
+            if len(cols) >= 10:
+                rx += int(cols[0])
+                tx += int(cols[8])
+    return rx, tx
+
+
+def _format_debit(bps):
+    if bps >= 1048576:
+        return f"{bps / 1048576:.1f} M/s"
+    if bps >= 1024:
+        return f"{bps / 1024:.0f} K/s"
+    return f"{bps:.0f} o/s"
+
+
+def reseau_debits(persister=True):
+    global _MEM_ETAT_NET
+    try:
+        maintenant = time.monotonic()
+        rx2, tx2 = _lire_net_dev()
+        if not persister:
+            prev = _MEM_ETAT_NET
+        else:
+            prev = None
+            try:
+                with open(ETAT_NET, "r", encoding="utf-8") as f:
+                    prev = json.load(f)
+            except (OSError, ValueError):
+                prev = None
+
+        rx_bps = tx_bps = 0.0
+        if isinstance(prev, dict):
+            try:
+                dt = maintenant - float(prev.get("ts", 0))
+                if 0.05 <= dt <= 30.0:
+                    rx_bps = max(0.0, (rx2 - int(prev["rx"])) / dt)
+                    tx_bps = max(0.0, (tx2 - int(prev["tx"])) / dt)
+            except (ValueError, KeyError, TypeError):
+                pass
+
+        if persister:
+            tmp = f"{ETAT_NET}.tmp.{os.getpid()}"
+            try:
+                ETAT_NET.parent.mkdir(parents=True, exist_ok=True)
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump({"rx": rx2, "tx": tx2, "ts": maintenant}, f)
+                os.replace(tmp, ETAT_NET)
+            except OSError:
+                if os.path.exists(tmp):
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+        else:
+            _MEM_ETAT_NET = {"rx": rx2, "tx": tx2, "ts": maintenant}
+
+        # Référence jauge : 50 Mio/s cumulés = 100 %
+        pct = min(100.0, (rx_bps + tx_bps) / (50.0 * 1048576.0) * 100.0)
+        return {
+            "rx_kio": round(rx_bps / 1024.0, 1),
+            "tx_kio": round(tx_bps / 1024.0, 1),
+            "rx_texte": _format_debit(rx_bps),
+            "tx_texte": _format_debit(tx_bps),
+            "pct": round(pct, 1),
+        }
+    except (OSError, ValueError):
+        return None
+
+
+def uptime_info():
+    try:
+        with open("/proc/uptime", encoding="utf-8") as f:
+            sec = int(float(f.read().split()[0]))
+        mins = (sec // 60) % 60
+        heures = (sec // 3600) % 24
+        jours = sec // 86400
+        if jours > 0:
+            texte = f"{jours}j {heures}h"
+        elif sec >= 3600:
+            texte = f"{sec // 3600}h{mins:02d}"
+        else:
+            texte = f"{max(1, sec // 60)}m"
+        return {"secondes": sec, "texte": texte}
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _zombies_proc():
+    zombies = 0
+    try:
+        for entree in os.listdir("/proc"):
+            if not entree.isdigit():
+                continue
+            try:
+                with open(f"/proc/{entree}/stat", "r", encoding="utf-8") as f:
+                    champs = f.read().rsplit(")", 1)
+                if len(champs) == 2 and champs[1].lstrip().startswith("Z"):
+                    zombies += 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return zombies
+
+
+def _systemd_failed(user=False):
+    cmd = ["systemctl"]
+    if user:
+        cmd.append("--user")
+    cmd.extend(["--failed", "--no-legend", "--plain", "--no-pager"])
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
+        if res.returncode != 0:
+            return []
+        unites = []
+        for ligne in res.stdout.splitlines():
+            nom = ligne.split(None, 1)[0].strip()
+            if nom and nom != "●":
+                unites.append(nom)
+            elif nom == "●" and len(ligne.split()) > 1:
+                unites.append(ligne.split()[1].strip())
+        return unites
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+
+
+def alertes_systeme(barres):
+    zombies = _zombies_proc()
+    failed_sys = _systemd_failed(user=False)
+    failed_usr = [f"user:{u}" for u in _systemd_failed(user=True)]
+    systemd_failed = failed_sys + failed_usr
+    seuils = [
+        {"cle": b["cle"], "nom": b["nom"], "texte": b["texte"], "niveau": b["niveau"]}
+        for b in barres if b.get("alerte")
+    ]
+    total = (1 if zombies > 0 else 0) + len(systemd_failed) + len(seuils)
+    return {
+        "total": total,
+        "zombies": zombies,
+        "systemd_failed": systemd_failed,
+        "seuils": seuils,
+    }
+
+
 # ── assemblage ────────────────────────────────────────────────────────────────
 def _niveau(valeur, attention, critique):
     if valeur >= critique:
@@ -193,6 +490,12 @@ def _barre(cle, valeur, texte):
         # Une température ne se remplit pas : la jauge va de 30 à 100 °C, pour
         # qu'une machine à 40 °C ne paraisse pas « à moitié chaude ».
         remplissage = max(0.0, min(100.0, (valeur - 30.0) / 70.0 * 100.0))
+    elif cle == "disk":
+        niveau = _niveau(valeur, 80, 92)
+        remplissage = max(0.0, min(100.0, valeur))
+    elif cle == "net":
+        niveau = "ok"
+        remplissage = max(0.0, min(100.0, valeur))
     else:
         niveau = _niveau(valeur, SEUIL_ATTENTION, SEUIL_CRITIQUE)
         remplissage = max(0.0, min(100.0, valeur))
@@ -219,36 +522,76 @@ def analyser(options=None, force=False, persister=True):
 
     barres = []
     detail = {}
+    mem = memoire_mesures()
 
     for cle in MESURES:
         if cle == "cpu":
-            v = cpu_pourcent(persister=persister)
+            v, coeurs_pct, freq_ghz = cpu_mesures(persister=persister)
             if v is not None:
                 barres.append(_barre(cle, v, f"{v:.0f}%"))
+                detail["cpu"] = {
+                    "pct": round(v, 1),
+                    "coeurs": coeurs_pct,
+                    "freq_ghz": freq_ghz,
+                }
         elif cle == "ram":
-            v, utilises, total = ram_pourcent()
-            if v is not None and utilises is not None and total is not None:
-                barres.append(_barre(cle, v, f"{v:.0f}%"))
-                detail["ram"] = {"utilisee_go": round(float(utilises), 1),
-                                 "totale_go": round(float(total), 1)}
+            if mem:
+                barres.append(_barre(cle, mem["ram_pct"], f"{mem['ram_pct']:.0f}%"))
+                detail["ram"] = {
+                    "utilisee_go": mem["utilisee_go"],
+                    "totale_go": mem["totale_go"],
+                    "cache_go": mem["cache_go"],
+                }
         elif cle == "gpu":
             g = gpu_mesures()
             if g:
                 barres.append(_barre(cle, g["utilisation"], f"{g['utilisation']:.0f}%"))
-                detail["gpu"] = {"temperature": g["temperature"],
-                                 "vram_go": round(g["vram"] / 1024, 1),
-                                 "vram_totale_go": round(g["vram_total"] / 1024, 1)}
+                detail["gpu"] = {
+                    "temperature": g["temperature"],
+                    "vram_go": round(g["vram"] / 1024, 1),
+                    "vram_totale_go": round(g["vram_total"] / 1024, 1),
+                    "power_w": g.get("power_w"),
+                }
         elif cle == "temp":
             t = temp_cpu()
             if t is not None:
                 barres.append(_barre(cle, t, f"{t:.0f}°"))
                 detail["temp"] = {"cpu": round(t, 1)}
+        elif cle == "load":
+            ld = load_mesures()
+            if ld:
+                barres.append(_barre(cle, ld["pct"], f"{ld['l1']:.2f}"))
+                detail["load"] = ld
+        elif cle == "swap":
+            if mem and mem["swap_totale_go"] > 0:
+                barres.append(_barre(cle, mem["swap_pct"], f"{mem['swap_pct']:.0f}%"))
+                detail["swap"] = {
+                    "utilisee_go": mem["swap_utilisee_go"],
+                    "totale_go": mem["swap_totale_go"],
+                    "pct": round(mem["swap_pct"], 1),
+                }
+        elif cle == "disk":
+            dk = disque_racine()
+            if dk:
+                barres.append(_barre(cle, dk["pct"], f"{dk['pct']:.0f}%"))
+                detail["disk"] = dk
+        elif cle == "net":
+            nt = reseau_debits(persister=persister)
+            if nt:
+                barres.append(_barre(cle, nt["pct"], f"↓{nt['rx_texte']}"))
+                detail["net"] = nt
+
+    up = uptime_info()
+    if up:
+        detail["uptime"] = up
+    detail["alerts"] = alertes_systeme(barres)
 
     donnees = {
         "ok": True,
         "ts": time.time(),
         "compact": compact(barres[0]["texte"] if barres else "", "système",
-                           alerte=any(b["alerte"] for b in barres), barres=barres),
+                           alerte=any(b["alerte"] for b in barres) or detail["alerts"]["total"] > 0,
+                           barres=barres),
         "detail": detail,
         "mesures": [b["cle"] for b in barres],
     }
@@ -267,11 +610,11 @@ def _choisies(options):
     liste enregistrée dans un autre ordre donnait des jauges mélangées (RAM,
     Temp, CPU…) selon l'historique des clics.
     """
-    # Liste absente = toutes ; liste **vide** = aucune. Confondre les deux
-    # empêchait de tout filtrer, et donc de vérifier qu'on peut revenir en arrière.
+    # Liste absente = mesures par défaut (cpu, ram, gpu, temp) ;
+    # liste **vide** = aucune.
     brut = (options or {}).get("mesures")
     if brut is None:
-        return list(MESURES)
+        return list(MESURES_DEFAUT)
     return [m for m in MESURES if m in brut]
 
 
@@ -283,7 +626,8 @@ def _filtrer(donnees, options):
     compacte = dict(donnees.get("compact", {}))
     compacte["barres"] = barres
     compacte["valeur"] = barres[0]["texte"] if barres else ""
-    compacte["alerte"] = any(b["alerte"] for b in barres)
+    alerts = donnees.get("detail", {}).get("alerts") or {}
+    compacte["alerte"] = any(b["alerte"] for b in barres) or bool(alerts.get("zombies") or alerts.get("systemd_failed"))
     copie["compact"] = compacte
     copie["mesures"] = [b["cle"] for b in barres]
     return copie
@@ -401,8 +745,19 @@ def processus(limite=14):
         vus[l["pid"]] = l
     retenues = sorted(vus.values(), key=lambda l: (l["cpu"], l["ram_mo"]), reverse=True)
     commandes = _commandes([l["pid"] for l in retenues])
+    mon_uid = os.getuid()
     for ligne in retenues:
         ligne["commande"] = commandes.get(ligne["pid"], "")
+        try:
+            uid = os.stat("/proc/%d" % ligne["pid"]).st_uid
+            ligne["moi"] = (uid == mon_uid)
+            try:
+                ligne["user"] = pwd.getpwuid(uid).pw_name
+            except KeyError:
+                ligne["user"] = str(uid)
+        except OSError:
+            ligne["moi"] = True
+            ligne["user"] = ""
     return retenues
 
 

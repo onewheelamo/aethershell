@@ -21,18 +21,39 @@ Item {
         const v = Number(options && options.text_scale)
         return (v >= 60 && v <= 160) ? v / 100 : 1.0
     }
-    readonly property var toutes: ["cpu", "ram", "gpu", "temp"]
-    readonly property var noms: ({ cpu: "CPU", ram: "RAM", gpu: "GPU", temp: "Temp" })
+    readonly property var toutes: ["cpu", "ram", "gpu", "temp", "load", "swap", "disk", "net"]
+    readonly property var noms: ({
+        cpu: "CPU",
+        ram: "RAM",
+        gpu: "GPU",
+        temp: "Temp",
+        load: "Load",
+        swap: "Swap",
+        disk: "Disque",
+        net: "Réseau"
+    })
 
     property var mesures: ["cpu", "ram", "gpu", "temp"]
     // Jauges : même option d'applet que le widget (case « jauge »).
     property bool jauge: true
+    property bool coeursOuverts: false
+    property bool alertesOuvertes: false
     // Processus : lus seulement pendant que le panneau est ouvert (l'inspiration
     // nvtop garde cette discipline — rien ne tourne en fond pour ça).
     property var processus: []
     property string tri: "cpu"
     property string message: ""
     property int dernierPidArrete: 0
+
+    function ouvrirOutilTerminal(cmd) {
+        lanceurOutil.command = [
+            "sh", "-c",
+            "for t in kitty foot alacritty ghostty wezterm konsole gnome-terminal xterm; do "
+            + "if command -v \"$t\" >/dev/null 2>&1; then exec \"$t\" -e sh -c " + JSON.stringify(cmd) + "; fi; done"
+        ]
+        lanceurOutil.running = false
+        lanceurOutil.running = true
+    }
 
     function rafraichirProcessus() {
         if (!root.ouvert) return
@@ -211,19 +232,121 @@ Item {
         ecriture.running = true
     }
 
+    Process {
+        id: lanceurOutil
+    }
+
     Column {
         id: colonne
         width: parent.width
         spacing: Math.round(8 * root.echelle)
 
-        Text {
-            text: "Système"
-            color: Qt.alpha(Theme.fg, 0.6)
-            font.pixelSize: Math.round(Theme.widgetLabel * 0.8 * root.echelle)
+        Row {
+            width: parent.width
+            spacing: Math.round(6 * root.echelle)
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Système"
+                color: Qt.alpha(Theme.fg, 0.6)
+                font.pixelSize: Math.round(Theme.widgetLabel * 0.8 * root.echelle)
+            }
+
+            Item { width: 1; height: 1 }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Boolean(root.detail.uptime && root.detail.uptime.texte)
+                text: root.detail.uptime ? ("⏱ " + root.detail.uptime.texte) : ""
+                color: Qt.alpha(Theme.fg, 0.5)
+                font.pixelSize: Math.round(Theme.textXs * 0.82 * root.echelle)
+                font.features: { "tnum": 1 }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Boolean(root.detail.load && root.detail.load.l1 !== undefined)
+                text: root.detail.load ? ("· Load " + root.detail.load.l1) : ""
+                color: Qt.alpha(Theme.fg, 0.5)
+                font.pixelSize: Math.round(Theme.textXs * 0.82 * root.echelle)
+                font.features: { "tnum": 1 }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                readonly property int nbAlertes: (root.detail.alerts && Number(root.detail.alerts.total)) || 0
+                visible: nbAlertes > 0
+                width: Math.round(texteAlerte.implicitWidth + 12 * root.echelle)
+                height: Math.round(18 * root.echelle)
+                radius: Math.round(4 * root.echelle)
+                color: Qt.alpha(Theme.warn, 0.16)
+                border.width: 1
+                border.color: Qt.alpha(Theme.warn, 0.45)
+
+                Text {
+                    id: texteAlerte
+                    anchors.centerIn: parent
+                    text: parent.nbAlertes + (parent.nbAlertes > 1 ? " alertes" : " alerte")
+                    color: Theme.warn
+                    font.pixelSize: Math.round(Theme.textXs * 0.78 * root.echelle)
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.alertesOuvertes = !root.alertesOuvertes
+                }
+            }
+        }
+
+        // ── détail des alertes (style YASSM) ─────────────────────────────────
+        Rectangle {
+            readonly property var al: root.detail.alerts || ({})
+            visible: root.alertesOuvertes && Number(al.total || 0) > 0
+            width: parent.width
+            implicitHeight: colAlertes.implicitHeight + Math.round(10 * root.echelle)
+            radius: Math.round(6 * root.echelle)
+            color: Qt.alpha(Theme.warn, 0.08)
+            border.width: 1
+            border.color: Qt.alpha(Theme.warn, 0.25)
+
+            Column {
+                id: colAlertes
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: Math.round(5 * root.echelle) }
+                spacing: 3
+
+                Text {
+                    visible: Number(parent.parent.al.zombies || 0) > 0
+                    text: "• " + parent.parent.al.zombies + " processus zombie(s)"
+                    color: Theme.warn
+                    font.pixelSize: Math.round(Theme.textXs * 0.8 * root.echelle)
+                }
+
+                Repeater {
+                    model: parent.parent.al.systemd_failed || []
+                    Text {
+                        required property string modelData
+                        text: "• systemd en échec : " + modelData
+                        color: Theme.error
+                        font.pixelSize: Math.round(Theme.textXs * 0.8 * root.echelle)
+                    }
+                }
+
+                Repeater {
+                    model: parent.parent.al.seuils || []
+                    Text {
+                        required property var modelData
+                        text: "• " + modelData.nom + " : " + modelData.texte
+                        color: modelData.niveau === "critique" ? Theme.error : Theme.warn
+                        font.pixelSize: Math.round(Theme.textXs * 0.8 * root.echelle)
+                    }
+                }
+            }
         }
 
         // ── choix des mesures ────────────────────────────────────────────────
-        Row {
+        Flow {
+            width: parent.width
             spacing: 5
 
             Repeater {
@@ -233,7 +356,8 @@ Item {
                     id: puce
                     required property string modelData
                     readonly property bool actif: (root.mesures || []).indexOf(modelData) >= 0
-                    width: 46
+                    visible: modelData !== "swap" || Boolean(root.detail.swap && Number(root.detail.swap.totale_go) > 0)
+                    width: Math.max(44, Math.round(txtPuce.implicitWidth + 14))
                     height: 20
                     radius: 5
                     color: actif ? Qt.alpha(Theme.accent, 0.18) : "transparent"
@@ -241,6 +365,7 @@ Item {
                     border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.25)
 
                     Text {
+                        id: txtPuce
                         anchors.centerIn: parent
                         text: root.noms[puce.modelData] || puce.modelData
                         color: puce.actif ? Theme.fg : Qt.alpha(Theme.fg, 0.5)
@@ -318,17 +443,78 @@ Item {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    // Ce que la barre ne dit pas : les Go utilisés / totaux.
                     text: {
                         const d = root.detail || ({})
-                        if (modelData.cle === "ram" && d.ram)
+                        const c = modelData.cle
+                        if (c === "cpu" && d.cpu) {
+                            const f = d.cpu.freq_ghz ? (d.cpu.freq_ghz + " GHz") : ""
+                            const n = d.cpu.coeurs ? (d.cpu.coeurs.length + " cœurs") : ""
+                            const sep = (f && n) ? " · " : ""
+                            return f + sep + n + (n ? (root.coeursOuverts ? " ▴" : " ▾") : "")
+                        }
+                        if (c === "ram" && d.ram)
                             return d.ram.utilisee_go + " / " + d.ram.totale_go + " Go"
-                        // VRAM et température du GPU ont leurs propres lignes :
-                        // seule la RAM garde son complément ici.
+                                 + (d.ram.cache_go ? (" (cache " + d.ram.cache_go + ")") : "")
+                        if (c === "gpu" && d.gpu && d.gpu.power_w !== null && d.gpu.power_w !== undefined)
+                            return d.gpu.power_w + " W"
+                        if (c === "load" && d.load)
+                            return "1m " + d.load.l1 + " · 5m " + d.load.l5
+                        if (c === "swap" && d.swap)
+                            return d.swap.utilisee_go + " / " + d.swap.totale_go + " Go"
+                        if (c === "disk" && d.disk)
+                            return d.disk.utilise_go + " / " + d.disk.total_go + " Go (/)"
+                        if (c === "net" && d.net)
+                            return "↑ " + d.net.tx_texte
                         return ""
                     }
                     color: Qt.alpha(Theme.fg, 0.5)
-                    font.pixelSize: Math.round(Theme.textXs * 0.86 * root.echelle)
+                    font.pixelSize: Math.round(Theme.textXs * 0.84 * root.echelle)
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: modelData.cle === "cpu"
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: root.coeursOuverts = !root.coeursOuverts
+                    }
+                }
+            }
+        }
+
+        // ── détail par cœur CPU (style YASSM) ─────────────────────────────────
+        Flow {
+            readonly property var coeurs: (root.detail.cpu && root.detail.cpu.coeurs) || []
+            visible: root.coeursOuverts && coeurs.length > 0
+            width: parent.width
+            spacing: Math.round(4 * root.echelle)
+
+            Repeater {
+                model: parent.coeurs
+                delegate: Column {
+                    required property real modelData
+                    required property int index
+                    width: Math.round(28 * root.echelle)
+                    spacing: 2
+
+                    Rectangle {
+                        width: parent.width
+                        height: Math.round(4 * root.echelle)
+                        radius: 2
+                        color: Qt.alpha(Theme.fg, 0.12)
+
+                        Rectangle {
+                            width: Math.max(2, parent.width * Math.min(100, Math.max(0, modelData)) / 100)
+                            height: parent.height
+                            radius: parent.radius
+                            color: modelData >= 85 ? Theme.error : (modelData >= 60 ? Theme.warn : Theme.accent)
+                        }
+                    }
+
+                    Text {
+                        text: "C" + index + " " + Math.round(modelData) + "%"
+                        color: Qt.alpha(Theme.fg, 0.55)
+                        font.pixelSize: Math.round(Theme.textXs * 0.64 * root.echelle)
+                        font.features: { "tnum": 1 }
+                    }
                 }
             }
         }
@@ -402,8 +588,8 @@ Item {
                 Text {
                     width: parent.width - Math.round(150 * root.echelle)
                     anchors.verticalCenter: parent.verticalCenter
-                    text: String(modelData.nom)
-                    color: Qt.alpha(Theme.fg, 0.85)
+                    text: String(modelData.nom) + (modelData.moi === false && modelData.user ? (" (" + modelData.user + ")") : "")
+                    color: Qt.alpha(Theme.fg, modelData.moi === false ? 0.65 : 0.85)
                     font.pixelSize: Math.round(Theme.textXs * 0.82 * root.echelle)
                     elide: Text.ElideRight
                 }
@@ -452,6 +638,43 @@ Item {
             color: Theme.warn
             font.pixelSize: Math.round(Theme.textXs * 0.8 * root.echelle)
             wrapMode: Text.WordWrap
+        }
+
+        // ── raccourcis outils système (style YASSM) ──────────────────────────
+        Row {
+            width: parent.width
+            spacing: Math.round(6 * root.echelle)
+
+            Repeater {
+                model: [
+                    { label: "Moniteur (btop)", cmd: "command -v btop >/dev/null && btop || htop || top" },
+                    { label: "Sondes (sensors)", cmd: "watch -n1 sensors" }
+                ]
+
+                delegate: Rectangle {
+                    required property var modelData
+                    width: Math.round(txtOutil.implicitWidth + 14 * root.echelle)
+                    height: Math.round(20 * root.echelle)
+                    radius: Math.round(5 * root.echelle)
+                    color: Qt.alpha(Theme.fg, 0.06)
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.fg, 0.16)
+
+                    Text {
+                        id: txtOutil
+                        anchors.centerIn: parent
+                        text: modelData.label
+                        color: Qt.alpha(Theme.fg, 0.78)
+                        font.pixelSize: Math.round(Theme.textXs * 0.74 * root.echelle)
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.ouvrirOutilTerminal(modelData.cmd)
+                    }
+                }
+            }
         }
     }
 }
