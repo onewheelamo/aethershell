@@ -487,8 +487,11 @@ Item {
         implicitHeight: Math.ceil(chargeur.implicitHeight + Theme.space4 * 2)
         color: "transparent"
         // Un popup externe est dessiné par son îlot : cette fenêtre reste fermée.
-        // En mode îlot dynamique, la météo s'étend directement dans l'îlot.
-        visible: root.ouvert && !root.popupExterne && !root.estQml && !(Theme.barStyle === "island" && root.appletId === "meteo")
+        // En mode îlot dynamique, la météo s'étend directement dans l'îlot sauf
+        // si l'applet météo a été sorti dans un coin.
+        visible: root.ouvert && !root.popupExterne && !root.estQml
+                 && !(Theme.barStyle === "island" && root.appletId === "meteo"
+                      && Theme.ilotAppletCornerFor("meteo") === "")
 
         Rectangle {
             anchors.fill: parent
@@ -570,7 +573,9 @@ Item {
 
     HyprlandFocusGrab {
         // Rien à saisir ici : le popup externe a déjà son propre attrapeur (et la météo en mode îlot aussi).
-        active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml && !(Theme.barStyle === "island" && root.appletId === "meteo")
+        active: root.ouvert && !root.popupExterne && root.pretGrab && !root.estQml
+                && !(Theme.barStyle === "island" && root.appletId === "meteo"
+                     && Theme.ilotAppletCornerFor("meteo") === "")
         // La barre fait partie du grab (voir `Theme.fenetresGrab`).
         windows: Theme.fenetresGrab(fenetre, root)
         onCleared: {

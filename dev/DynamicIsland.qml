@@ -298,6 +298,7 @@ Item {
         && !panelOpen
     readonly property bool meteoExpanded: Theme.barStyle === "island"
         && Theme.activePopup === "applet:meteo"
+        && Theme.ilotAppletCornerFor("meteo") === ""
         && !panelOpen
         && !notifToastActive
     readonly property bool wallpaperExpanded: Theme.barStyle === "island"
