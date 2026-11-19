@@ -250,6 +250,33 @@ Column {
                 }
             }
         }
+
+        // Gaps latéraux (partagé avec l'onglet Barre — écarte aussi les applets sortis dans les coins)
+        Row {
+            width: parent.width
+            spacing: 8
+
+            Text {
+                width: 170
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Gaps latéraux :"
+                color: Theme.fg
+                font.pixelSize: Theme.textSm
+                elide: Text.ElideRight
+            }
+
+            Slider {
+                anchors.verticalCenter: parent.verticalCenter
+                value: Theme.gutterH
+                minimumValue: 0
+                maximumValue: 32
+                stepSize: 1
+                suffix: " px"
+                onValueModified: newVal => {
+                    if (root) root.runConfigCmd(["style", "bar_gaps_out_h", String(newVal)])
+                }
+            }
+        }
     }
 
     CollapsibleSection {
