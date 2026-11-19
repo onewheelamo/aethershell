@@ -38,7 +38,7 @@ PanelWindow {
         ? colDebut.applets.length + colMilieu.applets.length + colFin.applets.length
         : debut.applets.length + milieu.applets.length + fin.applets.length
 
-    visible: actif
+    visible: actif && Theme.barStyle !== "island"
 
     // Tout le bord, sans exception : c'est la condition pour que la zone
     // exclusive soit appliquée et que les fenêtres se rangent à côté.
