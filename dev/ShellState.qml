@@ -277,7 +277,7 @@ QtObject {
         for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
             const cat = root.barAppletsCatalogue[i]
             if (!cat || !cat.id || cat.fixe) continue
-            if (cat.id === "visualiseur" || cat.id === "workspaces" || cat.id === "horloge" || cat.id === "musique") continue
+            if (cat.id === "visualiseur" || cat.id === "musique") continue
             if (Theme.ilotAppletCornerFor(cat.id) !== corner) continue
             const mode = Theme.ilotAppletModeFor(cat.id)
             if (mode === "off") continue

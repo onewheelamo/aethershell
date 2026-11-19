@@ -732,6 +732,7 @@ pkg_for_bin() {
                 zbarcam) echo "zbar" ;;
                 cc) echo "gcc" ;;
                 matugen) echo "matugen-bin" ;;
+                unimatrix) echo "unimatrix-git" ;;
                 *) echo "$bin" ;;
             esac
             ;;
@@ -849,10 +850,19 @@ install_debian_extra_bins() {
                 matugen)    echo "   - matugen    : 'cargo install matugen' ou binaire GitHub -> ~/.local/bin/matugen" ;;
                 awww)       echo "   - awww       : compiler depuis https://codeberg.org/LGFae/awww -> ~/.local/bin/awww" ;;
                 hyprshot)   echo "   - hyprshot   : copier le script dans ~/.local/bin/hyprshot" ;;
+                unimatrix)  install_unimatrix_local || echo "   - unimatrix  : curl -fsSL https://raw.githubusercontent.com/will8211/unimatrix/master/unimatrix.py -o ~/.local/bin/unimatrix && chmod +x ~/.local/bin/unimatrix" ;;
                 *)          echo "   - $item     : installer manuellement dans ~/.local/bin/" ;;
             esac
         done
     fi
+}
+
+install_unimatrix_local() {
+    command -v unimatrix >/dev/null 2>&1 && return 0
+    command -v curl >/dev/null 2>&1 || return 1
+    mkdir -p "$HOME/.local/bin"
+    curl -fsSL "https://raw.githubusercontent.com/will8211/unimatrix/master/unimatrix.py" -o "$HOME/.local/bin/unimatrix" \
+        && chmod +x "$HOME/.local/bin/unimatrix"
 }
 
 install_missing_dependencies() {
@@ -899,7 +909,14 @@ install_missing_dependencies() {
             ;;
         dnf)
             local need_copr=0
+            local need_unimatrix=0
+            local -a dnf_pkgs=()
             for p in "${unique_pkgs[@]}"; do
+                if [ "$p" = "unimatrix" ]; then
+                    need_unimatrix=1
+                    continue
+                fi
+                dnf_pkgs+=("$p")
                 case "$p" in
                     quickshell|matugen|awww|hyprshot|hyprsunset) need_copr=1 ;;
                 esac
@@ -916,7 +933,12 @@ install_missing_dependencies() {
                         ;;
                 esac
             fi
-            sudo dnf install -y "${unique_pkgs[@]}" python3-pillow python3-numpy pipewire-devel || return 1
+            if [ "${#dnf_pkgs[@]}" -gt 0 ]; then
+                sudo dnf install -y "${dnf_pkgs[@]}" python3-pillow python3-numpy pipewire-devel || return 1
+            fi
+            if [ "$need_unimatrix" -eq 1 ]; then
+                install_unimatrix_local || return 1
+            fi
             ;;
         apt)
             if grep -qi "ubuntu" /etc/os-release 2>/dev/null; then

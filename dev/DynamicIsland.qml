@@ -485,6 +485,30 @@ Item {
             }
         }
 
+        if (rl === "matrix" || rl.indexOf("matrix ") === 0) {
+            const tokens = rl.slice(6).trim().split(/\s+/).filter(function (t) { return t !== "" })
+            if (tokens.indexOf("stop") !== -1) {
+                return [{ name: "as matrix stop", desc: "Arrêter le terminal Matrix ou annuler le délai", icon: "stop", kind: "as", asAction: "matrix", asArg: { stop: true } }]
+            }
+            let delayMin = 0
+            let isSs = false
+            for (let i = 0; i < tokens.length; i++) {
+                const tok = tokens[i]
+                if (tok === "ss" || tok === "veille" || tok === "screensaver") {
+                    isSs = true
+                } else {
+                    const m = parseFloat(tok)
+                    if (!isNaN(m) && m > 0) delayMin = m
+                }
+            }
+            const label = "as matrix" + (delayMin > 0 ? (" " + delayMin) : "") + (isSs ? " ss" : "")
+            const descMode = isSs
+                ? "Écran de veille plein écran devant tout (souris/clavier pour quitter)"
+                : "Fond animé plein écran derrière les surfaces Quickshell"
+            const descDelai = delayMin > 0 ? (" dans " + delayMin + " min") : ""
+            return [{ name: label, desc: descMode + descDelai, icon: "monitor", kind: "as", asAction: "matrix", asArg: { ss: isSs, delay: delayMin, stop: false } }]
+        }
+
         if (rl === "contexte" || rl.indexOf("contexte ") === 0) {
             const qCtx = rl.slice(8).trim()
             const ctxs = ShellState.workContexts || []
@@ -514,6 +538,7 @@ Item {
             { name: "as widgets", desc: Theme.widgetsBureauVisibles ? "Masquer les widgets du bureau" : "Afficher les widgets du bureau", icon: "widgets", kind: "as", asAction: "widgets" },
             { name: "as energie", desc: "Profil d'énergie (perf / equilibre / eco)", icon: "battery", kind: "as", asAction: "prefill_as", asArg: "as energie " },
             { name: "as timer", desc: "Lancer un minuteur (ex. « as timer 25 »)", icon: "clock", kind: "as", asAction: "prefill_as", asArg: "as timer 25" },
+            { name: "as matrix", desc: "Fond animé Matrix (ou « as matrix 10 ss » pour veille)", icon: "monitor", kind: "as", asAction: "matrix", asArg: { ss: false, delay: 0, stop: false } },
             { name: "as contexte", desc: "Activer un contexte de travail", icon: "cog", kind: "as", asAction: "prefill_as", asArg: "as contexte " },
             { name: "as reload", desc: "Recharger Hyprland et redémarrer Quickshell", icon: "refresh", kind: "as", asAction: "reload" },
             { name: "as verrouiller", desc: "Verrouiller la session (hyprlock)", icon: "lock", kind: "as", asAction: "verrouiller" },
@@ -574,6 +599,17 @@ Item {
             Quickshell.execDetached(["systemctl", "poweroff"])
         } else if (act === "timer" && entry.asArg) {
             ShellState.startTimer(entry.asArg, "")
+        } else if (act === "matrix") {
+            const opts = entry.asArg || ({})
+            const args = ["python3", Quickshell.shellPath("core/matrix_wallpaper.py")]
+            if (opts.stop) args.push("--stop")
+            else {
+                if (opts.ss) args.push("--ss")
+                if (opts.delay && Number(opts.delay) > 0) {
+                    args.push("--delay", String(opts.delay))
+                }
+            }
+            Quickshell.execDetached(args)
         } else if (act === "contexte" && entry.asArg) {
             ShellState.applyContext(String(entry.asArg))
         }
@@ -768,11 +804,14 @@ Item {
             return root.launcherServiceResults.slice(0, 8)
         }
         if (q === "") {
-            const rec = LauncherEngine.recentEntries(7)
-            return rec.length > 0 ? rec : LauncherEngine.appIndex.slice(0, 7)
+            if (root.launcherCategory !== "") {
+                return LauncherEngine.appsInCategory(root.launcherCategory, true)
+            }
+            return LauncherEngine.categoriesEntries()
         }
         return LauncherEngine.searchAppsAndAliases(q, 8)
     }
+    property string launcherCategory: ""
 
     Timer {
         id: launcherSvcTimer
@@ -806,6 +845,16 @@ Item {
 
     function runLauncherEntry(entry) {
         if (!entry) return
+        if (entry.kind === "category") {
+            root.launcherCategory = String(entry.category || "")
+            root.launcherSelectedIdx = 0
+            return
+        }
+        if (entry.kind === "category_back") {
+            root.launcherCategory = ""
+            root.launcherSelectedIdx = 0
+            return
+        }
         if (entry.kind === "as") {
             root.runAsCommand(entry)
             return
@@ -848,6 +897,7 @@ Item {
             delaiGrabLauncher.restart()
             LauncherEngine.reload()
             root.launcherQuery = ""
+            root.launcherCategory = ""
             root.launcherSelectedIdx = 0
             launcherContainer.clearAndFocus()
         } else {
@@ -1146,13 +1196,17 @@ Item {
 
             WorkspacesApplet {
                 id: compactWorkspaces
-                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "compact")
+                visible: Theme.ilotAppletCornerFor("workspaces") === ""
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("workspaces"), "compact")
                 dotsMode: true
                 anchors.verticalCenter: parent.verticalCenter
             }
 
             Rectangle {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "compact") && Theme.ilotVisibleIn(Theme.ilotShowClock, "compact")
+                visible: Theme.ilotAppletCornerFor("workspaces") === ""
+                    && Theme.ilotAppletCornerFor("horloge") === ""
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("workspaces"), "compact")
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("horloge"), "compact")
                 width: 1
                 height: 12
                 color: Theme.fg
@@ -1162,7 +1216,8 @@ Item {
 
             // Horloge principale sans glyphe (clic -> panneau étendu)
             Text {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowClock, "compact")
+                visible: Theme.ilotAppletCornerFor("horloge") === ""
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("horloge"), "compact")
                 text: Qt.formatTime(clock.date, "HH:mm")
                 font.family: Theme.fontUi
                 font.pixelSize: Math.max(8, Math.round(Theme.textSm * Theme.barScale))
@@ -1200,6 +1255,12 @@ Item {
                 font.weight: Font.Medium
                 color: Theme.accent
                 anchors.verticalCenter: parent.verticalCenter
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(0)
+                }
             }
 
             // Applets configurés en mode « Repos » ou « Les deux »
@@ -1326,7 +1387,8 @@ Item {
 
             WorkspacesApplet {
                 id: expandedWorkspaces
-                visible: Theme.ilotVisibleIn(Theme.ilotShowWorkspaces, "expanded")
+                visible: Theme.ilotAppletCornerFor("workspaces") === ""
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("workspaces"), "expanded")
                 dotsMode: true
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -1340,7 +1402,8 @@ Item {
 
             // Centre : Horloge + Date (clic -> panneau étendu)
             Item {
-                visible: Theme.ilotVisibleIn(Theme.ilotShowClock, "expanded")
+                visible: Theme.ilotAppletCornerFor("horloge") === ""
+                    && Theme.ilotVisibleIn(Theme.ilotAppletModeFor("horloge"), "expanded")
                 width: clockDateRow.implicitWidth
                 height: clockDateRow.implicitHeight
                 anchors.verticalCenter: parent.verticalCenter
@@ -1400,6 +1463,12 @@ Item {
                 font.pixelSize: Math.max(8, Math.round(11 * Theme.barScale))
                 font.weight: Font.Medium
                 color: Theme.accent
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.ouvrirPanneau(0)
+                }
             }
 
             // Live Activity visible aussi en mode étendu (au survol)
@@ -1886,9 +1955,14 @@ Item {
         results: root.launcherResults
         searching: root.launcherSearching
         selectedIdx: root.launcherSelectedIdx
+        inCategory: root.launcherCategory !== ""
         onQueryEdited: q => { root.launcherQuery = q }
         onSelectedIdxChangedRequested: idx => { root.launcherSelectedIdx = idx }
         onEntryActivated: entry => root.runLauncherEntry(entry)
+        onBackRequested: {
+            root.launcherCategory = ""
+            root.launcherSelectedIdx = 0
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────

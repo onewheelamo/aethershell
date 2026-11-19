@@ -139,6 +139,8 @@ QtObject {
         if (root.ilotAppletsMode && root.ilotAppletsMode[id] !== undefined) {
             return root.normIlotMode(root.ilotAppletsMode[id], "off")
         }
+        if (id === "horloge") return root.ilotShowClock
+        if (id === "workspaces") return root.ilotShowWorkspaces
         const defExp = ["systray", "minimise", "luminosite", "batterie"]
         return defExp.indexOf(id) !== -1 ? "expanded" : "off"
     }

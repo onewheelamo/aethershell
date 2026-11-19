@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 // Tiroir lanceur d'applications inline de l'Îlot dynamique (SUPER + R).
 Item {
@@ -9,10 +10,12 @@ Item {
     property var results: []
     property bool searching: false
     property int selectedIdx: 0
+    property bool inCategory: false
 
     signal queryEdited(string q)
     signal selectedIdxChangedRequested(int idx)
     signal entryActivated(var entry)
+    signal backRequested()
 
     function setText(t) {
         launcherInput.text = String(t)
@@ -64,7 +67,22 @@ Item {
                     selectByMouse: true
                     clip: true
                     onTextChanged: root.queryEdited(text)
-                    Keys.onEscapePressed: Theme.islandLauncherOpen = false
+                    Keys.onEscapePressed: {
+                        if (text !== "") {
+                            text = ""
+                        } else if (root.inCategory) {
+                            root.backRequested()
+                        } else {
+                            Theme.islandLauncherOpen = false
+                        }
+                    }
+                    Keys.onPressed: event => {
+                        if ((event.key === Qt.Key_Backspace || event.key === Qt.Key_Left)
+                            && text === "" && root.inCategory) {
+                            root.backRequested()
+                            event.accepted = true
+                        }
+                    }
                     Keys.onUpPressed: {
                         if (root.results.length > 0) {
                             const next = (root.selectedIdx - 1 + root.results.length) % root.results.length
@@ -156,10 +174,33 @@ Item {
                         anchors.rightMargin: 10
                         spacing: 10
 
-                        Icon {
-                            glyph: "rocket"
-                            size: Theme.iconSm
-                            color: selected ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        Item {
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+
+                            Image {
+                                id: appImgIcon
+                                anchors.fill: parent
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                sourceSize.width: 24
+                                sourceSize.height: 24
+                                visible: status === Image.Ready
+                                source: {
+                                    const ic = String(modelData.icon || "")
+                                    if (ic === "") return ""
+                                    if (ic.charAt(0) === "/") return "file://" + ic
+                                    return Quickshell.hasThemeIcon(ic) ? Quickshell.iconPath(ic, true) : ""
+                                }
+                            }
+
+                            Icon {
+                                anchors.centerIn: parent
+                                visible: appImgIcon.status !== Image.Ready
+                                glyph: String(modelData.glyph || (modelData.kind === "category" ? "folder" : "rocket"))
+                                size: Theme.iconSm
+                                color: selected ? Theme.accent : Qt.alpha(Theme.fg, 0.78)
+                            }
                         }
 
                         ColumnLayout {

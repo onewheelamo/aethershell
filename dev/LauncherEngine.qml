@@ -81,6 +81,104 @@ QtObject {
         })
     }
 
+    function categoryGlyph(cat) {
+        const c = String(cat || "").toLowerCase()
+        if (c.indexOf("syst") >= 0 || c.indexOf("réglage") >= 0 || c.indexOf("reglage") >= 0) return "cog"
+        if (c.indexOf("réseau") >= 0 || c.indexOf("reseau") >= 0) return "wifi"
+        if (c.indexOf("jeu") >= 0) return "rocket"
+        if (c.indexOf("média") >= 0 || c.indexOf("media") >= 0) return "music"
+        if (c.indexOf("audio") >= 0) return "volume"
+        if (c.indexOf("bureau") >= 0) return "file-document"
+        if (c.indexOf("dév") >= 0 || c.indexOf("dev") >= 0) return "cog"
+        if (c.indexOf("graph") >= 0) return "palette"
+        if (c.indexOf("navig") >= 0) return "search"
+        if (c.indexOf("util") >= 0) return "widgets"
+        if (c.indexOf("récent") >= 0 || c.indexOf("recent") >= 0) return "history"
+        return "folder"
+    }
+
+    function categoriesEntries() {
+        const counts = ({})
+        const order = []
+        for (let i = 0; i < root.appIndex.length; ++i) {
+            const app = root.appIndex[i]
+            if (!app || !app.name) continue
+            const cat = String(app.category || "").trim() || "Autres"
+            if (counts[cat] === undefined) {
+                counts[cat] = 0
+                order.push(cat)
+            }
+            counts[cat] += 1
+        }
+        order.sort(function (a, b) {
+            if (a === "Autres") return 1
+            if (b === "Autres") return -1
+            return counts[b] - counts[a] || a.localeCompare(b)
+        })
+        const out = []
+        if (Theme.launchHistory && root.history.length > 0) {
+            out.push({
+                kind: "category",
+                category: "__recent__",
+                name: "Récents",
+                desc: root.history.length + " lancements récents",
+                icon: "",
+                glyph: "history",
+                tag: "dossier"
+            })
+        }
+        for (let j = 0; j < order.length; ++j) {
+            const cat = order[j]
+            const n = counts[cat]
+            out.push({
+                kind: "category",
+                category: cat,
+                name: cat,
+                desc: n + (n > 1 ? " applications" : " application"),
+                icon: "",
+                glyph: root.categoryGlyph(cat),
+                tag: n + " apps"
+            })
+        }
+        return out
+    }
+
+    function appsInCategory(catName, includeBack) {
+        const out = []
+        if (includeBack !== false) {
+            out.push({
+                kind: "category_back",
+                name: "Retour aux catégories",
+                desc: catName === "__recent__" ? "Récents" : String(catName || ""),
+                icon: "",
+                glyph: "chevron-left",
+                tag: "retour"
+            })
+        }
+        if (catName === "__recent__") {
+            return out.concat(root.recentEntries(20))
+        }
+        const cible = String(catName || "").trim() || "Autres"
+        const apps = []
+        for (let i = 0; i < root.appIndex.length; ++i) {
+            const app = root.appIndex[i]
+            if (!app || !app.name) continue
+            const cat = String(app.category || "").trim() || "Autres"
+            if (cat !== cible) continue
+            apps.push({
+                kind: "app",
+                name: app.name,
+                exec: app.exec,
+                desc: app.comment || app.generic || "",
+                generic: app.generic || "",
+                icon: app.icon || "",
+                tag: app.category || ""
+            })
+        }
+        apps.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)) })
+        return out.concat(apps)
+    }
+
     function searchAppsAndAliases(query, limit) {
         const needle = String(query || "").trim().toLowerCase()
         const maxN = limit > 0 ? limit : 8

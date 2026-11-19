@@ -124,32 +124,14 @@ Scope {
                 }
             }
 
-            property bool surfaceLarge: false
-            property int nbEtendus: 0
-
-            onNbEtendusChanged: {
-                if (nbEtendus > 0) {
-                    timerReduireSurface.stop()
-                    surfaceLarge = true
-                } else {
-                    timerReduireSurface.restart()
-                }
-            }
-
-            Timer {
-                id: timerReduireSurface
-                interval: 450
-                repeat: false
-                onTriggered: if (coinWin.nbEtendus <= 0) coinWin.surfaceLarge = false
-            }
-
-            // Taille constante pendant l'animation (surfaceLarge = true dès le survol,
-            // réduite une fois le repli terminé) : zéro masque Region nécessaire et
-            // zéro réallocation Wayland par image.
-            implicitWidth: coinWin.surfaceLarge
-                ? coinWin.largeurSurface
-                : Math.max(coinWin.largeurRepos, Math.ceil(rangeeRonds.implicitWidth))
+            // Taille constante de la surface Wayland + masque dynamique sur rangeeRonds :
+            // zéro réallocation Wayland et zéro saut visuel à la rétractation.
+            implicitWidth: coinWin.largeurSurface
             implicitHeight: Theme.barHeight
+
+            mask: Region {
+                item: rangeeRonds
+            }
 
             Item {
                 id: conteneur
@@ -179,9 +161,6 @@ Scope {
                         readonly property bool popupOuvert: Theme.activePopup === ("applet:" + String(modelData.id || ""))
                         readonly property real largeurEtendue: Math.max(Theme.barHeight, itemApplet.implicitWidth + Theme.padH * 2 + 4)
                         property bool etendu: false
-
-                        onEtenduChanged: coinWin.nbEtendus += etendu ? 1 : -1
-                        Component.onDestruction: if (etendu) coinWin.nbEtendus -= 1
 
                         onPopupOuvertChanged: {
                             if (popupOuvert) {

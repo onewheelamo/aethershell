@@ -62,6 +62,8 @@ VinylArt 1.0 VinylArt.qml
 NotifService 1.0 NotifService.qml
 ConfigSwitch 1.0 ConfigSwitch.qml
 ConfigSegmented 1.0 ConfigSegmented.qml
+ConfigRow 1.0 ConfigRow.qml
+ConfigToggle 1.0 ConfigToggle.qml
 singleton SystemServices 1.0 SystemServices.qml
 singleton LauncherEngine 1.0 LauncherEngine.qml
 singleton ShellState 1.0 ShellState.qml
@@ -77,3 +79,16 @@ IslandWallpaperPicker 1.0 IslandWallpaperPicker.qml
 IslandNotesDrawer 1.0 IslandNotesDrawer.qml
 IslandLiveActivityDrawer 1.0 IslandLiveActivityDrawer.qml
 IslandLauncherDrawer 1.0 IslandLauncherDrawer.qml
+OngletApparence 1.0 OngletApparence.qml
+OngletApparenceHub 1.0 OngletApparenceHub.qml
+OngletApps 1.0 OngletApps.qml
+OngletBarreIlot 1.0 OngletBarreIlot.qml
+OngletBarres 1.0 OngletBarres.qml
+OngletBureau 1.0 OngletBureau.qml
+OngletClavier 1.0 OngletClavier.qml
+OngletConnexion 1.0 OngletConnexion.qml
+OngletDonnees 1.0 OngletDonnees.qml
+OngletEcrans 1.0 OngletEcrans.qml
+OngletIlot 1.0 OngletIlot.qml
+OngletServices 1.0 OngletServices.qml
+OngletSysteme 1.0 OngletSysteme.qml

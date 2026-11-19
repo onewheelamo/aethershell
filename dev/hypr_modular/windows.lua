@@ -20,18 +20,44 @@ hl.window_rule({
     float = true,
 })
 
--- Workspaces permanents 1 à 5 : assignés par hardware-<host>.lua à l'écran principal
--- (évite de réécraser la contrainte de moniteur définie par le profil matériel)
 
--- Firefox n'a pas de workspace assigné : il s'ouvre sur le bureau actif, comme
--- n'importe quelle fenêtre. Une règle `workspace = "2"` l'y envoyait à chaque
--- lancement, y compris quand on travaillait ailleurs.
 hl.window_rule({ name = "pavucontrol", float = true, center = true })
 hl.window_rule({
     name   = "floating-terminal",
     match  = { class = "^org\\.aether\\.floating-terminal$" },
     float  = true,
     center = true,
+})
+
+-- Fond animé Matrix (`as matrix`) : plein écran sans bordures, épinglé et sans
+-- focus, dans la couche fenêtre normale (derrière les surfaces Quickshell).
+hl.window_rule({
+    name       = "matrix-wallpaper-bg",
+    match      = { class = "^org\\.aether\\.matrix-bg$" },
+    float      = true,
+    move       = "0 0",
+    size       = "100% 100%",
+    pin        = true,
+    border_size = 0,
+    rounding   = 0,
+    no_shadow  = true,
+    no_anim    = true,
+    no_focus   = true,
+})
+
+-- Écran de veille Matrix (`as matrix [délai] ss`) : plein écran total devant
+-- toutes les surfaces, focus forcé pour quitter dès la première touche.
+hl.window_rule({
+    name         = "matrix-screensaver",
+    match        = { class = "^org\\.aether\\.matrix-ss$" },
+    float        = true,
+    fullscreen   = true,
+    stay_focused = true,
+    pin          = true,
+    border_size  = 0,
+    rounding     = 0,
+    no_anim      = true,
+    idle_inhibit = "fullscreen",
 })
 
 -- Demande d'authentification polkit (KDE, Hypr, LXQt) : flottante, centrée,
@@ -58,13 +84,7 @@ hl.window_rule({
 -- API Lua : hl.window_rule({ match = {...}, effect }) — `opaque = true` met
 -- active/inactive/fullscreen_opacity à 1 pour la fenêtre, `opacity = "1.0 override"`
 -- force l'alpha de façon absolue. Les deux, pour ne pas dépendre d'un seul mécanisme.
--- Deux pièges qui se cumulent, mesurés sur le portable :
---   1. la classe est comparée en **match complet** (pas une recherche) : « firefox »
---      ne matche pas « org.mozilla.firefox », il faut `.*firefox.*` ;
---   2. Firefox natif Wayland se déclare `org.mozilla.firefox` alors qu'en XWayland
---      il se déclare `firefox` — une règle écrite sur une machine ne matchait rien
---      sur l'autre, et la fenêtre ne redevenait opaque qu'en plein écran
---      (decoration.fullscreen_opacity = 1).
+
 hl.window_rule({ name = "idle-fullscreen", match = { class = ".*", fullscreen = true }, idle_inhibit = "fullscreen" })
 hl.window_rule({ name = "idle-firefox", match = { class = "(?i).*firefox.*" }, idle_inhibit = "focus" })
 

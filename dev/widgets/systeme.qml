@@ -1,19 +1,8 @@
 import QtQuick
-// Les singletons du shell (Theme, Icon) sont déclarés dans le qmldir du dossier
-// parent : sans cet import, un composant en sous-dossier les voit "not defined".
 import ".."
 import Quickshell
-import Quickshell.Io
 
-// SYSTÈME — la version « bureau » de l'applet du même nom.
-//
-// Même source : `core/systeme_applet.py --force`, qui interroge /proc/stat,
-// /proc/meminfo, nvidia-smi et coretemp. L'applet n'en garde qu'une valeur dans
-// la barre ; ce widget montre les quatre mesures, leur jauge et le détail que le
-// contrat transporte déjà (`detail`) — Go de RAM, VRAM et température du GPU.
-//
-// Une sonde absente disparaît de `barres` au lieu de casser l'affichage : une
-// machine sans NVIDIA n'affiche simplement pas de ligne GPU.
+// SYSTÈME — widget bureau avec anneaux CPU/Memory/GPU, barres Threads et VRAM/Disk/Power.
 Item {
     id: root
     property var options: ({})
@@ -27,237 +16,437 @@ Item {
 
     readonly property var donnees: SystemServices.systemeData
     readonly property bool charge: SystemServices.systemeCharge
-
-    readonly property var barres: {
-        if (donnees && donnees.compact && donnees.compact.barres)
-            return donnees.compact.barres
-        return []
-    }
+    readonly property var barres: (donnees && donnees.compact && donnees.compact.barres) ? donnees.compact.barres : []
     readonly property var detail: (donnees && donnees.detail) ? donnees.detail : ({})
 
-    // Jauges : option d'applet (case « jauge », vrai par défaut). Éteinte, le
-    // widget garde l'icône et la valeur — utile quand on préfère un chiffre net
-    // sur un fond chargé.
-    readonly property bool jauge: options.jauge === undefined ? true : options.jauge === true
-
-    // Les lignes affichées : les mesures du contrat, plus deux jauges dérivées
-    // que le service ne renvoie pas sous forme de barres — VRAM utilisée et
-    // température du GPU. Une température ou une VRAM absente (pas de NVIDIA)
-    // n'ajoute simplement pas sa ligne.
-    readonly property var lignes: {
-        const d = detail || ({})
-        const out = []
-        for (let i = 0; i < barres.length; ++i) {
-            const b = barres[i]
-            const ligne = {
-                cle: String(b.cle || ""),
-                nom: String(b.nom || b.cle || ""),
-                icone: String(b.icone || b.cle || ""),
-                texte: String(b.texte || ""),
-                remplissage: Number(b.remplissage) || 0,
-                niveau: String(b.niveau || "ok"),
-                precision: ""
-            }
-            if (ligne.cle === "cpu") {
-                const parts = []
-                if (d.temp && d.temp.cpu) parts.push(Math.round(d.temp.cpu) + "°")
-                if (d.cpu && d.cpu.freq_ghz) parts.push(d.cpu.freq_ghz + " GHz")
-                ligne.precision = parts.join(" · ")
-            } else if (ligne.cle === "ram" && d.ram && d.ram.totale_go) {
-                ligne.precision = formatGo(d.ram.utilisee_go) + " / " + formatGo(d.ram.totale_go) + " Go"
-            } else if (ligne.cle === "gpu" && d.gpu && d.gpu.power_w) {
-                ligne.precision = d.gpu.power_w + " W"
-            }
-            // « temp » garde sa jauge, sans la ligne « paquet » : la température
-            // du CPU est déjà annoncée sous la ligne CPU.
-            out.push(ligne)
-        }
-
-        const deja = {}
-        for (let j = 0; j < out.length; ++j) deja[out[j].cle] = true
-
-        if (d.gpu && Number(d.gpu.vram_totale_go) > 0) {
-            const part = 100 * (Number(d.gpu.vram_go) || 0) / Number(d.gpu.vram_totale_go)
-            // Le ratio plutôt que le pourcentage : sur une VRAM, « 1,5/12 Go »
-            // dit plus que « 12 % », et la jauge donne déjà la proportion.
-            out.push({
-                cle: "vram", nom: "VRAM", icone: "ram",
-                texte: formatGo(d.gpu.vram_go) + "/" + formatGo(d.gpu.vram_totale_go) + " Go",
-                remplissage: part,
-                niveau: part >= 92 ? "critique" : (part >= 80 ? "attention" : "ok"),
-                precision: ""
-            })
-        }
-
-        if (d.gpu && Number(d.gpu.temperature) > 0) {
-            const chaleur = Number(d.gpu.temperature)
-            out.push({
-                cle: "gputemp", nom: "GPU", icone: "temp",
-                texte: Math.round(chaleur) + "°",
-                // Même échelle que la température CPU : 85 °C = jauge pleine.
-                remplissage: Math.min(100, 100 * chaleur / 85),
-                niveau: chaleur >= 85 ? "critique" : (chaleur >= 70 ? "attention" : "ok"),
-                precision: ""
-            })
-        }
-
-        if (d.swap && Number(d.swap.totale_go) > 0 && !deja.swap) {
-            const sp = Number(d.swap.pct) || 0
-            out.push({
-                cle: "swap", nom: "Swap", icone: "swap",
-                texte: Math.round(sp) + "%",
-                remplissage: sp,
-                niveau: sp >= 85 ? "critique" : (sp >= 60 ? "attention" : "ok"),
-                precision: formatGo(d.swap.utilisee_go) + " / " + formatGo(d.swap.totale_go) + " Go"
-            })
-        }
-
-        if (d.disk && Number(d.disk.total_go) > 0 && !deja.disk) {
-            const dp = Number(d.disk.pct) || 0
-            out.push({
-                cle: "disk", nom: "Disque", icone: "disque",
-                texte: Math.round(dp) + "%",
-                remplissage: dp,
-                niveau: dp >= 92 ? "critique" : (dp >= 80 ? "attention" : "ok"),
-                precision: formatGo(d.disk.utilise_go) + " / " + formatGo(d.disk.total_go) + " Go (/)"
-            })
-        }
-
-        if (d.net && !deja.net) {
-            out.push({
-                cle: "net", nom: "Réseau", icone: "reseau",
-                texte: "↓" + String(d.net.rx_texte || "0"),
-                remplissage: Number(d.net.pct) || 0,
-                niveau: "ok",
-                precision: "↑ " + String(d.net.tx_texte || "0")
-            })
-        }
-
-        return out
-    }
+    readonly property int cardWidth: Math.round(310 * echelle)
 
     function formatGo(v) {
         const n = Number(v)
-        if (!isFinite(n)) return "—"
-        return (n >= 10 ? Math.round(n) : Math.round(n * 10) / 10) + ""
+        if (!isFinite(n)) return "0.0"
+        return n.toFixed(1)
     }
 
-    // Les trois niveaux du contrat : ok / attention / critique (voir _niveau()
-    // dans systeme_applet.py).
-    function couleurNiveau(niveau) {
-        if (niveau === "critique") return Theme.error
-        if (niveau === "attention") return Theme.accentMuted
+    function couleurNiveau(pct) {
+        if (pct >= 92) return Theme.error
+        if (pct >= 80) return Theme.accentMuted
         return Theme.accent
     }
 
+    function barrePct(cle) {
+        for (let i = 0; i < barres.length; ++i) {
+            if (barres[i].cle === cle) return Number(barres[i].valeur) || 0
+        }
+        return 0
+    }
+
+    readonly property real cpuPct: (detail.cpu && detail.cpu.pct !== undefined) ? Number(detail.cpu.pct) : barrePct("cpu")
+    readonly property real ramPct: {
+        if (detail.ram && Number(detail.ram.totale_go) > 0) {
+            return 100 * (Number(detail.ram.utilisee_go) || 0) / Number(detail.ram.totale_go)
+        }
+        return barrePct("ram")
+    }
+    readonly property bool hasGpu: Boolean(detail.gpu && (detail.gpu.pct !== undefined || detail.gpu.temperature !== undefined || Number(detail.gpu.vram_totale_go) > 0))
+    readonly property real gpuPct: (detail.gpu && detail.gpu.pct !== undefined) ? Number(detail.gpu.pct) : barrePct("gpu")
+
+    readonly property var ringsModel: {
+        const cpuSub = []
+        if (detail.temp && detail.temp.cpu !== undefined) cpuSub.push(Math.round(detail.temp.cpu) + "°C")
+        if (detail.cpu && detail.cpu.freq_ghz) cpuSub.push(Number(detail.cpu.freq_ghz).toFixed(1) + " GHz")
+
+        const ramSub = (detail.ram && detail.ram.totale_go)
+            ? (formatGo(detail.ram.utilisee_go) + " / " + formatGo(detail.ram.totale_go) + " GiB")
+            : ""
+
+        const out = [
+            { label: "CPU",    pct: cpuPct, sub: cpuSub.join(" · ") },
+            { label: "Memory", pct: ramPct, sub: ramSub }
+        ]
+        if (hasGpu) {
+            const gTemp = (detail.gpu && detail.gpu.temperature !== undefined)
+                ? (Math.round(detail.gpu.temperature) + "°C")
+                : ""
+            out.push({ label: "GPU", pct: gpuPct, sub: gTemp })
+        }
+        return out
+    }
+
+    readonly property var threadsList: (detail.cpu && Array.isArray(detail.cpu.coeurs)) ? detail.cpu.coeurs : []
+    readonly property bool hasVram: Boolean(detail.gpu && Number(detail.gpu.vram_totale_go) > 0)
+    readonly property bool hasDisk: Boolean(detail.disk && Number(detail.disk.total_go) > 0)
+    readonly property bool hasPower: Boolean((detail.gpu && detail.gpu.power_w !== undefined && detail.gpu.power_w !== null) || detail.fan_rpm !== undefined)
+
     Component.onCompleted: SystemServices.metriquesActif = true
 
-    implicitWidth: colonne.implicitWidth
+    implicitWidth: cardWidth
     implicitHeight: colonne.implicitHeight
 
     Column {
         id: colonne
-        spacing: 7
+        width: root.cardWidth
+        spacing: Math.round(12 * root.echelle)
 
-        Row {
-            readonly property var al: (root.detail && root.detail.alerts) || ({})
-            readonly property var up: (root.detail && root.detail.uptime) || null
-            readonly property var ld: (root.detail && root.detail.load) || null
-            visible: Boolean(up || ld || Number(al.total || 0) > 0)
-            spacing: 8
+        // ── En-tête : puce + nom du CPU à gauche, uptime à droite ──────────
+        Item {
+            width: parent.width
+            height: Math.round(28 * root.echelle)
 
-            Text {
-                visible: Boolean(parent.up && parent.up.texte)
-                text: parent.up ? ("⏱ " + parent.up.texte) : ""
-                color: Qt.alpha(Theme.fg, 0.55)
-                font.pixelSize: Math.round(11 * root.echelle)
-                font.features: { "tnum": 1 }
+            Rectangle {
+                id: cpuBadge
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.round(26 * root.echelle)
+                height: width
+                radius: width / 2
+                color: Qt.alpha(Theme.fg, 0.10)
+
+                IconSvg {
+                    anchors.centerIn: parent
+                    nom: "cpu"
+                    size: Math.round(14 * root.echelle)
+                    couleur: Theme.accent
+                }
             }
 
             Text {
-                visible: Boolean(parent.ld && parent.ld.l1 !== undefined)
-                text: parent.ld ? ("Load " + parent.ld.l1) : ""
-                color: Qt.alpha(Theme.fg, 0.55)
-                font.pixelSize: Math.round(11 * root.echelle)
-                font.features: { "tnum": 1 }
+                anchors.left: cpuBadge.right
+                anchors.leftMargin: Math.round(8 * root.echelle)
+                anchors.right: uptimeText.visible ? uptimeText.left : parent.right
+                anchors.rightMargin: Math.round(8 * root.echelle)
+                anchors.verticalCenter: parent.verticalCenter
+                text: (root.detail.cpu && root.detail.cpu.nom) ? String(root.detail.cpu.nom) : "CPU"
+                color: Theme.fg
+                font.pixelSize: Math.round(13 * root.echelle)
+                font.bold: true
+                elide: Text.ElideRight
             }
 
             Text {
-                visible: Number(parent.al.total || 0) > 0
-                text: "⚠ " + parent.al.total
-                color: Theme.warn
+                id: uptimeText
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Boolean(root.detail.uptime && root.detail.uptime.texte)
+                text: root.detail.uptime ? ("up " + String(root.detail.uptime.texte)) : ""
+                color: Qt.alpha(Theme.fg, 0.65)
                 font.pixelSize: Math.round(11 * root.echelle)
                 font.features: { "tnum": 1 }
             }
         }
 
-        Repeater {
-            model: root.lignes
+        // ── 3 Anneaux circulaires : CPU / Memory / GPU ──────────────────────
+        Row {
+            width: parent.width
+            spacing: Math.round(8 * root.echelle)
 
-            Column {
-                required property var modelData
-                readonly property string precisionTexte: String(modelData.precision || "")
-                // Pas de `width: colonne.width` : la colonne se dimensionne sur
-                // ses enfants, la lier à eux referme la boucle et l'écrase à 0.
-                spacing: 1
+            Repeater {
+                model: root.ringsModel
 
-                Row {
-                    spacing: 6
+                delegate: Column {
+                    required property var modelData
+                    readonly property int ringCount: Math.max(1, root.ringsModel.length)
+                    readonly property real colW: Math.floor((parent.width - (ringCount - 1) * Math.round(8 * root.echelle)) / ringCount)
+                    readonly property int ringSize: Math.round(76 * root.echelle)
+                    readonly property real pctVal: Math.max(0, Math.min(100, Number(modelData.pct) || 0))
+                    readonly property color ringColor: root.couleurNiveau(pctVal)
+                    width: colW
+                    spacing: Math.round(4 * root.echelle)
 
-                    IconSvg {
-                        anchors.verticalCenter: parent.verticalCenter
-                        nom: String(modelData.icone || modelData.cle)
-                        size: Math.round(18 * root.echelle)
-                        couleur: root.couleurNiveau(modelData.niveau)
-                        opacite: 0.9
-                    }
+                    Item {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: ringSize
+                        height: ringSize
 
-                    // Piste : elle garde une largeur fixe pour que les jauges
-                    // restent alignées d'une ligne à l'autre, même si la valeur
-                    // texte passe de 3 % à 100 %.
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: root.jauge
-                        width: Math.round(112 * root.echelle)
-                        height: Math.round(6 * root.echelle)
-                        radius: height / 2
-                        color: Qt.alpha(Theme.fg, 0.13)
+                        Canvas {
+                            id: ringCanvas
+                            anchors.fill: parent
+                            readonly property real p: pctVal
+                            readonly property color ac: ringColor
+                            readonly property color tr: Qt.alpha(Theme.fg, 0.12)
+                            onPChanged: requestPaint()
+                            onAcChanged: requestPaint()
+                            onTrChanged: requestPaint()
+                            onWidthChanged: requestPaint()
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.clearRect(0, 0, width, height)
+                                const lw = Math.max(4, Math.round(6 * root.echelle))
+                                const cx = width / 2
+                                const cy = height / 2
+                                const r = Math.max(4, (Math.min(width, height) - lw) / 2)
 
-                        Rectangle {
-                            width: Math.max(2, parent.width * Math.min(100, Math.max(0,
-                                       Number(modelData.remplissage) || 0)) / 100)
-                            height: parent.height
-                            radius: parent.radius
-                            color: root.couleurNiveau(modelData.niveau)
+                                ctx.lineWidth = lw
+                                ctx.lineCap = "round"
+
+                                ctx.beginPath()
+                                ctx.strokeStyle = tr
+                                ctx.arc(cx, cy, r, 0, Math.PI * 2, false)
+                                ctx.stroke()
+
+                                if (p > 0) {
+                                    const start = -Math.PI / 2
+                                    const end = start + Math.PI * 2 * (p / 100)
+                                    ctx.beginPath()
+                                    ctx.strokeStyle = ac
+                                    ctx.arc(cx, cy, r, start, end, false)
+                                    ctx.stroke()
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: Math.round(pctVal) + "%"
+                            color: Theme.fg
+                            font.pixelSize: Math.round(16 * root.echelle)
+                            font.bold: true
+                            font.features: { "tnum": 1 }
                         }
                     }
 
                     Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: String(modelData.texte || "")
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: String(modelData.label)
                         color: Theme.fg
-                        font.pixelSize: Math.round(16 * root.echelle)
-                        font.features: { "tnum": 1 }
-                        style: Text.Raised
-                        styleColor: Qt.alpha(Theme.bg, 0.55)
+                        font.pixelSize: Math.round(12 * root.echelle)
+                        font.weight: Font.Medium
                     }
-                }
 
-                Text {
-                    visible: precisionTexte !== ""
-                    text: precisionTexte
-                    color: Qt.alpha(Theme.fg, 0.45)
-                    font.pixelSize: Math.round(12 * root.echelle)
-                    leftPadding: Math.round(26 * root.echelle)
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: String(modelData.sub || "") !== ""
+                        text: String(modelData.sub || "")
+                        color: Qt.alpha(Theme.fg, 0.65)
+                        font.pixelSize: Math.round(10 * root.echelle)
+                        font.features: { "tnum": 1 }
+                    }
                 }
             }
         }
 
-        Text {
-            visible: root.charge && root.barres.length === 0
-            text: "aucune sonde"
-            color: Qt.alpha(Theme.fg, 0.42)
-            font.pixelSize: Math.round(9 * root.echelle)
+        // ── Threads : barres verticales par cœur logique ─────────────────────
+        Column {
+            visible: root.threadsList.length > 0
+            width: parent.width
+            spacing: Math.round(6 * root.echelle)
+
+            Item {
+                width: parent.width
+                height: Math.round(16 * root.echelle)
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Threads"
+                    color: Qt.alpha(Theme.fg, 0.72)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: String(root.threadsList.length)
+                    color: Qt.alpha(Theme.fg, 0.65)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: Math.round(4 * root.echelle)
+                readonly property int n: Math.max(1, root.threadsList.length)
+                readonly property real barW: Math.max(4, Math.floor((width - (n - 1) * spacing) / n))
+
+                Repeater {
+                    model: root.threadsList
+
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property real val: Math.max(0, Math.min(100, Number(modelData) || 0))
+                        width: parent.barW
+                        height: Math.round(24 * root.echelle)
+                        radius: Math.round(4 * root.echelle)
+                        color: Qt.alpha(Theme.fg, 0.10)
+                        clip: true
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: Math.max(Math.round(3 * root.echelle), Math.round(parent.height * val / 100))
+                            radius: Math.round(3 * root.echelle)
+                            color: root.couleurNiveau(val)
+                            Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Métriques basses : VRAM, Disk, Power ────────────────────────────
+        Column {
+            width: parent.width
+            spacing: Math.round(8 * root.echelle)
+
+            // VRAM
+            Item {
+                visible: root.hasVram
+                width: parent.width
+                height: Math.round(18 * root.echelle)
+                readonly property real used: (root.detail.gpu && Number(root.detail.gpu.vram_go)) || 0
+                readonly property real total: (root.detail.gpu && Number(root.detail.gpu.vram_totale_go)) || 1
+                readonly property real ratio: Math.max(0, Math.min(1, used / total))
+
+                IconSvg {
+                    id: vramIcon
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    nom: "ram"
+                    size: Math.round(13 * root.echelle)
+                    couleur: Qt.alpha(Theme.fg, 0.65)
+                }
+
+                Text {
+                    id: vramLbl
+                    anchors.left: vramIcon.right
+                    anchors.leftMargin: Math.round(8 * root.echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.round(44 * root.echelle)
+                    text: "VRAM"
+                    color: Qt.alpha(Theme.fg, 0.72)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                }
+
+                Rectangle {
+                    anchors.left: vramLbl.right
+                    anchors.leftMargin: Math.round(8 * root.echelle)
+                    anchors.right: vramVal.left
+                    anchors.rightMargin: Math.round(10 * root.echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: Math.round(5 * root.echelle)
+                    radius: height / 2
+                    color: Qt.alpha(Theme.fg, 0.13)
+
+                    Rectangle {
+                        width: Math.max(Math.round(5 * root.echelle), parent.width * parent.parent.ratio)
+                        height: parent.height
+                        radius: parent.radius
+                        color: root.couleurNiveau(parent.parent.ratio * 100)
+                    }
+                }
+
+                Text {
+                    id: vramVal
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.formatGo(parent.used) + " / " + root.formatGo(parent.total) + " GiB"
+                    color: Qt.alpha(Theme.fg, 0.80)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
+
+            // Disk
+            Item {
+                visible: root.hasDisk
+                width: parent.width
+                height: Math.round(18 * root.echelle)
+                readonly property real used: (root.detail.disk && Number(root.detail.disk.utilise_go)) || 0
+                readonly property real total: (root.detail.disk && Number(root.detail.disk.total_go)) || 1
+                readonly property real ratio: Math.max(0, Math.min(1, used / total))
+
+                IconSvg {
+                    id: diskIcon
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    nom: "disque"
+                    size: Math.round(13 * root.echelle)
+                    couleur: Qt.alpha(Theme.fg, 0.65)
+                }
+
+                Text {
+                    id: diskLbl
+                    anchors.left: diskIcon.right
+                    anchors.leftMargin: Math.round(8 * root.echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.round(44 * root.echelle)
+                    text: "Disk"
+                    color: Qt.alpha(Theme.fg, 0.72)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                }
+
+                Rectangle {
+                    anchors.left: diskLbl.right
+                    anchors.leftMargin: Math.round(8 * root.echelle)
+                    anchors.right: diskVal.left
+                    anchors.rightMargin: Math.round(10 * root.echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: Math.round(5 * root.echelle)
+                    radius: height / 2
+                    color: Qt.alpha(Theme.fg, 0.13)
+
+                    Rectangle {
+                        width: Math.max(Math.round(5 * root.echelle), parent.width * parent.parent.ratio)
+                        height: parent.height
+                        radius: parent.radius
+                        color: root.couleurNiveau(parent.parent.ratio * 100)
+                    }
+                }
+
+                Text {
+                    id: diskVal
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.formatGo(parent.used) + " / " + root.formatGo(parent.total) + " GiB"
+                    color: Qt.alpha(Theme.fg, 0.80)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
+
+            // Power
+            Item {
+                visible: root.hasPower
+                width: parent.width
+                height: Math.round(18 * root.echelle)
+
+                Icon {
+                    id: pwrIcon
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: "power"
+                    size: Math.round(13 * root.echelle)
+                    color: Qt.alpha(Theme.fg, 0.65)
+                }
+
+                Text {
+                    anchors.left: pwrIcon.right
+                    anchors.leftMargin: Math.round(8 * root.echelle)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Power"
+                    color: Qt.alpha(Theme.fg, 0.72)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: {
+                        const parts = []
+                        if (root.detail.gpu && root.detail.gpu.power_w !== undefined && root.detail.gpu.power_w !== null) {
+                            parts.push(Math.round(Number(root.detail.gpu.power_w)) + " W")
+                        }
+                        if (root.detail.fan_rpm !== undefined && root.detail.fan_rpm !== null) {
+                            parts.push(Math.round(Number(root.detail.fan_rpm)) + " rpm")
+                        }
+                        return parts.join(" · ")
+                    }
+                    color: Qt.alpha(Theme.fg, 0.80)
+                    font.pixelSize: Math.round(11 * root.echelle)
+                    font.features: { "tnum": 1 }
+                }
+            }
         }
     }
 }

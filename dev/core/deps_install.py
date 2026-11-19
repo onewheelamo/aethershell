@@ -43,6 +43,7 @@ PAQUETS = {
         "udisksctl": "udisks2",
         "zbarcam": "zbar",
         "matugen": "matugen-bin",
+        "unimatrix": "unimatrix-git",
     },
     "fedora": {
         "wpctl": "wireplumber",
@@ -76,7 +77,7 @@ PAQUETS = {
     },
 }
 
-AUR_PAQUETS = {"quickshell", "matugen-bin", "awww", "hyprshot", "hyprsunset"}
+AUR_PAQUETS = {"quickshell", "matugen-bin", "awww", "hyprshot", "hyprsunset", "unimatrix-git"}
 
 
 def distribution():
@@ -164,6 +165,18 @@ def commande(distro, paquets):
     return ["pacman", "-S", "--needed", "--noconfirm"] + paquets
 
 
+def installer_unimatrix_local():
+    """Télécharge unimatrix.py dans ~/.local/bin/unimatrix (Fedora / Debian)."""
+    cible = Path.home() / ".local" / "bin" / "unimatrix"
+    cible.parent.mkdir(parents=True, exist_ok=True)
+    url = "https://raw.githubusercontent.com/will8211/unimatrix/master/unimatrix.py"
+    res = subprocess.run(["curl", "-fsSL", url, "-o", str(cible)])
+    if res.returncode != 0:
+        return False
+    cible.chmod(0o755)
+    return True
+
+
 def main():
     if not DEPS.is_file():
         print("dependencies.txt introuvable : %s" % DEPS)
@@ -174,6 +187,13 @@ def main():
     if not manquants:
         print("tout est installé")
         return 0
+
+    if distro != "arch" and "unimatrix" in manquants:
+        if installer_unimatrix_local():
+            manquants = [b for b in manquants if b != "unimatrix"]
+            if not manquants:
+                print("installés : unimatrix")
+                return 0
 
     paquets = list(dict.fromkeys(table.get(b, b) for b in manquants))
     cmd = commande(distro, paquets)

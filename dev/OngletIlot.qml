@@ -7,7 +7,7 @@ Column {
     property var root
     property var mainFlickable
 
-    visible: root ? root.currentTab === 2 : false
+    visible: root ? root.currentTab === 1 : false
     width: mainFlickable ? mainFlickable.width : 0
     spacing: 12
 
@@ -296,10 +296,7 @@ Column {
             model: [
                 { key: "ilot_show_vpn",           label: "Voyant VPN",             desc: "Point d'état VPN",                    mode: Theme.ilotShowVpn },
                 { key: "ilot_show_capture",       label: "Voyant Capture",         desc: "Capture vidéo / audio active",        mode: Theme.ilotShowCapture },
-                { key: "ilot_show_live_activity", label: "Live Activity",          desc: "Minuteur, enregistrement, téléchargements", mode: Theme.ilotShowLiveActivity },
-                { key: "ilot_show_planka",        label: "Échéance Kanban Planka", desc: "Icône si une carte approche",         mode: Theme.ilotShowPlanka },
-                { key: "ilot_show_workspaces",    label: "Workspaces",             desc: "Points des bureaux virtuels",         mode: Theme.ilotShowWorkspaces },
-                { key: "ilot_show_clock",         label: "Horloge",                desc: "Heure (et date en mode étendu)",      mode: Theme.ilotShowClock }
+                { key: "ilot_show_live_activity", label: "Live Activity",          desc: "Minuteur, enregistrement, téléchargements", mode: Theme.ilotShowLiveActivity }
             ]
 
             delegate: Rectangle {
@@ -421,8 +418,11 @@ Column {
 
         Repeater {
             model: [
+                { id: "horloge",         label: "Horloge",                desc: "Heure (et date en mode étendu)" },
+                { id: "workspaces",      label: "Workspaces",             desc: "Bureaux virtuels" },
+                { id: "ilot_planka",     styleKey: "ilot_show_planka",     mode: Theme.ilotShowPlanka,     label: "Échéance Kanban Planka", desc: "Icône si une carte approche" },
+                { id: "ilot_media",      styleKey: "ilot_show_media",      mode: Theme.ilotShowMedia,      label: "Titre média en cours",   desc: "Morceau joué dans l'îlot dynamique" },
                 { id: "systray",         label: "Systray",             desc: "Icônes d'applications en arrière-plan" },
-                { id: "ilot_media",      styleKey: "ilot_show_media", label: "Titre média en cours", desc: "Morceau joué dans l'îlot dynamique" },
                 { id: "luminosite",      label: "Luminosité & Nuit",   desc: "Réglage écran et filtre lumière bleue" },
                 { id: "batterie",        label: "Batterie",            desc: "Niveau et charge (laptop)" },
                 { id: "minimise",        label: "Fenêtres minimisées", desc: "Icônes des fenêtres réduites" },
@@ -439,7 +439,7 @@ Column {
 
             delegate: Rectangle {
                 required property var modelData
-                readonly property string curMode: modelData.styleKey ? Theme.ilotShowMedia : Theme.ilotAppletModeFor(modelData.id)
+                readonly property string curMode: modelData.styleKey ? (modelData.mode || "") : Theme.ilotAppletModeFor(modelData.id)
                 readonly property string curCorner: modelData.styleKey ? "" : Theme.ilotAppletCornerFor(modelData.id)
                 readonly property bool isMaj: modelData.id === "maj"
                 width: parent ? parent.width : 0

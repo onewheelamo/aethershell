@@ -19,7 +19,7 @@ Column {
     // Plusieurs onglets restent montés depuis qu'on ne les décharge plus en
     // quittant : sans ce masque, ils s'empilaient les uns sur les autres
     // (le `visible:` du panneau avait été retiré à la découpe).
-    visible: root ? root.currentTab === 3 : false
+    visible: root ? root.currentTab === 2 : false
     width: mainFlickable ? mainFlickable.width : 0
 
     function libelleWidget(nature) {
@@ -318,26 +318,40 @@ CollapsibleSection {
                     if (s === "transparent" || s === "glass") return s
                     return widgetCard.wOpacity <= 0.01 ? "transparent" : "glass"
                 }
+                property bool cardExpanded: false
 
                 width: parent.width
-                height: wcol.implicitHeight + 20
+                height: wcol.implicitHeight + 14
                 radius: Theme.globalRadius
                 color: Qt.alpha(Theme.surfaceVariant, 0.55)
                 border.width: 1
-                border.color: Theme.surfaceVariant
+                border.color: widgetCard.cardExpanded ? Qt.alpha(Theme.accent, 0.5) : Theme.surfaceVariant
 
                 Column {
                     id: wcol
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 8
+                    anchors.margins: 7
+                    spacing: 5
 
-                    // Ligne 1 : type, identifiant, suppression
-                    Row {
+                    // Ligne 1 : type, identifiant, résumé compact, repli/dépli, suppression
+                    Item {
                         width: parent.width
-                        spacing: Theme.space2
+                        height: 24
+
+                        MouseArea {
+                            anchors.left: parent.left
+                            anchors.right: removeIcon.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.rightMargin: 6
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: widgetCard.cardExpanded = !widgetCard.cardExpanded
+                        }
 
                         Icon {
+                            id: cardTypeIcon
+                            anchors.left: parent.left
+                            anchors.leftMargin: 2
                             anchors.verticalCenter: parent.verticalCenter
                             glyph: widgetCard.wtype === "date" ? "calendar"
                                    : (widgetCard.wtype === "meteo" ? "cloud"
@@ -350,19 +364,41 @@ CollapsibleSection {
                             color: Theme.accent
                         }
                         Text {
+                            anchors.left: cardTypeIcon.right
+                            anchors.leftMargin: Theme.space2
+                            anchors.right: cardSummaryTxt.left
+                            anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 14 - 18 - Theme.space2 * 2
-                            text: bloc.libelleWidget(widgetCard.wtype)
-                                  + "  ·  " + widgetCard.wid
+                            text: bloc.libelleWidget(widgetCard.wtype) + " · " + widgetCard.wid
                             color: Theme.fg
-                            font.pixelSize: Theme.textSm
+                            font.pixelSize: Theme.textXs
                             font.bold: true
                             elide: Text.ElideRight
                         }
-                        // Suppression : la croix seule. Le libellé « Retirer » et
-                        // son ancre à droite dans la Row cassaient la mise en page.
+                        Text {
+                            id: cardSummaryTxt
+                            anchors.right: chevronTxt.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Ws " + (widgetCard.wWorkspace === 0 ? "Tous" : widgetCard.wWorkspace)
+                                  + " · " + (widgetCard.wStyle === "transparent" ? "Transp." : "Glass")
+                                  + (widgetCard.wEnabled ? "" : " · Inactif")
+                            color: Qt.alpha(Theme.fg, 0.55)
+                            font.pixelSize: Theme.text2xs
+                        }
+                        Text {
+                            id: chevronTxt
+                            anchors.right: removeIcon.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: widgetCard.cardExpanded ? "▾" : "▸"
+                            color: Theme.accent
+                            font.pixelSize: Theme.textXs
+                        }
                         Text {
                             id: removeIcon
+                            anchors.right: parent.right
+                            anchors.rightMargin: 2
                             anchors.verticalCenter: parent.verticalCenter
                             width: 18
                             horizontalAlignment: Text.AlignRight
@@ -381,6 +417,12 @@ CollapsibleSection {
                             }
                         }
                     }
+
+                    Column {
+                        id: cardBody
+                        visible: widgetCard.cardExpanded
+                        width: parent.width
+                        spacing: 5
 
                     // Ligne 2 : workspace et position
                     Row {
@@ -927,6 +969,7 @@ CollapsibleSection {
                             }
                         }
                     }
+                    }
                 }
 
 
@@ -954,7 +997,7 @@ CollapsibleSection {
 
             Item {
                 width: parent.width - 76 - Theme.space2
-                height: Math.min(gridPicker.implicitHeight, 4 * 48 + 3 * 8 + 2)
+                height: Math.min(gridPicker.implicitHeight, 2 * 154 + 8 + 2)
 
                 Flickable {
                     id: widgetPicker
@@ -989,58 +1032,50 @@ CollapsibleSection {
                                     return ({ icon: "widgets", preview: "" })
                                 }
                                 width: (gridPicker.width - gridPicker.columnSpacing) / 2
-                                height: 48
+                                height: 154
                                 radius: Theme.globalRadius
                                 color: modelData.present
                                     ? Qt.alpha(Theme.accent, 0.16) : Theme.surfaceVariant
                                 border.width: 1
                                 border.color: modelData.present
                                     ? Theme.accent : Qt.alpha(Theme.fg, 0.1)
+                                clip: true
 
+                                // En-tête de la carte : icône + nom + coche
                                 Row {
+                                    id: cardHead
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 8
                                     anchors.left: parent.left
                                     anchors.leftMargin: 10
                                     anchors.right: parent.right
                                     anchors.rightMargin: 8
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 24
                                     spacing: 8
 
                                     Rectangle {
-                                        width: 28
-                                        height: 28
+                                        width: 22
+                                        height: 22
                                         anchors.verticalCenter: parent.verticalCenter
-                                        radius: 7
+                                        radius: 6
                                         color: typeCell.modelData.present ? Theme.accent : Qt.alpha(Theme.fg, 0.08)
 
                                         Icon {
                                             anchors.centerIn: parent
                                             glyph: String(typeCell.meta.icon || "widgets")
-                                            size: Theme.iconSm
+                                            size: Theme.iconXs
                                             color: typeCell.modelData.present ? Theme.bg : Theme.fg
                                         }
                                     }
 
-                                    Column {
-                                        width: parent.width - 36 - 18
+                                    Text {
+                                        width: parent.width - 30 - 20
                                         anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 1
-
-                                        Text {
-                                            width: parent.width
-                                            text: typeCell.modelData.label
-                                            color: Theme.fg
-                                            font.pixelSize: Theme.textXs
-                                            font.bold: true
-                                            elide: Text.ElideRight
-                                        }
-
-                                        Text {
-                                            width: parent.width
-                                            text: String(typeCell.meta.preview || "")
-                                            color: Qt.alpha(Theme.fg, 0.58)
-                                            font.pixelSize: Theme.text2xs
-                                            elide: Text.ElideRight
-                                        }
+                                        text: typeCell.modelData.label
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.textXs
+                                        font.bold: true
+                                        elide: Text.ElideRight
                                     }
 
                                     Rectangle {
@@ -1063,12 +1098,109 @@ CollapsibleSection {
                                     }
                                 }
 
+                                // Aperçu réel du widget mis à l'échelle
+                                Rectangle {
+                                    id: previewBox
+                                    anchors.top: cardHead.bottom
+                                    anchors.topMargin: 6
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 8
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    anchors.bottom: dragHintText.top
+                                    anchors.bottomMargin: 4
+                                    radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
+                                    color: Qt.alpha(Theme.widgetBg, 0.72)
+                                    border.color: Qt.alpha(Theme.fg, 0.08)
+                                    border.width: 1
+                                    clip: true
+
+                                    readonly property real rawW: previewLoader.item ? Math.max(1, previewLoader.item.implicitWidth) : 120
+                                    readonly property real rawH: previewLoader.item ? Math.max(1, previewLoader.item.implicitHeight) : 60
+                                    readonly property real fitScale: Math.min(0.60, (width - 12) / rawW, (height - 8) / rawH)
+
+                                    Loader {
+                                        id: previewLoader
+                                        anchors.centerIn: parent
+                                        enabled: false
+                                        asynchronous: true
+                                        active: secWidgets.expanded && root && root.currentTab === 2
+                                        source: root ? root.widgetSourceFor(typeCell.modelData.type) : ""
+                                        onLoaded: {
+                                            if (!item) return
+                                            item.options = root ? root.widgetOptionsFor(typeCell.modelData.type) : ({})
+                                            item.widgetId = ""
+                                        }
+                                        transform: Scale {
+                                            origin.x: previewLoader.width / 2
+                                            origin.y: previewLoader.height / 2
+                                            xScale: previewBox.fitScale
+                                            yScale: previewBox.fitScale
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    id: dragHintText
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: 5
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 10
+                                    text: typeMa.containsMouse
+                                        ? "Cliquer pour activer · Glisser vers le bureau"
+                                        : String(typeCell.meta.preview || "")
+                                    color: typeMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.52)
+                                    font.pixelSize: Theme.text2xs
+                                    elide: Text.ElideRight
+                                }
+
                                 MouseArea {
+                                    id: typeMa
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: bloc.toggleWidgetType(typeCell.modelData.type,
-                                                                    typeCell.modelData.present)
+                                    preventStealing: dragging
+                                    cursorShape: dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                                    property real startX: 0
+                                    property real startY: 0
+                                    property bool dragging: false
+
+                                    onPressed: mouse => {
+                                        startX = mouse.x
+                                        startY = mouse.y
+                                        dragging = false
+                                    }
+
+                                    onPositionChanged: mouse => {
+                                        if (!pressed || !root) return
+                                        if (!dragging && Math.hypot(mouse.x - startX, mouse.y - startY) > 8) {
+                                            dragging = true
+                                            root.dragWidgetType = typeCell.modelData.type
+                                        }
+                                        if (dragging) {
+                                            const pt = typeCell.mapToItem(root, mouse.x, mouse.y)
+                                            root.dragPointerX = pt.x
+                                            root.dragPointerY = pt.y
+                                        }
+                                    }
+
+                                    onReleased: {
+                                        if (dragging && root) {
+                                            const screenPos = root.dragGhostScreenPos()
+                                            root.dropWidgetAt(typeCell.modelData.type, screenPos.x, screenPos.y)
+                                            root.dragWidgetType = ""
+                                            dragging = false
+                                            return
+                                        }
+                                        dragging = false
+                                        bloc.toggleWidgetType(typeCell.modelData.type, typeCell.modelData.present)
+                                    }
+
+                                    onCanceled: {
+                                        dragging = false
+                                        if (root) root.dragWidgetType = ""
+                                    }
                                 }
                             }
                         }

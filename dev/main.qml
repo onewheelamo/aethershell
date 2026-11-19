@@ -361,7 +361,7 @@ Item {
         namespaceName: "shell-config"
         backdropClose: !Theme.configPanelYieldFocus
         fillLoader: false
-        loaderWidth: 740
+        loaderWidth: 860
         loaderHeight: Math.min(height - Theme.barHeight - Theme.gutterV * 4, 900)
         loaderActive: charge
         loaderSource: "config_panel.qml"

@@ -15,6 +15,7 @@ Item {
     onAliasesChanged: root.build()
     onHistoryChanged: root.build()
     property string query: ""
+    property string activeCategory: ""
     property string mode: "apps"    // "apps" | "cmd"
     property var results: []
     property int sel: 0
@@ -325,10 +326,12 @@ Item {
         }
         root.mode = "apps"
 
-        // Champ vide : les lancements récents, si l'historique est activé.
+        // Champ vide : grandes catégories (dossiers) ou contenu de la catégorie active.
         if (q === "") {
-            root.results = LauncherEngine.recentEntries(root.maxResults)
-            root.sel = 1
+            root.results = root.activeCategory === ""
+                ? LauncherEngine.categoriesEntries()
+                : LauncherEngine.appsInCategory(root.activeCategory, true)
+            root.sel = 0
             return
         }
 
@@ -395,6 +398,18 @@ Item {
 
     function run(entry) {
         if (!entry) return
+        if (entry.kind === "category") {
+            root.activeCategory = String(entry.category || "")
+            root.sel = 0
+            root.build()
+            return
+        }
+        if (entry.kind === "category_back") {
+            root.activeCategory = ""
+            root.sel = 0
+            root.build()
+            return
+        }
         if (entry.action) {
             const surPlace = entry.action === "prefill"
             if (root.gererAction(entry)) {
@@ -549,6 +564,10 @@ Item {
                     if (text !== "") {
                         text = ""
                         root.build()
+                    } else if (root.activeCategory !== "") {
+                        root.activeCategory = ""
+                        root.sel = 0
+                        root.build()
                     } else {
                         Theme.spotlightVisible = false
                     }
@@ -559,6 +578,14 @@ Item {
                 // SHIFT+P plutôt que CTRL+P : ce dernier est le raccourci
                 // d'impression, et le détourner dans un launcher surprend.
                 Keys.onPressed: (event) => {
+                    if ((event.key === Qt.Key_Backspace || event.key === Qt.Key_Left)
+                        && text === "" && root.activeCategory !== "") {
+                        root.activeCategory = ""
+                        root.sel = 0
+                        root.build()
+                        event.accepted = true
+                        return
+                    }
                     // CTRL+SHIFT+D vide tout. Testé avant SHIFT+D seul : les deux
                     // modificateurs satisfont aussi le test « Shift », et sans cet
                     // ordre le vidage serait pris pour une suppression de ligne.
@@ -782,10 +809,12 @@ Item {
                                     // Un chemin absolu est une vignette (presse-papiers
                                     // image) : `image://icon/` ne sait résoudre que des
                                     // noms de glyphes, donc on passe par le fichier.
-                                    source: modelData.icon === "" ? ""
-                                            : (String(modelData.icon).charAt(0) === "/"
-                                               ? "file://" + modelData.icon
-                                               : "image://icon/" + modelData.icon)
+                                    source: {
+                                        const ic = String(modelData.icon || "")
+                                        if (ic === "") return ""
+                                        if (ic.charAt(0) === "/") return "file://" + ic
+                                        return Quickshell.hasThemeIcon(ic) ? Quickshell.iconPath(ic, true) : ""
+                                    }
                                 }
                             }
 
@@ -933,6 +962,7 @@ Item {
             if (!Theme.spotlightVisible) return
             searchInput.text = ""
             root.query = ""
+            root.activeCategory = ""
             root.mode = "apps"
             root.sel = 0
             indexFile.reload()

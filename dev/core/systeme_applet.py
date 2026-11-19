@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 import pwd
+import re
 import signal
 import subprocess
 import sys
@@ -185,6 +186,31 @@ def cpu_pourcent(persister=True):
 
 
 # ── RAM & Swap ────────────────────────────────────────────────────────────────
+_CPU_NOM_CACHE = None
+
+
+def _cpu_nom():
+    global _CPU_NOM_CACHE
+    if _CPU_NOM_CACHE is not None:
+        return _CPU_NOM_CACHE
+    nom = ""
+    try:
+        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.lower().startswith("model name") and ":" in line:
+                nom = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        nom = ""
+    if nom:
+        nom = re.sub(r"\((?:R|TM|tm|r)\)", "", nom)
+        nom = re.sub(r"\s*@\s*[\d.]+\s*GHz", "", nom, flags=re.IGNORECASE)
+        nom = re.sub(r"\b\d+-Core Processor\b", "", nom, flags=re.IGNORECASE)
+        nom = re.sub(r"\bCPU\b", "", nom)
+        nom = re.sub(r"\s+", " ", nom).strip()
+    _CPU_NOM_CACHE = nom or "CPU"
+    return _CPU_NOM_CACHE
+
+
 def memoire_mesures():
     try:
         with open("/proc/meminfo", encoding="utf-8") as f:
@@ -720,6 +746,7 @@ def analyser(options=None, force=False, persister=True):
             if v is not None:
                 barres.append(_barre(cle, v, f"{v:.0f}%"))
                 detail["cpu"] = {
+                    "nom": _cpu_nom(),
                     "pct": round(v, 1),
                     "coeurs": coeurs_pct,
                     "freq_ghz": freq_ghz,
@@ -737,6 +764,7 @@ def analyser(options=None, force=False, persister=True):
             if g:
                 barres.append(_barre(cle, g["utilisation"], f"{g['utilisation']:.0f}%"))
                 detail["gpu"] = {
+                    "pct": round(g["utilisation"], 1),
                     "temperature": g["temperature"],
                     "vram_go": round(g["vram"] / 1024, 1),
                     "vram_totale_go": round(g["vram_total"] / 1024, 1),
@@ -779,6 +807,14 @@ def analyser(options=None, force=False, persister=True):
     # ── infobulles détaillées par élément (inspiration YASSM) ─────────────────
     top_cpu, top_ram = _top_proc_rapide()
     capteurs_t, ventilos_t = _tous_capteurs_et_ventilateurs()
+    if ventilos_t:
+        rpms = []
+        for _, val in ventilos_t:
+            m_rpm = re.search(r"(\d+)", str(val))
+            if m_rpm:
+                rpms.append(int(m_rpm.group(1)))
+        if rpms:
+            detail["fan_rpm"] = max(rpms)
     fs_locaux = _systemes_fichiers_locaux()
     swaps_list, zram_txt = _swaps_et_zram()
     net_det = _reseau_details()
