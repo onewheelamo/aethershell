@@ -53,11 +53,13 @@ Item {
     readonly property var barres: (ok && ligne.barres && ligne.barres.length)
                                   ? ligne.barres : []
     // Carte de survol : le contrat peut publier `survol` — la liste de ce que la
-    // barre ne montre pas. Elle s'affiche après un court délai, sans clic et sans
-    // prendre le focus ; le popup complet reste au clic. Deux affordances
-    // distinctes : effleurer pour voir, cliquer pour agir.
-    readonly property var survol: (ok && donnees.survol && donnees.survol.length)
-                                  ? donnees.survol : []
+    // barre ne montre pas. Si une barre individuelle (CPU, RAM, GPU, Disque…)
+    // porte son propre `survol`, le survol de cet élément affiche ses détails.
+    property var barreSurvolee: null
+    readonly property var survol: (barreSurvolee && barreSurvolee.survol && barreSurvolee.survol.length)
+                                  ? barreSurvolee.survol
+                                  : ((ok && donnees.survol && donnees.survol.length)
+                                     ? donnees.survol : [])
     property bool carteSurvol: false
 
     // Clic milieu : les réglages de cet applet, comme un widget qui ouvre ses
@@ -261,6 +263,16 @@ Item {
                     color: parent.couleurTexte(String(modelData.niveau || "ok"))
                     font.pixelSize: Math.round(Theme.textXs * 0.92 * root.echelle)
                     font.features: { "tnum": 1 }
+                }
+
+                HoverHandler {
+                    onHoveredChanged: {
+                        if (hovered) {
+                            root.barreSurvolee = modelData
+                        } else if (root.barreSurvolee && root.barreSurvolee.cle === modelData.cle) {
+                            root.barreSurvolee = null
+                        }
+                    }
                 }
             }
         }

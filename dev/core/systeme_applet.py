@@ -198,15 +198,21 @@ def memoire_mesures():
         if total <= 0:
             return None
         utilises = total - dispo
-        cache_kio = infos.get("Buffers", 0) + infos.get("Cached", 0) + infos.get("SReclaimable", 0)
+        buffers_kio = infos.get("Buffers", 0)
+        cached_kio = infos.get("Cached", 0) + infos.get("SReclaimable", 0)
+        cache_kio = buffers_kio + cached_kio
+        htop_kio = max(0, total - infos.get("MemFree", 0) - cache_kio + infos.get("Shmem", 0))
         swap_total = infos.get("SwapTotal", 0)
         swap_free = infos.get("SwapFree", 0)
         swap_util = max(0, swap_total - swap_free)
         return {
             "ram_pct": 100.0 * utilises / total,
             "utilisee_go": round(utilises / 1048576.0, 1),
+            "dispo_go": round(dispo / 1048576.0, 1),
             "totale_go": round(total / 1048576.0, 1),
+            "buffers_go": round(buffers_kio / 1048576.0, 1),
             "cache_go": round(cache_kio / 1048576.0, 1),
+            "htop_go": round(htop_kio / 1048576.0, 1),
             "swap_pct": (100.0 * swap_util / swap_total) if swap_total > 0 else 0.0,
             "swap_utilisee_go": round(swap_util / 1048576.0, 1),
             "swap_totale_go": round(swap_total / 1048576.0, 1),
@@ -285,6 +291,190 @@ def temp_cpu():
     except OSError:
         return None
     return max(candidats) if candidats else None
+
+
+def _psi(kind):
+    try:
+        with open(f"/proc/pressure/{kind}", encoding="utf-8") as f:
+            vals = {}
+            for ligne in f:
+                cle = ligne.split(None, 1)[0]
+                for champ in ligne.split()[1:]:
+                    if champ.startswith("avg10="):
+                        vals[cle] = float(champ.split("=", 1)[1])
+                        break
+        if "some" in vals and "full" in vals:
+            return f"some {vals['some']:.1f}% · full {vals['full']:.1f}%"
+        if "some" in vals:
+            return f"some {vals['some']:.1f}%"
+    except (OSError, ValueError):
+        pass
+    return ""
+
+
+def _top_proc_rapide():
+    try:
+        moi = pwd.getpwuid(os.getuid()).pw_name
+    except KeyError:
+        moi = ""
+    lignes = []
+    try:
+        res = subprocess.run(
+            ["ps", "-eo", "user:16,pcpu,rss,comm", "--sort=-pcpu", "--no-headers"],
+            capture_output=True, text=True, timeout=1.5,
+        )
+        if res.returncode == 0:
+            for l in res.stdout.splitlines():
+                cols = l.split(None, 3)
+                if len(cols) < 4:
+                    continue
+                try:
+                    lignes.append({
+                        "user": cols[0],
+                        "cpu": float(cols[1]),
+                        "ram_mo": int(cols[2]) / 1024.0,
+                        "nom": cols[3].strip()[:20],
+                        "moi": (cols[0] == moi),
+                    })
+                except ValueError:
+                    continue
+    except (OSError, subprocess.TimeoutExpired):
+        return [], []
+    top_cpu = sorted([p for p in lignes if p["cpu"] >= 0.5], key=lambda p: p["cpu"], reverse=True)[:3]
+    top_ram = sorted([p for p in lignes if p["ram_mo"] >= 10], key=lambda p: p["ram_mo"], reverse=True)[:3]
+    return top_cpu, top_ram
+
+
+def _tous_capteurs_et_ventilateurs():
+    capteurs = []
+    ventilos = []
+    try:
+        for hwmon in sorted(Path("/sys/class/hwmon").glob("hwmon*")):
+            try:
+                nom = (hwmon / "name").read_text(encoding="utf-8").strip()
+            except OSError:
+                continue
+            for entree in hwmon.glob("temp*_input"):
+                try:
+                    val = int(entree.read_text(encoding="utf-8").strip()) / 1000.0
+                except (OSError, ValueError):
+                    continue
+                if val <= 0 or val >= 150:
+                    continue
+                label = ""
+                try:
+                    label = entree.with_name(entree.name.replace("_input", "_label")).read_text(encoding="utf-8").strip()
+                except OSError:
+                    pass
+                capteurs.append((val, label or nom))
+            for entree in hwmon.glob("fan*_input"):
+                try:
+                    rpm = int(entree.read_text(encoding="utf-8").strip())
+                except (OSError, ValueError):
+                    continue
+                if rpm > 0:
+                    ventilos.append((rpm, nom))
+    except OSError:
+        pass
+    capteurs.sort(key=lambda c: c[0], reverse=True)
+    return capteurs[:6], ventilos[:4]
+
+
+def _systemes_fichiers_locaux():
+    types_ok = {"ext4", "btrfs", "xfs", "vfat", "ntfs", "fuseblk", "zfs", "f2fs", "ext3"}
+    vus_dev = set()
+    sortie = []
+    try:
+        with open("/proc/mounts", encoding="utf-8") as f:
+            for ligne in f:
+                cols = ligne.split()
+                if len(cols) < 3:
+                    continue
+                dev, mp, fstype = cols[0], cols[1], cols[2]
+                if fstype not in types_ok or dev in vus_dev:
+                    continue
+                if mp.startswith(("/boot", "/efi")) and len(sortie) > 0:
+                    pass
+                vus_dev.add(dev)
+                try:
+                    st = os.statvfs(mp)
+                    total = st.f_blocks * st.f_frsize
+                    dispo = st.f_bavail * st.f_frsize
+                    if total <= 0:
+                        continue
+                    util = max(0, total - dispo)
+                    pct = 100.0 * util / total
+                    sortie.append((mp, round(util / 1073741824.0, 1), round(total / 1073741824.0, 1), round(pct, 1)))
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return sortie[:5]
+
+
+def _swaps_et_zram():
+    swaps = []
+    try:
+        with open("/proc/swaps", encoding="utf-8") as f:
+            for ligne in f.readlines()[1:]:
+                cols = ligne.split()
+                if len(cols) >= 4:
+                    size_go = int(cols[2]) / 1048576.0
+                    used_go = int(cols[3]) / 1048576.0
+                    swaps.append((Path(cols[0]).name, round(used_go, 2), round(size_go, 1)))
+    except (OSError, ValueError):
+        pass
+    zram_info = ""
+    for z in sorted(Path("/sys/block").glob("zram*/mm_stat")):
+        try:
+            cols = z.read_text(encoding="utf-8").split()
+            if len(cols) >= 3:
+                orig = int(cols[0]) / 1048576.0
+                comp = int(cols[1]) / 1048576.0
+                zram_info = f"{z.parent.name} : {orig:.0f} → {comp:.0f} Mo" if orig > 0 else f"{z.parent.name} : Vide"
+                break
+        except (OSError, ValueError):
+            pass
+    if not zram_info:
+        try:
+            en = Path("/sys/module/zswap/parameters/enabled").read_text(encoding="utf-8").strip()
+            zram_info = "zswap actif" if en == "Y" else "zswap inactif"
+        except OSError:
+            pass
+    return swaps, zram_info
+
+
+def _reseau_details():
+    iface = ""
+    ip_lan = ""
+    ssid = ""
+    try:
+        res = subprocess.run(["ip", "-4", "-o", "addr", "show", "scope", "global"], capture_output=True, text=True, timeout=1.0)
+        if res.returncode == 0 and res.stdout.strip():
+            cols = res.stdout.strip().splitlines()[0].split()
+            if len(cols) >= 4:
+                iface = cols[1]
+                ip_lan = cols[3].split("/")[0]
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    try:
+        res = subprocess.run(["iwgetid", "-r"], capture_output=True, text=True, timeout=1.0)
+        if res.returncode == 0:
+            ssid = res.stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    rx_tot, tx_tot = 0, 0
+    try:
+        rx_tot, tx_tot = _lire_net_dev()
+    except OSError:
+        pass
+    return {
+        "iface": iface,
+        "ip": ip_lan,
+        "ssid": ssid,
+        "rx_tot_go": round(rx_tot / 1073741824.0, 2),
+        "tx_tot_go": round(tx_tot / 1073741824.0, 2),
+    }
 
 
 # ── Load, Disque, Réseau, Uptime, Alertes (inspiration YASSM) ────────────────
@@ -586,12 +776,103 @@ def analyser(options=None, force=False, persister=True):
         detail["uptime"] = up
     detail["alerts"] = alertes_systeme(barres)
 
+    # ── infobulles détaillées par élément (inspiration YASSM) ─────────────────
+    top_cpu, top_ram = _top_proc_rapide()
+    capteurs_t, ventilos_t = _tous_capteurs_et_ventilateurs()
+    fs_locaux = _systemes_fichiers_locaux()
+    swaps_list, zram_txt = _swaps_et_zram()
+    net_det = _reseau_details()
+
+    def _sv(nom, valeur, alerte=False):
+        return {"nom": nom, "valeur": str(valeur), "alerte": bool(alerte)}
+
+    for b in barres:
+        c = b["cle"]
+        sv = []
+        if c == "cpu" and "cpu" in detail:
+            d_cpu = detail["cpu"]
+            freq = f" · {d_cpu['freq_ghz']} GHz" if d_cpu.get("freq_ghz") else ""
+            sv.append(_sv("CPU", f"{b['texte']}{freq}", b["alerte"]))
+            coeurs = d_cpu.get("coeurs") or []
+            for i in range(0, len(coeurs), 4):
+                fin = min(i + 3, len(coeurs) - 1)
+                vals = " · ".join(f"{x:.0f}%" for x in coeurs[i:i + 4])
+                sv.append(_sv(f"C{i}–C{fin}", vals))
+            psi_c = _psi("cpu")
+            if psi_c:
+                sv.append(_sv("PSI CPU", psi_c))
+            for p in top_cpu:
+                who = "" if p["moi"] else f" ({p['user']})"
+                sv.append(_sv(f"{p['nom']}{who}", f"{p['cpu']:.1f}%"))
+        elif c == "ram" and "ram" in detail and mem:
+            sv.append(_sv("Utilisée", f"{mem['utilisee_go']} / {mem['totale_go']} Go ({b['texte']})", b["alerte"]))
+            sv.append(_sv("Disponible", f"{mem['dispo_go']} Go"))
+            sv.append(_sv("Tampon / Cache", f"{mem['buffers_go']} / {mem['cache_go']} Go"))
+            sv.append(_sv("htop", f"{mem['htop_go']} Go"))
+            psi_m = _psi("memory")
+            if psi_m:
+                sv.append(_sv("PSI RAM", psi_m))
+            for p in top_ram:
+                who = "" if p["moi"] else f" ({p['user']})"
+                val_m = f"{p['ram_mo'] / 1024:.1f} Go" if p["ram_mo"] >= 1024 else f"{p['ram_mo']:.0f} Mo"
+                sv.append(_sv(f"{p['nom']}{who}", val_m))
+        elif c == "swap" and "swap" in detail:
+            sv.append(_sv("Swap", f"{detail['swap']['utilisee_go']} / {detail['swap']['totale_go']} Go ({b['texte']})", b["alerte"]))
+            for nom_s, u_s, t_s in swaps_list:
+                sv.append(_sv(nom_s, f"{u_s} / {t_s} Go"))
+            if zram_txt:
+                sv.append(_sv("Compression", zram_txt))
+        elif c == "load" and "load" in detail:
+            ld = detail["load"]
+            sv.append(_sv("Charge (1/5/15m)", f"{ld['l1']} · {ld['l5']} · {ld['l15']}", b["alerte"]))
+            sv.append(_sv("Normalisée", f"{ld['pct']:.0f}% ({ld['coeurs']} threads)", b["alerte"]))
+        elif c == "gpu" and "gpu" in detail:
+            dg = detail["gpu"]
+            sv.append(_sv("GPU", f"{b['texte']} · {dg['temperature']:.0f}°C", b["alerte"]))
+            sv.append(_sv("VRAM", f"{dg['vram_go']} / {dg['vram_totale_go']} Go"))
+            if dg.get("power_w") is not None:
+                sv.append(_sv("Puissance", f"{dg['power_w']} W"))
+        elif c == "temp":
+            for val_t, lbl_t in capteurs_t:
+                sv.append(_sv(lbl_t[:18], f"{val_t:.1f}°C", val_t >= TEMP_ATTENTION))
+            for rpm, nom_v in ventilos_t:
+                sv.append(_sv(f"Ventilo ({nom_v})", f"{rpm} RPM"))
+        elif c == "disk":
+            for mp, u_d, t_d, pct_d in fs_locaux:
+                sv.append(_sv(mp, f"{u_d} / {t_d} Go ({pct_d:.0f}%)", pct_d >= 80))
+            psi_io = _psi("io")
+            if psi_io:
+                sv.append(_sv("PSI I/O", psi_io))
+        elif c == "net" and "net" in detail:
+            dn = detail["net"]
+            sv.append(_sv("Débit ↓ / ↑", f"{dn['rx_texte']} / {dn['tx_texte']}"))
+            sv.append(_sv("Session ↓ / ↑", f"{net_det['rx_tot_go']} / {net_det['tx_tot_go']} Go"))
+            if net_det["ip"]:
+                lbl_if = net_det["iface"] or "IP LAN"
+                sv.append(_sv(lbl_if, net_det["ip"]))
+            if net_det["ssid"]:
+                sv.append(_sv("Wi-Fi", net_det["ssid"]))
+        b["survol"] = sv
+
+    survol_global = []
+    if up:
+        survol_global.append(_sv("Uptime", up["texte"]))
+    if "load" in detail:
+        survol_global.append(_sv("Load", f"{detail['load']['l1']} ({detail['load']['pct']:.0f}%)"))
+    if "disk" in detail:
+        survol_global.append(_sv("Disque /", f"{detail['disk']['utilise_go']} / {detail['disk']['total_go']} Go"))
+    if "net" in detail:
+        survol_global.append(_sv("Réseau", f"↓{detail['net']['rx_texte']} ↑{detail['net']['tx_texte']}"))
+    if detail["alerts"]["total"] > 0:
+        survol_global.append(_sv("Alertes", str(detail["alerts"]["total"]), True))
+
     donnees = {
         "ok": True,
         "ts": time.time(),
         "compact": compact(barres[0]["texte"] if barres else "", "système",
                            alerte=any(b["alerte"] for b in barres) or detail["alerts"]["total"] > 0,
                            barres=barres),
+        "survol": survol_global,
         "detail": detail,
         "mesures": [b["cle"] for b in barres],
     }
