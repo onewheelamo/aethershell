@@ -67,6 +67,9 @@ Singleton {
         target: Theme
         function onVizSensibiliteChanged() { racine.rearmer() }
         function onVizLissageChanged() { racine.rearmer() }
+    }
+    Connections {
+        target: ShellState
         function onBarAppletsRevChanged() { racine.lireRegistre() }
     }
 

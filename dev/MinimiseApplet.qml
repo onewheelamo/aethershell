@@ -55,7 +55,7 @@ Item {
         // L'ordre de la session vient de `Theme` ; ce qui est arrivé sur le
         // workspace spécial par un autre chemin se range à la fin.
         const rang = function (adresse) {
-            const i = Theme.ordreMinimisees.indexOf(String(adresse))
+            const i = ShellState.ordreMinimisees.indexOf(ShellState.cleAdresse(adresse))
             return i < 0 ? 1000 : i
         }
         liste.sort(function (a, b) { return rang(a.adresse) - rang(b.adresse) })

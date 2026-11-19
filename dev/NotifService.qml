@@ -67,7 +67,7 @@ Item {
     }
 
     Connections {
-        target: Theme
+        target: ShellState
         function onQuietNotifAppsChanged() {
             service.pruneQuietNotifs()
         }

@@ -214,7 +214,7 @@ Item {
         }
 
         Connections {
-            target: Theme
+            target: ShellState
             function onNotifHistoryVisibleChanged() {
                 if (ShellState.notifHistoryVisible) {
                     root.selectedRow = -1

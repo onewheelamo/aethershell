@@ -927,7 +927,7 @@ Item {
     }
 
     Binding {
-        target: Theme
+        target: ShellState
         property: "notifToastHovered"
         value: root.notifToastActive && root.isHovered
     }
