@@ -110,14 +110,32 @@ Scope {
                 }
             }
 
-            implicitWidth: coinWin.largeurSurface
-            implicitHeight: Theme.barHeight
+            property bool surfaceLarge: false
+            property int nbEtendus: 0
 
-            Region {
-                id: masqueSaisie
-                item: zoneMasque
+            onNbEtendusChanged: {
+                if (nbEtendus > 0) {
+                    timerReduireSurface.stop()
+                    surfaceLarge = true
+                } else {
+                    timerReduireSurface.restart()
+                }
             }
-            mask: masqueSaisie
+
+            Timer {
+                id: timerReduireSurface
+                interval: 450
+                repeat: false
+                onTriggered: if (coinWin.nbEtendus <= 0) coinWin.surfaceLarge = false
+            }
+
+            // Taille constante pendant l'animation (surfaceLarge = true dès le survol,
+            // réduite une fois le repli terminé) : zéro masque Region nécessaire et
+            // zéro réallocation Wayland par image.
+            implicitWidth: coinWin.surfaceLarge
+                ? coinWin.largeurSurface
+                : Math.max(Theme.barHeight, Math.ceil(rangeeRonds.implicitWidth))
+            implicitHeight: Theme.barHeight
 
             Item {
                 id: zoneMasque
@@ -150,6 +168,9 @@ Scope {
                         readonly property bool popupOuvert: Theme.activePopup === ("applet:" + String(modelData.id || ""))
                         readonly property real largeurEtendue: Math.max(Theme.barHeight, itemApplet.implicitWidth + Theme.padH * 2)
                         property bool etendu: false
+
+                        onEtenduChanged: coinWin.nbEtendus += etendu ? 1 : -1
+                        Component.onDestruction: if (etendu) coinWin.nbEtendus -= 1
 
                         onPopupOuvertChanged: {
                             if (popupOuvert) {
