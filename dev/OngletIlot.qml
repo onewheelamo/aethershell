@@ -329,7 +329,7 @@ Column {
         id: secIlotApplets
         width: parent.width
         title: "Applets de l'îlot"
-        summary: "Systray · Titre média · Luminosité/Nuit · Batterie · etc."
+        summary: "Systray · Système · Média · Luminosité · Batterie · etc."
         expanded: root ? root.sectionOpen("ilot_applets", false) : false
         onToggled: {
             if (!root) return
@@ -351,15 +351,17 @@ Column {
                 { id: "todo",            label: "Tâches Todo",         desc: "Compteur de tâches ouvertes" },
                 { id: "meteo",           label: "Météo",               desc: "Température actuelle" },
                 { id: "presse-papiers",  label: "Presse-papiers",      desc: "Historique du presse-papiers" },
-                { id: "usb",             label: "Périphériques USB",   desc: "Clés USB, cartes SD et disques optiques" }
+                { id: "usb",             label: "Périphériques USB",   desc: "Clés USB, cartes SD et disques optiques" },
+                { id: "systeme",         label: "Système (CPU/RAM/GPU)", desc: "Charge, température, mémoire et processus" }
             ]
 
             delegate: Rectangle {
                 required property var modelData
                 readonly property string curMode: modelData.styleKey ? Theme.ilotShowMedia : Theme.ilotAppletModeFor(modelData.id)
+                readonly property string curCorner: modelData.styleKey ? "" : Theme.ilotAppletCornerFor(modelData.id)
                 readonly property bool isMaj: modelData.id === "maj"
                 width: parent ? parent.width : 0
-                height: isMaj ? 112 : 46
+                height: modelData.styleKey ? 46 : (isMaj ? 146 : 80)
                 radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
                 color: Qt.alpha(Theme.surfaceVariant, 0.35)
                 border.color: Qt.alpha(Theme.fg, 0.08)
@@ -462,6 +464,55 @@ Column {
                             } else {
                                 root.runConfigCmd(["ilot_applet_mode", modelData.id, code])
                             }
+                        }
+                    }
+                }
+
+                // Emplacement (îlot dynamique ou coin d'écran) pour tout applet détachable
+                Item {
+                    visible: !modelData.styleKey
+                    anchors.top: parent.top
+                    anchors.topMargin: 46
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 10
+                    height: 34
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Qt.alpha(Theme.fg, 0.06)
+                    }
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.right: cornerSegTrack.left
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Sortir de l'îlot"
+                        color: Qt.alpha(Theme.fg, 0.8)
+                        font.pixelSize: Theme.text2xs
+                        elide: Text.ElideRight
+                    }
+
+                    ConfigSegmented {
+                        id: cornerSegTrack
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        itemHeight: 18
+                        choices: [
+                            { code: "",             label: "Îlot" },
+                            { code: "top-left",     label: "↖" },
+                            { code: "top-right",    label: "↗" },
+                            { code: "bottom-left",  label: "↙" },
+                            { code: "bottom-right", label: "↘" }
+                        ]
+                        currentCode: curCorner
+                        onSelected: code => {
+                            if (root) root.runConfigCmd(["ilot_applet_corner", modelData.id, code === "" ? "ilot" : code])
                         }
                     }
                 }

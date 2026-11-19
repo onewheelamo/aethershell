@@ -27,6 +27,11 @@ Item {
         id: fondGlissement
     }
 
+    // Applets détachés de l'îlot dynamique vers les coins de l'écran.
+    IlotCoinsApplets {
+        id: ilotCoinsApplets
+    }
+
 
     // Top Bar Window hosting the 3 distinct islands (Left, Center, Right)
     PanelWindow {

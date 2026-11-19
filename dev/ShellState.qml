@@ -254,6 +254,7 @@ QtObject {
             const cat = root.barAppletsCatalogue[i]
             if (!cat || !cat.id || cat.fixe) continue
             if (cat.id === "visualiseur" || cat.id === "workspaces" || cat.id === "horloge" || cat.id === "musique") continue
+            if (Theme.ilotAppletCornerFor(cat.id) !== "") continue
             const mode = Theme.ilotAppletModeFor(cat.id)
             if (!Theme.ilotVisibleIn(mode, state)) continue
 
@@ -263,6 +264,26 @@ QtObject {
             if (side === "left" && itemIle !== "haut:debut") continue
             if (side === "right" && itemIle === "haut:debut") continue
 
+            liste.push(root._buildAppletEntry(cat, choix, itemIle))
+        }
+        return root._sortApplets(liste)
+    }
+
+    function appletsPourCoinIlot(corner) {
+        const _ = root.barAppletsRev + Theme.ilotAppletsRev
+        if (!corner || !root.barAppletsCatalogue.length) return []
+        const liste = []
+        for (let i = 0; i < root.barAppletsCatalogue.length; i++) {
+            const cat = root.barAppletsCatalogue[i]
+            if (!cat || !cat.id || cat.fixe) continue
+            if (cat.id === "visualiseur" || cat.id === "workspaces" || cat.id === "horloge" || cat.id === "musique") continue
+            if (Theme.ilotAppletCornerFor(cat.id) !== corner) continue
+            const mode = Theme.ilotAppletModeFor(cat.id)
+            if (mode === "off") continue
+
+            const choix = root.barAppletsActifs[cat.id] || ({})
+            let itemIle = String(choix.ile || cat.ile || "haut:fin")
+            itemIle = root.barAnciens[itemIle] || itemIle
             liste.push(root._buildAppletEntry(cat, choix, itemIle))
         }
         return root._sortApplets(liste)

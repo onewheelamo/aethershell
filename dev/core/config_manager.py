@@ -2368,7 +2368,7 @@ if __name__ == "__main__":
         default_order = [
             "systray", "luminosite", "batterie", "minimise", "volume",
             "reseau", "notifications", "maj", "todo", "meteo",
-            "presse-papiers", "usb",
+            "presse-papiers", "usb", "systeme",
         ]
         data = load_json(STYLE_FILE)
         order = data.get("ilot_applets_order")
@@ -2387,6 +2387,34 @@ if __name__ == "__main__":
             if 0 <= nxt < len(order):
                 order[idx], order[nxt] = order[nxt], order[idx]
         data["ilot_applets_order"] = order
+        save_json(STYLE_FILE, data)
+        print(json.dumps(get_full_config_state()))
+    elif action == "ilot_applet_corner" and len(sys.argv) > 3:
+        aid = str(sys.argv[2]).strip()
+        corner = str(sys.argv[3]).strip().lower()
+        if corner in ("ilot", "none", "off", ""):
+            corner = ""
+        elif corner not in ("top-left", "top-right", "bottom-left", "bottom-right"):
+            corner = ""
+        data = load_json(STYLE_FILE)
+        corners = data.get("ilot_applets_corner")
+        if not isinstance(corners, dict):
+            corners = {}
+        if corner:
+            corners[aid] = corner
+            # Si l'applet était éteint, on l'allume automatiquement pour que
+            # l'utilisateur le voie apparaître dans le coin choisi.
+            modes = data.get("ilot_applets_mode")
+            if not isinstance(modes, dict):
+                modes = {}
+            def_exp = ("systray", "minimise", "luminosite", "batterie")
+            cur_mode = modes.get(aid, "expanded" if aid in def_exp else "off")
+            if cur_mode == "off":
+                modes[aid] = "both"
+                data["ilot_applets_mode"] = modes
+        else:
+            corners.pop(aid, None)
+        data["ilot_applets_corner"] = corners
         save_json(STYLE_FILE, data)
         print(json.dumps(get_full_config_state()))
     elif action == "diag_info":

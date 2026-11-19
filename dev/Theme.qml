@@ -113,6 +113,7 @@ QtObject {
     property string ilotShowClock: "both"
     property var ilotAppletsMode: ({})
     property var ilotAppletsOrder: []
+    property var ilotAppletsCorner: ({})
     property int ilotAppletsRev: 0
     property bool majSeulementSiDispo: false
     property string majTerminalMode: "float"
@@ -139,6 +140,14 @@ QtObject {
         }
         const defExp = ["systray", "minimise", "luminosite", "batterie"]
         return defExp.indexOf(id) !== -1 ? "expanded" : "off"
+    }
+
+    function ilotAppletCornerFor(id) {
+        const _ = root.ilotAppletsRev
+        if (!root.ilotAppletsCorner || typeof root.ilotAppletsCorner !== "object") return ""
+        const c = String(root.ilotAppletsCorner[id] || "")
+        if (c === "top-left" || c === "top-right" || c === "bottom-left" || c === "bottom-right") return c
+        return ""
     }
     property int idleSuspendTimeout: 3600
     onIslandPanelOpenChanged: {
@@ -642,6 +651,13 @@ QtObject {
         }
         if (Array.isArray(data.ilot_applets_order)) {
             root.ilotAppletsOrder = data.ilot_applets_order
+            root.ilotAppletsRev++
+        }
+        if (data.ilot_applets_corner && typeof data.ilot_applets_corner === "object") {
+            root.ilotAppletsCorner = data.ilot_applets_corner
+            root.ilotAppletsRev++
+        } else {
+            root.ilotAppletsCorner = ({})
             root.ilotAppletsRev++
         }
         if (typeof data.maj_seulement_si_dispo === "boolean") root.majSeulementSiDispo = data.maj_seulement_si_dispo

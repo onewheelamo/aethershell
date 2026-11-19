@@ -39,6 +39,7 @@ singleton VisualiseurAudio 1.0 VisualiseurAudio.qml
 WidgetMenu 1.0 WidgetMenu.qml
 FondProfondeur 1.0 FondProfondeur.qml
 FondGlissement 1.0 FondGlissement.qml
+IlotCoinsApplets 1.0 IlotCoinsApplets.qml
 MeteoPopup 1.0 MeteoPopup.qml
 CalqueProfondeur 1.0 CalqueProfondeur.qml
 MasqueParallaxe 1.0 MasqueParallaxe.qml
