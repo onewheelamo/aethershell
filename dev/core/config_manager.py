@@ -2387,10 +2387,33 @@ if __name__ == "__main__":
         if aid and aid not in order:
             order.append(aid)
         if aid in order:
+            corners = data.get("ilot_applets_corner")
+            if not isinstance(corners, dict):
+                corners = {}
+            cible_corner = corners.get(aid, "")
+            modes = data.get("ilot_applets_mode")
+            if not isinstance(modes, dict):
+                modes = {}
+            def_exp = ("systray", "minimise", "luminosite", "batterie")
+
+            def _actif(x):
+                return modes.get(x, "expanded" if x in def_exp else "off") != "off"
+
             idx = order.index(aid)
-            nxt = idx - 1 if direction in ("left", "gauche", "up", "monter") else idx + 1
+            pas = -1 if direction in ("left", "gauche", "up", "monter") else 1
+            nxt = idx + pas
+            while 0 <= nxt < len(order):
+                cand = order[nxt]
+                if corners.get(cand, "") == cible_corner and _actif(cand):
+                    break
+                nxt += pas
             if 0 <= nxt < len(order):
                 order[idx], order[nxt] = order[nxt], order[idx]
+            else:
+                # Repli : échange immédiat si aucun voisin actif dans le même groupe
+                nxt_def = idx + pas
+                if 0 <= nxt_def < len(order):
+                    order[idx], order[nxt_def] = order[nxt_def], order[idx]
         data["ilot_applets_order"] = order
         save_json(STYLE_FILE, data)
         print(json.dumps(get_full_config_state()))

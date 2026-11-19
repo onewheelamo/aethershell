@@ -113,6 +113,17 @@ Scope {
             implicitWidth: coinWin.largeurSurface
             implicitHeight: Theme.barHeight
 
+            function rafraichirMasque() {
+                Qt.callLater(function() {
+                    if (!coinWin.visible) return
+                    coinWin.mask = null
+                    coinWin.mask = masqueSaisie
+                })
+            }
+
+            onAppletsChanged: rafraichirMasque()
+            onVisibleChanged: if (visible) rafraichirMasque()
+
             Region {
                 id: masqueSaisie
                 item: rangeeRonds
@@ -126,6 +137,8 @@ Scope {
                 anchors.left: coinWin.ancreADroite ? undefined : parent.left
                 anchors.right: coinWin.ancreADroite ? parent.right : undefined
                 spacing: coinWin.espacement
+                onWidthChanged: coinWin.rafraichirMasque()
+                onXChanged: coinWin.rafraichirMasque()
 
                 Repeater {
                     model: coinWin.applets
