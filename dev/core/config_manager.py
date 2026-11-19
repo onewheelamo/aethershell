@@ -864,6 +864,8 @@ def update_style_var(key, value):
         data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "ilot_projets_actif":
         data[key] = str(value).lower() in ("true", "1", "yes")
+    elif key == "ilot_coins_groupes":
+        data[key] = str(value).lower() in ("true", "1", "yes")
     elif key == "lock_bg_mode" and str(value) in ("solid", "image"):
         data[key] = str(value)
     elif key == "lock_bg_color":
@@ -2104,6 +2106,7 @@ def get_full_config_state():
         "shell_blur_popups": bool(style_data.get("shell_blur_popups", True)),
         "depth_wallpaper": bool(style_data.get("depth_wallpaper", False)),
         "wallpaper_slide": bool(style_data.get("wallpaper_slide", False)),
+        "ilot_coins_groupes": bool(style_data.get("ilot_coins_groupes", False)),
         "panel_accordion": bool(style_data.get("panel_accordion", True)),
         "user_location_ville": str(style_data.get("user_location_ville", "") or ""),
         "user_location_lat": style_data.get("user_location_lat"),

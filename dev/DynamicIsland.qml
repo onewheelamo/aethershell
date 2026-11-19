@@ -1042,6 +1042,7 @@ Item {
 
     readonly property int sidePanelWidth: (panelOpen && Theme.islandSidePanel !== "") ? 340 : 0
     width: panelOpen ? (680 + sidePanelWidth) : (notifToastActive ? 400 : (liveActivityExpanded ? liveActivityWidth : (themeExpanded ? themePickerWidth : (notesExpanded ? notesWidth : (launcherExpanded ? launcherWidth : (wallpaperExpanded ? wallpaperWidth : (meteoExpanded ? meteoWidth : (expanded ? expandedWidth : compactWidth))))))))
+    onWidthChanged: ShellState.ilotWidth = width
 
     Behavior on width {
         NumberAnimation {

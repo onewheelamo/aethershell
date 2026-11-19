@@ -114,6 +114,7 @@ QtObject {
     property var ilotAppletsMode: ({})
     property var ilotAppletsOrder: []
     property var ilotAppletsCorner: ({})
+    property bool ilotCoinsGroupes: false
     property int ilotAppletsRev: 0
     property bool majSeulementSiDispo: false
     property string majTerminalMode: "float"
@@ -660,6 +661,7 @@ QtObject {
             root.ilotAppletsCorner = ({})
             root.ilotAppletsRev++
         }
+        if (typeof data.ilot_coins_groupes === "boolean") root.ilotCoinsGroupes = data.ilot_coins_groupes
         if (typeof data.maj_seulement_si_dispo === "boolean") root.majSeulementSiDispo = data.maj_seulement_si_dispo
         if (typeof data.maj_terminal_mode === "string") {
             root.majTerminalMode = (data.maj_terminal_mode === "tiling") ? "tiling" : "float"

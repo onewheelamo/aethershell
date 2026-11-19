@@ -337,6 +337,60 @@ Column {
             if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("ilot_applets")
         }
 
+        // Disposition globale des applets sortis de l'îlot : écartés dans les coins
+        // de l'écran ou regroupés autour de l'îlot dynamique.
+        Rectangle {
+            width: parent ? parent.width : 0
+            height: 46
+            radius: Math.max(8, Math.round(Theme.globalRadius * 0.6))
+            color: Qt.alpha(Theme.surfaceVariant, 0.35)
+            border.color: Qt.alpha(Theme.fg, 0.08)
+            border.width: 1
+
+            Row {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 10
+                spacing: 10
+
+                Column {
+                    width: Math.max(90, parent.width - coinsGroupesSeg.width - 10)
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: "Position des applets sortis"
+                        color: Theme.fg
+                        font.pixelSize: Theme.textSm
+                        font.bold: true
+                        elide: Text.ElideRight
+                        width: parent.width
+                    }
+                    Text {
+                        text: "Écartés aux coins de l'écran ou serrés autour de l'îlot"
+                        color: Qt.alpha(Theme.fg, 0.65)
+                        font.pixelSize: Theme.text2xs
+                        elide: Text.ElideRight
+                        width: parent.width
+                    }
+                }
+
+                ConfigSegmented {
+                    id: coinsGroupesSeg
+                    anchors.verticalCenter: parent.verticalCenter
+                    itemHeight: 22
+                    choices: [
+                        { code: "false", label: "Coins" },
+                        { code: "true",  label: "Autour" }
+                    ]
+                    currentCode: Theme.ilotCoinsGroupes ? "true" : "false"
+                    onSelected: code => {
+                        if (root) root.runConfigCmd(["style", "ilot_coins_groupes", code])
+                    }
+                }
+            }
+        }
+
         Repeater {
             model: [
                 { id: "systray",         label: "Systray",             desc: "Icônes d'applications en arrière-plan" },

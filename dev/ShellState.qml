@@ -149,6 +149,7 @@ QtObject {
     property var barAppletsCatalogue: []
     property var barAppletsActifs: ({})
     property int barAppletsRev: 0
+    property real ilotWidth: 160
 
     readonly property var barAnciens: ({
         "gauche": "haut:debut", "centre": "haut:milieu", "droite": "haut:fin",
