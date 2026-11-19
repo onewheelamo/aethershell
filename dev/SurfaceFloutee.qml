@@ -26,6 +26,10 @@ Item {
         color: root.teinte
         border.color: root.bordureCouleur
         border.width: root.bordureLargeur
+        antialiasing: true
+        layer.enabled: width > 0 && height > 0
+        layer.smooth: true
+        layer.samples: 4
         Behavior on color { ColorAnimation { duration: 180 } }
         Behavior on border.color { ColorAnimation { duration: 180 } }
     }
