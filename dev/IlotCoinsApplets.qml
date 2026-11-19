@@ -65,6 +65,20 @@ Scope {
             readonly property bool ancreADroite: (groupes && modelData.left) || (!groupes && modelData.right)
             readonly property int ecranW: screen ? screen.width : 1920
             readonly property int espacement: 6
+            readonly property int margeH: Math.max(6, Theme.gutterH)
+            // Largeur au repos calculée de façon synchrone dès la création de la
+            // fenêtre (évite que Hyprland ne mappe la surface à 28 px avant le Repeater).
+            readonly property real largeurRepos: {
+                const n = applets.length
+                if (n <= 0) return Theme.barHeight
+                let total = (n - 1) * espacement
+                for (let i = 0; i < n; ++i) {
+                    const dist = ancreADroite ? Math.max(0, n - 1 - i) : i
+                    const ratio = Math.max(0.50, 1.0 - dist * 0.25)
+                    total += Math.max(12, Math.round(Theme.barHeight * ratio))
+                }
+                return Math.max(Theme.barHeight, total)
+            }
             // Largeur de fenêtre stable suffisante pour éviter toute réallocation
             // du buffer Wayland pendant l'animation d'extension au survol.
             readonly property real largeurSurface: Math.max(
@@ -97,7 +111,7 @@ Scope {
                             ? Math.round((coinWin.ecranW + ShellState.ilotWidth) / 2 + 10)
                             : Math.round(coinWin.ecranW / 2 + 6)
                     }
-                    return Theme.gutterH
+                    return coinWin.margeH
                 }
                 right: {
                     if (!coinWin.ancreADroite) return 0
@@ -106,7 +120,7 @@ Scope {
                             ? Math.round((coinWin.ecranW + ShellState.ilotWidth) / 2 + 10)
                             : Math.round(coinWin.ecranW / 2 + 6)
                     }
-                    return Theme.gutterH
+                    return coinWin.margeH
                 }
             }
 
@@ -134,7 +148,7 @@ Scope {
             // zéro réallocation Wayland par image.
             implicitWidth: coinWin.surfaceLarge
                 ? coinWin.largeurSurface
-                : Math.max(Theme.barHeight, Math.ceil(rangeeRonds.implicitWidth))
+                : coinWin.largeurRepos
             implicitHeight: Theme.barHeight
 
             Row {
