@@ -373,7 +373,9 @@ SHELL_BLUR_END = "-- END shell-blur"
 # le panneau reecrit ce bloc des qu'un reglage de flou change, et une entree
 # ajoutee a la main dans general.lua disparaitrait a ce moment-la.
 SHELL_BLUR_NAMESPACES = ("shell-bar", "shell-bar-bas", "shell-bar-cote-gauche",
-                         "shell-bar-cote-droite", "shell-osd", "shell-config",
+                         "shell-bar-cote-droite", "shell-ilot-coin-top-left",
+                         "shell-ilot-coin-top-right", "shell-ilot-coin-bottom-left",
+                         "shell-ilot-coin-bottom-right", "shell-osd", "shell-config",
                          "shell-onboarding", "shell-spotlight",
                          "shell-spotlight-rest", "shell-cheatsheet", "shell-whichkey", "shell-overview",
                          "shell-tray-menu", "shell-shotbar",

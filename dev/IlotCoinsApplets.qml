@@ -4,7 +4,8 @@ import Quickshell.Wayland
 import "."
 
 // APPLETS SORTIS DE L'ÎLOT : affiche dans les quatre coins de l'écran les
-// applets que l'utilisateur a choisi de détacher de l'îlot dynamique.
+// applets que l'utilisateur a choisi de détacher de l'îlot dynamique,
+// alignés sur la même ligne et les mêmes règles de surface que la pilule.
 Scope {
     id: root
 
@@ -31,7 +32,6 @@ Scope {
             id: coinWin
             required property var modelData
             readonly property var applets: ShellState.appletsPourCoinIlot(modelData.id)
-            readonly property int marge: Math.max(8, Theme.barMarginTop)
 
             screen: root.ecranPrincipal
             visible: Theme.barStyle === "island" && applets.length > 0
@@ -48,23 +48,28 @@ Scope {
                 right: modelData.right
             }
             margins {
-                top: modelData.top ? marge : 0
-                bottom: modelData.bottom ? marge : 0
-                left: modelData.left ? marge : 0
-                right: modelData.right ? marge : 0
+                top: modelData.top ? Theme.gutterV : 0
+                bottom: modelData.bottom ? Theme.gutterV : 0
+                left: modelData.left ? Theme.gutterH : 0
+                right: modelData.right ? Theme.gutterH : 0
             }
 
             implicitWidth: pilule.implicitWidth
-            implicitHeight: pilule.implicitHeight
+            implicitHeight: Theme.barHeight
 
-            Rectangle {
+            Item {
                 id: pilule
-                implicitWidth: Math.max(Theme.barHeight, rangee.implicitWidth + Theme.space4)
-                implicitHeight: Math.max(Theme.barHeight, rangee.implicitHeight + Theme.space2)
-                radius: Theme.barRadius
-                color: Theme.islandBg
-                border.width: 1
-                border.color: Qt.alpha(Theme.fg, 0.10)
+                implicitWidth: Math.max(Theme.barHeight, rangee.implicitWidth + Theme.padH * 2)
+                implicitHeight: Theme.barHeight
+
+                SurfaceFloutee {
+                    anchors.fill: parent
+                    rayon: Theme.pillRadius
+                    teinte: Theme.barBg
+                    bordureCouleur: Theme.accent
+                    bordureLargeur: Theme.barBorder ? 1 : 0
+                    actif: false
+                }
 
                 AppletRow {
                     id: rangee
