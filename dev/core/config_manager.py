@@ -782,12 +782,11 @@ def update_style_var(key, value):
         data[key] = max(14, min(60, int(float(value))))
     elif key == "panel_anim_duration":
         data[key] = max(80, min(500, int(float(value))))
-    elif key in ("bar_gaps_out_h", "bar_gaps_out_v", "bar_gaps_out"):
-        # Marge extérieure des quatre barres : `_h` pour les côtés (gauche/droite),
-        # `_v` pour le haut et le bas. `bar_gaps_out` est l'ancienne clé unique,
-        # gardée écrivable et lue en repli par Theme.qml pour une machine qui n'a
-        # pas encore séparé les deux axes. 0 colle la barre au bord ; au-delà de
-        # 32, la barre ne tient plus dans la surface qui la réserve.
+    elif key == "bar_gaps_out_h":
+        data[key] = max(0, min(280, int(float(value))))
+    elif key in ("bar_gaps_out_v", "bar_gaps_out"):
+        # Marge extérieure verticale : au-delà de 32, la barre ne tient plus
+        # dans la surface qui la réserve.
         data[key] = max(0, min(32, int(float(value))))
     elif key == "resize_step":
         data[key] = max(1, min(200, int(float(value))))

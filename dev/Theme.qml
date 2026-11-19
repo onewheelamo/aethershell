@@ -601,7 +601,7 @@ QtObject {
         // Les deux axes, avec l'ancienne clé `bar_gaps_out` en repli : une
         // machine qui n'a pas encore été réglée garde exactement son aspect.
         const margeOut = (typeof data.bar_gaps_out === "number") ? data.bar_gaps_out : 8
-        root.gutterH = Math.round(Math.max(0, Math.min(32,
+        root.gutterH = Math.round(Math.max(0, Math.min(280,
             typeof data.bar_gaps_out_h === "number" ? data.bar_gaps_out_h : margeOut)))
         root.gutterV = Math.round(Math.max(0, Math.min(32,
             typeof data.bar_gaps_out_v === "number" ? data.bar_gaps_out_v : margeOut)))

@@ -269,7 +269,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 value: Theme.gutterH
                 minimumValue: 0
-                maximumValue: 32
+                maximumValue: 280
                 stepSize: 1
                 suffix: " px"
                 onValueModified: newVal => {
