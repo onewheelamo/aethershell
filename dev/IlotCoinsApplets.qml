@@ -148,16 +148,18 @@ Scope {
             // zéro réallocation Wayland par image.
             implicitWidth: coinWin.surfaceLarge
                 ? coinWin.largeurSurface
-                : coinWin.largeurRepos
+                : Math.max(coinWin.largeurRepos, Math.ceil(rangeeRonds.implicitWidth))
             implicitHeight: Theme.barHeight
 
-            Row {
-                id: rangeeRonds
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                anchors.left: coinWin.ancreADroite ? undefined : parent.left
-                anchors.right: coinWin.ancreADroite ? parent.right : undefined
-                spacing: coinWin.espacement
+            Item {
+                id: conteneur
+                anchors.fill: parent
+
+                Row {
+                    id: rangeeRonds
+                    x: coinWin.ancreADroite ? (conteneur.width - width) : 0
+                    height: conteneur.height
+                    spacing: coinWin.espacement
 
                 Repeater {
                     model: coinWin.applets
@@ -270,6 +272,7 @@ Scope {
                         }
                     }
                 }
+            }
             }
         }
     }
