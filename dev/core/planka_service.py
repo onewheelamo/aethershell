@@ -40,6 +40,7 @@ def _cache_dir() -> str:
 CACHE_FILE = os.path.join(_cache_dir(), "planka_cache.json")
 AGENT_COLS_FILE = os.path.join(_cache_dir(), "planka_agent_cols.json")
 ACTIVE_BOARD_FILE = os.path.join(_cache_dir(), "planka_active_board.json")
+AGENT_ENGINE_FILE = os.path.join(_cache_dir(), "planka_agent_engine.json")
 
 
 def _sortir(data: dict) -> int:
@@ -104,6 +105,53 @@ def set_active_board(board_id: str) -> dict:
     _write_private_json(ACTIVE_BOARD_FILE, {"board_id": bid})
     invalidate_cache()
     return {"ok": True, "board_id": bid}
+
+
+def load_agent_engine() -> str:
+    data = _read_json_file(AGENT_ENGINE_FILE, {})
+    eng = str(data.get("engine") or "hermes").strip().lower() if isinstance(data, dict) else "hermes"
+    return eng if eng in ("hermes", "agy") else "hermes"
+
+
+def set_agent_engine(engine: str) -> dict:
+    eng = str(engine or "").strip().lower()
+    if eng not in ("hermes", "agy"):
+        return {"ok": False, "error": f"Moteur invalide : {eng}"}
+    _write_private_json(AGENT_ENGINE_FILE, {"engine": eng})
+    invalidate_cache()
+    return {"ok": True, "engine": eng}
+
+
+def _is_worker_timer_active() -> bool:
+    import subprocess
+    try:
+        res = subprocess.run(
+            ["systemctl", "--user", "is-active", "planka-worker.timer"],
+            capture_output=True, text=True, timeout=3, check=False,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def cmd_worker_cron(action: str) -> dict:
+    import subprocess
+    act = str(action or "").strip().lower()
+    if act == "toggle":
+        act = "disable" if _is_worker_timer_active() else "enable"
+    if act not in ("enable", "disable"):
+        return {"ok": False, "error": f"Action cron invalide : {act}"}
+    subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True, check=False)
+    res = subprocess.run(
+        ["systemctl", "--user", act, "--now", "planka-worker.timer"],
+        capture_output=True, text=True, timeout=5, check=False,
+    )
+    invalidate_cache()
+    return {
+        "ok": res.returncode == 0,
+        "active": _is_worker_timer_active(),
+        "error": (res.stderr or "").strip() if res.returncode != 0 else "",
+    }
 
 
 def load_agent_cols() -> dict:
@@ -398,6 +446,8 @@ def _fetch_board_snapshot(cfg: dict, board_id: str | None = None, force: bool = 
             "echeance_proche": worst_urgency in ("orange", "rouge"),
             "urgence": worst_urgency,
             "agent_cols": agent_cols,
+            "agent_engine": load_agent_engine(),
+            "worker_cron": _is_worker_timer_active(),
         }
         _write_private_json(CACHE_FILE, snapshot)
         return snapshot
@@ -431,6 +481,48 @@ def cmd_statut() -> dict:
         "echeance_proche": bool(snap.get("echeance_proche", False)),
         "urgence": snap.get("urgence", "none"),
     }
+
+
+def cmd_creer_board(project_id: str, nom: str) -> dict:
+    cfg = _planka_config()
+    if not cfg.get("url") or not cfg.get("api_key"):
+        return {"ok": False, "error": "Planka non configuré"}
+    nom = str(nom or "").strip()
+    if not nom:
+        return {"ok": False, "error": "Nom de tableau vide"}
+    resp = _api_request(
+        cfg, "POST", f"/api/projects/{project_id}/boards",
+        {"name": nom, "position": 65536},
+    )
+    board = resp.get("item") or resp
+    bid = str(board.get("id") or "")
+    if bid:
+        for idx, col_name in enumerate(("À faire", "En cours", "Fait")):
+            try:
+                _api_request(
+                    cfg, "POST", f"/api/boards/{bid}/lists",
+                    {"name": col_name, "position": 65536 * (idx + 1)},
+                )
+            except Exception:
+                pass
+        set_active_board(bid)
+    invalidate_cache()
+    return {"ok": True, "board": board}
+
+
+def cmd_creer_liste(board_id: str, nom: str) -> dict:
+    cfg = _planka_config()
+    if not cfg.get("url") or not cfg.get("api_key"):
+        return {"ok": False, "error": "Planka non configuré"}
+    nom = str(nom or "").strip()
+    if not nom:
+        return {"ok": False, "error": "Nom de colonne vide"}
+    resp = _api_request(
+        cfg, "POST", f"/api/boards/{board_id}/lists",
+        {"name": nom, "position": 65536},
+    )
+    invalidate_cache()
+    return {"ok": True, "list": resp.get("item") or resp}
 
 
 def cmd_creer(list_id: str, titre: str, description: str = "") -> dict:
@@ -519,6 +611,14 @@ def main(argv: list[str]) -> int:
             return _sortir(_fetch_board_snapshot(_planka_config(), bid))
         if action == "set_board" and len(argv) >= 3:
             return _sortir(set_active_board(argv[2]))
+        if action == "creer_board" and len(argv) >= 4:
+            return _sortir(cmd_creer_board(argv[2], argv[3]))
+        if action == "creer_liste" and len(argv) >= 4:
+            return _sortir(cmd_creer_liste(argv[2], argv[3]))
+        if action == "agent_engine" and len(argv) >= 3:
+            return _sortir(set_agent_engine(argv[2]))
+        if action == "worker_cron" and len(argv) >= 3:
+            return _sortir(cmd_worker_cron(argv[2]))
         if action == "creer" and len(argv) >= 4:
             desc = argv[4] if len(argv) > 4 else ""
             return _sortir(cmd_creer(argv[2], argv[3], desc))

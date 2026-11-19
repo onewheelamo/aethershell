@@ -1461,7 +1461,7 @@ preflight_diff() {
 
     # 6. Systemd services
     if [ -d "$DEV_DIR/systemd" ]; then
-        for f in "$DEV_DIR/systemd"/*.service; do
+        for f in "$DEV_DIR/systemd"/*.service "$DEV_DIR/systemd"/*.timer; do
             [ -f "$f" ] || continue
             name="$(basename "$f")"
             dst="$HOME/.config/systemd/user/$name"
@@ -1983,7 +1983,7 @@ deploy_new_env() {
     # de plantage. Versionnées ici, installées par le déploiement.
     if [ -d "$DEV_DIR/systemd" ]; then
         local unite
-        for unite in "$DEV_DIR/systemd/"*.service; do
+        for unite in "$DEV_DIR/systemd/"*.service "$DEV_DIR/systemd/"*.timer; do
             [ -f "$unite" ] || continue
             cp -f "$unite" "$HOME/.config/systemd/user/"
             echo "  ↪ unité installée : $(basename "$unite")"

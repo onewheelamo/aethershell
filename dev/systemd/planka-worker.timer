@@ -1,0 +1,10 @@
+[Unit]
+Description=AetherShell — Surveillance périodique Kanban Planka (60s)
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=60s
+Unit=planka-worker.service
+
+[Install]
+WantedBy=timers.target

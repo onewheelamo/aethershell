@@ -1,0 +1,9 @@
+[Unit]
+Description=AetherShell — Worker Kanban Planka (Hermes / Agy)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.config/quickshell/core/planka_worker.py
+StandardOutput=journal
+StandardError=journal

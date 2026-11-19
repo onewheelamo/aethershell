@@ -20,6 +20,9 @@ Item {
     property string menuCardId: ""
     property string draggingCardId: ""
     property bool loading: false
+    property bool showNewBoardBar: false
+    readonly property string agentEngine: String(boardData.agent_engine || "hermes")
+    readonly property bool workerCronActive: Boolean(boardData.worker_cron)
 
     readonly property var activeList: (lists.length > 0 && activeListIndex >= 0 && activeListIndex < lists.length)
         ? lists[activeListIndex]
@@ -153,6 +156,38 @@ Item {
                 }
             }
 
+            // Bouton + Nouveau tableau
+            Rectangle {
+                visible: Boolean(root.boardData.ok && root.boardData.projects && root.boardData.projects.length > 0)
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                radius: 7
+                color: (root.showNewBoardBar || newBoardBtnMa.containsMouse)
+                    ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.07)
+                border.width: root.showNewBoardBar ? 1 : 0
+                border.color: Theme.accent
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "+"
+                    font.family: Theme.fontUi
+                    font.pixelSize: 13
+                    font.bold: true
+                    color: root.showNewBoardBar ? Theme.accent : Theme.fg
+                }
+
+                MouseArea {
+                    id: newBoardBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.showNewBoardBar = !root.showNewBoardBar
+                        if (root.showNewBoardBar) newBoardInput.forceActiveFocus()
+                    }
+                }
+            }
+
             // Filtre bascule [Toutes | Mes cartes]
             Rectangle {
                 Layout.preferredHeight: 24
@@ -229,6 +264,58 @@ Item {
                 }
             }
 
+            // Choix moteur IA (Hermes | Agy)
+            Rectangle {
+                Layout.preferredHeight: 24
+                Layout.preferredWidth: engineLbl.implicitWidth + 12
+                radius: 7
+                color: root.agentEngine === "agy" ? Qt.alpha(Theme.accent, 0.20) : Qt.alpha(Theme.fg, 0.07)
+                border.width: 1
+                border.color: root.agentEngine === "agy" ? Theme.accent : Qt.alpha(Theme.fg, 0.14)
+
+                Text {
+                    id: engineLbl
+                    anchors.centerIn: parent
+                    text: root.agentEngine === "agy" ? "Agy" : "Hermes"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    font.bold: true
+                    color: root.agentEngine === "agy" ? Theme.accent : Theme.fg
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runAction(["agent_engine", root.agentEngine === "agy" ? "hermes" : "agy"])
+                }
+            }
+
+            // Cron surveillance IA (planka-worker.timer, 60s)
+            Rectangle {
+                Layout.preferredHeight: 24
+                Layout.preferredWidth: cronLbl.implicitWidth + 12
+                radius: 7
+                color: root.workerCronActive ? Qt.alpha("#22c55e", 0.20) : Qt.alpha(Theme.fg, 0.07)
+                border.width: 1
+                border.color: root.workerCronActive ? "#22c55e" : Qt.alpha(Theme.fg, 0.14)
+
+                Text {
+                    id: cronLbl
+                    anchors.centerIn: parent
+                    text: root.workerCronActive ? "Cron ON" : "Cron OFF"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.text2xs
+                    font.bold: true
+                    color: root.workerCronActive ? "#22c55e" : Qt.alpha(Theme.fg, 0.7)
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runAction(["worker_cron", "toggle"])
+                }
+            }
+
             // Bouton rafraîchir
             Rectangle {
                 Layout.preferredWidth: 24
@@ -275,6 +362,88 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: Quickshell.execDetached(["xdg-open", String(root.boardData.board.url)])
+                }
+            }
+        }
+
+        // ── Barre inline de création d'un nouveau tableau ────────────────
+        Rectangle {
+            visible: root.showNewBoardBar
+            Layout.fillWidth: true
+            Layout.preferredHeight: 30
+            radius: 8
+            color: Qt.alpha(Theme.surfaceVariant, 0.42)
+            border.width: 1
+            border.color: newBoardInput.activeFocus ? Theme.accent : Qt.alpha(Theme.accent, 0.45)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 4
+                spacing: 6
+
+                TextInput {
+                    id: newBoardInput
+                    Layout.fillWidth: true
+                    verticalAlignment: TextInput.AlignVCenter
+                    color: Theme.fg
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    clip: true
+                    onActiveFocusChanged: Theme.islandNeedsKeyboard = activeFocus
+                    Keys.onEscapePressed: {
+                        text = ""
+                        focus = false
+                        Theme.islandNeedsKeyboard = false
+                        root.showNewBoardBar = false
+                    }
+                    onAccepted: newBoardSubmitMa.submit()
+
+                    Text {
+                        anchors.fill: parent
+                        verticalAlignment: TextInput.AlignVCenter
+                        text: "Nom du nouveau tableau… (Entrée)"
+                        color: Qt.alpha(Theme.fg, 0.45)
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.textXs
+                        visible: !newBoardInput.text && !newBoardInput.activeFocus
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: newBoardBtnTxt.implicitWidth + 12
+                    Layout.preferredHeight: 22
+                    radius: 6
+                    color: Qt.alpha(Theme.accent, 0.22)
+                    Text {
+                        id: newBoardBtnTxt
+                        anchors.centerIn: parent
+                        text: "Créer"
+                        font.family: Theme.fontUi
+                        font.pixelSize: Theme.text2xs
+                        font.bold: true
+                        color: Theme.accent
+                    }
+                    MouseArea {
+                        id: newBoardSubmitMa
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        function submit() {
+                            const nom = newBoardInput.text.trim()
+                            const pid = (root.boardData.projects && root.boardData.projects.length > 0)
+                                ? String(root.boardData.projects[0].id || "") : ""
+                            if (nom !== "" && pid !== "") {
+                                root.activeListIndex = 0
+                                root.runAction(["creer_board", pid, nom])
+                                newBoardInput.text = ""
+                                newBoardInput.focus = false
+                                Theme.islandNeedsKeyboard = false
+                                root.showNewBoardBar = false
+                            }
+                        }
+                        onClicked: submit()
+                    }
                 }
             }
         }
@@ -350,7 +519,7 @@ Item {
                 id: quickInput
                 anchors.fill: parent
                 anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.rightMargin: 32
                 verticalAlignment: TextInput.AlignVCenter
                 color: Theme.fg
                 font.family: Theme.fontUi
@@ -382,6 +551,37 @@ Item {
                     elide: Text.ElideRight
                 }
             }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.rightMargin: 4
+                anchors.verticalCenter: parent.verticalCenter
+                width: 22
+                height: 22
+                radius: 6
+                color: quickInput.text.trim() !== "" ? Qt.alpha(Theme.accent, 0.24) : Qt.alpha(Theme.fg, 0.08)
+                Text {
+                    anchors.centerIn: parent
+                    text: "+"
+                    font.family: Theme.fontUi
+                    font.pixelSize: 13
+                    font.bold: true
+                    color: quickInput.text.trim() !== "" ? Theme.accent : Qt.alpha(Theme.fg, 0.55)
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        const t = quickInput.text.trim()
+                        if (t !== "" && root.activeList) {
+                            root.runAction(["creer", String(root.activeList.id), t])
+                            quickInput.text = ""
+                        } else {
+                            quickInput.forceActiveFocus()
+                        }
+                    }
+                }
+            }
         }
 
         // ── Message si non configuré / hors ligne / colonne vide ─────────
@@ -403,12 +603,44 @@ Item {
                         return "Planka n'est pas encore configuré.\nAjoutez l'URL et votre clé API dans dev/core/secrets.json (section \"planka\")."
                     if (!root.boardData.ok && root.lists.length === 0)
                         return "Serveur Planka inaccessible.\n" + (root.boardData.error || "")
-                    if (root.lists.length === 0) return "Aucun tableau Planka trouvé."
+                    if (root.lists.length === 0) return "Aucune colonne dans ce tableau."
                     return root.onlyMine ? "Aucune carte assignée dans cette colonne." : "Aucune carte dans cette colonne."
                 }
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.textXs
                 color: Qt.alpha(Theme.fg, 0.65)
+            }
+
+            Rectangle {
+                visible: Boolean(root.boardData.ok && root.boardData.board && root.lists.length === 0)
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 28
+                width: createDefaultColLbl.implicitWidth + 24
+                height: 28
+                radius: 7
+                color: Qt.alpha(Theme.accent, 0.22)
+                border.width: 1
+                border.color: Theme.accent
+
+                Text {
+                    id: createDefaultColLbl
+                    anchors.centerIn: parent
+                    text: "+ Créer colonne « À faire »"
+                    font.family: Theme.fontUi
+                    font.pixelSize: Theme.textXs
+                    font.bold: true
+                    color: Theme.accent
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        const bid = root.boardData.board ? String(root.boardData.board.id || "") : ""
+                        if (bid !== "") root.runAction(["creer_liste", bid, "À faire"])
+                    }
+                }
             }
         }
 
