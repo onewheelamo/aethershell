@@ -282,7 +282,15 @@ Item {
     onMediaArtistChanged: Theme.mediaArtist = mediaArtist
 
     readonly property bool isCalendarOpen: Theme.activePopup === "calendar"
-    readonly property bool isPopupOpen: Theme.activePopup !== ""
+    readonly property bool isPopupOpen: {
+        const p = String(Theme.activePopup || "")
+        if (p === "") return false
+        if (p.startsWith("applet:")) {
+            const aid = p.slice(7)
+            if (Theme.ilotAppletCornerFor(aid) !== "") return false
+        }
+        return true
+    }
     readonly property bool panelOpen: Theme.islandPanelOpen
     readonly property bool notifToastActive: Theme.barStyle === "island"
         && ShellState.notifToastVisible

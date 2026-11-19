@@ -40,7 +40,21 @@ Scope {
             readonly property string premiereIcone: (applets.length > 0 && applets[0].icone) ? String(applets[0].icone) : "apps"
             readonly property bool estSvg: root.svgIcones.indexOf(premiereIcone) >= 0
             readonly property real largeurEtendue: Math.max(Theme.barHeight, rangee.implicitWidth + Theme.padH * 2)
+            readonly property bool popupDansCeCoin: {
+                const p = String(Theme.activePopup || "")
+                if (!p.startsWith("applet:")) return false
+                return Theme.ilotAppletCornerFor(p.slice(7)) === modelData.id
+            }
             property bool etendu: false
+
+            onPopupDansCeCoinChanged: {
+                if (popupDansCeCoin) {
+                    timerReplier.stop()
+                    etendu = true
+                } else if (!survol.hovered) {
+                    timerReplier.restart()
+                }
+            }
 
             screen: root.ecranPrincipal
             visible: Theme.barStyle === "island" && applets.length > 0
@@ -96,7 +110,7 @@ Scope {
                 interval: 220
                 repeat: false
                 onTriggered: {
-                    if (!survol.hovered) coinWin.etendu = false
+                    if (!survol.hovered && !coinWin.popupDansCeCoin) coinWin.etendu = false
                 }
             }
 
