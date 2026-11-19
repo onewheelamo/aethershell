@@ -69,7 +69,7 @@ Scope {
             // du buffer Wayland pendant l'animation d'extension au survol.
             readonly property real largeurSurface: Math.max(
                 Theme.barHeight,
-                applets.length * Math.round(Theme.barHeight + 240) + Math.max(0, applets.length - 1) * espacement
+                applets.length * 360 + Math.max(0, applets.length - 1) * espacement
             )
 
             screen: root.ecranPrincipal
@@ -137,18 +137,13 @@ Scope {
                 : Math.max(Theme.barHeight, Math.ceil(rangeeRonds.implicitWidth))
             implicitHeight: Theme.barHeight
 
-            Item {
-                id: zoneMasque
+            Row {
+                id: rangeeRonds
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: coinWin.ancreADroite ? undefined : parent.left
                 anchors.right: coinWin.ancreADroite ? parent.right : undefined
-                width: Math.max(Theme.barHeight, rangeeRonds.implicitWidth)
-
-                Row {
-                    id: rangeeRonds
-                    anchors.fill: parent
-                    spacing: coinWin.espacement
+                spacing: coinWin.espacement
 
                 Repeater {
                     model: coinWin.applets
@@ -166,7 +161,7 @@ Scope {
                         readonly property string icone: root.iconePour(modelData)
                         readonly property bool estSvg: root.svgIcones.indexOf(icone) >= 0
                         readonly property bool popupOuvert: Theme.activePopup === ("applet:" + String(modelData.id || ""))
-                        readonly property real largeurEtendue: Math.max(Theme.barHeight, itemApplet.implicitWidth + Theme.padH * 2)
+                        readonly property real largeurEtendue: Math.max(Theme.barHeight, itemApplet.implicitWidth + Theme.padH * 2 + 4)
                         property bool etendu: false
 
                         onEtenduChanged: coinWin.nbEtendus += etendu ? 1 : -1
@@ -261,7 +256,6 @@ Scope {
                         }
                     }
                 }
-            }
             }
         }
     }
