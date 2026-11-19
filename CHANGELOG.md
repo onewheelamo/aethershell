@@ -9,6 +9,27 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.3.10.0] — 2026-11-19
+
+### Ajouté
+- **Kanban Planka multi-tableaux** (`dev/IlotProjets.qml`, `dev/core/planka_service.py`) : exposition de la liste complète `boards`, mémorisation du tableau actif (`set_board` / `planka_active_board.json`) et bascule rapide au clic dans l'en-tête de l'onglet Projets.
+- **Composants et singletons d'architecture** (`dev/qmldir`) :
+  - `ShellState.qml` (état session, contextes de travail, Live Activity & minuteur, fenêtres minimisées, OSD, widgets, registre d'applets, submap, hooks, suivi `awww query` et notifications).
+  - `SystemServices.qml` (sondes système, météo, Caffeine, Wi-Fi/QR/Bluetooth, cache partagé USB/Todo/Hermes/Système, `trayIconFor()`, `program()`, `launchInScope()`, formatages et démons d'arrière-plan).
+  - `LauncherEngine.qml` (moteur partagé entre `DynamicIsland.qml` et `spotlight.qml`).
+  - `ConfigSwitch.qml` & `ConfigSegmented.qml` déployés sur tous les onglets de configuration (`OngletIlot`, `OngletApps`, `OngletDonnees`, `OngletBarres`, `OngletBureau`, `OngletEcrans`, `OngletApparence`).
+  - `DesktopWidgetsLayer.qml`, `ScreenshotOverlay.qml`, `FullscreenOverlay.qml`, ainsi que les 5 tiroirs extraits de l'Îlot dynamique (`IslandThemePicker.qml`, `IslandWallpaperPicker.qml`, `IslandNotesDrawer.qml`, `IslandLiveActivityDrawer.qml`, `IslandLauncherDrawer.qml`).
+
+### Modifié / Factorisé
+- **Allègement majeur de `Theme.qml`, `main.qml`, `DynamicIsland.qml` et `config_panel.qml`** : séparation nette entre tokens esthétiques (`Theme.qml`), état/orchestration (`ShellState.qml`, `SystemServices.qml`) et couches visuelles.
+- **Unification des paires `*Popup.qml` ↔ `widgets/*.qml`** (`PressePapiers`, `Meteo`, `Disques`, `Homelab`, `Usb`, `Todo`, `Hermes`, `Systeme`), fusion de `SelecteurDossier.qml` dans `SelecteurFichier.qml` et mutualisation des chargeurs modaux dans `config_panel.qml`.
+- **Nettoyage des commentaires** obsolètes ou redondants dans `dev/`.
+
+### Corrigé
+- **`MinimiseApplet.qml`** : mise à jour de `ShellState.ordreMinimisees` (qui bloquait l'affichage des fenêtres minimisées et la bascule `îlot ↔ barre`).
+- **`bar_extra.qml`** : masquage automatique des barres supplémentaires (bas, gauche, droite) lorsque le mode `island` est actif.
+- **Ciblage `ShellState`** : correction des `Connections`/`Binding` dans `main.qml` (`onActiveSubmapChanged`), `VisualiseurAudio.qml` (`onBarAppletsRevChanged`), `NotifService.qml` (`onQuietNotifAppsChanged`), `notif_history.qml` (`onNotifHistoryVisibleChanged`) et `DynamicIsland.qml` (`notifToastHovered`), ainsi que suppression d'un doublon `duree()` dans `widgets/hermes.qml`.
+
 ## [0.3.9.0] — 2026-11-17
 
 ### Ajouté
