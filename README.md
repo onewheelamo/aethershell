@@ -4,7 +4,7 @@
 
 Un environnement de bureau pour [Hyprland](https://hyprland.org), composé d'une barre en îlots, de panneaux modulaires, de widgets de bureau et d'outils du quotidien, écrit en QML/Qt et animé par [Quickshell](https://quickshell.org).
 
-> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.3.x`), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
+> **Note :** AetherShell n'a pas la prétention de réinventer la roue ni de s'imposer comme un standard. C'est simplement un environnement personnel parmi d'autres, encore jeune et en plein rodage (cycle `0.4.x` avec backend unifié en Rust), conçu pour répondre à un flux de travail quotidien et s'ajuster au fil de l'expérience.
 
 ---
 
@@ -16,7 +16,7 @@ Plutôt qu'un simple thème de barre, AetherShell regroupe les éléments visuel
   * *Classique* : disposition en trois îlots (gauche, centre, droite) logés dans une capsule commune avec transparence ajustable des séparations et panneaux morphés (`PanneauSurface`) respectant le verre et les bordures de la barre.
   * *Îlot dynamique* (`DynamicIsland`) : pilule centrale interactive tout-en-un configurable dans son onglet dédié **Îlot dynamique** (sélecteur 4 états *Masqué / Repos / Étendu / Les deux* par indicateur et par applet) — compacte au repos (heure, titre média, **Live Activity** multi-sources, OSD intégré, mises à jour conditionnelles), étendue au survol, avec **météo inline animée**, **sélecteur de fond d'écran** (`SUPER + W`, submap `aether-wp`), **sélecteur de jeu de couleurs** (`SUPER + C`, submap `aether-scheme`), **lanceur d'applications & barre de commandes `as`** (`SUPER + R`, recherche apps/commandes `as`/fichiers), **notes rapides** (`SUPER + N`), et panneau étendu à onglets (*Contrôles* avec contextes de travail `Normal / Focus / Réunion / Détente`, Caffeine, Performance, sortie audio et scratchpad, *Alertes & Tâches* avec agenda rétractable par défaut, *Système & Réseau* avec limite de charge batterie, *Apparence*, *Projets Planka*), pilotable au clavier (`SUPER + I` / `SUPER + ALT + H`, `SubmapWhichKey`).
 * **Vue d'ensemble & Scratchpad** : overlay *Mission Control* ([`OverviewOverlay.qml`](dev/OverviewOverlay.qml), `SUPER + G`) listant les fenêtres par bureau avec miniatures en temps réel et filtre instantané, et gestion du scratchpad (`SUPER + ,` / `SUPER + SHIFT + ,`).
-* **Surfaces unifiées & Thémage bout-en-bout** : rendu verre unifié via [`SurfaceFloutee.qml`](dev/SurfaceFloutee.qml) (`shell-blur`), courbes d'animation unifiées (`Theme.panelAnimDuration`), propagation automatique des palettes Matugen vers les terminaux ([`generate_terminal_theme.py`](dev/core/generate_terminal_theme.py)) et GTK 3/4 / Qt5ct / Qt6ct ([`sync_apps_theme.py`](dev/core/sync_apps_theme.py)), démon persistant [`metriques_daemon.py`](dev/core/metriques_daemon.py) et veilles événementielles (`pactl subscribe`, `udevadm monitor`, `FileView`, `Hyprland.rawEvent`).
+* **Surfaces unifiées & Thémage bout-en-bout** : rendu verre unifié via [`SurfaceFloutee.qml`](dev/SurfaceFloutee.qml) (`shell-blur`), courbes d'animation unifiées (`Theme.panelAnimDuration`), propagation automatique des palettes Matugen vers les terminaux et GTK 3/4 / Qt5ct / Qt6ct, binaire backend unifié en Rust [`as-core`](dev/rust/as-core/) (démon `daemon` et sondes `/proc`/`/sys` sans fork, connecteurs HTTP/SQLite, lanceur, applets) et veilles événementielles (`pactl subscribe`, `udevadm monitor`, `FileView`, `Hyprland.rawEvent`).
 * **Barres annexes optionnelles** : support d'une barre basse et de barres latérales verticales suivant la même logique de composants.
 * **Panneau de configuration unifié** : accessible en un raccourci (`SUPER + SHIFT + H`, tandis que `SUPER + H` déploie le panneau étendu de l'îlot) ou par clic milieu sur n'importe quel applet. Il permet d'ajuster l'apparence (palettes, flous, rayons, opacité), l'îlot dynamique, les applications préférées, les écrans, la minuterie de veille (`hypridle`), le démarrage automatique et les secrets locaux, avec application à chaud sans redémarrer la session.
 * **Widgets de bureau ancrables** : catalogue visuel 2 colonnes (horloge, date, météo, musique, système, tâches, **notes rapides**, **stickers**, quotas IA…), mode d'édition directe sur le bureau (poignées, glisser-déposer, aimantation sur grille `16 px`, échelle et suppression sur place), style `Glass / Carte` ou `Transparent` par widget et filtrage par bureau virtuel.
@@ -120,7 +120,8 @@ avertissement. Une ligne peut porter une dérogation explicite — `neutralite:o
 ```
 install.sh            # Script unifié : installation, mise à jour, pré-vol, déploiement et sauvegardes
 dev/
-├── core/             # Services Python (réseau, disques, tâches, Hermes, lister_fichiers...)
+├── rust/as-core/     # Backend unifié en Rust (compilé vers dev/core/as-core)
+├── core/             # Binaire as-core, catalogues JSON et helpers image/ML Python
 ├── widgets/          # Composants de bureau (horloge, todo, système, météo...)
 ├── hypr_modular/     # Configuration Hyprland modulaire en Lua
 ├── hyprquickpaper/   # Moteur de fond d'écran et gestion de palette

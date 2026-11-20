@@ -162,7 +162,7 @@ Item {
     function rafraichir(force) {
         if (root.estQml || root.service === "" || root.occupe) return
         root.occupe = true
-        const args = ["python3", Quickshell.shellPath(root.service)]
+        const args = [Quickshell.shellPath("core/as-core"), root.service]
         // Les options de l'applet (quelles mesures, quel dossier…) viennent du
         // registre : le service n'a pas à savoir qui les a choisies.
         const opts = root.applet.options || ({})

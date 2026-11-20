@@ -39,7 +39,7 @@ Item {
 
     Process {
         id: proc
-        command: ["python3", Quickshell.shellPath("core/flotte_applet.py")]
+        command: [Quickshell.shellPath("core/as-core"), "flotte"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

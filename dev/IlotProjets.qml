@@ -41,13 +41,13 @@ Item {
     function refreshBoard() {
         if (!boardProc.running) {
             root.loading = true
-            boardProc.command = ["python3", Quickshell.shellPath("core/planka_service.py"), "board"]
+            boardProc.command = [Quickshell.shellPath("core/as-core"), "planka", "board"]
             boardProc.running = true
         }
     }
 
     function runAction(args) {
-        actionProc.command = ["python3", Quickshell.shellPath("core/planka_service.py")].concat(args)
+        actionProc.command = [Quickshell.shellPath("core/as-core"), "planka"].concat(args)
         actionProc.running = true
     }
 
@@ -956,26 +956,32 @@ Item {
 
                             Repeater {
                                 model: cardWrapper.modelData.tasks || []
-                                delegate: RowLayout {
+                                delegate: Item {
                                     required property var modelData
                                     Layout.fillWidth: true
-                                    spacing: 6
+                                    implicitHeight: chkTaskRow.implicitHeight
 
-                                    Text {
-                                        text: modelData.isCompleted ? "☑" : "☐"
-                                        font.family: Theme.fontUi
-                                        font.pixelSize: 12
-                                        color: modelData.isCompleted ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
-                                    }
+                                    RowLayout {
+                                        id: chkTaskRow
+                                        anchors.fill: parent
+                                        spacing: 6
 
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: modelData.name
-                                        font.family: Theme.fontUi
-                                        font.pixelSize: Theme.text2xs
-                                        font.strikeout: Boolean(modelData.isCompleted)
-                                        color: modelData.isCompleted ? Qt.alpha(Theme.fg, 0.5) : Theme.fg
-                                        elide: Text.ElideRight
+                                        Text {
+                                            text: modelData.isCompleted ? "☑" : "☐"
+                                            font.family: Theme.fontUi
+                                            font.pixelSize: 12
+                                            color: modelData.isCompleted ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.name
+                                            font.family: Theme.fontUi
+                                            font.pixelSize: Theme.text2xs
+                                            font.strikeout: Boolean(modelData.isCompleted)
+                                            color: modelData.isCompleted ? Qt.alpha(Theme.fg, 0.5) : Theme.fg
+                                            elide: Text.ElideRight
+                                        }
                                     }
 
                                     MouseArea {

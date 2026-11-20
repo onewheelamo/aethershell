@@ -4,7 +4,7 @@
 
 A desktop environment for [Hyprland](https://hyprland.org), featuring an island-style bar, modular panels, desktop widgets, and everyday tools, written in QML/Qt and powered by [Quickshell](https://quickshell.org).
 
-> **Note:** AetherShell does not claim to reinvent the wheel or establish itself as a standard. It is simply a personal desktop environment among others, still young and actively evolving (`0.3.x` cycle), designed to fit a daily workflow and refine over experience.
+> **Note:** AetherShell does not claim to reinvent the wheel or establish itself as a standard. It is simply a personal desktop environment among others, still young and actively evolving (`0.4.x` cycle with a unified Rust backend), designed to fit a daily workflow and refine over experience.
 
 ---
 

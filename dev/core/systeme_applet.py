@@ -262,7 +262,14 @@ def _parse_float(val):
         return None
 
 
-def gpu_mesures():
+def _lire_int(chemin):
+    try:
+        return int(Path(chemin).read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _gpu_nvidia():
     try:
         res = subprocess.run(
             ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw",
@@ -291,6 +298,85 @@ def gpu_mesures():
         return None
 
 
+def _gpu_amd():
+    try:
+        cards = sorted(
+            p for p in Path("/sys/class/drm").glob("card*")
+            if re.fullmatch(r"card\d+", p.name)
+        )
+    except OSError:
+        return None
+
+    for card in cards:
+        dev = card / "device"
+        if not dev.is_dir():
+            continue
+        try:
+            vendor = (dev / "vendor").read_text(encoding="utf-8").strip().lower()
+        except OSError:
+            vendor = ""
+        busy_path = dev / "gpu_busy_percent"
+        if vendor != "0x1002" and not busy_path.is_file():
+            continue
+
+        util = _lire_int(busy_path)
+        if util is None:
+            continue
+
+        vram_used_b = _lire_int(dev / "mem_info_vram_used")
+        vram_tot_b = _lire_int(dev / "mem_info_vram_total")
+        if vram_tot_b is None or vram_tot_b <= 0:
+            vram_used_b = _lire_int(dev / "mem_info_gtt_used")
+            vram_tot_b = _lire_int(dev / "mem_info_gtt_total")
+
+        temp = None
+        power_w = None
+        hwmon_root = dev / "hwmon"
+        if hwmon_root.is_dir():
+            for hw in sorted(hwmon_root.glob("hwmon*")):
+                # Température : privilégier edge / junction, sinon premier temp*_input
+                temp_vals = []
+                for tf in sorted(hw.glob("temp*_input")):
+                    mc = _lire_int(tf)
+                    if mc is None:
+                        continue
+                    c = mc / 1000.0
+                    lbl_path = tf.with_name(tf.name.replace("_input", "_label"))
+                    lbl = ""
+                    try:
+                        lbl = lbl_path.read_text(encoding="utf-8").strip().lower()
+                    except OSError:
+                        pass
+                    if lbl == "edge":
+                        temp = c
+                        break
+                    temp_vals.append(c)
+                if temp is None and temp_vals:
+                    temp = temp_vals[0]
+
+                # Puissance GPU (microwatts -> watts)
+                for pf in ("power1_average", "power1_input"):
+                    uw = _lire_int(hw / pf)
+                    if uw is not None:
+                        power_w = round(uw / 1_000_000.0, 1)
+                        break
+                if temp is not None or power_w is not None:
+                    break
+
+        return {
+            "utilisation": float(util),
+            "temperature": round(temp, 1) if temp is not None else 0.0,
+            "vram": round((vram_used_b or 0) / (1024 * 1024), 1),
+            "vram_total": round((vram_tot_b or 0) / (1024 * 1024), 1),
+            "power_w": power_w,
+        }
+    return None
+
+
+def gpu_mesures():
+    return _gpu_nvidia() or _gpu_amd()
+
+
 # ── Température ───────────────────────────────────────────────────────────────
 def temp_cpu():
     candidats = []
@@ -299,6 +385,8 @@ def temp_cpu():
             try:
                 nom = (hwmon / "name").read_text(encoding="utf-8").strip()
             except OSError:
+                continue
+            if nom == "amdgpu":
                 continue
             for entree in hwmon.glob("temp*_input"):
                 try:
@@ -312,6 +400,8 @@ def temp_cpu():
                 except OSError:
                     pass
                 if nom == "coretemp" and label.startswith("Package"):
+                    return valeur
+                if nom in ("k10temp", "zenpower") and label in ("Tdie", "Tctl"):
                     return valeur
                 candidats.append(valeur)
     except OSError:

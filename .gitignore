@@ -8,6 +8,10 @@
 *.verrou
 *~
 
+# Rust build artifacts & compiled binary
+dev/rust/as-core/target/
+dev/core/as-core
+
 # Python cache & logs
 __pycache__/
 *.py[cod]

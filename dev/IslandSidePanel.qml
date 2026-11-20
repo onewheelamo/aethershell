@@ -46,7 +46,7 @@ Item {
         root.todoBusy = true
         root.todoStatus = ""
         todoCreateFileProc.command = [
-            "python3", Quickshell.shellPath("core/todo_applet.py"),
+            Quickshell.shellPath("core/as-core"), "todo",
             "creer_fichier", nom, root.newFileDir
         ]
         todoCreateFileProc.running = true
@@ -67,7 +67,7 @@ Item {
         root.todoBusy = true
         root.todoStatus = ""
         const args = [
-            "python3", Quickshell.shellPath("core/todo_applet.py"),
+            Quickshell.shellPath("core/as-core"), "todo",
             "ajouter", titre, todoDetailInput.text.trim()
         ]
         if (root.selectedTodoFile !== "") args.push(root.selectedTodoFile)
@@ -107,7 +107,7 @@ Item {
 
     Process {
         id: todoFilesProc
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "fichiers"]
+        command: [Quickshell.shellPath("core/as-core"), "todo", "fichiers"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

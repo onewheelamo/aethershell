@@ -76,9 +76,9 @@ Item {
         property string nom: ""
         property string cible: ""
         command: nom === "deverrouiller"
-                 ? ["python3", Quickshell.shellPath("core/usb_applet.py"), nom, cible,
+                 ? [Quickshell.shellPath("core/as-core"), "usb", nom, cible,
                     "--fichier-phrase", phraseFile.path]
-                 : ["python3", Quickshell.shellPath("core/usb_applet.py"), nom, cible]
+                 : [Quickshell.shellPath("core/as-core"), "usb", nom, cible]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

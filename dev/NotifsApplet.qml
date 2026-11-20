@@ -45,7 +45,7 @@ Item {
         // Et dans l'historique : sinon le centre la ressert par son repli dès que
         // la liste vive se vide — ce qui est justement le cas après une relance du
         // shell. Mesuré : quatre clics sans effet, « absente de la liste vive ».
-        historiqueCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"),
+        historiqueCmd.command = [Quickshell.shellPath("core/as-core"), "notif-history",
                                  "delete", String(e.id)]
         historiqueCmd.running = true
         const garde = function (x) { return String(x.id) !== String(e.id) }
@@ -59,7 +59,7 @@ Item {
         // « Tout effacer » vide aussi le fichier : sans ça, les cartes reviennent
         // par le repli dès que la liste vive est vide, et le bouton semble n'avoir
         // rien fait.
-        historiqueCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"), "clear"]
+        historiqueCmd.command = [Quickshell.shellPath("core/as-core"), "notif-history", "clear"]
         historiqueCmd.running = true
         root.archive = []
         root.notifications = []
@@ -72,72 +72,32 @@ Item {
     // peut rien retirer.
     Process {
         id: historiqueCmd
-        command: ["python3", Quickshell.shellPath("core/notif_history.py")]
-        onExited: historiqueFile.reload()
+        command: [Quickshell.shellPath("core/as-core"), "notif-history"]
     }
 
     function majListe() {
         const vive = ShellState.notifList || []
-        root.notifications = vive.length > 0 ? vive : root.archive
+        root.notifications = vive.length > 0 ? vive : (ShellState.notifArchive || [])
     }
 
-    // Historique lu ici, directement sur le fichier : le passage par une
-    // propriété du singleton ne se rafraîchissait pas (tableau remplacé), et le
-    // panneau restait vide alors que l'historique contenait bien les entrées.
-    property var archive: []
-
-    onOuvertChanged: if (ouvert) historiqueFile.reload()
-
-    FileView {
-        id: historiqueFile
-        path: {
-            const xdg = Quickshell.env("XDG_CACHE_HOME")
-            const base = xdg ? String(xdg)
-                             : (Quickshell.env("HOME") ? String(Quickshell.env("HOME")) + "/.cache" : "")
-            return base + "/quickshell/notifications-history.jsonl"
-        }
-        watchChanges: root.ouvert
-        onFileChanged: reload()
-        // `text()` non qualifié ne résout pas ici : le repli restait donc vide en
-        // silence, alors que le fichier contenait bien des entrées.
-        onLoaded: root.lireHistorique(historiqueFile.text())
-        onTextChanged: root.lireHistorique(historiqueFile.text())
-    }
-
-    function lireHistorique(txt) {
-        const lignes = String(txt || "").split("\n")
-        const out = []
-        for (let i = lignes.length - 1; i >= 0 && out.length < 6; i--) {
-            const l = lignes[i].trim()
-            if (l === "") continue
-            try {
-                const e = JSON.parse(l)
-                if (!e || !e.id) continue
-                out.push({
-                    id: e.id,
-                    appName: e.app || "",
-                    summary: e.summary || "",
-                    body: e.body || "",
-                    time: String(e.ts || "").slice(11, 16),
-                    archive: true
-                })
-            } catch (err) { /* ligne illisible : ignorée */ }
-        }
-        root.archive = out
-        root.majListe()
-    }
+    Component.onCompleted: root.majListe()
 
     Connections {
-        target: Theme
+        target: ShellState
         function onNotifListChanged() { root.majListe() }
+        function onNotifArchiveChanged() { root.majListe() }
     }
 
     // Fermeture au clic à l'extérieur : même mécanique que le panneau réseau —
     // attrapeur armé après l'affichage, sinon Hyprland le relâche aussitôt.
     property bool pretGrab: false
     onOuvertChanged: {
-        if (root.ouvert) delaiGrab.restart()
-        else root.pretGrab = false
+        if (root.ouvert) {
+            root.majListe()
+            delaiGrab.restart()
+        } else {
+            root.pretGrab = false
+        }
     }
 
     Timer {
@@ -387,7 +347,7 @@ Item {
                     // il ne reste qu'à mémoriser le choix.
                     Process {
                         id: dndBridge
-                        command: ["python3", Quickshell.shellPath("core/config_manager.py"),
+                        command: [Quickshell.shellPath("core/as-core"), "config",
                                   "style", "do_not_disturb",
                                   ShellState.doNotDisturb ? "true" : "false"]
                     }

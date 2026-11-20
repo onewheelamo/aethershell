@@ -27,11 +27,11 @@ AppletColumn 1.0 AppletColumn.qml
 MediaPanneau 1.0 MediaPanneau.qml
 CalendrierPanneau 1.0 CalendrierPanneau.qml
 CalendrierCompact 1.0 CalendrierCompact.qml
-DisquesPopup 1.0 DisquesPopup.qml
-HomelabPopup 1.0 HomelabPopup.qml
 PressePapiersPopup 1.0 PressePapiersPopup.qml
 BarExtra 1.0 bar_extra.qml
+BarCapsule 1.0 BarCapsule.qml
 LuminositeApplet 1.0 LuminositeApplet.qml
+NuitApplet 1.0 NuitApplet.qml
 BatterieApplet 1.0 BatterieApplet.qml
 GestionEnergieApplet 1.0 GestionEnergieApplet.qml
 Visualiseur 1.0 Visualiseur.qml
@@ -40,7 +40,6 @@ WidgetMenu 1.0 WidgetMenu.qml
 FondProfondeur 1.0 FondProfondeur.qml
 FondGlissement 1.0 FondGlissement.qml
 IlotCoinsApplets 1.0 IlotCoinsApplets.qml
-MeteoPopup 1.0 MeteoPopup.qml
 CalqueProfondeur 1.0 CalqueProfondeur.qml
 MasqueParallaxe 1.0 MasqueParallaxe.qml
 SelecteurDossier 1.0 SelecteurDossier.qml
@@ -62,7 +61,6 @@ VinylArt 1.0 VinylArt.qml
 NotifService 1.0 NotifService.qml
 ConfigSwitch 1.0 ConfigSwitch.qml
 ConfigSegmented 1.0 ConfigSegmented.qml
-ConfigRow 1.0 ConfigRow.qml
 ConfigToggle 1.0 ConfigToggle.qml
 singleton SystemServices 1.0 SystemServices.qml
 singleton LauncherEngine 1.0 LauncherEngine.qml
@@ -80,7 +78,7 @@ IslandNotesDrawer 1.0 IslandNotesDrawer.qml
 IslandLiveActivityDrawer 1.0 IslandLiveActivityDrawer.qml
 IslandLauncherDrawer 1.0 IslandLauncherDrawer.qml
 OngletApparence 1.0 OngletApparence.qml
-OngletApparenceHub 1.0 OngletApparenceHub.qml
+OngletSubHub 1.0 OngletSubHub.qml
 OngletApps 1.0 OngletApps.qml
 OngletBarreIlot 1.0 OngletBarreIlot.qml
 OngletBarres 1.0 OngletBarres.qml
@@ -90,5 +88,4 @@ OngletConnexion 1.0 OngletConnexion.qml
 OngletDonnees 1.0 OngletDonnees.qml
 OngletEcrans 1.0 OngletEcrans.qml
 OngletIlot 1.0 OngletIlot.qml
-OngletServices 1.0 OngletServices.qml
-OngletSysteme 1.0 OngletSysteme.qml
+IlotZoneColumn 1.0 IlotZoneColumn.qml

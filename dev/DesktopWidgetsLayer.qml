@@ -123,7 +123,7 @@ Item {
     function moveWidget(id, x, y) {
         if (!id) return
         moveWidgetProc.command = [
-            "python3", Quickshell.shellPath("core/config_manager.py"),
+            Quickshell.shellPath("core/as-core"), "config",
             "widget_move", String(id), String(Math.round(x)), String(Math.round(y))
         ]
         moveWidgetProc.running = true
@@ -299,7 +299,7 @@ Item {
                                 onClicked: {
                                     const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
                                     const nxt = Math.max(60, Math.round(cur - 10))
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
+                                    Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
                                 }
                             }
                         }
@@ -313,7 +313,7 @@ Item {
                                 onClicked: {
                                     const cur = Number((widgetWindow.w.options && widgetWindow.w.options.text_scale) || 100)
                                     const nxt = Math.min(160, Math.round(cur + 10))
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
+                                    Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "widget_set", String(widgetWindow.w.id), "text_scale", String(nxt)])
                                 }
                             }
                         }
@@ -326,7 +326,7 @@ Item {
                                 id: styleTogMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     const nxt = widgetWindow.isGlassStyle ? "transparent" : "glass"
-                                    Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_set", String(widgetWindow.w.id), "style", nxt])
+                                    Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "widget_set", String(widgetWindow.w.id), "style", nxt])
                                 }
                             }
                         }
@@ -337,7 +337,7 @@ Item {
                             Text { anchors.centerIn: parent; text: "✕"; color: Theme.error; font.pixelSize: 10; font.bold: true }
                             MouseArea {
                                 id: delWidMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "widget_remove", String(widgetWindow.w.id)])
+                                onClicked: Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "widget_remove", String(widgetWindow.w.id)])
                             }
                         }
                     }

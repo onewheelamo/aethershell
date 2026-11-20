@@ -33,7 +33,15 @@ Item {
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: Theme.togglePopup("calendar")
+            onClicked: {
+                Theme.activePopup = ""
+                if (Theme.islandPanelOpen) {
+                    Theme.islandPanelOpen = false
+                } else {
+                    Theme.islandPanelTab = 0
+                    Theme.islandPanelOpen = true
+                }
+            }
         }
     }
 }

@@ -614,7 +614,7 @@ copy_dir_files() {
         if [ -e "$dst/$name" ] && [[ " ${NON_ECRASABLES:-} " == *" $name "* ]]; then
             continue
         fi
-        cp "$f" "$dst/$name"
+        cp -f --remove-destination "$f" "$dst/$name"
     done
 }
 
@@ -1897,14 +1897,19 @@ deploy_new_env() {
     poser_flou_gtk4
     # Index des applications de la pilule spotlight : données de la machine,
     # pas du dépôt — régénérées à chaque déploiement (et à chaque ouverture).
-    if [ -f "$CORE_DIR/app_index.py" ]; then
+    if [ -x "$CORE_DIR/as-core" ]; then
+        "$CORE_DIR/as-core" app-index --quiet || true
+    elif [ -f "$CORE_DIR/app_index.py" ]; then
         python3 "$CORE_DIR/app_index.py" --quiet || true
     fi
     build_pwscope_if_ready
 
     # Fichiers générés à partir des JSON préservés (app_vars.json, autostart.json) :
     # la copie ci-dessus peut poser la version du dépôt, on réécrit la vraie.
-    if [ -f "$CORE_DIR/config_manager.py" ]; then
+    if [ -x "$CORE_DIR/as-core" ]; then
+        "$CORE_DIR/as-core" config sync_generated >/dev/null 2>&1 \
+            || echo "  ⚠️  régénération de programs.lua / autostart_cmds.txt impossible"
+    elif [ -f "$CORE_DIR/config_manager.py" ]; then
         python3 "$CORE_DIR/config_manager.py" sync_generated >/dev/null 2>&1 \
             || echo "  ⚠️  régénération de programs.lua / autostart_cmds.txt impossible"
     fi
@@ -1912,6 +1917,7 @@ deploy_new_env() {
         cp "$CORE_DIR/secrets.example.json" "$CORE_DIR/secrets.json"
     fi
     chmod +x "$CORE_DIR/"*.sh
+    [ -f "$CORE_DIR/as-core" ] && chmod +x "$CORE_DIR/as-core"
 
     # Tous les composants de la racine, en bloc. La liste fixe oubliait chaque
     # nouveau fichier (Popup.qml, HermesPopup.qml) alors que le qmldir, lui,

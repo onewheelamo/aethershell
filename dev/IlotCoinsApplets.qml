@@ -24,6 +24,7 @@ Scope {
     readonly property var iconesDefaut: ({
         "reseau": "wifi",
         "systray": "widgets",
+        "nuit": "weather-night",
         "luminosite": "brightness",
         "batterie": "battery",
         "minimise": "monitor",

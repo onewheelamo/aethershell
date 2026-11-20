@@ -219,17 +219,17 @@ Item {
                                 break
                             }
                         }
-                        const cm = Quickshell.shellPath("core/config_manager.py")
+                        const core = Quickshell.shellPath("core/as-core")
                         if (existing && existing.id) {
                             Quickshell.execDetached([
                                 "sh", "-c",
-                                "python3 \"$1\" widget_set \"$2\" enabled true && python3 \"$1\" widget_set \"$2\" note_index \"$3\"",
-                                "sh", cm, String(existing.id), String(root.activeNoteIdx)
+                                "\"$1\" config widget_set \"$2\" enabled true && \"$1\" config widget_set \"$2\" note_index \"$3\"",
+                                "sh", core, String(existing.id), String(root.activeNoteIdx)
                             ])
                         } else {
                             const wsId = Hyprland.focusedWorkspace ? Number(Hyprland.focusedWorkspace.id) : 1
                             Quickshell.execDetached([
-                                "python3", cm, "widget_add", "notes", String(wsId > 0 ? wsId : 1), "120", "160"
+                                core, "config", "widget_add", "notes", String(wsId > 0 ? wsId : 1), "120", "160"
                             ])
                         }
                     }

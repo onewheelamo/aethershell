@@ -104,7 +104,7 @@ Column {
 
     Process {
         id: clearHistoryProc
-        command: ["python3", Quickshell.shellPath("core/launch_history.py"), "clear"]
+        command: [Quickshell.shellPath("core/as-core"), "launch-history", "clear"]
     }
 
     function clearLaunchHistory() {
@@ -1110,7 +1110,7 @@ CollapsibleSection {
                                     anchors.bottom: dragHintText.top
                                     anchors.bottomMargin: 4
                                     radius: Math.max(6, Math.round(Theme.globalRadius * 0.5))
-                                    color: Qt.alpha(Theme.widgetBg, 0.72)
+                                    color: Qt.alpha(Theme.surface, 0.72)
                                     border.color: Qt.alpha(Theme.fg, 0.08)
                                     border.width: 1
                                     clip: true
@@ -1124,7 +1124,7 @@ CollapsibleSection {
                                         anchors.centerIn: parent
                                         enabled: false
                                         asynchronous: true
-                                        active: secWidgets.expanded && root && root.currentTab === 2
+                                        active: Theme.configPanelVisible && secWidgets.expanded && root && root.currentTab === 2
                                         source: root ? root.widgetSourceFor(typeCell.modelData.type) : ""
                                         onLoaded: {
                                             if (!item) return

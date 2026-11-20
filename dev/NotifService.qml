@@ -234,7 +234,7 @@ Item {
         id: notifResolver
         running: true
         stdinEnabled: true
-        command: ["python3", Quickshell.shellPath("core/notif_target.py"), "--serve"]
+        command: [Quickshell.shellPath("core/as-core"), "notif-target", "--serve"]
         onStarted: service.pumpNotifTargets()
         onExited: {
             console.warn("notif_target.py s'est arrêté, nouvelle tentative dans 5 s")
@@ -389,7 +389,7 @@ Item {
 
     function setToastQuiet(appName, quiet) {
         if (!appName) return
-        quietNotifProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        quietNotifProc.command = [Quickshell.shellPath("core/as-core"), "config",
                                   "notif_quiet", quiet ? "true" : "false", appName]
         quietNotifProc.running = true
     }

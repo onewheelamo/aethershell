@@ -79,7 +79,7 @@ Item {
     Process {
         id: focusProc
         property string nom: ""
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "focus", focusProc.nom]
+        command: [Quickshell.shellPath("core/as-core"), "todo", "focus", focusProc.nom]
         onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 
@@ -87,14 +87,14 @@ Item {
         id: geste
         property string identifiant: ""
         property string action: "cocher"
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"),
+        command: [Quickshell.shellPath("core/as-core"), "todo",
                   geste.action, geste.identifiant]
         onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 
     Process {
         id: survProc
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "surveillance", "toggle"]
+        command: [Quickshell.shellPath("core/as-core"), "todo", "surveillance", "toggle"]
         onExited: { root.charger(); if (root.notifier) root.notifier() }
     }
 

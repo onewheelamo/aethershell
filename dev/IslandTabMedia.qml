@@ -45,7 +45,7 @@ Item {
 
     Process {
         id: displayStateProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "state"]
+        command: [Quickshell.shellPath("core/as-core"), "config", "state"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -243,7 +243,7 @@ Item {
                             onClicked: {
                                 if (!root.selectedMonitor) return
                                 displayCmdProc.command = [
-                                    "python3", Quickshell.shellPath("core/config_manager.py"),
+                                    Quickshell.shellPath("core/as-core"), "config",
                                     "monitor_primary", root.selectedMonitor.name
                                 ]
                                 displayCmdProc.running = true
@@ -320,7 +320,7 @@ Item {
                                             if (!root.selectedMonitor) return
                                             const sc = String(root.selectedMonitor.scale || 1)
                                             displayCmdProc.command = [
-                                                "python3", Quickshell.shellPath("core/config_manager.py"),
+                                                Quickshell.shellPath("core/as-core"), "config",
                                                 "monitor_mode", root.selectedMonitor.name, parent.modelData, sc
                                             ]
                                             displayCmdProc.running = true

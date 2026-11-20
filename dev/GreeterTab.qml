@@ -123,7 +123,7 @@ Item {
         status = "Aperçu de " + nameOf(id) + " — il se ferme seul (ou SUPER + Q)"
         // execDetached : le greeter est un processus détaché qui ne rend rien.
         // Un Process dont la command est assignée à l'exécution ne démarre pas ici.
-        Quickshell.execDetached(["python3", Quickshell.shellPath("core/greeter_manager.py"),
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "greeter",
                                  "preview", id])
         Theme.configPanelVisible = false
     }
@@ -135,7 +135,7 @@ Item {
         status = "Application de " + nameOf(selectedId) + "…"
         // execDetached plutôt qu'un Process : la commande dépend de la sélection,
         // et une `command` assignée à l'exécution ne démarre pas ici.
-        Quickshell.execDetached(["python3", Quickshell.shellPath("core/greeter_manager.py"),
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "greeter",
                                  "apply", selectedId])
         // La sélection est écrite sur disque : on relit l'état réel ensuite.
         applyTimer.restart()
@@ -165,7 +165,7 @@ Item {
         busy = true
         yieldFocusTimer.start()
         status = "Désinstallation de " + selectedRemoveList.length + " thème(s)…"
-        uninstallProc.command = ["python3", Quickshell.shellPath("core/greeter_manager.py"), "uninstall"].concat(selectedRemoveList)
+        uninstallProc.command = [Quickshell.shellPath("core/as-core"), "greeter", "uninstall"].concat(selectedRemoveList)
         uninstallProc.running = true
     }
 
@@ -180,7 +180,7 @@ Item {
 
     Process {
         id: listProc
-        command: ["python3", Quickshell.shellPath("core/greeter_manager.py"), "list"]
+        command: [Quickshell.shellPath("core/as-core"), "greeter", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -219,7 +219,7 @@ Item {
 
     Process {
         id: thumbsProc
-        command: ["python3", Quickshell.shellPath("core/greeter_manager.py"), "thumbnails"]
+        command: [Quickshell.shellPath("core/as-core"), "greeter", "thumbnails"]
         stdout: StdioCollector {
             onStreamFinished: {
                 greeterTab.busy = false
@@ -231,7 +231,7 @@ Item {
 
     Process {
         id: installProc
-        command: ["python3", Quickshell.shellPath("core/greeter_manager.py"), "install", greeterTab.selectedId]
+        command: [Quickshell.shellPath("core/as-core"), "greeter", "install", greeterTab.selectedId]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -259,7 +259,7 @@ Item {
 
     Process {
         id: uninstallProc
-        command: ["python3", Quickshell.shellPath("core/greeter_manager.py"), "uninstall"]
+        command: [Quickshell.shellPath("core/as-core"), "greeter", "uninstall"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

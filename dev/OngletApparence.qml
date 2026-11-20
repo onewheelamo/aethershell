@@ -198,8 +198,7 @@ MouseArea {
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
     onClicked: Quickshell.execDetached([
-        "python3",
-        Quickshell.shellPath("core/theme_manager.py"),
+        Quickshell.shellPath("core/as-core"), "theme-manager",
         parent.modelData
     ])
 }
@@ -863,21 +862,22 @@ onValueModified: newVal => root.runConfigCmd([
         Item { width: 160; height: 1 }
 
         Rectangle {
+            id: lockPalBtn
             readonly property bool actif: Theme.lockBgColor === ""
             width: lockPalLbl.implicitWidth + 16
             height: 26
             radius: Theme.globalRadius
-            color: actif ? Theme.accent : (lockPalMa.containsMouse ? Theme.surfaceVariant : Theme.bg)
-            border.color: actif ? Theme.accent : Theme.surfaceVariant
+            color: lockPalBtn.actif ? Theme.accent : (lockPalMa.containsMouse ? Theme.surfaceVariant : Theme.bg)
+            border.color: lockPalBtn.actif ? Theme.accent : Theme.surfaceVariant
             border.width: 1
 
             Text {
                 id: lockPalLbl
                 anchors.centerIn: parent
                 text: "Fond du thème"
-                color: actif ? Theme.bg : Theme.fg
+                color: lockPalBtn.actif ? Theme.bg : Theme.fg
                 font.pixelSize: Theme.textXs
-                font.bold: actif
+                font.bold: lockPalBtn.actif
             }
 
             MouseArea {

@@ -24,11 +24,11 @@ Item {
     readonly property int tailleIcone: Math.round(Math.max(11, Math.round(Theme.iconSm * echelle))
                                                   * (verticale ? 1.45 : 1))
 
-    // "arch" | "dnf" — vide tant que la détection n'a pas répondu.
-    property string gestionnaire: ""
+    // "arch" | "dnf" | "apt" — partagés via SystemServices pour éviter les appels concurrents.
+    readonly property string gestionnaire: SystemServices.majGestionnaire
     property string terminal: "ghostty"
-    property int nombre: 0
-    property bool pret: false
+    readonly property int nombre: SystemServices.majNombre
+    readonly property bool pret: SystemServices.majPret
 
     // Sans gestionnaire connu, l'applet n'a rien à dire : il s'efface.
     // Si `Theme.majSeulementSiDispo` est activé, on masque l'applet tant qu'il n'y a aucune MAJ.
@@ -44,8 +44,7 @@ Item {
     implicitHeight: Math.max(20, Math.round(26 * echelle))
 
     function verifier() {
-        if (verif.running) return
-        verif.running = true
+        SystemServices.verifierMaj()
     }
 
     // Terminal par défaut : même table que les autres programmes (app_vars.json).
@@ -62,63 +61,10 @@ Item {
         }
     }
 
-    Component.onCompleted: detection.running = true
-
-    Process {
-        id: detection
-        // Les deux ne cohabitent jamais : on garde celui qui répond.
-        command: ["sh", "-c", "command -v pacman >/dev/null && echo arch; command -v dnf >/dev/null && echo dnf"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const lignes = text.trim().split("\n").map(function (s) { return s.trim() })
-                for (let i = 0; i < lignes.length; ++i) {
-                    if (lignes[i] === "arch" || lignes[i] === "dnf") {
-                        root.gestionnaire = lignes[i]
-                        break
-                    }
-                }
-                if (root.disponible) {
-                    root.verifier()
-                    delai.running = true
-                }
-            }
-        }
-    }
-
-    Timer {
-        id: delai
-        interval: 300000     // 5 min : le comptage interroge le réseau
-        repeat: true
-        onTriggered: root.verifier()
-    }
-
-    // Une seule ligne de compte : la liste elle-même n'intéresse pas la barre.
-    Process {
-        id: verif
-        command: ["sh", "-c", root.gestionnaire === "dnf"
-                  // dnf sort 100 quand il y a des mises à jour ; la sortie liste
-                  // « paquet.arch  version  dépôt ». On compte ces lignes-là, pas
-                  // l'en-tête « Obsoleting Packages ».
-                  ? "timeout 60 dnf -q check-update 2>/dev/null | grep -cE '^[A-Za-z0-9][A-Za-z0-9_.+-]*\\.'"
-                  : "timeout 15 sh -c '(checkupdates 2>/dev/null; yay -Qua 2>/dev/null)' | grep -v '^[[:space:]]*$' | wc -l"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const n = parseInt(text.trim(), 10)
-                root.nombre = isNaN(n) ? 0 : n
-                root.pret = true
-            }
-        }
-    }
+    Component.onCompleted: SystemServices.majActif = true
 
     function lancerMaj() {
-        if (root.gestionnaire === "dnf")
-            // Le terminal passe par un script qui le choisit parmi ceux installés :
-            // lancer « ghostty » en dur ne fait rien sur une machine sans ghostty.
-            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"),
-                                     "sudo dnf upgrade --refresh"])
-        else
-            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"),
-                                     "arch-update"])
+        SystemServices.lancerMaj()
     }
 
     Rectangle {

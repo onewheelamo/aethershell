@@ -63,12 +63,12 @@ FocusScope {
     }
 
     function findWaylandToplevel(address) {
-        const key = Theme.cleAdresse(address)
+        const key = ShellState.cleAdresse(address)
         if (!key) return null
         const tops = Hyprland.toplevels ? Hyprland.toplevels.values : []
         for (let i = 0; i < tops.length; i++) {
             const t = tops[i]
-            if (t && t.address && Theme.cleAdresse(t.address) === key) {
+            if (t && t.address && ShellState.cleAdresse(t.address) === key) {
                 return t.wayland || null
             }
         }

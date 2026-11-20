@@ -97,7 +97,7 @@ Item {
     }
 
     function deleteEntry(id) {
-        historyCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"), "delete", String(id)]
+        historyCmd.command = [Quickshell.shellPath("core/as-core"), "notif-history", "delete", String(id)]
         historyCmd.running = true
     }
 
@@ -105,7 +105,7 @@ Item {
     // script rendrait le clic mou, alors que l'effet est purement local.
     function basculerDnd() {
         ShellState.doNotDisturb = !ShellState.doNotDisturb
-        dndProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        dndProc.command = [Quickshell.shellPath("core/as-core"), "config",
                            "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"]
         dndProc.running = true
     }
@@ -115,7 +115,7 @@ Item {
     }
 
     function clearHistory() {
-        historyCmd.command = ["python3", Quickshell.shellPath("core/notif_history.py"), "clear"]
+        historyCmd.command = [Quickshell.shellPath("core/as-core"), "notif-history", "clear"]
         historyCmd.running = true
     }
 

@@ -58,7 +58,7 @@ Item {
 
     Timer {
         interval: 10000
-        running: true
+        running: root.visible
         repeat: true
         onTriggered: root.rafraichir()
     }

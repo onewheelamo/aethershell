@@ -273,6 +273,73 @@ def deplacer(applet_id, sens):
     return etat
 
 
+def deplacer_vers(applet_id, ile, index=None):
+    """Déplace un applet vers une capsule (`ile`) à la position `index` et renumérote."""
+    _exiger(applet_id)
+    ile = ANCIENS.get(str(ile), str(ile))
+    if ile not in ILES:
+        raise SystemExit(f"emplacement inconnu : {ile} (attendu : {', '.join(ILES)})")
+    _allumer_barre(ile)
+    etat = etat_utilisateur()
+    inactives = _options_inactives()
+    if applet_id not in etat:
+        modele = next(a for a in catalogue() if a["id"] == applet_id)
+        opts = inactives.pop(applet_id, None)
+        if not isinstance(opts, dict):
+            opts = {}
+        etat[applet_id] = {
+            "ile": ile,
+            "ordre": int(modele.get("ordre", 100)),
+            "text_scale": int(modele.get("text_scale", 100)),
+            "options": opts,
+        }
+    else:
+        etat[applet_id]["ile"] = ile
+
+    voisins = sorted(
+        ((int((a or {}).get("ordre", 100)), k) for k, a in etat.items()
+         if k != applet_id and ANCIENS.get(str((a or {}).get("ile", "")), str((a or {}).get("ile", ""))) == ile),
+        key=lambda t: (t[0], t[1]),
+    )
+    ids = [k for _, k in voisins]
+    if index is None:
+        pos = len(ids)
+    else:
+        try:
+            pos = max(0, min(len(ids), int(index)))
+        except (TypeError, ValueError):
+            pos = len(ids)
+    ids.insert(pos, applet_id)
+    for n, k in enumerate(ids):
+        etat[k]["ordre"] = (n + 1) * 10
+    _sauver(etat, inactives)
+    return etat
+
+
+def reinitialiser():
+    """Réinitialise les applets actifs aux emplacements par défaut du catalogue."""
+    defauts = (
+        "workspaces", "minimise", "horloge", "calendrier",
+        "notifications", "presse-papiers", "maj", "systray",
+        "reseau", "luminosite", "batterie", "volume", "alimentation",
+    )
+    cat = {a["id"]: a for a in catalogue()}
+    actifs = {}
+    for aid in defauts:
+        a = cat.get(aid)
+        if not a:
+            continue
+        ile = ANCIENS.get(str(a.get("ile", "haut:fin")), str(a.get("ile", "haut:fin")))
+        actifs[aid] = {
+            "ile": ile,
+            "ordre": int(a.get("ordre", 100)),
+            "text_scale": int(a.get("text_scale", 100)),
+            "options": {},
+        }
+    _sauver(actifs, _options_inactives())
+    return actifs
+
+
 def option(applet_id, cle, valeur):
     """Change une option d'applet (ex. quelles mesures montrer).
 
@@ -316,6 +383,10 @@ def main(argv):
         desactiver(argv[2])
     elif action == "placer" and len(argv) > 3:
         placer(argv[2], argv[3])
+    elif action == "deplacer_vers" and len(argv) > 3:
+        deplacer_vers(argv[2], argv[3], argv[4] if len(argv) > 4 else None)
+    elif action == "reinitialiser":
+        reinitialiser()
     elif action == "ordre" and len(argv) > 3:
         ordonner(argv[2], argv[3])
     elif action == "echelle" and len(argv) > 3:

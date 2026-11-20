@@ -317,13 +317,13 @@ QtObject {
         root.doNotDisturb = found.dnd
         SystemServices.caffeineActif = found.caffeine
         Theme.widgetsBureauVisibles = found.widgets
-        Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", found.dnd ? "true" : "false"])
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "style", "do_not_disturb", found.dnd ? "true" : "false"])
         Quickshell.execDetached(["powerprofilesctl", "set", found.power])
         if (found.night) {
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "temperature", String(found.nightTemp)])
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "activer"])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "nuit", "temperature", String(found.nightTemp)])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "nuit", "activer"])
         } else {
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "desactiver"])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "nuit", "desactiver"])
         }
         return true
     }

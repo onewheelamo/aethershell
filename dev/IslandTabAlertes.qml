@@ -17,7 +17,7 @@ Item {
 
     function refreshTasks() {
         if (!todoProc.running) {
-            todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "--tous"]
+            todoProc.command = [Quickshell.shellPath("core/as-core"), "todo", "--tous"]
             todoProc.running = true
         }
     }
@@ -28,7 +28,7 @@ Item {
         target: Theme
         function onTodoRevChanged() {
             if (!todoProc.running) {
-                todoProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "--tous"]
+                todoProc.command = [Quickshell.shellPath("core/as-core"), "todo", "--tous"]
                 todoProc.running = true
             }
         }
@@ -156,7 +156,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         ShellState.doNotDisturb = !ShellState.doNotDisturb
-                        dndBridge.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                        dndBridge.command = [Quickshell.shellPath("core/as-core"), "config",
                                              "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"]
                         dndBridge.running = true
                     }
@@ -409,7 +409,7 @@ Item {
                         if (todoActionProc.running) return
                         root.todoSurveillance = !root.todoSurveillance
                         todoActionProc.command = [
-                            "python3", Quickshell.shellPath("core/todo_applet.py"),
+                            Quickshell.shellPath("core/as-core"), "todo",
                             "surveillance", root.todoSurveillance ? "on" : "off"
                         ]
                         todoActionProc.running = true
@@ -501,7 +501,7 @@ Item {
                                         onClicked: {
                                             let tid = String(modelData.id || "")
                                             if (tid !== "") {
-                                                todoActionProc.command = ["python3", Quickshell.shellPath("core/todo_applet.py"), "cocher", tid]
+                                                todoActionProc.command = [Quickshell.shellPath("core/as-core"), "todo", "cocher", tid]
                                                 todoActionProc.running = true
                                             }
                                         }

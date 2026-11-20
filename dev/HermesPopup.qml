@@ -62,7 +62,7 @@ Item {
         id: action
         property string identifiant: ""
         property string verdict: "oui"
-        command: ["python3", Quickshell.shellPath("core/hermes_approbations.py"),
+        command: [Quickshell.shellPath("core/as-core"), "hermes-approbations",
                   "repondre", action.identifiant, action.verdict, "--par", "shell"]
         onExited: root.charger()
     }
@@ -70,7 +70,7 @@ Item {
     Process {
         id: gwProc
         property string actionCmd: "gateway-restart"
-        command: ["python3", Quickshell.shellPath("core/hermes_applet.py"), gwProc.actionCmd]
+        command: [Quickshell.shellPath("core/as-core"), "hermes", gwProc.actionCmd]
         onExited: root.charger()
     }
 

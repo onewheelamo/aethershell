@@ -1,0 +1,10 @@
+pub mod antigravity;
+pub mod calendrier_cfg;
+pub mod connectors;
+pub mod flotte;
+pub mod hermes;
+pub mod homelab;
+pub mod llm;
+pub mod nextcloud;
+pub mod planka;
+pub mod weather;

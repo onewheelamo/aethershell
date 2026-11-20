@@ -240,6 +240,7 @@ QtObject {
     // utiliser de pixelSize littéral.
     readonly property string fontUi: "Inter"
     readonly property string fontIcon: "0xProto Nerd Font"
+    readonly property string monoFont: "monospace"
 
     readonly property int text2xs: 9   // exposants, unités
     readonly property int textXs: 11   // métadonnées, unités
@@ -249,6 +250,7 @@ QtObject {
     readonly property int textXl: 18   // heure principale
     readonly property int textXxl: 22  // OSD, grands chiffres
 
+    readonly property int iconXs: 12
     readonly property int iconSm: 14
     readonly property int iconMd: 16
     readonly property int iconLg: 22

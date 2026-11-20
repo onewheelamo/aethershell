@@ -65,13 +65,13 @@ Item {
     Process { id: ecrire }
 
     function ecrireBureaux(spec) {
-        ecrire.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        ecrire.command = [Quickshell.shellPath("core/as-core"), "config",
                           "widget_workspaces", String((racine.widget || {}).id || ""), spec]
         ecrire.running = true
     }
 
     function retirer() {
-        ecrire.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        ecrire.command = [Quickshell.shellPath("core/as-core"), "config",
                           "widget_remove", String((racine.widget || {}).id || "")]
         ecrire.running = true
         racine.fermer()

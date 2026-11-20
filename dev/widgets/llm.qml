@@ -204,7 +204,7 @@ Item {
     Timer {
         interval: root.refreshMin * 60000
         repeat: true
-        running: true
+        running: root.visible
         // La cadence choisie par l'utilisateur est la cadence réelle : sans
         // --force, le cache du service ignorerait un réglage à 1 ou 2 minutes.
         onTriggered: root.refresh(true)
@@ -216,7 +216,7 @@ Item {
     Timer {
         interval: 30000
         repeat: true
-        running: true
+        running: root.visible
         onTriggered: {
             root.maintenant = Date.now() / 1000
             // L'échéance affichée est tombée, ou une valeur doit changer : une

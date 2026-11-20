@@ -199,7 +199,7 @@ Item {
                     onClicked: {
                         Theme.islandLiveActivityOpen = false
                         Quickshell.execDetached([
-                            "python3", Quickshell.shellPath("core/live_activity_probe.py"),
+                            Quickshell.shellPath("core/as-core"), "live-activity",
                             "--focus", String(modelData.kind), String(modelData.pid || 0)
                         ])
                     }

@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Wayland
+import Quickshell.Services.Mpris
 
 // Racine du contenu : un Item, instancié par le Loader de shell.qml. Garder ici
 // un ShellRoot créerait un ShellRoot imbriqué, et un ShellRoot à la place de ce
@@ -200,7 +201,7 @@ Item {
                 active: Theme.barStyle !== "island"
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                source: "island_left.qml"
+                sourceComponent: BarCapsule { ile: "haut:debut"; rowSpacing: Theme.space2 }
             }
 
             // CENTER ISLAND: Clock, Date, Hover Weather, Calendar & Config Trigger
@@ -210,7 +211,7 @@ Item {
                 active: Theme.barStyle !== "island"
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                source: "island_center.qml"
+                sourceComponent: BarCapsule { ile: "haut:milieu"; rowSpacing: 0; centerMode: true }
             }
 
             // RIGHT ISLAND: Systray, System Controls, Network & Power Menu
@@ -220,7 +221,7 @@ Item {
                 active: Theme.barStyle !== "island"
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                source: "island_right.qml"
+                sourceComponent: BarCapsule { ile: "haut:fin"; rowSpacing: 12; rightMode: true }
             }
 
             // DYNAMIC ISLAND: Îlot central dynamique unique (mode island)
@@ -379,6 +380,90 @@ Item {
         screen: topBarWindow.screen
     }
 
+    // Panneau étendu de l'Îlot en mode barre classique (ouvert au clic sur l'horloge)
+    PanelWindow {
+        id: classicIslandPanelWindow
+        screen: topBarWindow.screen
+        visible: Theme.barStyle !== "island" && Theme.islandPanelOpen
+        anchors { top: true; bottom: true; left: true; right: true }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.namespace: "shell-classic-island-panel"
+
+        SystemClock {
+            id: classicClock
+            precision: SystemClock.Minutes
+        }
+
+        readonly property var validPlayers: {
+            const out = []
+            const vals = (Mpris.players && Mpris.players.values) ? Mpris.players.values : []
+            for (let i = 0; i < vals.length; ++i) {
+                const p = vals[i]
+                if (!p) continue
+                const t = String(p.trackTitle || "").trim()
+                if (t !== "" || p.playbackState === MprisPlaybackState.Playing) out.push(p)
+            }
+            return out
+        }
+        readonly property var activePlayer: {
+            for (let i = 0; i < validPlayers.length; ++i) {
+                if (validPlayers[i].playbackState === MprisPlaybackState.Playing) return validPlayers[i]
+            }
+            return validPlayers.length > 0 ? validPlayers[0] : null
+        }
+
+        Item {
+            anchors.fill: parent
+            focus: classicIslandPanelWindow.visible
+            Keys.onEscapePressed: Theme.islandPanelOpen = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Theme.islandPanelOpen = false
+        }
+
+        Item {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Theme.barHeight + Theme.gutterV * 2 + 6
+            width: 680
+            height: 420
+
+            MouseArea { anchors.fill: parent }
+
+            SurfaceFloutee {
+                anchors.fill: parent
+                rayon: Theme.pillRadius
+                teinte: Theme.barBg
+                bordureCouleur: Theme.accent
+                bordureLargeur: Theme.barBorder ? 1 : 0
+                actif: false
+            }
+
+            Loader {
+                anchors.fill: parent
+                active: classicIslandPanelWindow.visible
+                source: "IslandPanel.qml"
+                onLoaded: {
+                    if (!item) return
+                    item.clockDate = Qt.binding(() => classicClock.date)
+                    item.activePlayer = Qt.binding(() => classicIslandPanelWindow.activePlayer)
+                    item.validPlayers = Qt.binding(() => classicIslandPanelWindow.validPlayers)
+                    item.isPlaying = Qt.binding(() => classicIslandPanelWindow.activePlayer
+                        ? classicIslandPanelWindow.activePlayer.playbackState === MprisPlaybackState.Playing : false)
+                    item.mediaTitle = Qt.binding(() => classicIslandPanelWindow.activePlayer
+                        ? String(classicIslandPanelWindow.activePlayer.trackTitle || "") : "")
+                    item.isMediaActive = Qt.binding(() => classicIslandPanelWindow.activePlayer
+                        ? String(classicIslandPanelWindow.activePlayer.trackTitle || "").trim() !== "" : false)
+                }
+            }
+        }
+    }
+
     // Spotlight Pill: bottom-centre launcher (remplace fuzzel)
     FullscreenOverlay {
         id: spotlightWindow
@@ -490,7 +575,7 @@ Item {
 
     Process {
         id: cheatsheetProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "binds"]
+        command: [Quickshell.shellPath("core/as-core"), "config", "binds"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

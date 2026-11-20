@@ -140,8 +140,7 @@ Item {
 
     function startMonthFetch(force) {
         const args = [
-            "python3",
-            Quickshell.shellPath("core/nextcloud_service.py"),
+            Quickshell.shellPath("core/as-core"), "nextcloud",
             "month",
             String(viewYear),
             String(viewMonth)
@@ -220,8 +219,7 @@ Item {
         addEventBusy = true
         addEventStatus = "Création sur Nextcloud..."
         addEventProc.command = [
-            "python3",
-            Quickshell.shellPath("core/nextcloud_service.py"),
+            Quickshell.shellPath("core/as-core"), "nextcloud",
             "add",
             selectedDateStr,
             t,

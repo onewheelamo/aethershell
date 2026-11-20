@@ -95,7 +95,7 @@ Item {
     function rafraichirEtats() {
         SystemServices.refreshBluetooth()
         if (!nuitProc.running) {
-            nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py"), "etat"]
+            nuitProc.command = [Quickshell.shellPath("core/as-core"), "nuit", "etat"]
             nuitProc.running = true
         }
         SystemServices.checkWifiRadio()
@@ -712,7 +712,7 @@ Item {
                 subtitle: root.nuitActive ? ("Actif · " + root.nuitTemp + " K") : ("Inactif · " + root.nuitTemp + " K")
                 active: root.nuitActive
                 onToggled: {
-                    nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py"), "basculer"]
+                    nuitProc.command = [Quickshell.shellPath("core/as-core"), "nuit", "basculer"]
                     nuitProc.running = true
                 }
             }
@@ -727,7 +727,7 @@ Item {
                 hasChevron: true
                 onToggled: {
                     ShellState.doNotDisturb = !ShellState.doNotDisturb
-                    dndBridge.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+                    dndBridge.command = [Quickshell.shellPath("core/as-core"), "config",
                                          "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"]
                     dndBridge.running = true
                 }
@@ -746,7 +746,7 @@ Item {
                         let nextLim = root.batLimit80 ? 100 : 80
                         root.batLimit80 = !root.batLimit80
                         root.batPlafond = nextLim
-                        actionProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
+                        actionProc.command = [Quickshell.shellPath("core/as-core"), "system-service", "limit", String(nextLim)]
                         actionProc.running = true
                     } else {
                         Theme.islandPanelOpen = false
@@ -1033,20 +1033,19 @@ Item {
                         if (vizCycleBtn.vizMode === "off") {
                             vizCmdProc.command = [
                                 "sh", "-c",
-                                "python3 \"$1\" style \"$2\" barres && python3 \"$3\" activer visualiseur",
+                                "\"$1\" config style \"$2\" barres && \"$1\" bar-applets activer visualiseur",
                                 "sh",
-                                Quickshell.shellPath("core/config_manager.py"),
-                                styleKey,
-                                Quickshell.shellPath("core/bar_applets.py")
+                                Quickshell.shellPath("core/as-core"),
+                                styleKey
                             ]
                         } else if (vizCycleBtn.vizMode === "barres") {
                             vizCmdProc.command = [
-                                "python3", Quickshell.shellPath("core/config_manager.py"),
+                                Quickshell.shellPath("core/as-core"), "config",
                                 "style", styleKey, "onde"
                             ]
                         } else {
                             vizCmdProc.command = [
-                                "python3", Quickshell.shellPath("core/bar_applets.py"),
+                                Quickshell.shellPath("core/as-core"), "bar-applets",
                                 "desactiver", "visualiseur"
                             ]
                         }
@@ -1199,7 +1198,7 @@ Item {
                     function applyBright(mx) {
                         let pct = Math.max(5, Math.min(100, Math.round((mx / width) * 100)))
                         root.brightPct = pct
-                        brightProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "brightness", String(pct)]
+                        brightProc.command = [Quickshell.shellPath("core/as-core"), "system-service", "brightness", String(pct)]
                         brightProc.running = true
                     }
                     onPressed: mouse => applyBright(mouse.x)

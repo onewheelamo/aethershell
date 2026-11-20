@@ -26,7 +26,7 @@ Item {
 
     Process {
         id: themesScanProc
-        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        command: [Quickshell.shellPath("core/as-core"), "themes-scan", "--sync"]
     }
 
     function activate() {
@@ -40,7 +40,7 @@ Item {
 
     function applyScheme(nom) {
         if (!nom) return
-        Quickshell.execDetached(["python3", Quickshell.shellPath("core/theme_manager.py"), String(nom)])
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "theme-manager", String(nom)])
         Theme.themePickerOpen = false
     }
 

@@ -172,7 +172,7 @@ Item {
 
     Process {
         id: plankaStatutProc
-        command: ["python3", Quickshell.shellPath("core/planka_service.py"), "statut"]
+        command: [Quickshell.shellPath("core/as-core"), "planka", "statut"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -195,7 +195,7 @@ Item {
 
     Process {
         id: indicateursProc
-        command: ["python3", Quickshell.shellPath("core/indicateurs_service.py")]
+        command: [Quickshell.shellPath("core/as-core"), "indicateurs"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -209,7 +209,7 @@ Item {
 
     Timer {
         id: indicateursTimer
-        interval: 3000
+        interval: 5000
         repeat: true
         running: Theme.barStyle === "island"
         triggeredOnStart: true
@@ -275,11 +275,6 @@ Item {
     readonly property string mediaTitle: activePlayer ? (activePlayer.trackTitle || "") : ""
     readonly property string mediaArtist: activePlayer ? (activePlayer.trackArtist || "") : ""
     readonly property bool isMediaActive: (mediaTitle.trim() !== "")
-
-    // Synchronise Theme.mediaPlaying si nécessaire
-    onIsPlayingChanged: Theme.mediaPlaying = isPlaying
-    onMediaTitleChanged: Theme.mediaTitle = mediaTitle
-    onMediaArtistChanged: Theme.mediaArtist = mediaArtist
 
     readonly property bool isCalendarOpen: Theme.activePopup === "calendar"
     readonly property bool isPopupOpen: {
@@ -567,16 +562,16 @@ Item {
         Theme.islandLauncherOpen = false
         if (act === "dnd") {
             ShellState.doNotDisturb = !ShellState.doNotDisturb
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "style", "do_not_disturb", ShellState.doNotDisturb ? "true" : "false"])
         } else if (act === "caffeine") {
             SystemServices.caffeineActif = !SystemServices.caffeineActif
         } else if (act === "nuit") {
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "basculer"])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "nuit", "basculer"])
         } else if (act === "nuit_temp") {
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/nuit_service.py"), "temperature", String(entry.asArg)])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "nuit", "temperature", String(entry.asArg)])
         } else if (act === "barre") {
             const next = Theme.barStyle === "island" ? "classic" : "island"
-            Quickshell.execDetached(["python3", Quickshell.shellPath("core/config_manager.py"), "style", "bar_style", next])
+            Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "config", "style", "bar_style", next])
         } else if (act === "widgets") {
             Theme.widgetsBureauVisibles = !Theme.widgetsBureauVisibles
         } else if (act === "theme_picker") {
@@ -601,7 +596,7 @@ Item {
             ShellState.startTimer(entry.asArg, "")
         } else if (act === "matrix") {
             const opts = entry.asArg || ({})
-            const args = ["python3", Quickshell.shellPath("core/matrix_wallpaper.py")]
+            const args = [Quickshell.shellPath("core/as-core"), "matrix"]
             if (opts.stop) args.push("--stop")
             else {
                 if (opts.ss) args.push("--ss")
@@ -624,7 +619,7 @@ Item {
 
     Process {
         id: liveActivityProbeProc
-        command: ["python3", Quickshell.shellPath("core/live_activity_probe.py")]
+        command: [Quickshell.shellPath("core/as-core"), "live-activity"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -639,7 +634,7 @@ Item {
     }
 
     Timer {
-        interval: 2000
+        interval: (root.liveRecording.active || root.liveDownloads.length > 0) ? 1000 : 5000
         repeat: true
         running: Theme.barStyle === "island"
         triggeredOnStart: true
@@ -822,7 +817,7 @@ Item {
             if (!/^[^a-zA-Z0-9\s>]/.test(q)) return
             if (launcherServiceProc.running) launcherServiceProc.running = false
             launcherServiceProc.command = [
-                "python3", Quickshell.shellPath("core/launcher_service.py"),
+                Quickshell.shellPath("core/as-core"), "launcher",
                 "--query", q, "--limit", "8"
             ]
             launcherServiceProc.running = true

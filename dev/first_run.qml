@@ -91,7 +91,7 @@ Item {
     // ── chargement de l'état ────────────────────────────────────────────────
     Process {
         id: etatProc
-        command: ["python3", Quickshell.shellPath("core/first_run_state.py")]
+        command: [Quickshell.shellPath("core/as-core"), "first-run", "state"]
         stdout: StdioCollector {
             onStreamFinished: root.lireEtat(text)
         }
@@ -225,7 +225,7 @@ Item {
     }
 
     function lancerApplication() {
-        applyProc.command = ["python3", Quickshell.shellPath("core/first_run_apply.py"),
+        applyProc.command = [Quickshell.shellPath("core/as-core"), "first-run", "apply",
                              chargeFile.path]
         applyProc.running = true
     }

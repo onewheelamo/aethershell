@@ -119,18 +119,118 @@ Column {
         root.rechargerVisualiseur()
     }
 
+    function allumerBarrePour(barCode) {
+        if (barCode === "bas" && !Theme.barBottomVisible)
+            root.runConfigCmd(["style", "bar_bottom", "true"])
+        else if (barCode === "cote-gauche" && !Theme.barLeftVisible)
+            root.runConfigCmd(["style", "bar_left", "true"])
+        else if (barCode === "cote-droite" && !Theme.barRightVisible)
+            root.runConfigCmd(["style", "bar_right", "true"])
+    }
+
     function placerApplet(id, ile) {
         root.appletCommande(["placer", id, ile])
-        if (ile === "bas" && !Theme.barBottomVisible)
-            root.runConfigCmd(["style", "bar_bottom", "true"])
-        else if (ile === "cote-gauche" && !Theme.barLeftVisible)
-            root.runConfigCmd(["style", "bar_left", "true"])
-        else if (ile === "cote-droite" && !Theme.barRightVisible)
-            root.runConfigCmd(["style", "bar_right", "true"])
+        allumerBarrePour(String(ile).split(":")[0])
     }
 
     function couleurViz(code) {
         return Theme.resolveVizColor(code)
+    }
+
+    property string selectedBar: "haut"
+    property string selectedAppletId: ""
+    property string addPickerZone: ""
+    property string hoverCapsuleZone: ""
+    property int hoverInsertIdx: -1
+    property string hoverBarTab: ""
+    property var barTabRefs: ({})
+    property var capColDebutRef: null
+    property var capColMilieuRef: null
+    property var capColFinRef: null
+
+    function findBarTabDrop(px, py) {
+        const codes = ["haut", "bas", "cote-gauche", "cote-droite"]
+        for (let i = 0; i < codes.length; ++i) {
+            const tab = barTabRefs[codes[i]]
+            if (!tab || !root) continue
+            const pt = root.mapToItem(tab, px, py)
+            if (pt.x >= 0 && pt.x <= tab.width && pt.y >= 0 && pt.y <= tab.height) {
+                return codes[i]
+            }
+        }
+        return ""
+    }
+
+    function updateCapsuleDrag(px, py) {
+        hoverBarTab = findBarTabDrop(px, py)
+        const hit = findCapsuleDrop(px, py)
+        hoverCapsuleZone = hit ? hit.zone : ""
+        hoverInsertIdx = hit ? hit.idx : -1
+    }
+
+    function finishCapsuleDrag(aid, px, py) {
+        const bHit = findBarTabDrop(px, py)
+        const hit = findCapsuleDrop(px, py)
+        if (bHit !== "") {
+            bloc.selectedBar = bHit
+            root.appletCommande(["deplacer_vers", aid, bHit + ":milieu"])
+            bloc.allumerBarrePour(bHit)
+        } else if (hit) {
+            root.appletCommande(["deplacer_vers", aid, bloc.selectedBar + ":" + hit.zone, String(hit.idx)])
+            bloc.allumerBarrePour(bloc.selectedBar)
+        }
+        hoverBarTab = ""
+        hoverCapsuleZone = ""
+        hoverInsertIdx = -1
+    }
+
+    function cancelCapsuleDrag() {
+        hoverBarTab = ""
+        hoverCapsuleZone = ""
+        hoverInsertIdx = -1
+    }
+
+    function appletsInZone(barCode, zoneCode) {
+        const _ = root.appletSignature
+        const target = barCode + ":" + zoneCode
+        const list = []
+        const rows = root.appletRows || []
+        for (let i = 0; i < rows.length; ++i) {
+            const a = rows[i]
+            if (!a || !a.actif || a.fixe) continue
+            if (String(a.ile || "") === target) list.push(a)
+        }
+        list.sort((a, b) => (Number(a.ordre) || 100) - (Number(b.ordre) || 100))
+        return list
+    }
+
+    function inactiveApplets() {
+        const _ = root.appletSignature
+        const list = []
+        const rows = root.appletRows || []
+        for (let i = 0; i < rows.length; ++i) {
+            const a = rows[i]
+            if (!a || a.actif || a.fixe) continue
+            list.push(a)
+        }
+        return list
+    }
+
+    function findCapsuleDrop(px, py) {
+        const cols = [capColDebutRef, capColMilieuRef, capColFinRef]
+        const zones = ["debut", "milieu", "fin"]
+        for (let i = 0; i < cols.length; ++i) {
+            const col = cols[i]
+            if (!col) continue
+            const pt = root.mapToItem(col, px, py)
+            if (pt.x >= 0 && pt.x <= col.width && pt.y >= 0 && pt.y <= col.height) {
+                const count = bloc.appletsInZone(bloc.selectedBar, zones[i]).length
+                const relY = pt.y - 36
+                const idx = Math.max(0, Math.min(count, Math.round(relY / 38)))
+                return ({ zone: zones[i], idx: idx })
+            }
+        }
+        return null
     }
 spacing: 11
 
@@ -550,555 +650,812 @@ CollapsibleSection {
 
     Column {
         width: parent.width
-        spacing: 8
+        spacing: 10
 
-
-        Text {
+        // En-tête : choix de barre + Réinitialiser + Ajouter
+        Item {
             width: parent.width
-            text: "Éteints par défaut. Un applet n'a qu'un emplacement : "
-                  + "le choisir ailleurs le déplace, il ne se duplique pas. "
-                  + "Le visualiseur audio fait exception : il n'a pas d'emplacement, "
-                  + "il occupe les espaces entre les îlots (un de chaque côté du centre)."
-            color: Qt.alpha(Theme.fg, 0.45)
-            font.pixelSize: Math.max(9, Theme.textXs - 1)
-            wrapMode: Text.WordWrap
-        }
+            height: 30
 
-        Column {
-            width: parent.width
-            spacing: 4
+            Row {
+                id: barSelectSeg
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
 
-            Repeater {
-                model: root.appletEntries
+                Repeater {
+                    model: [
+                        { code: "haut",        label: "Haut" },
+                        { code: "bas",         label: "Bas" },
+                        { code: "cote-gauche", label: "Gauche" },
+                        { code: "cote-droite", label: "Droite" }
+                    ]
 
-                delegate: Column {
-                    id: appletRow
-                    // Les propriétés `required` doivent vivre sur la
-                    // racine du délégué, pas sur son enfant.
-                    required property var modelData
+                    delegate: Rectangle {
+                        id: barTab
+                        required property var modelData
+                        readonly property bool actif: bloc.selectedBar === modelData.code
+                        readonly property bool dropHover: root && root.dragCapsuleId !== "" && bloc.hoverBarTab === modelData.code
+                        width: Math.max(54, barTabLbl.implicitWidth + 18)
+                        height: 26
+                        radius: Theme.globalRadius
+                        color: dropHover
+                            ? Qt.alpha(Theme.accent, 0.28)
+                            : (actif ? Theme.accent : (barTabMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.55)))
+                        border.color: (dropHover || actif) ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
+                        border.width: dropHover ? 2 : 1
 
-                    readonly property bool estTitre: modelData.genre === "titre"
-                    // Une tête de catégorie n'a pas de données
-                    // d'applet : un objet neutre évite les
-                    // « Unable to assign [undefined] » que lèvent
-                    // les liaisons de la ligne, même invisible.
-                    readonly property var donnee: estTitre
-                        ? ({ id: "", nom: "", ile: "", actif: false,
-                             text_scale: 100, options: ({}) })
-                        : modelData.applet
-                    width: parent.width
-                    spacing: 3
-
-                    // ── tête de catégorie ────────────────────────────
-                    // Un petit titre et un trait : le panneau devient
-                    // lisible par groupes au lieu d'une liste de
-                    // dix-neuf lignes au même niveau. Le trait est
-                    // sous le titre, pas entre deux catégories : il
-                    // sépare le titre de ses lignes.
-                    Column {
-                        width: parent.width
-                        visible: appletRow.estTitre
-                        spacing: 5
-
-                        Item { width: 1; height: 6 }
-
-                        Text {
-                            width: parent.width
-                            text: appletRow.estTitre ? String(modelData.texte) : ""
-                            color: Qt.alpha(Theme.fg, 0.6)
-                            font.pixelSize: Math.max(9, Theme.textXs - 1)
-                            font.bold: true
-                            font.letterSpacing: 0.7
-                            font.capitalization: Font.AllUppercase
+                        Component.onCompleted: {
+                            const r = Object.assign({}, bloc.barTabRefs)
+                            r[modelData.code] = barTab
+                            bloc.barTabRefs = r
                         }
 
+                        Text {
+                            id: barTabLbl
+                            anchors.centerIn: parent
+                            text: barTab.modelData.label
+                            color: barTab.actif ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: barTab.actif || barTab.dropHover
+                        }
+
+                        MouseArea {
+                            id: barTabMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                bloc.selectedBar = barTab.modelData.code
+                                bloc.addPickerZone = ""
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+
+                Rectangle {
+                    width: resetLbl.implicitWidth + 18
+                    height: 26
+                    radius: Theme.globalRadius
+                    color: resetMa.containsMouse ? Theme.surfaceVariant : Qt.alpha(Theme.surfaceVariant, 0.55)
+                    border.color: Qt.alpha(Theme.fg, 0.14)
+                    border.width: 1
+
+                    Text {
+                        id: resetLbl
+                        anchors.centerIn: parent
+                        text: "↺ Défaut"
+                        color: Theme.fg
+                        font.pixelSize: Theme.text2xs
+                    }
+
+                    MouseArea {
+                        id: resetMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            bloc.selectedAppletId = ""
+                            bloc.addPickerZone = ""
+                            root.appletCommande(["reinitialiser"])
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: addTopLbl.implicitWidth + 20
+                    height: 26
+                    radius: Theme.globalRadius
+                    color: bloc.addPickerZone !== "" ? Theme.accent : (addTopMa.containsMouse ? Qt.lighter(Theme.accent, 1.1) : Qt.alpha(Theme.accent, 0.88))
+
+                    Text {
+                        id: addTopLbl
+                        anchors.centerIn: parent
+                        text: bloc.addPickerZone !== "" ? "Fermer" : "+ Ajouter"
+                        color: Theme.bg
+                        font.pixelSize: Theme.text2xs
+                        font.bold: true
+                    }
+
+                    MouseArea {
+                        id: addTopMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: bloc.addPickerZone = (bloc.addPickerZone !== "" ? "" : "fin")
+                    }
+                }
+            }
+        }
+
+        // Catalogue rapide d'ajout d'un applet inactif dans la capsule choisie
+        Rectangle {
+            visible: bloc.addPickerZone !== ""
+            width: parent.width
+            height: visible ? addPickerCol.implicitHeight + 16 : 0
+            radius: Theme.globalRadius
+            color: Qt.alpha(Theme.surfaceVariant, 0.65)
+            border.color: Theme.accent
+            border.width: 1
+
+            Column {
+                id: addPickerCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 8
+                spacing: 6
+
+                Text {
+                    readonly property string zoneName: (bloc.selectedBar === "haut" || bloc.selectedBar === "bas")
+                        ? (bloc.addPickerZone === "debut" ? "Gauche" : (bloc.addPickerZone === "milieu" ? "Centre" : "Droite"))
+                        : (bloc.addPickerZone === "debut" ? "Haut" : (bloc.addPickerZone === "milieu" ? "Centre" : "Bas"))
+                    text: "Ajouter un applet dans « " + zoneName + " » :"
+                    color: Theme.accent
+                    font.pixelSize: Theme.textXs
+                    font.bold: true
+                }
+
+                Flow {
+                    width: parent.width
+                    spacing: 6
+
+                    Repeater {
+                        model: bloc.inactiveApplets()
+
                         Rectangle {
-                            width: parent.width
-                            height: 1
-                            color: Qt.alpha(Theme.fg, 0.14)
+                            id: addChipRect
+                            required property var modelData
+                            width: addChipTxt.implicitWidth + 22
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: addChipMa.containsMouse ? Theme.accent : Theme.surfaceVariant
+                            border.color: Qt.alpha(Theme.fg, 0.14)
+                            border.width: 1
+
+                            Text {
+                                id: addChipTxt
+                                anchors.centerIn: parent
+                                text: "+ " + modelData.nom
+                                color: addChipMa.containsMouse ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                            }
+
+                            MouseArea {
+                                id: addChipMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                preventStealing: dragging
+                                cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                property real startX: 0
+                                property real startY: 0
+                                property bool dragging: false
+
+                                onPressed: mouse => {
+                                    startX = mouse.x
+                                    startY = mouse.y
+                                    dragging = false
+                                }
+
+                                onPositionChanged: mouse => {
+                                    if (!pressed || !root) return
+                                    if (!dragging && Math.hypot(mouse.x - startX, mouse.y - startY) > 6) {
+                                        dragging = true
+                                        root.dragCapsuleId = addChipRect.modelData.id
+                                        root.dragCapsuleLabel = addChipRect.modelData.nom
+                                    }
+                                            if (dragging) {
+                                                const pt = addChipRect.mapToItem(root, mouse.x, mouse.y)
+                                                root.dragPointerX = pt.x
+                                                root.dragPointerY = pt.y
+                                                bloc.updateCapsuleDrag(pt.x, pt.y)
+                                            }
+                                        }
+
+                                        onReleased: {
+                                            if (dragging && root) {
+                                                bloc.finishCapsuleDrag(addChipRect.modelData.id, root.dragPointerX, root.dragPointerY)
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                                dragging = false
+                                                return
+                                            }
+                                            dragging = false
+                                            root.appletCommande(["deplacer_vers", addChipRect.modelData.id, bloc.selectedBar + ":" + bloc.addPickerZone])
+                                            bloc.addPickerZone = ""
+                                        }
+
+                                        onCanceled: {
+                                            dragging = false
+                                            bloc.cancelCapsuleDrag()
+                                            if (root) {
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                            }
+                                        }
+
+                                        Component.onDestruction: {
+                                            if (dragging && root) {
+                                                dragging = false
+                                                bloc.cancelCapsuleDrag()
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                            }
+                                        }
+                            }
                         }
                     }
 
-                    Rectangle {
-                    visible: !appletRow.estTitre
-                    width: parent.width
-                    height: 30
-                    radius: Theme.globalRadius
-                    color: appletRow.donnee.actif
-                        ? Qt.alpha(Theme.accent, 0.10) : Theme.surfaceVariant
-                    border.width: 1
-                    border.color: appletRow.donnee.actif
-                        ? Qt.alpha(Theme.accent, 0.5) : "transparent"
+                    Text {
+                        visible: bloc.inactiveApplets().length === 0
+                        text: "Tous les applets sont déjà placés sur une barre."
+                        color: Qt.alpha(Theme.fg, 0.55)
+                        font.pixelSize: Theme.text2xs
+                    }
+                }
+            }
+        }
 
-                    // Toute la ligne bascule l'applet : la seule case
-                    // de 12 px obligeait à viser, et les contrôles de
-                    // droite (flèches, pastilles, échelle) la recouvrent
-                    // puisqu'ils sont déclarés après celle-ci.
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: bloc.appletBasculer(appletRow.donnee.id,
-                                                       appletRow.donnee.actif)
+        // Tableau 3 colonnes : Capsule Gauche / Centre / Droite (ou Haut / Centre / Bas)
+        Row {
+            id: capsulesBoard
+            width: parent.width
+            spacing: 8
+            readonly property real colW: Math.floor((width - spacing * 2) / 3)
+            readonly property bool horizontalBar: bloc.selectedBar === "haut" || bloc.selectedBar === "bas"
+
+            Repeater {
+                model: [
+                    { code: "debut",  labelH: "Capsule Gauche", labelV: "Haut" },
+                    { code: "milieu", labelH: "Capsule Centre", labelV: "Centre" },
+                    { code: "fin",    labelH: "Capsule Droite", labelV: "Bas" }
+                ]
+
+                delegate: Rectangle {
+                    id: capCol
+                    required property var modelData
+                    required property int index
+                    readonly property string zoneCode: modelData.code
+                    readonly property var items: bloc.appletsInZone(bloc.selectedBar, zoneCode)
+                    readonly property bool isDropTarget: root && root.dragCapsuleId !== "" && bloc.hoverCapsuleZone === zoneCode
+
+                    width: capsulesBoard.colW
+                    height: Math.max(120, capColInner.implicitHeight + 16)
+                    radius: Theme.globalRadius
+                    color: isDropTarget ? Qt.alpha(Theme.accent, 0.10) : Qt.alpha(Theme.surfaceVariant, 0.35)
+                    border.color: isDropTarget ? Theme.accent : Qt.alpha(Theme.fg, 0.12)
+                    border.width: isDropTarget ? 2 : 1
+
+                    Component.onCompleted: {
+                        if (index === 0) bloc.capColDebutRef = capCol
+                        else if (index === 1) bloc.capColMilieuRef = capCol
+                        else if (index === 2) bloc.capColFinRef = capCol
+                    }
+
+                    Column {
+                        id: capColInner
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 8
+                        spacing: 6
+
+                        Item {
+                            width: parent.width
+                            height: 24
+
+                            Text {
+                                id: colTitle
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: capsulesBoard.horizontalBar ? capCol.modelData.labelH : capCol.modelData.labelV
+                                color: Theme.fg
+                                font.pixelSize: Theme.textXs
+                                font.bold: true
+                            }
+
+                            Rectangle {
+                                anchors.left: colTitle.right
+                                anchors.leftMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Math.max(18, cntTxt.implicitWidth + 8)
+                                height: 16
+                                radius: 8
+                                color: Qt.alpha(Theme.fg, 0.12)
+
+                                Text {
+                                    id: cntTxt
+                                    anchors.centerIn: parent
+                                    text: String(capCol.items.length)
+                                    color: Qt.alpha(Theme.fg, 0.8)
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
+                            }
+
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 20
+                                height: 20
+                                radius: 5
+                                color: colAddMa.containsMouse ? Theme.accent : Qt.alpha(Theme.fg, 0.10)
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "+"
+                                    color: colAddMa.containsMouse ? Theme.bg : Theme.fg
+                                    font.pixelSize: Theme.textXs
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    id: colAddMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: bloc.addPickerZone = (bloc.addPickerZone === capCol.zoneCode ? "" : capCol.zoneCode)
+                                }
+                            }
+                        }
+
+                        Text {
+                            visible: capCol.items.length === 0
+                            width: parent.width
+                            height: 44
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "Vide · Glisser ou +"
+                            color: Qt.alpha(Theme.fg, 0.38)
+                            font.pixelSize: Theme.text2xs
+                        }
+
+                        Repeater {
+                            model: capCol.items
+
+                            delegate: Column {
+                                id: cardWrap
+                                required property var modelData
+                                required property int index
+                                readonly property bool selected: bloc.selectedAppletId === modelData.id
+                                width: parent.width
+                                spacing: 2
+
+                                Rectangle {
+                                    visible: capCol.isDropTarget && bloc.hoverInsertIdx === cardWrap.index
+                                    width: parent.width
+                                    height: 2
+                                    radius: 1
+                                    color: Theme.accent
+                                }
+
+                                Rectangle {
+                                    id: appCard
+                                    width: parent.width
+                                    height: 34
+                                    radius: Math.max(6, Math.round(Theme.globalRadius * 0.6))
+                                    color: cardWrap.selected
+                                        ? Qt.alpha(Theme.accent, 0.18)
+                                        : (cardMa.containsMouse ? Qt.alpha(Theme.surfaceVariant, 0.95) : Theme.surfaceVariant)
+                                    border.color: cardWrap.selected ? Theme.accent : Qt.alpha(Theme.fg, 0.10)
+                                    border.width: 1
+
+                                    MouseArea {
+                                        id: cardMa
+                                        anchors.left: parent.left
+                                        anchors.right: optBtn.left
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        anchors.rightMargin: 2
+                                        hoverEnabled: true
+                                        preventStealing: dragging
+                                        cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                        property real startX: 0
+                                        property real startY: 0
+                                        property bool dragging: false
+
+                                        onPressed: mouse => {
+                                            startX = mouse.x
+                                            startY = mouse.y
+                                            dragging = false
+                                        }
+
+                                        onPositionChanged: mouse => {
+                                            if (!pressed || !root) return
+                                            if (!dragging && Math.hypot(mouse.x - startX, mouse.y - startY) > 6) {
+                                                dragging = true
+                                                root.dragCapsuleId = cardWrap.modelData.id
+                                                root.dragCapsuleLabel = cardWrap.modelData.nom
+                                            }
+                                            if (dragging) {
+                                                const pt = appCard.mapToItem(root, mouse.x, mouse.y)
+                                                root.dragPointerX = pt.x
+                                                root.dragPointerY = pt.y
+                                                bloc.updateCapsuleDrag(pt.x, pt.y)
+                                            }
+                                        }
+
+                                        onReleased: {
+                                            if (dragging && root) {
+                                                bloc.finishCapsuleDrag(cardWrap.modelData.id, root.dragPointerX, root.dragPointerY)
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                                dragging = false
+                                                return
+                                            }
+                                            dragging = false
+                                            bloc.selectedAppletId = (bloc.selectedAppletId === cardWrap.modelData.id ? "" : cardWrap.modelData.id)
+                                        }
+
+                                        onCanceled: {
+                                            dragging = false
+                                            bloc.cancelCapsuleDrag()
+                                            if (root) {
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                            }
+                                        }
+
+                                        Component.onDestruction: {
+                                            if (dragging && root) {
+                                                dragging = false
+                                                bloc.cancelCapsuleDrag()
+                                                root.dragCapsuleId = ""
+                                                root.dragCapsuleLabel = ""
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        id: dragGrip
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 6
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "⋮⋮"
+                                        color: Qt.alpha(Theme.fg, 0.35)
+                                        font.pixelSize: 10
+                                    }
+
+                                    Icon {
+                                        id: appIco
+                                        anchors.left: dragGrip.right
+                                        anchors.leftMargin: 5
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        glyph: String(cardWrap.modelData.icone || "widgets")
+                                        size: Theme.iconXs
+                                        color: Theme.accent
+                                    }
+
+                                    Text {
+                                        anchors.left: appIco.right
+                                        anchors.leftMargin: 6
+                                        anchors.right: optBtn.left
+                                        anchors.rightMargin: 4
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: cardWrap.modelData.nom
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.text2xs
+                                        font.bold: cardWrap.selected
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Rectangle {
+                                        id: optBtn
+                                        anchors.right: remBtn.left
+                                        anchors.rightMargin: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 20
+                                        height: 20
+                                        radius: 4
+                                        color: cardWrap.selected ? Theme.accent : (optMa.containsMouse ? Qt.alpha(Theme.fg, 0.14) : "transparent")
+
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            glyph: "cog"
+                                            size: 11
+                                            color: cardWrap.selected ? Theme.bg : Qt.alpha(Theme.fg, 0.65)
+                                        }
+
+                                        MouseArea {
+                                            id: optMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: bloc.selectedAppletId = (bloc.selectedAppletId === cardWrap.modelData.id ? "" : cardWrap.modelData.id)
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        id: remBtn
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 5
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 18
+                                        height: 18
+                                        radius: 4
+                                        color: remMa.containsMouse ? Qt.alpha(Theme.error, 0.22) : "transparent"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "✕"
+                                            color: remMa.containsMouse ? Theme.error : Qt.alpha(Theme.fg, 0.45)
+                                            font.pixelSize: 10
+                                        }
+
+                                        MouseArea {
+                                            id: remMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                if (bloc.selectedAppletId === cardWrap.modelData.id) bloc.selectedAppletId = ""
+                                                root.appletCommande(["desactiver", cardWrap.modelData.id])
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            visible: capCol.isDropTarget && bloc.hoverInsertIdx >= capCol.items.length
+                            width: parent.width
+                            height: 2
+                            radius: 1
+                            color: Theme.accent
+                        }
+                    }
+                }
+            }
+        }
+
+        // Options de l'applet sélectionné (échelle + choix + cases + disques)
+        Rectangle {
+            id: selectedOptBox
+            readonly property var donnee: {
+                const _ = root.appletSignature
+                const e = bloc.selectedAppletId !== "" ? bloc.entreeApplet(bloc.selectedAppletId) : null
+                return (e && e.actif) ? e : null
+            }
+            visible: donnee !== null
+            width: parent.width
+            height: visible ? selOptCol.implicitHeight + 16 : 0
+            radius: Theme.globalRadius
+            color: Qt.alpha(Theme.surfaceVariant, 0.45)
+            border.color: Qt.alpha(Theme.accent, 0.45)
+            border.width: 1
+
+            Column {
+                id: selOptCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 8
+                spacing: 8
+
+                Item {
+                    width: parent.width
+                    height: 24
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: selectedOptBox.donnee ? ("Options · " + selectedOptBox.donnee.nom) : ""
+                        color: Theme.accent
+                        font.pixelSize: Theme.textXs
+                        font.bold: true
                     }
 
                     Row {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 8
+                        anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                        spacing: 8
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Taille"
+                            color: Qt.alpha(Theme.fg, 0.7)
+                            font.pixelSize: Theme.text2xs
+                        }
+
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 96
+                            value: selectedOptBox.donnee ? selectedOptBox.donnee.text_scale : 100
+                            minimumValue: 60
+                            maximumValue: 160
+                            stepSize: 5
+                            suffix: " %"
+                            onValueModified: newVal => {
+                                if (selectedOptBox.donnee) bloc.appletEchelle(selectedOptBox.donnee.id, newVal)
+                            }
+                        }
+                    }
+                }
+
+                // Choix catalogue
+                Row {
+                    visible: selectedOptBox.donnee && selectedOptBox.donnee.choix !== undefined
+                    width: parent.width
+                    spacing: 6
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: (selectedOptBox.donnee && selectedOptBox.donnee.choix && selectedOptBox.donnee.choix.libelle)
+                            ? String(selectedOptBox.donnee.choix.libelle) : ""
+                        color: Qt.alpha(Theme.fg, 0.7)
+                        font.pixelSize: Theme.text2xs
+                    }
+
+                    Repeater {
+                        model: (selectedOptBox.donnee && selectedOptBox.donnee.choix && selectedOptBox.donnee.choix.valeurs) || []
 
                         Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 3
-                            color: appletRow.donnee.actif ? Theme.accent : "transparent"
+                            required property var modelData
+                            readonly property bool choisi: {
+                                if (!selectedOptBox.donnee) return false
+                                const o = selectedOptBox.donnee.options || ({})
+                                const cle = selectedOptBox.donnee.choix ? selectedOptBox.donnee.choix.cle : ""
+                                return String(o[cle] || "") === String(modelData.code)
+                            }
+                            width: chLbl.implicitWidth + 16
+                            height: 22
+                            radius: 5
+                            color: choisi ? Theme.accent : Theme.surfaceVariant
                             border.width: 1
-                            border.color: appletRow.donnee.actif
-                                ? Theme.accent : Qt.alpha(Theme.fg, 0.45)
+                            border.color: choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.25)
 
                             Text {
+                                id: chLbl
                                 anchors.centerIn: parent
-                                visible: appletRow.donnee.actif
-                                text: "✓"
-                                color: Theme.bg
-                                font.pixelSize: 9
-                                font.bold: true
+                                text: String(modelData.nom || modelData.code)
+                                color: choisi ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                                font.bold: choisi
                             }
 
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: bloc.appletBasculer(appletRow.donnee.id,
-                                                               appletRow.donnee.actif)
+                                onClicked: if (selectedOptBox.donnee)
+                                    root.appletCommande(["option", selectedOptBox.donnee.id, selectedOptBox.donnee.choix.cle, String(modelData.code)])
                             }
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: appletRow.donnee.nom
-                            color: Theme.fg
-                            font.pixelSize: Theme.textXs
                         }
                     }
+                }
 
-                    Row {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 8
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                // Cases booléennes catalogue
+                Flow {
+                    visible: selectedOptBox.donnee && (selectedOptBox.donnee.cases || []).length > 0
+                    width: parent.width
+                    spacing: 6
 
-                        // Ordre d'affichage : échange avec le voisin
-                        // du même îlot. Deux flèches plutôt qu'un
-                        // numéro à saisir — l'ordre n'a de sens que
-                        // relativement aux autres.
-                        Row {
-                            spacing: 3
-                            opacity: appletRow.donnee.actif ? 1 : 0.35
+                    Repeater {
+                        model: (selectedOptBox.donnee && selectedOptBox.donnee.cases) || []
 
-                            Rectangle {
-                                width: 14
-                                height: 16
-                                radius: 4
-                                color: "transparent"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "‹"
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (appletRow.donnee.actif)
-                                        root.appletCommande(["monter", appletRow.donnee.id])
-                                }
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool coche: {
+                                const _ = root.appletSignature
+                                if (!selectedOptBox.donnee) return true
+                                const o = selectedOptBox.donnee.options || ({})
+                                const v = o[modelData.cle]
+                                if (v === undefined || v === null || v === "") return true
+                                return !(v === false || v === "false" || v === 0 || v === "0")
                             }
-
-                            Rectangle {
-                                width: 14
-                                height: 16
-                                radius: 4
-                                color: "transparent"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "›"
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (appletRow.donnee.actif)
-                                        root.appletCommande(["descendre", appletRow.donnee.id])
-                                }
-                            }
-                        }
-
-                        // Échelle de texte de cet applet : la même
-                        // règle que les widgets, appliquée par applet.
-                        // Boutons dans des Rectangles : un MouseArea
-                        // avec `anchors.fill` ne peut pas être enfant
-                        // direct d'un Row (le positionneur refuse les
-                        // ancres horizontales), d'où l'enveloppe.
-                        Row {
-                            spacing: 3
-                            opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                            Rectangle {
-                                width: 14
-                                height: 16
-                                radius: 4
-                                color: "transparent"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "−"
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: bloc.appletEchelle(appletRow.donnee.id,
-                                                                  appletRow.donnee.text_scale - 5)
-                                }
-                            }
+                            width: caseTexte.implicitWidth + 16
+                            height: 22
+                            radius: 5
+                            color: coche ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+                            border.color: coche ? Theme.accent : Qt.alpha(Theme.fg, 0.25)
 
                             Text {
-                                text: appletRow.donnee.text_scale + " %"
-                                color: Qt.alpha(Theme.fg, 0.75)
-                                font.pixelSize: Math.max(9, Theme.textXs - 1)
-                                font.features: { "tnum": 1 }
+                                id: caseTexte
+                                anchors.centerIn: parent
+                                text: (coche ? "✓ " : "✕ ") + String(modelData.libelle || modelData.cle)
+                                color: coche ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                                font.bold: coche
                             }
 
-                            Rectangle {
-                                width: 14
-                                height: 16
-                                radius: 4
-                                color: "transparent"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "+"
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.textXs
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: bloc.appletEchelle(appletRow.donnee.id,
-                                                                  appletRow.donnee.text_scale + 5)
-                                }
-                            }
-                        }
-
-                        // Groupe 1 : la barre. Reste réglable même
-                        // pour un applet à emplacement fixe : le
-                        // visualiseur n'a pas de place *dans* une
-                        // barre, mais il choisit *quelle* barre le
-                        // porte — une seule à la fois, et la
-                        // pastille active est en couleur d'accent.
-                        Row {
-                            spacing: 2
-
-                            Repeater {
-                                model: root.appletBarres
-
-                                Rectangle {
-                                    required property var modelData
-                                    readonly property bool choisi:
-                                        bloc.barreDe(appletRow.donnee) === modelData.code
-                                    width: 17
-                                    height: 16
-                                    radius: 4
-                                    color: choisi ? Theme.accent : "transparent"
-                                    border.width: 1
-                                    border.color: choisi
-                                        ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                    opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData.label
-                                        color: parent.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
-                                        font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                        font.bold: parent.choisi
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: bloc.placerApplet(appletRow.donnee.id,
-                                            modelData.code + ":" + bloc.zoneDe(appletRow.donnee))
-                                    }
-                                }
-                            }
-                        }
-
-                        // Groupe 2 : la place dans la barre (début,
-                        // milieu, fin). Sur la barre du haut, ce sont
-                        // les trois îlots historiques G / C / D.
-                        Row {
-                            spacing: 2
-                            visible: !appletRow.donnee.fixe
-
-                            Repeater {
-                                model: root.appletZones
-
-                                Rectangle {
-                                    required property var modelData
-                                    readonly property bool choisi:
-                                        bloc.zoneDe(appletRow.donnee) === modelData.code
-                                    readonly property bool enHaut:
-                                        bloc.barreDe(appletRow.donnee) === "haut"
-                                    width: 17
-                                    height: 16
-                                    radius: 4
-                                    color: choisi ? Theme.accent : "transparent"
-                                    border.width: 1
-                                    border.color: choisi
-                                        ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                    opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: parent.enHaut ? modelData.labelA : modelData.labelB
-                                        color: parent.choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.7)
-                                        font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                        font.bold: parent.choisi
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: bloc.placerApplet(appletRow.donnee.id,
-                                            bloc.barreDe(appletRow.donnee) + ":" + modelData.code)
-                                    }
-                                }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: if (selectedOptBox.donnee)
+                                    root.appletCommande(["option", selectedOptBox.donnee.id, modelData.cle, coche ? "false" : "true"])
                             }
                         }
                     }
+                }
+
+                // Disques affichés
+                CollapsibleSection {
+                    id: secDisques
+                    objectName: "secDisques"
+                    visible: selectedOptBox.donnee && selectedOptBox.donnee.liste !== undefined
+                    title: String((selectedOptBox.donnee && selectedOptBox.donnee.liste && selectedOptBox.donnee.liste.libelle) || "Disques affichés")
+                    icon: "disque"
+                    expanded: root.sectionOpen("quickshell_disques", false)
+                    onToggled: expanded => {
+                        root.setPanelSection("quickshell_disques", expanded)
+                        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_disques")
                     }
 
-                    // Choix déclaré au catalogue : ici, le service que
-                    // l'applet des comptes affiche dans la barre.
-                    Row {
-                        visible: appletRow.donnee.choix !== undefined
+                    Grid {
+                        id: grilleDisques
                         width: parent.width
-                        height: visible ? 18 : 0
-                        spacing: 4
-
-                        Item { width: 26; height: 1 }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: String(appletRow.donnee.choix && appletRow.donnee.choix.libelle
-                                         ? appletRow.donnee.choix.libelle : "")
-                            color: Qt.alpha(Theme.fg, 0.5)
-                            font.pixelSize: Math.max(9, Theme.textXs - 1)
-                        }
+                        columns: 2
+                        columnSpacing: 10
+                        rowSpacing: 3
+                        topPadding: 4
 
                         Repeater {
-                            model: (appletRow.donnee.choix && appletRow.donnee.choix.valeurs) || []
+                            model: root.disquesListe
 
-                            Rectangle {
+                            Item {
                                 required property var modelData
-                                readonly property bool choisi: {
-                                    const o = appletRow.donnee.options || ({})
-                                    const cle = appletRow.donnee.choix
-                                        ? appletRow.donnee.choix.cle : ""
-                                    return String(o[cle] || "") === String(modelData.code)
-                                }
-                                width: 62
-                                height: 16
-                                radius: 4
-                                color: choisi ? Theme.accent : "transparent"
-                                border.width: 1
-                                border.color: choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                opacity: appletRow.donnee.actif ? 1 : 0.35
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: String(modelData.nom || modelData.code)
-                                    color: choisi ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
-                                    font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                    font.bold: choisi
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (appletRow.donnee.actif)
-                                        root.appletCommande(["option", appletRow.donnee.id,
-                                                             appletRow.donnee.choix.cle,
-                                                             String(modelData.code)])
-                                }
-                            }
-                        }
-                    }
-
-                    // Petit tiroir : la sélection des systèmes de
-                    // fichiers, sur deux colonnes. Replié par défaut,
-                    // il ne mange pas la place des autres applets.
-                    CollapsibleSection {
-                        id: secDisques
-                        // Son id est hors de portée du fichier (délégué de Repeater) :
-                        // le panneau le retrouve par ce nom, voir sectionsTardives.
-                        objectName: "secDisques"
-                        visible: appletRow.donnee.liste !== undefined
-                        title: String((appletRow.donnee.liste || ({})).libelle
-                                      || "Disques affichés")
-                        icon: "disque"
-                        expanded: root.sectionOpen("quickshell_disques", false)
-                        onToggled: expanded => {
-        root.setPanelSection("quickshell_disques", expanded)
-        if (expanded && Theme.panelAccordion) root.fermerAutresTiroirs("quickshell_disques")
-    }
-
-                        Grid {
-                            id: grilleDisques
-                            width: parent.width
-                            columns: 2
-                            columnSpacing: 10
-                            rowSpacing: 3
-                            topPadding: 4
-
-                            Repeater {
-                                model: root.disquesListe
-
-                                // Item et non Row : un MouseArea en
-                                // `anchors.fill` ne peut pas être
-                                // enfant direct d'un positionneur, et
-                                // c'est ce qui rendait les cases inertes.
-                                Item {
-                                    required property var modelData
-                                    readonly property string montage: String(modelData.montage || "")
-                                    readonly property bool coche: {
-                                        // Deux précautions : lire la
-                                        // signature (dépendance réactive)
-                                        // et relire l'entrée courante par
-                                        // id — le `modelData` du délégué
-                                        // reste figé sur l'ancienne copie
-                                        // quand la liste est réaffectée.
-                                        const _ = root.appletSignature
-                                        const vive = bloc.entreeApplet(appletRow.donnee.id)
-                                                     || appletRow.donnee
-                                        return bloc.montageCoche(vive, montage)
-                                    }
-
-                                    width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
-                                    height: 18
-
-                                    Rectangle {
-                                        id: boite
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: 12
-                                        height: 12
-                                        radius: 3
-                                        color: parent.coche ? Theme.accent : "transparent"
-                                        border.width: 1
-                                        border.color: parent.coche ? Theme.accent
-                                                                   : Qt.alpha(Theme.fg, 0.4)
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            visible: parent.parent.coche
-                                            text: "✓"
-                                            color: Theme.bg
-                                            font.pixelSize: 9
-                                            font.bold: true
-                                        }
-                                    }
-
-                                    Text {
-                                        anchors.left: boite.right
-                                        anchors.leftMargin: 6
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: parent.width - 20 - pourcentage.implicitWidth
-                                        text: parent.montage
-                                        color: Theme.fg
-                                        font.pixelSize: Math.max(9, Theme.textXs - 1)
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        id: pourcentage
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: String(modelData.pourcent) + " %"
-                                        color: Qt.alpha(Theme.fg, 0.45)
-                                        font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: bloc.basculerMontage(appletRow.donnee,
-                                                                        parent.montage)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Cases déclarées au catalogue : un réglage
-                    // vrai/faux par applet, écrit comme une option
-                    // (absent = activé, valeur par défaut du catalogue).
-                    Row {
-                        visible: (appletRow.donnee.cases || []).length > 0
-                        width: parent.width
-                        height: visible ? 18 : 0
-                        spacing: 4
-
-                        Item { width: 26; height: 1 }
-
-                        Repeater {
-                            model: appletRow.donnee.cases || []
-
-                            Rectangle {
-                                required property var modelData
+                                readonly property string montage: String(modelData.montage || "")
                                 readonly property bool coche: {
                                     const _ = root.appletSignature
-                                    const vive = bloc.entreeApplet(appletRow.donnee.id)
-                                                 || appletRow.donnee
-                                    const o = vive.options || ({})
-                                    const v = o[modelData.cle]
-                                    if (v === undefined || v === null || v === "") return true
-                                    return !(v === false || v === "false"
-                                             || v === 0 || v === "0")
+                                    if (!selectedOptBox.donnee) return false
+                                    return bloc.montageCoche(selectedOptBox.donnee, montage)
                                 }
-                                width: caseTexte.implicitWidth + 16
-                                height: 16
-                                radius: 4
-                                color: coche ? Theme.accent : "transparent"
-                                border.width: 1
-                                border.color: coche ? Theme.accent : Qt.alpha(Theme.fg, 0.3)
-                                opacity: appletRow.donnee.actif ? 1 : 0.35
+
+                                width: (grilleDisques.width - grilleDisques.columnSpacing) / 2
+                                height: 18
+
+                                Rectangle {
+                                    id: boite
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 12
+                                    height: 12
+                                    radius: 3
+                                    color: parent.coche ? Theme.accent : "transparent"
+                                    border.width: 1
+                                    border.color: parent.coche ? Theme.accent : Qt.alpha(Theme.fg, 0.4)
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: parent.parent.coche
+                                        text: "✓"
+                                        color: Theme.bg
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                    }
+                                }
 
                                 Text {
-                                    id: caseTexte
-                                    anchors.centerIn: parent
-                                    text: (coche ? "\u2713 " : "\u2715 ")
-                                          + String(modelData.libelle || modelData.cle)
-                                    color: coche ? Theme.bg : Qt.alpha(Theme.fg, 0.75)
+                                    anchors.left: boite.right
+                                    anchors.leftMargin: 6
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 20 - pourcentage.implicitWidth
+                                    text: parent.montage
+                                    color: Theme.fg
+                                    font.pixelSize: Math.max(9, Theme.textXs - 1)
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    id: pourcentage
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: String(modelData.pourcent) + " %"
+                                    color: Qt.alpha(Theme.fg, 0.45)
                                     font.pixelSize: Math.max(8, Theme.textXs - 2)
-                                    font.bold: coche
                                 }
 
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (appletRow.donnee.actif)
-                                        root.appletCommande(["option", appletRow.donnee.id,
-                                                             modelData.cle,
-                                                             coche ? "false" : "true"])
+                                    onClicked: if (selectedOptBox.donnee) bloc.basculerMontage(selectedOptBox.donnee, parent.montage)
                                 }
                             }
                         }
@@ -1108,7 +1465,6 @@ CollapsibleSection {
         }
     }
 }
-    // ═══════════════════════════════════════════════════════════════
     // Visualiseur audio — capture et dessin
     // ═══════════════════════════════════════════════════════════════
     CollapsibleSection {

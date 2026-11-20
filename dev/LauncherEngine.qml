@@ -244,7 +244,7 @@ QtObject {
         SystemServices.launchInScope(shell)
         if (Theme.launchHistory && entry.name) {
             Quickshell.execDetached([
-                "python3", Quickshell.shellPath("core/launch_history.py"),
+                Quickshell.shellPath("core/as-core"), "launch-history",
                 "add", String(entry.name), String(entry.exec), String(entry.icon || "")
             ])
         }

@@ -133,7 +133,7 @@ Item {
 
     Process {
         id: wsServiceProc
-        command: ["python3", Quickshell.shellPath("core/workspace_service.py")]
+        command: [Quickshell.shellPath("core/as-core"), "workspace"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

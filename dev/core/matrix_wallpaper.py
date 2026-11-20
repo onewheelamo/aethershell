@@ -155,9 +155,12 @@ def _run_screensaver():
 
 def _cmd_terminal(ss, inner_cmd):
     if shutil.which("kitten"):
+        kitty_theme = Path.home() / ".config" / "kitty" / "aethershell-theme.conf"
+        cfg_args = ["--config", str(kitty_theme)] if kitty_theme.is_file() else []
         if ss:
             return [
                 "kitten", "panel",
+                *cfg_args,
                 "--edge=center",
                 "--layer=overlay",
                 "--exclusive-zone=-1",
@@ -165,13 +168,16 @@ def _cmd_terminal(ss, inner_cmd):
                 "--grab-keyboard=yes",
                 "-o", "window_padding_width=0",
                 "-o", "hide_window_decorations=yes",
+                "--",
             ] + inner_cmd
         return [
             "kitten", "panel",
+            *cfg_args,
             "--edge=background",
             "--focus-policy=not-allowed",
             "-o", "window_padding_width=0",
             "-o", "hide_window_decorations=yes",
+            "--",
         ] + inner_cmd
 
     classe = "org.aether.matrix-ss" if ss else "org.aether.matrix-bg"

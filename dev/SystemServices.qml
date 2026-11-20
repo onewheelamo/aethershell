@@ -12,7 +12,7 @@ QtObject {
     property bool systemInfoPret: false
 
     property Process systemInfoProc: Process {
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "info"]
+        command: [Quickshell.shellPath("core/as-core"), "system-service", "info"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -53,7 +53,7 @@ QtObject {
     property bool meteoActif: false
 
     property Process meteoProc: Process {
-        command: ["python3", Quickshell.shellPath("core/weather_service.py")]
+        command: [Quickshell.shellPath("core/as-core"), "weather"]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.meteoLoaded = true
@@ -77,7 +77,7 @@ QtObject {
     function rafraichirMeteo(force) {
         meteoActif = true
         if (meteoProc.running) return
-        const args = ["python3", Quickshell.shellPath("core/weather_service.py")]
+        const args = [Quickshell.shellPath("core/as-core"), "weather"]
         if (force) args.push("--force")
         meteoProc.command = args
         meteoProc.running = true
@@ -99,7 +99,7 @@ QtObject {
 
     property Process metriquesDaemonProc: Process {
         running: root.metriquesActif
-        command: ["python3", Quickshell.shellPath("core/metriques_daemon.py"), "2"]
+        command: [Quickshell.shellPath("core/as-core"), "daemon", "2"]
         stdout: SplitParser {
             onRead: line => {
                 const s = String(line || "").trim()
@@ -151,7 +151,7 @@ QtObject {
     }
 
     property Process qrStatusProc: Process {
-        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "status"]
+        command: [Quickshell.shellPath("core/as-core"), "wifi-qr", "status"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -165,7 +165,7 @@ QtObject {
     }
 
     property Process wifiScanProc: Process {
-        command: ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
+        command: [Quickshell.shellPath("core/as-core"), "system-service", "wifi"]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.wifiScanning = false
@@ -178,14 +178,6 @@ QtObject {
             }
         }
         onExited: root.wifiScanning = false
-    }
-
-    property Timer wifiScanTimer: Timer {
-        interval: 600000
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: root.scanWifi()
     }
 
     function checkWifiRadio() {
@@ -207,10 +199,56 @@ QtObject {
     function scanWifi(rescan) {
         if (wifiScanProc.running) return
         root.wifiScanning = true
-        const cmd = ["python3", Quickshell.shellPath("core/system_service.py"), "wifi"]
+        const cmd = [Quickshell.shellPath("core/as-core"), "system-service", "wifi"]
         if (rescan === false) cmd.push("--no-rescan")
         wifiScanProc.command = cmd
         wifiScanProc.running = true
+    }
+
+    property bool wifiConnecting: false
+    signal wifiConnectFinished(bool ok, string ssid, string message)
+    property string _pendingWifiSsid: ""
+
+    property Process wifiConnectProc: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.wifiConnecting = false
+                let ok = false
+                let msg = ""
+                let ssid = root._pendingWifiSsid
+                try {
+                    const d = JSON.parse(text.trim())
+                    ok = Boolean(d.success)
+                    msg = String(d.message || "")
+                    if (d.ssid) ssid = String(d.ssid)
+                } catch (e) {}
+                if (ok) {
+                    root.rafraichirSystemInfo()
+                    root.scanWifi(false)
+                }
+                root.wifiConnectFinished(ok, ssid, msg)
+            }
+        }
+    }
+
+    function connectWifi(ssid, pwd) {
+        if (!ssid || wifiConnectProc.running) return
+        root._pendingWifiSsid = String(ssid)
+        root.wifiConnecting = true
+        wifiConnectProc.command = [
+            Quickshell.shellPath("core/as-core"), "system-service",
+            "wifi_connect", String(ssid), String(pwd || "")
+        ]
+        wifiConnectProc.running = true
+    }
+
+    function signalIconFor(sig, connected) {
+        if (connected === false && Number(sig || 0) <= 0) return "wifi-none"
+        const s = Number(sig || 0)
+        if (s >= 75) return "wifi-full"
+        if (s >= 50) return "wifi-high"
+        if (s >= 25) return "wifi-medium"
+        return s > 0 ? "wifi-low" : "wifi-none"
     }
 
     // ── Bluetooth ────────────────────────────────────────────────────────────
@@ -234,7 +272,7 @@ QtObject {
     }
 
     property Process btStateProc: Process {
-        command: ["python3", Quickshell.shellPath("core/bluetooth_service.py"), "etat"]
+        command: [Quickshell.shellPath("core/as-core"), "bluetooth", "etat"]
         stdout: StdioCollector { onStreamFinished: root._applyBtState(text) }
     }
 
@@ -255,7 +293,7 @@ QtObject {
     function btCommand(args) {
         if (btActionProc.running) return
         root.btBusy = true
-        btActionProc.command = ["python3", Quickshell.shellPath("core/bluetooth_service.py")].concat(args)
+        btActionProc.command = [Quickshell.shellPath("core/as-core"), "bluetooth"].concat(args)
         btActionProc.running = true
     }
 
@@ -346,17 +384,17 @@ QtObject {
     // ── Démons et veilles d'arrière-plan (tray, xdg, thèmes, nuit) ──────────
     property Process trayWatchdogProc: Process {
         running: true
-        command: ["python3", Quickshell.shellPath("core/tray_watchdog.py"), "--interval", "10"]
+        command: [Quickshell.shellPath("core/as-core"), "tray-watchdog", "--interval", "10"]
     }
 
     property Process lienSystemeProc: Process {
         running: true
-        command: ["python3", Quickshell.shellPath("core/lien_systeme.py"), "--appliquer"]
+        command: [Quickshell.shellPath("core/as-core"), "lien-systeme", "--appliquer"]
     }
 
     property Process themesScanProc: Process {
         running: true
-        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        command: [Quickshell.shellPath("core/as-core"), "themes-scan", "--sync"]
         onExited: Theme.relireCatalogue()
     }
 
@@ -377,8 +415,17 @@ QtObject {
         }
     }
 
+    property var nuitEtat: ({})
     property Process nuitApplyProc: Process {
-        command: ["python3", Quickshell.shellPath("core/nuit_service.py"), "appliquer"]
+        command: [Quickshell.shellPath("core/as-core"), "nuit", "appliquer"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text.trim())
+                    if (d && typeof d === "object") root.nuitEtat = d
+                } catch (e) {}
+            }
+        }
     }
 
     property Timer nuitApplyTimer: Timer {
@@ -395,7 +442,7 @@ QtObject {
     // ── Cache partagé des paires Popup ↔ Widget (USB, Todo, Hermes) ──────────
     property var usbData: ({})
     property Process usbPollProc: Process {
-        command: ["python3", Quickshell.shellPath("core/usb_applet.py"), "etat"]
+        command: [Quickshell.shellPath("core/as-core"), "usb", "etat"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -414,7 +461,7 @@ QtObject {
 
     property var todoData: ({})
     property Process todoPollProc: Process {
-        command: ["python3", Quickshell.shellPath("core/todo_applet.py"), "etat", "--options={\"fichier\": \"*\"}"]
+        command: [Quickshell.shellPath("core/as-core"), "todo", "etat", "--options={\"fichier\": \"*\"}"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -434,7 +481,7 @@ QtObject {
     property var hermesData: ({})
     property bool hermesCharge: false
     property Process hermesPollProc: Process {
-        command: ["python3", Quickshell.shellPath("core/hermes_applet.py")]
+        command: [Quickshell.shellPath("core/as-core"), "hermes"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -450,5 +497,69 @@ QtObject {
     function rafraichirHermes() {
         hermesPollProc.running = false
         hermesPollProc.running = true
+    }
+
+    // ── Mises à jour système partagées (pacman / dnf / apt, évite les verrous) ──
+    property string majGestionnaire: ""
+    property int majNombre: 0
+    property bool majPret: false
+    property bool majActif: false
+
+    onMajActifChanged: {
+        if (majActif && majGestionnaire === "" && !majDetectProc.running) {
+            majDetectProc.running = true
+        }
+    }
+
+    property Process majDetectProc: Process {
+        command: ["sh", "-c", "command -v pacman >/dev/null && echo arch; command -v dnf >/dev/null && echo dnf; command -v apt-get >/dev/null && echo apt"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lignes = text.trim().split("\n").map(function (s) { return s.trim() })
+                for (let i = 0; i < lignes.length; ++i) {
+                    if (lignes[i] === "arch" || lignes[i] === "dnf" || lignes[i] === "apt") {
+                        root.majGestionnaire = lignes[i]
+                        break
+                    }
+                }
+                if (root.majGestionnaire !== "") root.verifierMaj()
+            }
+        }
+    }
+
+    property Process majVerifProc: Process {
+        command: ["sh", "-c", root.majGestionnaire === "dnf"
+                  ? "timeout 60 dnf -q check-update 2>/dev/null | grep -cE '^[A-Za-z0-9][A-Za-z0-9_.+-]*\\.'"
+                  : (root.majGestionnaire === "apt"
+                     ? "timeout 20 apt-get -s upgrade 2>/dev/null | grep -c '^Inst '"
+                     : "timeout 15 sh -c '(checkupdates 2>/dev/null; yay -Qua 2>/dev/null)' | grep -v '^[[:space:]]*$' | wc -l")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const n = parseInt(text.trim(), 10)
+                root.majNombre = isNaN(n) ? 0 : n
+                root.majPret = true
+            }
+        }
+    }
+
+    property Timer majTimer: Timer {
+        interval: 300000
+        repeat: true
+        running: root.majActif && root.majGestionnaire !== ""
+        onTriggered: root.verifierMaj()
+    }
+
+    function verifierMaj() {
+        if (root.majGestionnaire === "" || majVerifProc.running) return
+        majVerifProc.running = true
+    }
+
+    function lancerMaj() {
+        if (root.majGestionnaire === "dnf")
+            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"), "sudo dnf upgrade --refresh"])
+        else if (root.majGestionnaire === "apt")
+            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"), "sudo apt update && sudo apt upgrade"])
+        else
+            Quickshell.execDetached(["bash", Quickshell.shellPath("core/maj_terminal.sh"), "arch-update"])
     }
 }

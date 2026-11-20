@@ -74,7 +74,7 @@ Item {
 
     function charger(force) {
         statut = "loading"
-        proc.command = ["python3", Quickshell.shellPath("core/nextcloud_service.py"),
+        proc.command = [Quickshell.shellPath("core/as-core"), "nextcloud",
                         "month", String(annee), String(mois)]
         if (force) proc.command = proc.command.concat(["--force"])
         proc.running = true

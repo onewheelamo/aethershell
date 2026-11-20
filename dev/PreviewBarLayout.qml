@@ -19,7 +19,7 @@ Item {
     Rectangle {
         id: previewBox
         anchors.fill: parent
-        radius: Theme.btnRadius
+        radius: Theme.globalRadius
         color: root.activeSelection ? Qt.alpha(Theme.accent, 0.14) : Theme.surface
         border.color: root.activeSelection ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
         border.width: root.activeSelection ? 2 : 1

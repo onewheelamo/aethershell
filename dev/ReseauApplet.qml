@@ -35,7 +35,7 @@ Item {
     readonly property bool wifiScanning: SystemServices.wifiScanning
     property string expandedSsid: ""
     property string connectingStatus: ""
-    property bool connectingBusy: false
+    readonly property bool connectingBusy: SystemServices.wifiConnecting
     readonly property bool qrAvailable: SystemServices.qrWifiAvailable
     property bool qrScanning: false
 
@@ -54,11 +54,7 @@ Item {
     }
 
     function signalIconFor(sig, connected) {
-        if (!connected && sig <= 0) return "wifi-none"
-        if (sig >= 75) return "wifi-full"
-        if (sig >= 50) return "wifi-high"
-        if (sig >= 25) return "wifi-medium"
-        return "wifi-low"
+        return SystemServices.signalIconFor(sig, connected)
     }
 
     function rafraichir() {
@@ -71,17 +67,9 @@ Item {
     }
 
     function connectToWifi(ssid, password) {
-        if (wifiConnectProc.running) return
-        connectingBusy = true
+        if (SystemServices.wifiConnecting) return
         connectingStatus = "Connexion à " + ssid + "..."
-        wifiConnectProc.command = [
-            "python3",
-            Quickshell.shellPath("core/system_service.py"),
-            "wifi_connect",
-            ssid,
-            password || ""
-        ]
-        wifiConnectProc.running = true
+        SystemServices.connectWifi(ssid, password)
     }
 
     // Amorçage : l'état Bluetooth est lu une fois au démarrage, pour que le
@@ -97,33 +85,19 @@ Item {
         function onSystemInfoChanged() {
             root.synchroniserSystemInfo()
         }
-    }
-
-    Process {
-        id: wifiConnectProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.connectingBusy = false
-                try {
-                    const res = JSON.parse(text.trim())
-                    if (res.success) {
-                        root.connectingStatus = "✓ Connecté à " + res.ssid
-                        root.expandedSsid = ""
-                        root.rafraichir()
-                        root.scanWifi(false)
-                    } else {
-                        root.connectingStatus = "✕ Échec : " + (res.message || "Mot de passe incorrect")
-                    }
-                } catch (e) {
-                    root.connectingStatus = "✕ Erreur de connexion"
-                }
+        function onWifiConnectFinished(ok, ssid, msg) {
+            if (ok) {
+                root.connectingStatus = "✓ Connecté à " + ssid
+                root.expandedSsid = ""
+            } else {
+                root.connectingStatus = "✕ Échec : " + (msg || "Mot de passe incorrect")
             }
         }
     }
 
     Process {
         id: qrScanProc
-        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "scan"]
+        command: [Quickshell.shellPath("core/as-core"), "wifi-qr", "scan"]
         property string targetSsid: ""
         stdout: StdioCollector {
             onStreamFinished: {

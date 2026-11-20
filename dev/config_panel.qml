@@ -38,6 +38,8 @@ Rectangle {
     property string dragWidgetType: ""
     property real dragPointerX: 0
     property real dragPointerY: 0
+    property string dragCapsuleId: ""
+    property string dragCapsuleLabel: ""
 
     function widgetSourceFor(t) {
         const s = String(t || "")
@@ -123,27 +125,27 @@ Rectangle {
     }
 
     function rafraichirIcones() {
-        iconesProc.command = ["python3", Quickshell.shellPath("core/icones_manager.py"), "list"]
+        iconesProc.command = [Quickshell.shellPath("core/as-core"), "icones", "list"]
         iconesProc.running = false
         iconesProc.running = true
     }
 
     function appliquerThemeIcones(id) {
         root.iconesMessage = "Application de « " + id + " »…"
-        iconesProc.command = ["python3", Quickshell.shellPath("core/icones_manager.py"), "apply", String(id)]
+        iconesProc.command = [Quickshell.shellPath("core/as-core"), "icones", "apply", String(id)]
         iconesProc.running = false
         iconesProc.running = true
     }
 
     function installerPackIcones(chemin) {
         root.iconesMessage = "Installation de l'archive…"
-        iconesProc.command = ["python3", Quickshell.shellPath("core/icones_manager.py"), "install", String(chemin)]
+        iconesProc.command = [Quickshell.shellPath("core/as-core"), "icones", "install", String(chemin)]
         iconesProc.running = false
         iconesProc.running = true
     }
 
     function supprimerPackIcones(id) {
-        iconesProc.command = ["python3", Quickshell.shellPath("core/icones_manager.py"), "remove", String(id)]
+        iconesProc.command = [Quickshell.shellPath("core/as-core"), "icones", "remove", String(id)]
         iconesProc.running = false
         iconesProc.running = true
     }
@@ -336,7 +338,7 @@ Rectangle {
     // Géocodage de la ville saisie, par le service météo (Open-Meteo, sans clé).
     function geocoder(ville) {
         if (String(ville || "").trim() === "") return
-        geocodage.command = ["python3", Quickshell.shellPath("core/weather_service.py"),
+        geocodage.command = [Quickshell.shellPath("core/as-core"), "weather",
                              "--geocode", String(ville)]
         geocodage.running = true
     }
@@ -611,7 +613,7 @@ Rectangle {
 
     Process {
         id: appletsEtatProc
-        command: ["python3", Quickshell.shellPath("core/bar_applets.py"), "state"]
+        command: [Quickshell.shellPath("core/as-core"), "bar-applets", "state"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -634,7 +636,7 @@ Rectangle {
 
     Process {
         id: ncEtatProc
-        command: ["python3", Quickshell.shellPath("core/calendrier_config.py"), "etat"]
+        command: [Quickshell.shellPath("core/as-core"), "calendrier-config", "etat"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.ncEtat = JSON.parse(text.trim()) } catch (e) { root.ncEtat = ({}) }
@@ -667,7 +669,7 @@ Rectangle {
             return
         }
         root.ncStatut = "Enregistrement…"
-        ncEcritProc.command = ["python3", Quickshell.shellPath("core/calendrier_config.py"),
+        ncEcritProc.command = [Quickshell.shellPath("core/as-core"), "calendrier-config",
                                "definir", champ, v]
         ncEcritProc.running = true
     }
@@ -744,7 +746,7 @@ Rectangle {
     // installés » ne montrerait que les palettes déjà présentes.
     Process {
         id: scanThemes
-        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        command: [Quickshell.shellPath("core/as-core"), "themes-scan", "--sync"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -763,7 +765,7 @@ Rectangle {
 
     Process {
         id: installThemeProc
-        command: ["python3", Quickshell.shellPath("core/installer_theme_couleur.py"), ""]
+        command: [Quickshell.shellPath("core/as-core"), "installer-theme-couleur", ""]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -790,7 +792,7 @@ Rectangle {
         if (!chemin || root.themeInstallBusy) return
         root.themeInstallBusy = true
         root.themeInstallStatus = "Installation du thème..."
-        installThemeProc.command = ["python3", Quickshell.shellPath("core/installer_theme_couleur.py"), String(chemin), "--activate"]
+        installThemeProc.command = [Quickshell.shellPath("core/as-core"), "installer-theme-couleur", String(chemin), "--activate"]
         installThemeProc.running = true
     }
 
@@ -867,7 +869,7 @@ Rectangle {
     }
 
     function appletCommande(args) {
-        appletsCmdProc.command = ["python3", Quickshell.shellPath("core/bar_applets.py")].concat(args)
+        appletsCmdProc.command = [Quickshell.shellPath("core/as-core"), "bar-applets"].concat(args)
         appletsCmdProc.running = true
     }
 
@@ -876,7 +878,7 @@ Rectangle {
 
     Process {
         id: disquesListeProc
-        command: ["python3", Quickshell.shellPath("core/disques_applet.py"), "liste"]
+        command: [Quickshell.shellPath("core/as-core"), "disques", "liste"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -1101,7 +1103,7 @@ Rectangle {
     property var cmdQueue: []
 
     function startConfigCmd(args) {
-        cmdProc.command = ["python3", Quickshell.shellPath("core/config_manager.py")].concat(args)
+        cmdProc.command = [Quickshell.shellPath("core/as-core"), "config"].concat(args)
         cmdProc.running = true
     }
 
@@ -1160,7 +1162,7 @@ Rectangle {
     function installerDependances() {
         if (depsProc.running)
             return
-        depsProc.command = ["python3", Quickshell.shellPath("core/deps_install.py")]
+        depsProc.command = [Quickshell.shellPath("core/as-core"), "deps-install"]
         depsProc.running = true
     }
 
@@ -1322,7 +1324,7 @@ Rectangle {
 
     Process {
         id: stateProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "state"]
+        command: [Quickshell.shellPath("core/as-core"), "config", "state"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -1361,7 +1363,7 @@ Rectangle {
         id: cleApiFile
         path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-api-key.json"
         atomicWrites: true
-        printErrors: true
+        printErrors: false
         onSaved: root.envoyerCleApi()
         onSaveFailed: err => {
             if (root.pendingProvider) root.etatCle(root.pendingProvider.id, "écriture impossible (" + err + ")")
@@ -1374,13 +1376,13 @@ Rectangle {
         id: homelabSecretFile
         path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-homelab-secret.json"
         atomicWrites: true
-        printErrors: true
+        printErrors: false
         onSaved: homelabSecretProc.running = true
     }
 
     Process {
         id: homelabSecretProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"),
+        command: [Quickshell.shellPath("core/as-core"), "config",
                   "api_key_set_file", homelabSecretFile.path]
         stdout: StdioCollector {
             onStreamFinished: root.refreshConfigState()
@@ -1414,13 +1416,13 @@ Rectangle {
 
     function reglerDnd(actif) {
         root.dndActif = actif
-        dndProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        dndProc.command = [Quickshell.shellPath("core/as-core"), "config",
                            "style", "do_not_disturb", actif ? "true" : "false"]
         dndProc.running = true
     }
 
     function reglerNuit(args) {
-        nuitProc.command = ["python3", Quickshell.shellPath("core/nuit_service.py")].concat(args)
+        nuitProc.command = [Quickshell.shellPath("core/as-core"), "nuit"].concat(args)
         nuitProc.running = true
     }
 
@@ -1435,7 +1437,7 @@ Rectangle {
     // fichier qui fait foi, et deux panneaux ouverts ne peuvent pas diverger.
     Process {
         id: todoListProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "todo_list"]
+        command: [Quickshell.shellPath("core/as-core"), "config", "todo_list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -1449,7 +1451,7 @@ Rectangle {
     }
 
     function homelabSet(cle, valeur) {
-        homelabProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        homelabProc.command = [Quickshell.shellPath("core/as-core"), "config",
                                "homelab_set", cle, valeur]
         homelabProc.running = true
     }
@@ -1465,7 +1467,7 @@ Rectangle {
 
     Process {
         id: plankaTestProc
-        command: ["python3", Quickshell.shellPath("core/config_manager.py"), "planka_test"]
+        command: [Quickshell.shellPath("core/as-core"), "config", "planka_test"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -1514,7 +1516,7 @@ Rectangle {
     }
 
     function envoyerCleApi() {
-        cleApiProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        cleApiProc.command = [Quickshell.shellPath("core/as-core"), "config",
                               "api_key_set_file", cleApiFile.path]
         cleApiProc.running = true
     }
@@ -1534,7 +1536,7 @@ Rectangle {
                     // Une clé mal copiée (préfixe perdu, jeton d'un autre champ) ne
                     // se voit qu'à l'usage : on interroge l'API dans la foulée, via
                     // le script que le fournisseur déclare.
-                    testCleProc.command = ["python3", Quickshell.shellPath(provider.service), "--force"]
+                    testCleProc.command = [Quickshell.shellPath("core/as-core"), provider.service, "--force"]
                     testCleProc.running = true
                 } else {
                     root.etatCle(provider.id, "refusé : " + (r.erreur || "valeur invalide"))
@@ -1573,6 +1575,12 @@ Rectangle {
         function onConfigPanelVisibleChanged() {
             if (Theme.configPanelVisible) {
                 root.refreshConfigState()
+                root.majOnglets()
+            } else {
+                root.dragWidgetType = ""
+                root.dragCapsuleId = ""
+                root.dragCapsuleLabel = ""
+                root.libererOnglets()
             }
         }
     }
@@ -1586,11 +1594,11 @@ Rectangle {
     // défilement est perdue, la mémoire revient.
     function defsOnglets() {
         return [
-            [0, ongletApparence, "OngletApparenceHub.qml", {}],
+            [0, ongletApparence, "OngletSubHub.qml", { tabIndex: 0, sourceA: "OngletApparence.qml", sourceB: "OngletConnexion.qml" }],
             [1, ongletBarreIlot, "OngletBarreIlot.qml", { disquesListeProc: disquesListeProc }],
             [2, ongletBureau, "OngletBureau.qml", {}],
-            [3, ongletSysteme, "OngletSysteme.qml", {}],
-            [4, ongletServices, "OngletServices.qml", { ncEtatProc: ncEtatProc }]
+            [3, ongletSysteme, "OngletSubHub.qml", { tabIndex: 3, sourceA: "OngletEcrans.qml", sourceB: "OngletClavier.qml" }],
+            [4, ongletServices, "OngletSubHub.qml", { tabIndex: 4, sourceA: "OngletDonnees.qml", sourceB: "OngletApps.qml", propsA: { ncEtatProc: ncEtatProc } }]
         ]
     }
 
@@ -1629,21 +1637,6 @@ Rectangle {
     }
 
     onCurrentTabChanged: root.majOnglets()
-
-    Connections {
-        target: Theme
-        function onConfigPanelVisibleChanged() {
-            // La réouverture doit recharger : `libererOnglets()` a tout déchargé à
-            // la fermeture, et rouvrir sur le même onglet ne change pas
-            // `currentTab` — donc `onCurrentTabChanged` ne se déclenche pas et le
-            // panneau restait vide, réduit à son rail.
-            if (Theme.configPanelVisible) {
-                root.majOnglets()
-            } else {
-                root.libererOnglets()
-            }
-        }
-    }
 
     Component.onCompleted: {
         refreshConfigState()
@@ -2208,9 +2201,9 @@ Rectangle {
         x: root.dragPointerX - width / 2
         y: root.dragPointerY - height / 2
         width: Math.max(80, Math.round((dragGhostLoader.item ? dragGhostLoader.item.implicitWidth : 160) + Theme.padH * 2))
-        height: Math.max(48, Math.round((dragGhostLoader.item ? dragGhostLoader.item.implicitHeight : 80) + Theme.padV * 2))
+        height: Math.max(48, Math.round((dragGhostLoader.item ? dragGhostLoader.item.implicitHeight : 80) + Theme.padH * 2))
         radius: Theme.globalRadius
-        color: Qt.alpha(Theme.widgetBg, 0.85)
+        color: Qt.alpha(Theme.surfaceBg, 0.85)
         border.color: Theme.accent
         border.width: 2
 
@@ -2230,5 +2223,29 @@ Rectangle {
     function dragGhostScreenPos() {
         const p = dragGhost.mapToItem(null, 0, 0)
         return ({ x: p.x, y: p.y })
+    }
+
+    // Pilule flottante pendant le glisser-déposer d'un applet entre capsules.
+    Rectangle {
+        id: dragCapsuleGhost
+        z: 9999
+        visible: root.dragCapsuleId !== ""
+        x: root.dragPointerX - width / 2
+        y: root.dragPointerY - height / 2
+        width: Math.max(130, dragCapTxt.implicitWidth + 28)
+        height: 32
+        radius: Theme.globalRadius
+        color: Theme.accent
+        border.color: Theme.bg
+        border.width: 1
+
+        Text {
+            id: dragCapTxt
+            anchors.centerIn: parent
+            text: root.dragCapsuleLabel
+            color: Theme.bg
+            font.pixelSize: Theme.textXs
+            font.bold: true
+        }
     }
 }

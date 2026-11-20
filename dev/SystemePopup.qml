@@ -131,7 +131,7 @@ Item {
     function charger() {
         etat.running = false
         etat.running = true
-        SystemServices.rafraichirSysteme()
+        if (root.ouvert) SystemServices.metriquesActif = true
     }
 
     // Un seul gestionnaire de démarrage par objet : deux `Component.onCompleted`
@@ -143,7 +143,7 @@ Item {
     // fait foi, y compris quand il a été changé depuis le panneau.
     Process {
         id: procProcessus
-        command: ["python3", Quickshell.shellPath("core/systeme_applet.py"), "processus"]
+        command: [Quickshell.shellPath("core/as-core"), "systeme", "processus"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -168,8 +168,8 @@ Item {
         property int pid: 0
         property bool forcer: false
         command: geste.forcer
-                 ? ["python3", Quickshell.shellPath("core/systeme_applet.py"), "tuer", String(geste.pid), "--force"]
-                 : ["python3", Quickshell.shellPath("core/systeme_applet.py"), "tuer", String(geste.pid)]
+                 ? [Quickshell.shellPath("core/as-core"), "systeme", "tuer", String(geste.pid), "--force"]
+                 : [Quickshell.shellPath("core/as-core"), "systeme", "tuer", String(geste.pid)]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -182,13 +182,16 @@ Item {
     }
 
     onOuvertChanged: {
-        if (ouvert) rafraichirProcessus()
+        if (ouvert) {
+            SystemServices.metriquesActif = true
+            rafraichirProcessus()
+        }
         else root.dernierPidArrete = 0
     }
 
     Process {
         id: etat
-        command: ["python3", Quickshell.shellPath("core/bar_applets.py"), "state"]
+        command: [Quickshell.shellPath("core/as-core"), "bar-applets", "state"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -227,7 +230,7 @@ Item {
         }
         // Tout filtrer est permis : l'applet reste alors visible (marque `garde`
         // au catalogue) et ce popup reste le chemin pour rallumer une mesure.
-        ecriture.command = ["python3", Quickshell.shellPath("core/bar_applets.py"),
+        ecriture.command = [Quickshell.shellPath("core/as-core"), "bar-applets",
                             "option", "systeme", "mesures", JSON.stringify(liste)]
         ecriture.running = true
     }

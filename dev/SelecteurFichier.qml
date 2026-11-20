@@ -293,7 +293,7 @@ Item {
                     Process {
                         id: listerProc
                         command: {
-                            let cmd = ["python3", Quickshell.shellPath("core/lister_fichiers.py"), root.chemin]
+                            let cmd = [Quickshell.shellPath("core/as-core"), "lister-fichiers", root.chemin]
                             if (!root.dossierSeulement && root.filtrerExtensions) {
                                 for (let i = 0; i < (root.extensions || []).length; ++i) {
                                     cmd.push(String(root.extensions[i]))
@@ -340,11 +340,11 @@ Item {
                             width: liste.width
                             height: 28
                             radius: Theme.globalRadius
-                            color: estSelectionne
+                            color: ligneDossierFichier.estSelectionne
                                    ? Qt.alpha(Theme.accent, 0.22)
                                    : (ligneMa.containsMouse ? Theme.surfaceVariant : "transparent")
-                            border.color: estSelectionne ? Qt.alpha(Theme.accent, 0.6) : "transparent"
-                            border.width: estSelectionne ? 1 : 0
+                            border.color: ligneDossierFichier.estSelectionne ? Qt.alpha(Theme.accent, 0.6) : "transparent"
+                            border.width: ligneDossierFichier.estSelectionne ? 1 : 0
 
                             Row {
                                 anchors.verticalCenter: parent.verticalCenter
@@ -360,7 +360,7 @@ Item {
                                     size: Theme.iconSm
                                     color: est_dossier
                                            ? Qt.alpha(Theme.accent, 0.85)
-                                           : (estSelectionne ? Theme.accent : Qt.alpha(Theme.fg, 0.75))
+                                           : (ligneDossierFichier.estSelectionne ? Theme.accent : Qt.alpha(Theme.fg, 0.75))
                                     opacityLevel: 1
                                 }
 

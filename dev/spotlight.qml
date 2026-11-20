@@ -65,7 +65,7 @@ Item {
     // session doit apparaître sans redémarrer le shell.
     Process {
         id: indexProc
-        command: ["python3", Quickshell.shellPath("core/app_index.py"), "--quiet"]
+        command: [Quickshell.shellPath("core/as-core"), "app-index", "--quiet"]
         onExited: LauncherEngine.reload()
     }
 
@@ -73,7 +73,7 @@ Item {
     // launcher accepte et pour ce que « ? » affiche.
     Process {
         id: tablePrefixes
-        command: ["python3", Quickshell.shellPath("core/launcher_service.py"), "--aide"]
+        command: [Quickshell.shellPath("core/as-core"), "launcher", "--aide"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -113,16 +113,6 @@ Item {
         root.queryCache = copy
     }
 
-    Connections {
-        target: Theme
-        function onSpotlightVisibleChanged() {
-            if (!Theme.spotlightVisible) {
-                root.queryCache = ({})
-                root.queryCacheOrder = []
-            }
-        }
-    }
-
     // Une pause de frappe avant d'appeler le service : sans elle, chaque touche
     // lance un python et les processus s'empilent derrière la frappe suivante.
     Timer {
@@ -149,7 +139,7 @@ Item {
                 svc.running = false
             root.recherche = true
             root.lastRequestedQuery = root.query
-            svc.command = ["python3", Quickshell.shellPath("core/launcher_service.py"),
+            svc.command = [Quickshell.shellPath("core/as-core"), "launcher",
                            "--query", root.query, "--limit", String(root.maxResults)]
             svc.running = true
         }
@@ -212,7 +202,7 @@ Item {
         root.apercu = ({})
         if (veut === "")
             return
-        procApercu.command = ["python3", Quickshell.shellPath("core/launcher_service.py"),
+        procApercu.command = [Quickshell.shellPath("core/as-core"), "launcher",
                               "--apercu", veut]
         procApercu.running = true
     }
@@ -462,7 +452,7 @@ Item {
         id: action
         property string identifiant: ""
         property string mode: "--supprimer"
-        command: ["python3", Quickshell.shellPath("core/launcher_service.py"),
+        command: [Quickshell.shellPath("core/as-core"), "launcher",
                   action.mode, action.identifiant]
         onExited: root.build()
     }
@@ -471,7 +461,7 @@ Item {
         id: epinglage
         property string identifiant: ""
         property string mode: "--epingler"
-        command: ["python3", Quickshell.shellPath("core/launcher_service.py"),
+        command: [Quickshell.shellPath("core/as-core"), "launcher",
                   epinglage.mode, epinglage.identifiant]
         onExited: root.build()
     }
@@ -959,7 +949,11 @@ Item {
     Connections {
         target: Theme
         function onSpotlightVisibleChanged() {
-            if (!Theme.spotlightVisible) return
+            if (!Theme.spotlightVisible) {
+                root.queryCache = ({})
+                root.queryCacheOrder = []
+                return
+            }
             searchInput.text = ""
             root.query = ""
             root.activeCategory = ""

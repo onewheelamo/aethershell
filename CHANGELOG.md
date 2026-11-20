@@ -9,6 +9,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.4.0.0] — 2026-11-20
+
+### Ajouté
+- **Migration du backend vers le binaire unique Rust `as-core`** (`dev/rust/as-core/` → `dev/core/as-core`, `dev/rust/build.sh`) :
+  - **Démon & sondes temps réel** : `daemon` (lecture directe `/proc` et `/sys` sans fork + `PR_SET_PDEATHSIG`), `systeme` (CPU/RAM/GPU NVIDIA & AMD/load/swap/disk/net/uptime/alerts/processus), `reseau`, `indicateurs`, `live-activity`, `system-service`, `nuit`, `bluetooth`, `workspace`.
+  - **Configuration, thèmes & greeter** : `bar-applets`, `config` (chemins chauds natifs + délégation AST Lua/Hyprland), `themes-scan`, `theme-manager`, `installer-theme-couleur`, `terminal-theme`, `sync-apps-theme`, `icones`, `lien-systeme`, `greeter`.
+  - **Lanceur Spotlight & indexation** : `app-index`, `app-classes`, `launch-history`, `launcher`, `texte-doc`, `lister-fichiers`.
+  - **Applets locaux & notifications** : `disques`, `usb`, `presse-papiers`, `musique`, `todo` / `todo-worker`, `notif-history`, `notif-target`, `tray-apps`, `tray-watchdog`, `matrix`, `wifi-qr`, `maj-shell`, `deps-install`.
+  - **Connecteurs HTTP/API & SQLite** : `weather` / `meteo`, `nextcloud`, `calendrier-config` / `calendrier`, `planka` / `planka-worker`, `homelab`, `flotte`, `comptes` / `deepseek` / `ollama` / `antigravity`, `hermes` (`hermes-lecteur`, `hermes-approbations`, `hermes-publier`).
+  - **Résolveur d'alias transparent** dans `main.rs` (`core/*.py` → sous-commandes `as-core`) conservant la compatibilité des catalogues et configs utilisateur existantes.
+- **Séparation `Mode nuit` / `Luminosité`** (`dev/NuitApplet.qml`, `dev/LuminositeApplet.qml`, `dev/core/applets_catalogue.json`, `dev/qmldir`, `dev/IlotCoinsApplets.qml`, `dev/OngletIlot.qml`) : deux applets indépendants dans le catalogue, les barres et l'îlot.
+
+### Modifié / Factorisé
+- **Câblage QML & déploiement** (`42` fichiers QML + `install.sh`) : appel direct à `Quickshell.shellPath("core/as-core")` à la place de `python3` sur tous les services migrés, et copie atomique `cp -f --remove-destination` dans `install.sh` pour éviter `ETXTBSY` lors du remplacement de `as-core` à chaud.
+- **Audit, debug, optimisations & factorisation QML (`B1`–`B13`, `O1`–`O5`, `R1`–`R5`)** : suppression de 11 fichiers QML/Python obsolètes au profit de `BarCapsule.qml`, `OngletSubHub.qml` et `IlotZoneColumn.qml` (`-767 L` net).
+
+### Corrigé
+- **`IlotZoneColumn.qml` & `OngletIlot.qml`** : correction des liaisons auto-référentielles `bloc: bloc` / `root: root` (renommées `ilotBloc` / `panelRoot`) qui laissaient les 5 zones d'applets de l'îlot vides et bloquaient le glisser-déposer des puces.
+- **`systeme_applet.py` / `SystemServices.qml` / `MajApplet.qml`** : support GPU AMD (`sysfs`/`hwmon`/`k10temp`/`zenpower`) et gestionnaire de paquets `apt`.
+
 ## [0.3.10.0] — 2026-11-19
 
 ### Ajouté

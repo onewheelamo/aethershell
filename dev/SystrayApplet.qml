@@ -50,7 +50,7 @@ Item {
         if (trayMenu.opened)
             trayMenu.close()
         ouvreur.cible = item
-        ouvreur.command = ["python3", Quickshell.shellPath("core/tray_apps.py"),
+        ouvreur.command = [Quickshell.shellPath("core/as-core"), "tray-apps",
                            String(item.id || ""), String(item.title || "")]
         ouvreur.running = true
     }

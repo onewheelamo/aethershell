@@ -71,7 +71,7 @@ Item {
         const cible = root.batLimite ? 100 : 80
         root.batLimite = !root.batLimite
         root.batPlafond = cible
-        actionEnergie.command = ["python3", Quickshell.shellPath("core/system_service.py"),
+        actionEnergie.command = [Quickshell.shellPath("core/as-core"), "system-service",
                                  "limit", String(cible)]
         actionEnergie.running = true
     }

@@ -50,7 +50,7 @@ Column {
     function refreshDiag(src) {
         if (src) bloc.diagLogSource = src
         if (diagProc.running) return
-        diagProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"),
+        diagProc.command = [Quickshell.shellPath("core/as-core"), "config",
                             "diag_info", bloc.diagLogSource]
         diagProc.running = true
     }
@@ -116,7 +116,7 @@ Column {
 
     function verifierMaj(force) {
         if (procMaj.running) return
-        procMaj.command = ["python3", Quickshell.shellPath("core/maj_shell.py")]
+        procMaj.command = [Quickshell.shellPath("core/as-core"), "maj-shell"]
                           .concat(force ? ["--force"] : [])
         procMaj.running = true
     }
@@ -662,22 +662,23 @@ Column {
                 ]
 
                 Rectangle {
+                    id: idlePillBtn
                     required property var modelData
                     readonly property bool actif: root.idleSuspendTimeout === modelData.value
                     width: idlePillText.implicitWidth + 18
                     height: 28
                     radius: Theme.globalRadius
-                    color: actif ? Theme.accent : Theme.surfaceVariant
+                    color: idlePillBtn.actif ? Theme.accent : Theme.surfaceVariant
                     border.width: 1
-                    border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+                    border.color: idlePillBtn.actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
 
                     Text {
                         id: idlePillText
                         anchors.centerIn: parent
                         text: modelData.label
-                        color: actif ? Theme.bg : Theme.fg
+                        color: idlePillBtn.actif ? Theme.bg : Theme.fg
                         font.pixelSize: Theme.textXs
-                        font.bold: actif
+                        font.bold: idlePillBtn.actif
                     }
 
                     MouseArea {
@@ -813,21 +814,22 @@ CollapsibleSection {
                 model: [2700, 3400, 4000, 5000]
 
                 Rectangle {
+                    id: nuitPillBtn
                     required property var modelData
                     readonly property bool actif: root.nuitTemp === modelData
                     width: 74
                     height: 28
                     radius: Theme.globalRadius
-                    color: actif ? Qt.alpha(Theme.accent, 0.28) : Theme.surfaceVariant
-                    border.color: actif ? Theme.accent : Theme.accentMuted
+                    color: nuitPillBtn.actif ? Qt.alpha(Theme.accent, 0.28) : Theme.surfaceVariant
+                    border.color: nuitPillBtn.actif ? Theme.accent : Theme.accentMuted
                     border.width: 1
 
                     Text {
                         anchors.centerIn: parent
                         text: modelData + " K"
-                        color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
+                        color: nuitPillBtn.actif ? Theme.accent : Qt.alpha(Theme.fg, 0.75)
                         font.pixelSize: Theme.textXs
-                        font.bold: actif
+                        font.bold: nuitPillBtn.actif
                     }
 
                     MouseArea {
@@ -1512,22 +1514,23 @@ CollapsibleSection {
             ]
 
             Rectangle {
+                id: diagLogBtn
                 required property var modelData
                 readonly property bool actif: bloc.diagLogSource === modelData.code
                 width: logBtnTxt.implicitWidth + 16
                 height: 24
                 radius: Theme.globalRadius
-                color: actif ? Theme.accent : Theme.surfaceVariant
-                border.color: actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
+                color: diagLogBtn.actif ? Theme.accent : Theme.surfaceVariant
+                border.color: diagLogBtn.actif ? Theme.accent : Qt.alpha(Theme.fg, 0.15)
                 border.width: 1
 
                 Text {
                     id: logBtnTxt
                     anchors.centerIn: parent
                     text: modelData.label
-                    color: actif ? Theme.bg : Theme.fg
+                    color: diagLogBtn.actif ? Theme.bg : Theme.fg
                     font.pixelSize: Theme.textXs
-                    font.bold: actif
+                    font.bold: diagLogBtn.actif
                 }
 
                 MouseArea {
@@ -1568,7 +1571,7 @@ CollapsibleSection {
                         width: parent.width
                         text: modelData
                         color: Qt.alpha(Theme.fg, 0.85)
-                        font.family: Theme.fontMono
+                        font.family: Theme.monoFont
                         font.pixelSize: 10
                         wrapMode: Text.WrapAnywhere
                     }
@@ -1630,7 +1633,7 @@ CollapsibleSection {
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData.name
                         color: Theme.fg
-                        font.family: Theme.fontMono
+                        font.family: Theme.monoFont
                         font.pixelSize: 10
                         elide: Text.ElideRight
                     }
@@ -1669,7 +1672,7 @@ CollapsibleSection {
                                     bloc.diagRestoreConfirm = modelData.name
                                 } else if (!diagRestoreProc.running) {
                                     diagRestoreProc.command = [
-                                        "python3", Quickshell.shellPath("core/config_manager.py"),
+                                        Quickshell.shellPath("core/as-core"), "config",
                                         "diag_restore", modelData.name
                                     ]
                                     diagRestoreProc.running = true

@@ -119,7 +119,7 @@ Item {
 
     function reglerLuminosite(pct) {
         root.briPourcent = Math.max(1, Math.min(100, Math.round(pct)))
-        action.command = ["python3", Quickshell.shellPath("core/system_service.py"),
+        action.command = [Quickshell.shellPath("core/as-core"), "system-service",
                           "brightness", String(root.briPourcent)]
         action.running = true
     }
@@ -127,7 +127,7 @@ Item {
     function basculerLimite() {
         const cible = root.batLimite ? 100 : 80
         root.batLimite = !root.batLimite
-        action.command = ["python3", Quickshell.shellPath("core/system_service.py"),
+        action.command = [Quickshell.shellPath("core/as-core"), "system-service",
                           "limit", String(cible)]
         action.running = true
         Theme.activePopup = ""

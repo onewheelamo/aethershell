@@ -2444,6 +2444,74 @@ if __name__ == "__main__":
         data["ilot_applets_corner"] = corners
         save_json(STYLE_FILE, data)
         print(json.dumps(get_full_config_state()))
+    elif action == "ilot_applet_move_to" and len(sys.argv) > 3:
+        aid = str(sys.argv[2]).strip()
+        corner = str(sys.argv[3]).strip().lower()
+        if corner in ("ilot", "none", "off", ""):
+            corner = ""
+        elif corner not in ("top-left", "top-right", "bottom-left", "bottom-right"):
+            corner = ""
+        try:
+            idx_target = int(sys.argv[4]) if len(sys.argv) > 4 else None
+        except ValueError:
+            idx_target = None
+
+        default_order = [
+            "horloge", "workspaces", "systray", "luminosite", "batterie", "minimise",
+            "volume", "reseau", "notifications", "maj", "todo", "meteo",
+            "presse-papiers", "usb", "systeme", "comptes",
+        ]
+        data = load_json(STYLE_FILE)
+        order = data.get("ilot_applets_order")
+        if not isinstance(order, list) or not order:
+            order = list(default_order)
+        else:
+            order = [str(x) for x in order]
+            for x in default_order:
+                if x not in order:
+                    order.append(x)
+        if aid and aid not in order:
+            order.append(aid)
+
+        corners = data.get("ilot_applets_corner")
+        if not isinstance(corners, dict):
+            corners = {}
+        if corner:
+            corners[aid] = corner
+        else:
+            corners.pop(aid, None)
+
+        modes = data.get("ilot_applets_mode")
+        if not isinstance(modes, dict):
+            modes = {}
+        def_exp = ("systray", "minimise", "luminosite", "batterie")
+        if modes.get(aid, "expanded" if aid in def_exp else "off") == "off":
+            modes[aid] = "both"
+
+        # Réordonner `aid` à `idx_target` parmi les membres du groupe `corner`
+        if aid in order:
+            order.remove(aid)
+            groupe_positions = [i for i, x in enumerate(order) if corners.get(x, "") == corner]
+            if idx_target is None or idx_target >= len(groupe_positions):
+                insert_pos = (groupe_positions[-1] + 1) if groupe_positions else len(order)
+            elif idx_target <= 0:
+                insert_pos = groupe_positions[0] if groupe_positions else 0
+            else:
+                insert_pos = groupe_positions[idx_target]
+            order.insert(insert_pos, aid)
+
+        data["ilot_applets_order"] = order
+        data["ilot_applets_corner"] = corners
+        data["ilot_applets_mode"] = modes
+        save_json(STYLE_FILE, data)
+        print(json.dumps(get_full_config_state()))
+    elif action == "ilot_applets_reset":
+        data = load_json(STYLE_FILE)
+        data.pop("ilot_applets_order", None)
+        data.pop("ilot_applets_corner", None)
+        data.pop("ilot_applets_mode", None)
+        save_json(STYLE_FILE, data)
+        print(json.dumps(get_full_config_state()))
     elif action == "diag_info":
         src = sys.argv[2] if len(sys.argv) > 2 else "quickshell"
         print(json.dumps(get_diag_info(src), ensure_ascii=False))

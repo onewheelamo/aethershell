@@ -23,7 +23,7 @@ Item {
 
     Process {
         id: themesScanProc
-        command: ["python3", Quickshell.shellPath("core/themes_scan.py"), "--sync"]
+        command: [Quickshell.shellPath("core/as-core"), "themes-scan", "--sync"]
         running: false
     }
 
@@ -34,14 +34,14 @@ Item {
     }
 
     function runStyle(key, val) {
-        cfgProc.command = ["python3", Quickshell.shellPath("core/config_manager.py"), "style", String(key), String(val)]
+        cfgProc.command = [Quickshell.shellPath("core/as-core"), "config", "style", String(key), String(val)]
         cfgProc.running = true
     }
 
     function applyPreset(name) {
         const nom = String(name)
         Theme.activeTheme = nom
-        Quickshell.execDetached(["python3", Quickshell.shellPath("core/theme_manager.py"), nom])
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "theme-manager", nom])
     }
 
     Flickable {

@@ -389,7 +389,7 @@ Item {
                 y: root.navFocusRect.y
                 width: root.navFocusRect.w
                 height: root.navFocusRect.h
-                radius: Math.max(6, Theme.cornerRadius - 4)
+                radius: Math.max(6, Theme.globalRadius - 4)
                 color: Qt.alpha(Theme.accent, 0.08)
                 border.width: 2
                 border.color: Theme.accent

@@ -50,24 +50,37 @@ Item {
     onBatInfoChanged: batLimit80 = Boolean(batInfo && batInfo.limit_80)
 
     function signalIconFor(sig) {
-        let s = Number(sig || 0)
-        if (s >= 80) return "wifi-full"
-        if (s >= 60) return "wifi-high"
-        if (s >= 40) return "wifi-medium"
-        if (s >= 15) return "wifi-low"
-        return "wifi-none"
+        return SystemServices.signalIconFor(sig, true)
     }
 
     function connectWifi(ssid, pwd) {
-        if (!ssid || wifiConnectProc.running) return
+        if (!ssid || SystemServices.wifiConnecting) return
         root.pendingConnectSsid = ssid
         root.wifiConnecting = true
         root.wifiStatusMsg = "Connexion à " + ssid + "…"
-        wifiConnectProc.command = [
-            "python3", Quickshell.shellPath("core/system_service.py"),
-            "wifi_connect", String(ssid), String(pwd || "")
-        ]
-        wifiConnectProc.running = true
+        SystemServices.connectWifi(ssid, pwd)
+    }
+
+    Connections {
+        target: SystemServices
+        function onWifiConnectFinished(ok, ssid, msg) {
+            root.wifiConnecting = false
+            if (ok) {
+                root.passwordSsid = ""
+                Theme.islandNeedsKeyboard = false
+                root.wifiStatusMsg = ""
+                wifiPassInput.text = ""
+            } else {
+                const net = root.wifiNetworks.find(n => String(n.ssid || "") === ssid)
+                const isKnown = Boolean(net && net.known)
+                if (!isKnown) {
+                    root.passwordSsid = ssid
+                    Theme.islandNeedsKeyboard = true
+                    wifiPassInput.forceActiveFocus()
+                }
+                root.wifiStatusMsg = msg || (isKnown ? "Échec de connexion" : "Clé requise ou échec de connexion")
+            }
+        }
     }
 
     Connections {
@@ -171,7 +184,7 @@ Item {
 
     Process {
         id: sysStatsProc
-        command: ["python3", Quickshell.shellPath("core/systeme_applet.py")]
+        command: [Quickshell.shellPath("core/as-core"), "systeme"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -183,7 +196,7 @@ Item {
 
     Process {
         id: diskStatsProc
-        command: ["python3", Quickshell.shellPath("core/disques_applet.py")]
+        command: [Quickshell.shellPath("core/as-core"), "disques"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -203,40 +216,6 @@ Item {
                         root.diskSummary = String(d.compact.barres[0].texte || "--")
                     }
                 } catch (e) {}
-            }
-        }
-    }
-
-    Process {
-        id: wifiConnectProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.wifiConnecting = false
-                let ok = false
-                let msg = ""
-                let ssid = root.pendingConnectSsid
-                try {
-                    let d = JSON.parse(text.trim())
-                    ok = Boolean(d.success)
-                    msg = String(d.message || "")
-                    if (d.ssid) ssid = String(d.ssid)
-                } catch (e) {}
-                if (ok) {
-                    root.passwordSsid = ""
-                    Theme.islandNeedsKeyboard = false
-                    root.wifiStatusMsg = ""
-                    wifiPassInput.text = ""
-                    SystemServices.scanWifi()
-                } else {
-                    const net = root.wifiNetworks.find(n => String(n.ssid || "") === ssid)
-                    const isKnown = Boolean(net && net.known)
-                    if (!isKnown) {
-                        root.passwordSsid = ssid
-                        Theme.islandNeedsKeyboard = true
-                        wifiPassInput.forceActiveFocus()
-                    }
-                    root.wifiStatusMsg = msg !== "" ? msg : (isKnown ? "Échec de connexion" : "Clé requise ou échec de connexion")
-                }
             }
         }
     }
@@ -262,7 +241,7 @@ Item {
 
     Process {
         id: qrScanProc
-        command: ["python3", Quickshell.shellPath("core/wifi_qr_scan.py"), "scan"]
+        command: [Quickshell.shellPath("core/as-core"), "wifi-qr", "scan"]
         property string targetSsid: ""
         stdout: StdioCollector {
             onStreamFinished: {
@@ -294,7 +273,7 @@ Item {
 
     Process {
         id: homelabProc
-        command: ["python3", Quickshell.shellPath("core/homelab_applet.py")]
+        command: [Quickshell.shellPath("core/as-core"), "homelab"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -1113,7 +1092,7 @@ Item {
                             if (batLimitProc.running) return
                             let nextLim = root.batLimit80 ? 100 : 80
                             root.batLimit80 = !root.batLimit80
-                            batLimitProc.command = ["python3", Quickshell.shellPath("core/system_service.py"), "limit", String(nextLim)]
+                            batLimitProc.command = [Quickshell.shellPath("core/as-core"), "system-service", "limit", String(nextLim)]
                             batLimitProc.running = true
                         }
                     }
@@ -1200,7 +1179,7 @@ Item {
                                 onClicked: {
                                     Theme.idleSuspendTimeout = modelData.value
                                     idleTimeoutProc.command = [
-                                        "python3", Quickshell.shellPath("core/config_manager.py"),
+                                        Quickshell.shellPath("core/as-core"), "config",
                                         "idle_timeout", String(modelData.value)
                                     ]
                                     idleTimeoutProc.running = true

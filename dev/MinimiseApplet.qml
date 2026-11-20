@@ -100,7 +100,7 @@ Item {
     function lancer(classes) {
         root.enAttente = []
         root.enCours = classes
-        details.command = ["python3", Quickshell.shellPath("core/app_classes.py"),
+        details.command = [Quickshell.shellPath("core/as-core"), "app-classes",
                            "--classes=" + classes.join(",")]
         details.running = true
     }
@@ -174,42 +174,6 @@ Item {
     }
 
     Component.onCompleted: root.rafraichir()
-
-    // Sonde de diagnostic, comme `shell notifTargets` : elle dit ce que la
-    // rangée montre vraiment — le nombre de fenêtres et sa largeur — sans
-    // capture d'écran.
-    //   quickshell ipc -n call minimise etat
-    IpcHandler {
-        target: "minimise"
-
-        function etat(): string {
-            const liste = []
-            for (let i = 0; i < root.fenetres.length; i++)
-                liste.push({ adresse: root.fenetres[i].adresse,
-                             classe: root.fenetres[i].classe,
-                             titre: root.fenetres[i].titre,
-                             icone: root.sourceIcone(root.fenetres[i].classe) })
-            // Position à l'écran de chaque icône : c'est ce qui rend le clic
-            // vérifiable par un pointeur scripté, sans capture d'écran.
-            const rendus = []
-            for (let i = 0; i < repeteur.count; i++) {
-                const item = repeteur.itemAt(i)
-                const centre = item ? item.mapToItem(null, item.width / 2, item.height / 2) : null
-                rendus.push(item ? { etat: item.etatIcone,
-                                     x: centre ? Math.round(centre.x) : -1,
-                                     y: centre ? Math.round(centre.y) : -1 } : { etat: -1, x: -1, y: -1 })
-            }
-            return JSON.stringify({ fenetres: liste.length,
-                                    largeur: Math.round(root.implicitWidth),
-                                    icones: rendus,
-                                    detail: liste })
-        }
-
-        function rafraichir() {
-            root.rafraichir()
-        }
-
-    }
 
     // ── rangée ───────────────────────────────────────────────────────────────
     // Un `Grid` et non un `Row` : sur une barre de côté les icônes s'empilent.

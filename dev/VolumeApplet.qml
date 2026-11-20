@@ -64,7 +64,7 @@ Item {
 
     // Synchronisation événementielle lors des modifications de volume clavier (OSD)
     Connections {
-        target: Theme
+        target: ShellState
         function onVolumeUpdated() {
             root.lire()
         }

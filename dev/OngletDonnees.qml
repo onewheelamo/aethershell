@@ -1045,21 +1045,22 @@ CollapsibleSection {
                 model: root.todoFichiers
 
                 Rectangle {
+                    id: todoChoisiBtn
                     required property var modelData
                     readonly property bool choisi: root.todoFocus === String(modelData.nom)
                     width: Math.max(56, labelChoisi.implicitWidth + 18)
                     height: 24
                     radius: 6
-                    color: choisi ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
+                    color: todoChoisiBtn.choisi ? Qt.alpha(Theme.accent, 0.22) : Qt.alpha(Theme.fg, 0.06)
                     border.width: 1
-                    border.color: choisi ? Qt.alpha(Theme.accent, 0.5)
+                    border.color: todoChoisiBtn.choisi ? Qt.alpha(Theme.accent, 0.5)
                                          : Qt.alpha(Theme.fg, 0.18)
 
                     Text {
                         id: labelChoisi
                         anchors.centerIn: parent
                         text: String(modelData.nom || "")
-                        color: choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
+                        color: todoChoisiBtn.choisi ? Theme.accent : Qt.alpha(Theme.fg, 0.7)
                         font.pixelSize: Math.max(9, Theme.textXs - 1)
                     }
 
