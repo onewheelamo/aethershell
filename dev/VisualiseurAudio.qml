@@ -10,8 +10,19 @@ Singleton {
     id: racine
 
     // ── état lu dans le registre ────────────────────────────────────────────
-    property bool actif: false
-    readonly property string style: Theme.vizEffectiveStyle          // "onde" | "barres"
+    property bool appletActif: false
+    readonly property bool widgetActif: {
+        const ws = Theme.widgets || []
+        for (let i = 0; i < ws.length; ++i) {
+            if (ws[i] && String(ws[i].type) === "visualiseur" && ws[i].enabled !== false)
+                return true
+        }
+        return false
+    }
+    readonly property bool actif: appletActif || widgetActif
+    readonly property string style: Theme.vizEffectiveStyle
+    readonly property bool estCava: style === "barres" || style === "miroir"
+                                 || style === "pics" || style === "blocs" || style === "spectre"
 
     // ── sortie normalisée, consommée par Visualiseur.qml ────────────────────
     property var hauteurs: []              // 0..1, une entrée par colonne
@@ -132,12 +143,12 @@ Singleton {
         try {
             const entrees = ShellState.barAppletsActifs || ({})
             const moi = entrees["visualiseur"] || null
-            racine.actif = moi !== null
+            racine.appletActif = moi !== null
             const opt = (moi && moi.options) ? moi.options : ({})
             racine.barre = moi ? (String(moi.ile || "haut:milieu").split(":")[0] || "haut") : "haut"
             racine.ignorerNavigateurs = opt.ignorer_navigateurs !== false
         } catch (e) {
-            racine.actif = false
+            racine.appletActif = false
         }
     }
 
@@ -420,7 +431,7 @@ Singleton {
         // Le balayage des restes doit être fini : sinon il pourrait tuer le
         // processus qu'on vient de lancer.
         if (balayage.running) { relance.restart(); return }
-        if (racine.style === "barres") {
+        if (racine.estCava) {
             if (barres.running) return
             racine.etat = "run"
             barres.running = true

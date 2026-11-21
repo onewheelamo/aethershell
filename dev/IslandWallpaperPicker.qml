@@ -27,20 +27,7 @@ Item {
 
     Process {
         id: wallpaperScanProc
-        command: [
-            "python3", "-c",
-            "import os, json\n"
-            + "d = os.environ.get('QS_WP_DIR', '').strip() or os.path.expanduser('~/Images/wallpapers')\n"
-            + "d = os.path.expanduser(os.path.expandvars(d))\n"
-            + "exts = {'.png', '.jpg', '.jpeg', '.webp', '.avif'}\n"
-            + "out = []\n"
-            + "if os.path.isdir(d):\n"
-            + "    for fn in sorted(os.listdir(d)):\n"
-            + "        p = os.path.join(d, fn)\n"
-            + "        if os.path.isfile(p) and os.path.splitext(fn)[1].lower() in exts:\n"
-            + "            out.append({'path': p, 'name': os.path.splitext(fn)[0]})\n"
-            + "print(json.dumps(out))"
-        ]
+        command: [Quickshell.shellPath("core/as-core"), "wallpaper-list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

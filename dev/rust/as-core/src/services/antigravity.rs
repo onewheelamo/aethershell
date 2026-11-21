@@ -461,6 +461,7 @@ fn court_nom(nom: &str) -> String {
 
 struct ModeleInfo {
     model: String,
+    #[allow(dead_code)]
     nom: String,
     reste: f64,
     reset: String,

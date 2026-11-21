@@ -60,7 +60,7 @@ Scope {
         root.pendingNew = n
         root.phase = "mapping"
         watchdog.restart()
-        mapProc.command = ["python3", Quickshell.shellPath("core/wallfx_maps.py"), n]
+        mapProc.command = [Quickshell.shellPath("core/as-core"), "wallfx", n]
         mapProc.running = true
     }
 

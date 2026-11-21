@@ -347,9 +347,7 @@ Item {
     // Coller du texte : on le passe en argv d'un python, qui écrit sur stdin de
     // wl-copy. Aucun guillemet à échapper, et un texte multiligne passe intact.
     function copier(texte) {
-        Quickshell.execDetached(["python3", "-c",
-            "import subprocess,sys;subprocess.run(['wl-copy'],input=sys.argv[1].encode())",
-            String(texte)])
+        Quickshell.execDetached([Quickshell.shellPath("core/as-core"), "wl-copy", String(texte)])
     }
 
     // Un résultat peut avoir un effet qui n'est pas « lancer un programme » :

@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -1076,7 +1076,7 @@ fn executer_hermes(card: &Value) -> (bool, String) {
         .map(|m| m.is_file() && (m.permissions().mode() & 0o111) != 0)
         .unwrap_or(false);
 
-    let mut cmd = if use_wrapper {
+    let cmd = if use_wrapper {
         let short: String = titre.chars().take(40).collect();
         let mut c = Command::new(&wrapper);
         c.args([

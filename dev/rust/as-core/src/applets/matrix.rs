@@ -94,7 +94,7 @@ fn run_screensaver() -> i32 {
     let mut old_tty: libc::termios = unsafe { std::mem::zeroed() };
     let have_tty = unsafe { libc::tcgetattr(stdin_fd, &mut old_tty) } == 0;
 
-    let mut child = unsafe {
+    let child = unsafe {
         Command::new(UNIMATRIX_CMD[0])
             .args(&UNIMATRIX_CMD[1..])
             .stdin(Stdio::from_raw_fd_dup(slave_fd))

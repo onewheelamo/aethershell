@@ -178,14 +178,14 @@ Column {
 
     function verifierRmbg() {
         if (procRmbg.running) return
-        procRmbg.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"), "status"]
+        procRmbg.command = [Quickshell.shellPath("core/as-core"), "parallaxe", "status"]
         procRmbg.running = true
     }
 
     function installerOuSupprimerRmbg() {
         if (procRmbg.running) return
         bloc.rmbgErreur = ""
-        procRmbg.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
+        procRmbg.command = [Quickshell.shellPath("core/as-core"), "parallaxe",
                             bloc.rmbgInstalle ? "remove" : "setup"]
         procRmbg.running = true
     }

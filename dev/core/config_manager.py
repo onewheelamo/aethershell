@@ -768,7 +768,9 @@ def update_style_var(key, value):
         data[key] = round(max(0.5, min(4.0, float(value))), 1)
     elif key in ("viz_couleur", "viz_couleur_island") and str(value) in VIZ_COULEURS:
         data[key] = str(value)
-    elif key in ("viz_style_classic", "viz_style_island") and str(value) in ("onde", "barres"):
+    elif key in ("viz_style_classic", "viz_style_island") and str(value) in (
+        "onde", "ruban", "liquide", "barres", "miroir", "pics", "blocs", "spectre"
+    ):
         data[key] = str(value)
     elif key == "bar_style" and str(value) in ("classic", "island"):
         data[key] = str(value)
@@ -1919,7 +1921,7 @@ def sync_programs_lua(app_data):
 # une surface layer `shell-widget` en couche Bottom, une par widget.
 # Un type par widget disponible dans widgets/ — le panneau coche, `widget_add`
 # valide. Ajouter un fournisseur LLM passe par core/llm_providers.json.
-WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "systeme",
+WIDGET_TYPES = ("horloge", "date", "meteo", "combo", "musique", "visualiseur", "systeme",
                 "reseau", "disques", "homelab", "hermes", "usb", "todo",
                 "presse_papiers", "notes", "sticker",
                 "deepseek", "ollama", "antigravity", "comptes")

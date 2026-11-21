@@ -4,11 +4,10 @@ use regex::Regex;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Map, Value};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -105,13 +104,6 @@ const PREFIXES: &[PrefixDef] = &[
         phrase: "Cette liste, directement dans le launcher.",
     },
 ];
-
-fn now_f64() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs_f64())
-        .unwrap_or(0.0)
-}
 
 fn which_path(prog: &str) -> Option<String> {
     if let Some(paths) = env::var_os("PATH") {

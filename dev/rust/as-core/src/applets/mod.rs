@@ -8,4 +8,3 @@ pub mod todo;
 pub mod tray;
 pub mod usb;
 pub mod wifi_qr;
-pub mod wrappers;

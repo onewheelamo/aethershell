@@ -950,7 +950,8 @@ Item {
                 Layout.preferredWidth: 26
                 Layout.preferredHeight: 24
                 radius: 6
-                readonly property string vizMode: !root.vizActif ? "off" : (Theme.vizEffectiveStyle === "onde" ? "onde" : "barres")
+                readonly property string vizMode: !root.vizActif ? "off" : Theme.vizEffectiveStyle
+                readonly property bool vizEstOnde: vizMode === "onde" || vizMode === "ruban" || vizMode === "liquide"
                 color: root.vizActif
                     ? Qt.alpha(Theme.accent, vizMa.containsMouse ? 0.30 : 0.20)
                     : (vizMa.containsMouse ? Qt.alpha(Theme.accent, 0.14) : Qt.alpha(Theme.fg, 0.08))
@@ -959,7 +960,7 @@ Item {
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 2
-                    visible: vizCycleBtn.vizMode !== "onde"
+                    visible: !vizCycleBtn.vizEstOnde
 
                     Rectangle {
                         Layout.preferredWidth: 2.5
@@ -995,10 +996,10 @@ Item {
                     color: Qt.alpha(Theme.fg, 0.65)
                 }
 
-                // Icône 2 : Onde sinusoïdale quand le mode « onde » est actif
+                // Icône 2 : Onde sinusoïdale quand un mode onde est actif
                 Canvas {
                     id: vizWaveIcon
-                    visible: vizCycleBtn.vizMode === "onde"
+                    visible: vizCycleBtn.vizEstOnde
                     anchors.centerIn: parent
                     width: 16
                     height: 12
@@ -1030,24 +1031,25 @@ Item {
                     onClicked: {
                         if (vizCmdProc.running) return
                         const styleKey = Theme.barStyle === "island" ? "viz_style_island" : "viz_style_classic"
+                        const styles = ["barres", "miroir", "pics", "blocs", "spectre", "onde", "ruban", "liquide"]
                         if (vizCycleBtn.vizMode === "off") {
                             vizCmdProc.command = [
-                                "sh", "-c",
-                                "\"$1\" config style \"$2\" barres && \"$1\" bar-applets activer visualiseur",
-                                "sh",
-                                Quickshell.shellPath("core/as-core"),
-                                styleKey
-                            ]
-                        } else if (vizCycleBtn.vizMode === "barres") {
-                            vizCmdProc.command = [
-                                Quickshell.shellPath("core/as-core"), "config",
-                                "style", styleKey, "onde"
+                                Quickshell.shellPath("core/as-core"), "bar-applets",
+                                "activer", "visualiseur"
                             ]
                         } else {
-                            vizCmdProc.command = [
-                                Quickshell.shellPath("core/as-core"), "bar-applets",
-                                "desactiver", "visualiseur"
-                            ]
+                            const idx = styles.indexOf(vizCycleBtn.vizMode)
+                            if (idx >= 0 && idx + 1 < styles.length) {
+                                vizCmdProc.command = [
+                                    Quickshell.shellPath("core/as-core"), "config",
+                                    "style", styleKey, styles[idx + 1]
+                                ]
+                            } else {
+                                vizCmdProc.command = [
+                                    Quickshell.shellPath("core/as-core"), "bar-applets",
+                                    "desactiver", "visualiseur"
+                                ]
+                            }
                         }
                         vizCmdProc.running = true
                     }

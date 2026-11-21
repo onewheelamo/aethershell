@@ -5,7 +5,6 @@ use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::fs;
-use std::path::Path;
 
 const PSEUDO: &[&str] = &[
     "tmpfs", "devtmpfs", "efivarfs", "squashfs", "overlay", "proc", "sysfs",

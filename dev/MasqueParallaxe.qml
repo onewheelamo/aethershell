@@ -193,7 +193,7 @@ PanelWindow {
         }
         fenetre.travail = true
         fenetre.message = "peinture du masque…"
-        peintre.command = ["python3", Quickshell.shellPath("core/masque_peinture.py"),
+        peintre.command = [Quickshell.shellPath("core/as-core"), "masque-peinture",
                            "--sortie", fenetre.cheminMasque,
                            "--ecran", fenetre.ecranLargeur + "x" + fenetre.ecranHauteur]
         peintre.running = true
@@ -232,7 +232,7 @@ PanelWindow {
                 return
             }
             fenetre.message = "découpage des calques…"
-            generateur.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
+            generateur.command = [Quickshell.shellPath("core/as-core"), "parallaxe",
                                   "generate",
                                   "--wallpaper", fenetre.fondCourant,
                                   "--out", fenetre.dossier,

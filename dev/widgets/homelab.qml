@@ -44,7 +44,7 @@ Item {
         if (root.confirmation === cle) {
             root.confirmation = ""
             root.messageAction = "redémarrage de " + String(g.nom || g.id) + "…"
-            actionProc.command = ["python3", Quickshell.shellPath("core/homelab_applet.py"),
+            actionProc.command = [Quickshell.shellPath("core/as-core"), "homelab",
                                   "--action", "reboot", "--type", String(g.type),
                                   "--node", String(g.noeud), "--vmid", String(g.id)]
             actionProc.running = true
@@ -100,7 +100,7 @@ Item {
 
     Process {
         id: proc
-        command: ["python3", Quickshell.shellPath("core/homelab_applet.py"), "--force"]
+        command: [Quickshell.shellPath("core/as-core"), "homelab", "--force"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

@@ -269,11 +269,8 @@ pub fn run_index(args: &[String]) -> i32 {
 }
 
 pub fn jetons(texte: &str) -> HashSet<String> {
-    let re = Regex::new(r"[^a-z0-9]+").unwrap();
     let low = texte.to_ascii_lowercase();
-    let clean = re.replace_all(&low, " ");
-    clean
-        .split_whitespace()
+    low.split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|j| j.len() > 1 && !BRUIT.contains(j))
         .map(|s| s.to_string())
         .collect()

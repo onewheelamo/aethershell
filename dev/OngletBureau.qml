@@ -355,7 +355,7 @@ CollapsibleSection {
                             anchors.verticalCenter: parent.verticalCenter
                             glyph: widgetCard.wtype === "date" ? "calendar"
                                    : (widgetCard.wtype === "meteo" ? "cloud"
-                                   : (widgetCard.wtype === "musique" ? "music"
+                                   : (widgetCard.wtype === "musique" || widgetCard.wtype === "visualiseur" ? "music"
                                    : (widgetCard.wtype === "combo" ? "widgets"
                                    : (widgetCard.wtype === "systeme" ? "monitor"
                                    : (widgetCard.wtype === "comptes" ? "wallet"

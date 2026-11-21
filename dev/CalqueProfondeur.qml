@@ -92,7 +92,7 @@ PanelWindow {
         if (!Theme.depthMask || fenetre.fondCourant === "") return
         if (generateur.running) generateur.running = false
         fenetre.generateurFond = fenetre.fondCourant
-        generateur.command = ["python3", Quickshell.shellPath("core/depth_mask.py"),
+        generateur.command = [Quickshell.shellPath("core/as-core"), "depth-mask",
                               "generate", "--wallpaper", fenetre.fondCourant,
                               "--threshold", String(fenetre.seuil),
                               "--feather", String(fenetre.adouci)]

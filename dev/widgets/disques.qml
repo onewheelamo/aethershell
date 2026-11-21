@@ -76,7 +76,7 @@ Item {
     }
 
     function rafraichir() {
-        proc.command = ["python3", Quickshell.shellPath("core/disques_applet.py"), "--force"]
+        proc.command = [Quickshell.shellPath("core/as-core"), "disques", "--force"]
         proc.running = true
     }
 

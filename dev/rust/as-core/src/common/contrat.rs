@@ -15,6 +15,7 @@ pub fn compact(valeur: &str, libelle: &str, alerte: bool, fin: i64, barres: Opti
     Value::Object(obj)
 }
 
+#[allow(dead_code)]
 pub fn barre(cle: &str, icone: &str, valeur: f64, texte: &str, niveau: &str) -> Value {
     json!({
         "cle": cle,
@@ -25,6 +26,7 @@ pub fn barre(cle: &str, icone: &str, valeur: f64, texte: &str, niveau: &str) -> 
     })
 }
 
+#[allow(dead_code)]
 pub fn mesure(libelle: &str, valeur: &str, alerte: bool) -> Value {
     json!({
         "libelle": libelle,
@@ -33,6 +35,7 @@ pub fn mesure(libelle: &str, valeur: &str, alerte: bool) -> Value {
     })
 }
 
+#[allow(dead_code)]
 pub fn ligne(nom: &str, valeur: &str, action: Option<Value>, alerte: bool) -> Value {
     let mut obj = Map::new();
     obj.insert("nom".into(), json!(nom));
@@ -88,6 +91,7 @@ pub fn sortir(val: &Value) -> i32 {
     0
 }
 
+#[allow(dead_code)]
 pub fn indisponible(applet: &str, message: &str) -> i32 {
     sortir(&json!({
         "ok": false,

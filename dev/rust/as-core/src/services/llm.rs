@@ -682,6 +682,10 @@ fn survol_lignes(
     lignes
 }
 
+pub fn charger_providers_list() -> Vec<Value> {
+    charger_providers().into_values().collect()
+}
+
 pub fn run_comptes(args: &[String]) -> i32 {
     let force = args.iter().any(|a| a == "--force");
     let options = parse_options_arg(args);
@@ -695,7 +699,7 @@ pub fn run_comptes(args: &[String]) -> i32 {
     let cache_path = core_dir().join("comptes_applet_cache.json");
     if !force {
         let lu = read_json_value(&cache_path);
-        if let Some(mut map) = lu.as_object().cloned() {
+        if let Some(map) = lu.as_object().cloned() {
             let ts = map.get("ts").and_then(|v| v.as_f64()).unwrap_or(0.0);
             let age = now_f64() - ts;
             let cached_pref = map.get("prefere").and_then(|v| v.as_str()).unwrap_or("");

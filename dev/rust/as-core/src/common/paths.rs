@@ -42,11 +42,15 @@ pub fn core_dir() -> PathBuf {
     config_dir().join("quickshell").join("core")
 }
 
-pub fn quickshell_dir() -> PathBuf {
-    core_dir()
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| config_dir().join("quickshell"))
+pub fn expand_home(p: &str) -> PathBuf {
+    let t = p.trim();
+    if let Some(rest) = t.strip_prefix("~/") {
+        home_dir().join(rest)
+    } else if t == "~" {
+        home_dir()
+    } else {
+        PathBuf::from(t)
+    }
 }
 
 pub fn quickshell_cache_dir() -> PathBuf {

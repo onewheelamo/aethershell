@@ -66,7 +66,7 @@ Item {
     Process {
         id: actionProc
         property string actionCmd: ""
-        command: ["python3", Quickshell.shellPath("core/hermes_applet.py"), actionProc.actionCmd]
+        command: [Quickshell.shellPath("core/as-core"), "hermes", actionProc.actionCmd]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {

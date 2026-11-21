@@ -5,7 +5,7 @@ use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::env;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;

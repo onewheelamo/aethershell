@@ -8,16 +8,9 @@ import "."
 // ════════════════════════════════════════════════════════════════════════════
 // MENU D'UN WIDGET DE BUREAU — clic milieu
 // ════════════════════════════════════════════════════════════════════════════
-// Deux choses seulement, parce qu'un widget de bureau n'a rien d'autre à régler
-// ici : le retirer, et choisir sur quels bureaux il s'affiche. Le reste (taille,
-// position, opacité, options propres) vit dans le panneau de configuration.
-//
-// C'est une fenêtre de couche, pas un `Popup.qml` : celui-ci s'ancre à un item de
-// barre et se pose sous la barre, ce qui n'a aucun sens ici. La position vient
-// des coordonnées du widget.
-//
-// Fermeture : attrapeur de focus de Hyprland, comme les menus d'applet — un clic
-// ailleurs referme, sans fenêtre plein écran qui avalerait le clic.
+// Affiche les actions rapides (retirer, bureaux d'affichage), l'apparence
+// commune (style, flou/bordure, opacité, taille) et les options propres au
+// type de widget sélectionné — sans doublons.
 Item {
     id: racine
 
@@ -27,11 +20,81 @@ Item {
     property real yEcran: 0
     signal fermer()
 
+    // Lecture réactive depuis Theme.widgets pour refléter immédiatement les changements.
+    readonly property var widgetActuel: {
+        const w = racine.widget || ({})
+        const wid = String(w.id || "")
+        const ws = Theme.widgets || []
+        for (let i = 0; i < ws.length; ++i) {
+            if (ws[i] && String(ws[i].id) === wid) return ws[i]
+        }
+        return w
+    }
+    readonly property string wid: String((widgetActuel || {}).id || "")
+    readonly property string wtype: String((widgetActuel || {}).type || "")
+    readonly property var wOptions: (widgetActuel && widgetActuel.options) ? widgetActuel.options : ({})
+
+    readonly property string wStyle: String((widgetActuel && widgetActuel.style) || "glass")
+    readonly property bool wBlur: widgetActuel ? (widgetActuel.blur !== false) : true
+    readonly property bool wBorder: widgetActuel ? (widgetActuel.border !== false) : true
+    readonly property real wOpacity: (widgetActuel && widgetActuel.opacity !== undefined)
+        ? Number(widgetActuel.opacity) : 0.35
+    readonly property int wTextScale: {
+        const v = Number(wOptions.text_scale)
+        return (v >= 60 && v <= 160) ? Math.round(v) : 100
+    }
+    readonly property bool wSeconds: {
+        const v = wOptions.seconds
+        return v === true || v === "true" || v === 1 || v === "1"
+    }
+    readonly property bool wIgnorerNav: {
+        const v = wOptions.ignorer_navigateurs
+        if (v === undefined || v === null || v === "") return true
+        return !(v === false || v === "false" || v === 0 || v === "0")
+    }
+    readonly property bool wAfficherFaits: {
+        const v = wOptions.afficher_faits
+        return v === true || v === "true" || v === 1 || v === "1"
+    }
+    readonly property string wCity: wOptions.city ? String(wOptions.city) : ""
+    readonly property string wImage: wOptions.image ? String(wOptions.image) : ""
+    readonly property string wVizStyle: wOptions.viz_style ? String(wOptions.viz_style) : ""
+    readonly property int wRefreshMin: {
+        const v = Number(wOptions.refresh_min)
+        return (v >= 1 && v <= 120) ? Math.round(v) : 5
+    }
+
+    readonly property bool aOptionSecondes: wtype === "horloge" || wtype === "combo"
+    readonly property bool aOptionNav: wtype === "musique"
+    readonly property bool aOptionViz: wtype === "visualiseur"
+    readonly property bool aOptionFaits: wtype === "todo"
+    readonly property bool aOptionVille: wtype === "meteo" || wtype === "combo"
+    readonly property bool aOptionImage: wtype === "sticker"
+    readonly property bool aOptionRefresh: wtype === "systeme" || wtype === "disques"
+        || wtype === "homelab" || wtype === "hermes" || wtype === "usb"
+        || wtype === "meteo" || wtype === "reseau" || wtype === "comptes"
+    readonly property bool aOptionsPropres: aOptionSecondes || aOptionNav || aOptionViz
+        || aOptionFaits || aOptionVille || aOptionImage || aOptionRefresh
+
+    function libelleType(t) {
+        const map = {
+            "horloge": "Horloge", "date": "Date", "meteo": "Météo",
+            "combo": "Aperçu du jour", "musique": "Musique",
+            "visualiseur": "Visualiseur audio", "notes": "Notes rapides",
+            "sticker": "Sticker / Image", "systeme": "Système",
+            "reseau": "Réseau", "disques": "Disques", "homelab": "Homelab",
+            "hermes": "Hermes", "usb": "Périphériques", "todo": "Tâches",
+            "presse_papiers": "Presse-papiers", "deepseek": "DeepSeek",
+            "antigravity": "Antigravity", "comptes": "Quotas IA"
+        }
+        return map[t] || t || "Widget"
+    }
+
     // 0 = tous les bureaux. La liste va jusqu'à dix, comme les binds du shell.
     readonly property var bureaux: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     readonly property var choisis: {
-        const w = racine.widget || ({})
+        const w = racine.widgetActuel || ({})
         const brut = (w.workspaces && w.workspaces.length > 0)
             ? w.workspaces : [Number(w.workspace)]
         return brut.map(Number)
@@ -44,9 +107,6 @@ Item {
         return racine.choisis.indexOf(n) >= 0
     }
 
-    // Coche ou décoche un bureau. « Tous » est exclusif : le choisir vide la
-    // liste et ne garde que 0. Décocher le dernier bureau laisse tomber sur
-    // « tous » plutôt que sur un widget invisible dont on ne saurait plus rien.
     function basculer(n) {
         let liste
         if (n === 0) {
@@ -66,13 +126,20 @@ Item {
 
     function ecrireBureaux(spec) {
         ecrire.command = [Quickshell.shellPath("core/as-core"), "config",
-                          "widget_workspaces", String((racine.widget || {}).id || ""), spec]
+                          "widget_workspaces", racine.wid, spec]
+        ecrire.running = true
+    }
+
+    function poserOption(cle, valeur) {
+        if (racine.wid === "") return
+        ecrire.command = [Quickshell.shellPath("core/as-core"), "config",
+                          "widget_set", racine.wid, String(cle), String(valeur)]
         ecrire.running = true
     }
 
     function retirer() {
         ecrire.command = [Quickshell.shellPath("core/as-core"), "config",
-                          "widget_remove", String((racine.widget || {}).id || "")]
+                          "widget_remove", racine.wid]
         ecrire.running = true
         racine.fermer()
     }
@@ -81,7 +148,7 @@ Item {
         id: fenetre
         visible: racine.ouvert
         color: "transparent"
-        implicitWidth: 320
+        implicitWidth: 344
         implicitHeight: carte.implicitHeight
 
         readonly property int marge: 8
@@ -89,8 +156,6 @@ Item {
         readonly property int hauteurEcran: fenetre.screen ? fenetre.screen.height : 1080
 
         anchors { top: true; left: true }
-        // Sous le widget, sans sortir de l'écran : le menu suit le clic, un
-        // menu collé dans un coin obligerait à chercher où il est apparu.
         margins.top: Math.round(Math.max(marge, Math.min(racine.yEcran + 64,
                                                           hauteurEcran - implicitHeight - marge)))
         margins.left: Math.round(Math.max(marge, Math.min(racine.xEcran,
@@ -99,6 +164,8 @@ Item {
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "shell-menu-widget"
+        WlrLayershell.keyboardFocus: (racine.aOptionVille || racine.aOptionImage)
+            ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         Rectangle {
             id: carte
@@ -117,7 +184,7 @@ Item {
 
                 Text {
                     width: parent.width
-                    text: String((racine.widget || {}).type || "widget")
+                    text: racine.libelleType(racine.wtype) + (racine.wid !== "" ? (" · " + racine.wid) : "")
                     color: Theme.fg
                     font.pixelSize: Theme.textMd
                     font.bold: true
@@ -130,8 +197,6 @@ Item {
                     color: Theme.surfaceVariant
                 }
 
-                // Retirer : geste destructif, donc en rouge et jamais coché par
-                // défaut — une seule ligne, pas de confirmation en deux temps.
                 Rectangle {
                     width: parent.width
                     height: 26
@@ -167,8 +232,6 @@ Item {
                     font.capitalization: Font.AllUppercase
                 }
 
-                // Une pastille par bureau ; « Tous » d'abord, parce que c'est le
-                // choix par défaut et le plus fréquent.
                 Flow {
                     width: parent.width
                     spacing: 4
@@ -199,6 +262,403 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: racine.basculer(modelData)
                             }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.surfaceVariant
+                }
+
+                Text {
+                    width: parent.width
+                    text: "Apparence & taille :"
+                    color: Qt.alpha(Theme.fg, 0.55)
+                    font.pixelSize: Math.max(9, Theme.textXs - 1)
+                    font.bold: true
+                    font.letterSpacing: 0.5
+                    font.capitalization: Font.AllUppercase
+                }
+
+                // Style + Effets (Flou / Bordure)
+                Flow {
+                    width: parent.width
+                    spacing: 6
+
+                    Repeater {
+                        model: [
+                            { code: "glass",       label: "Glass" },
+                            { code: "transparent", label: "Transparent" }
+                        ]
+
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool choisi: racine.wStyle === modelData.code
+                            width: styleLbl.implicitWidth + 16
+                            height: 22
+                            radius: Theme.globalRadius
+                            color: choisi ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+                            border.color: Theme.accent
+
+                            Text {
+                                id: styleLbl
+                                anchors.centerIn: parent
+                                text: (choisi ? "✓ " : "") + modelData.label
+                                color: choisi ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                                font.bold: choisi
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: racine.poserOption("style", modelData.code)
+                            }
+                        }
+                    }
+
+                    Repeater {
+                        model: racine.wStyle === "transparent" ? [] : [
+                            { key: "blur",   label: "Flou",    on: racine.wBlur },
+                            { key: "border", label: "Bordure", on: racine.wBorder }
+                        ]
+
+                        Rectangle {
+                            required property var modelData
+                            width: effLbl.implicitWidth + 14
+                            height: 22
+                            radius: Theme.globalRadius
+                            color: modelData.on ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+                            border.color: Theme.accent
+
+                            Text {
+                                id: effLbl
+                                anchors.centerIn: parent
+                                text: (modelData.on ? "✓ " : "✕ ") + modelData.label
+                                color: modelData.on ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                                font.bold: true
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: racine.poserOption(modelData.key, modelData.on ? "false" : "true")
+                            }
+                        }
+                    }
+                }
+
+                // Opacité (si Glass) + Taille (%)
+                Row {
+                    width: parent.width
+                    spacing: 12
+
+                    Row {
+                        visible: racine.wStyle !== "transparent"
+                        spacing: 6
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Opacité"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.text2xs
+                        }
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 84
+                            value: racine.wOpacity
+                            minimumValue: 0.0
+                            maximumValue: 1.0
+                            stepSize: 0.05
+                            decimals: 2
+                            onValueModified: newVal => racine.poserOption("opacity", newVal)
+                        }
+                    }
+
+                    Row {
+                        spacing: 6
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Taille"
+                            color: Qt.alpha(Theme.fg, 0.75)
+                            font.pixelSize: Theme.text2xs
+                        }
+                        Stepper {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 88
+                            value: racine.wTextScale
+                            minimumValue: 60
+                            maximumValue: 160
+                            stepSize: 5
+                            suffix: " %"
+                            onValueModified: newVal => racine.poserOption("text_scale", newVal)
+                        }
+                    }
+                }
+
+                // Options propres au type de widget (uniquement celles qui le concernent)
+                Rectangle {
+                    visible: racine.aOptionsPropres
+                    width: parent.width
+                    height: 1
+                    color: Theme.surfaceVariant
+                }
+
+                Text {
+                    visible: racine.aOptionsPropres
+                    width: parent.width
+                    text: "Options du widget :"
+                    color: Qt.alpha(Theme.fg, 0.55)
+                    font.pixelSize: Math.max(9, Theme.textXs - 1)
+                    font.bold: true
+                    font.letterSpacing: 0.5
+                    font.capitalization: Font.AllUppercase
+                }
+
+                // Toggles booléens spécifiques (sans doublons)
+                Flow {
+                    visible: racine.aOptionSecondes || racine.aOptionNav || racine.aOptionFaits
+                    width: parent.width
+                    spacing: 6
+
+                    Rectangle {
+                        visible: racine.aOptionSecondes
+                        width: secLbl.implicitWidth + 16
+                        height: 22
+                        radius: Theme.globalRadius
+                        color: racine.wSeconds ? Theme.accent : Theme.surfaceVariant
+                        border.width: 1
+                        border.color: Theme.accent
+                        Text {
+                            id: secLbl
+                            anchors.centerIn: parent
+                            text: (racine.wSeconds ? "✓ " : "✕ ") + "Secondes"
+                            color: racine.wSeconds ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: racine.poserOption("seconds", racine.wSeconds ? "false" : "true")
+                        }
+                    }
+
+                    Rectangle {
+                        visible: racine.aOptionNav
+                        width: navLbl.implicitWidth + 16
+                        height: 22
+                        radius: Theme.globalRadius
+                        color: racine.wIgnorerNav ? Theme.accent : Theme.surfaceVariant
+                        border.width: 1
+                        border.color: Theme.accent
+                        Text {
+                            id: navLbl
+                            anchors.centerIn: parent
+                            text: (racine.wIgnorerNav ? "✓ " : "✕ ") + "Ignorer navigateurs"
+                            color: racine.wIgnorerNav ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: racine.poserOption("ignorer_navigateurs", racine.wIgnorerNav ? "false" : "true")
+                        }
+                    }
+
+                    Rectangle {
+                        visible: racine.aOptionFaits
+                        width: faitLbl.implicitWidth + 16
+                        height: 22
+                        radius: Theme.globalRadius
+                        color: racine.wAfficherFaits ? Theme.accent : Theme.surfaceVariant
+                        border.width: 1
+                        border.color: Theme.accent
+                        Text {
+                            id: faitLbl
+                            anchors.centerIn: parent
+                            text: (racine.wAfficherFaits ? "✓ " : "✕ ") + "Tâches cochées"
+                            color: racine.wAfficherFaits ? Theme.bg : Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: racine.poserOption("afficher_faits", racine.wAfficherFaits ? "false" : "true")
+                        }
+                    }
+                }
+
+                // Rendu spécifique du widget Visualiseur
+                Flow {
+                    visible: racine.aOptionViz
+                    width: parent.width
+                    spacing: 4
+
+                    Repeater {
+                        model: [
+                            { code: "",        nom: "Défaut" },
+                            { code: "onde",    nom: "Onde" },
+                            { code: "ruban",   nom: "Ruban" },
+                            { code: "liquide", nom: "Liquide" },
+                            { code: "barres",  nom: "Barres" },
+                            { code: "miroir",  nom: "Miroir" },
+                            { code: "pics",    nom: "Crêtes" },
+                            { code: "blocs",   nom: "LED" },
+                            { code: "spectre", nom: "Spectre" }
+                        ]
+
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool choisi: racine.wVizStyle === modelData.code
+                            width: vizOptLbl.implicitWidth + 14
+                            height: 22
+                            radius: Theme.globalRadius
+                            color: choisi ? Theme.accent : Theme.surfaceVariant
+                            border.width: 1
+                            border.color: Theme.accent
+                            Text {
+                                id: vizOptLbl
+                                anchors.centerIn: parent
+                                text: (choisi ? "✓ " : "") + modelData.nom
+                                color: choisi ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.text2xs
+                                font.bold: choisi
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: racine.poserOption("viz_style", modelData.code)
+                            }
+                        }
+                    }
+                }
+
+                // Rafraîchissement (widgets connectés)
+                Row {
+                    visible: racine.aOptionRefresh
+                    width: parent.width
+                    spacing: 8
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Rafraîchir :"
+                        color: Qt.alpha(Theme.fg, 0.75)
+                        font.pixelSize: Theme.text2xs
+                    }
+                    Stepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 96
+                        value: racine.wRefreshMin
+                        minimumValue: 1
+                        maximumValue: 120
+                        stepSize: 1
+                        suffix: " min"
+                        onValueModified: newVal => racine.poserOption("refresh_min", newVal)
+                    }
+                }
+
+                // Ville (météo / combo)
+                Row {
+                    visible: racine.aOptionVille
+                    width: parent.width
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Ville :"
+                        color: Qt.alpha(Theme.fg, 0.75)
+                        font.pixelSize: Theme.text2xs
+                    }
+                    Rectangle {
+                        width: parent.width - 88
+                        height: 24
+                        radius: Theme.globalRadius
+                        color: Theme.surfaceVariant
+                        border.width: 1
+                        border.color: cityInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+                        TextInput {
+                            id: cityInput
+                            anchors.fill: parent
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            verticalAlignment: TextInput.AlignVCenter
+                            text: racine.wCity
+                            color: Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            clip: true
+                            onAccepted: racine.poserOption("city", text.trim())
+                        }
+                    }
+                    Rectangle {
+                        width: 36
+                        height: 24
+                        radius: Theme.globalRadius
+                        color: Theme.accent
+                        Text {
+                            anchors.centerIn: parent
+                            text: "OK"
+                            color: Theme.bg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: racine.poserOption("city", cityInput.text.trim())
+                        }
+                    }
+                }
+
+                // Image (sticker)
+                Row {
+                    visible: racine.aOptionImage
+                    width: parent.width
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Image :"
+                        color: Qt.alpha(Theme.fg, 0.75)
+                        font.pixelSize: Theme.text2xs
+                    }
+                    Rectangle {
+                        width: parent.width - 96
+                        height: 24
+                        radius: Theme.globalRadius
+                        color: Theme.surfaceVariant
+                        border.width: 1
+                        border.color: imgInput.activeFocus ? Theme.accent : Qt.alpha(Theme.fg, 0.2)
+                        TextInput {
+                            id: imgInput
+                            anchors.fill: parent
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            verticalAlignment: TextInput.AlignVCenter
+                            text: racine.wImage
+                            color: Theme.fg
+                            font.pixelSize: Theme.text2xs
+                            clip: true
+                            onAccepted: racine.poserOption("image", text.trim())
+                        }
+                    }
+                    Rectangle {
+                        width: 36
+                        height: 24
+                        radius: Theme.globalRadius
+                        color: Theme.accent
+                        Text {
+                            anchors.centerIn: parent
+                            text: "OK"
+                            color: Theme.bg
+                            font.pixelSize: Theme.text2xs
+                            font.bold: true
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: racine.poserOption("image", imgInput.text.trim())
                         }
                     }
                 }

@@ -187,7 +187,7 @@ Item {
     }
 
     function refresh(force) {
-        const args = ["python3", Quickshell.shellPath("core/" + root.provider + "_service.py")]
+        const args = [Quickshell.shellPath("core/as-core"), root.provider]
         if (force) args.push("--force")
         proc.command = args
         proc.running = true

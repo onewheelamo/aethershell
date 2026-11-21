@@ -9,6 +9,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 - **`x.yy.x.x`** : ajout de fonctionnalités décisives (ex. : ajout de l'Îlot dynamique).
 - **Version majeure (`y.x.x.x`)** : conservation du schéma déjà en place (proposée lorsque l'ampleur des changements le justifie ; décision finale validée par l'utilisateur).
 
+## [0.4.1.0] — 2026-11-21
+
+### Ajouté
+- **Visualiseur audio — 6 nouvelles animations & widget bureau détachable** (`dev/Visualiseur.qml`, `dev/VisualiseurAudio.qml`, `dev/widgets/visualiseur.qml`) :
+  - **Spectre (`cava`)** : `miroir` (barres symétriques), `pics` (barres + crêtes flottantes), `blocs` (matrice LED) et `spectre` (courbe de Bézier lissée avec dégradé).
+  - **Forme d'onde (`pwscope`)** : `ruban` (enveloppe remplie) et `liquide` (3 harmoniques sinusoïdales modulées par l'énergie).
+  - **Widget bureau `visualiseur`** (`dev/widgets/visualiseur.qml`, `dev/config_panel.qml`, `dev/OngletBureau.qml`) permettant de détacher le visualiseur hors de la barre ou de l'îlot.
+  - Sélecteurs mis à jour dans `dev/OngletBarres.qml` (`Flow`) et `dev/IslandTabControles.qml`.
+- **Menu clic molette enrichi sur les widgets (`dev/WidgetMenu.qml`)** : affichage de l'apparence commune (`Glass`/`Transparent`, `Flou`, `Bordure`, `Opacité`, `Taille %`) et des options propres à chaque type de widget (`Secondes`, `Ignorer navigateurs`, `Rendu` du visualiseur, `Tâches cochées`, `Rafraîchir`, `Ville`, `Image`), sans doublons.
+- **Portage complet du reste du Python vers Rust (`as-core`)** :
+  - **Lot 6 (`src/wallfx/`)** : `masque-peinture`, `wallfx` (`contagio` & `perfil`), `depth-mask` et `parallaxe` portés nativement en Rust (`image`, `ort`, `sha2`).
+  - **Configuration & premier lancement (`src/config/`)** : `config_mgr.rs` + `config_hypr.rs` (suppression de la délégation Python), `first_run.rs` (`first_run_state` / `first_run_apply`) et `quick_tools.rs` (`quick-notes`, `wallpaper-list`, `wl-copy`).
+  - **0 appel `python3` restant** dans `dev/*.qml` et `dev/widgets/*.qml`.
+
+### Modifié / Corrigé
+- **Audit & nettoyage du code Rust (`dev/rust/as-core/`)** : suppression des stubs de délégation Python (`wrappers.rs`, `connectors.rs`) et des warnings `rustc` (**0 warning**), factorisation de `expand_home`, `now_f64`, `now_secs` et `local_tm` dans `common/`, `jetons()` sans regex (`app_index.rs`), `Regex::new` sortis des boucles (`config_mgr.rs`), appel direct `depth_mask::generer_brut()` (`parallaxe.rs`) et rétablissement de `SIGPIPE` (`SIG_DFL`) dans `main.rs`.
+
 ## [0.4.0.0] — 2026-11-20
 
 ### Ajouté

@@ -1,9 +1,12 @@
+#![recursion_limit = "256"]
+
 mod applets;
 mod common;
 mod config;
 mod daemon;
 mod launcher;
 mod services;
+mod wallfx;
 
 use std::env;
 use std::process;
@@ -70,6 +73,7 @@ fn normalize_subcmd(s: &str) -> &str {
 }
 
 fn main() {
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("usage: as-core <sous-commande> [args...]");
@@ -106,6 +110,9 @@ fn main() {
         "lien-systeme" => config::lien_systeme::run(rest),
         "greeter" => config::greeter::run(rest),
         "first-run" => config::first_run::run(rest),
+        "quick-notes" => config::quick_tools::run_quick_notes(rest),
+        "wallpaper-list" => config::quick_tools::run_wallpaper_list(),
+        "wl-copy" => config::quick_tools::run_wl_copy(rest),
         // Lot 3 — Lanceur Spotlight & Index
         "app-index" => launcher::app_index::run_index(rest),
         "app-classes" => launcher::app_index::run_classes(rest),
@@ -146,6 +153,11 @@ fn main() {
         "hermes-lecteur" => services::hermes::run_lecteur(rest),
         "hermes-approbations" => services::hermes::run_approbations(rest),
         "hermes-publier" => services::hermes::run_publier(rest),
+        // Lot 6 — WallFX / Profondeur / Parallaxe
+        "wallfx" => wallfx::wallfx_maps::run(rest),
+        "depth-mask" => wallfx::depth_mask::run(rest),
+        "parallaxe" => wallfx::parallaxe::run(rest),
+        "masque-peinture" => wallfx::masque_peinture::run(rest),
         _ => {
             eprintln!("as-core: sous-commande inconnue: {subcmd}");
             2

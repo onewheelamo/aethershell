@@ -55,7 +55,7 @@ Item {
 
     Process {
         id: liste
-        command: ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "liste", String(root.limite)]
+        command: [Quickshell.shellPath("core/as-core"), "presse-papiers", "liste", String(root.limite)]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -85,14 +85,14 @@ Item {
     }
 
     function copier(id) {
-        action.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"),
+        action.command = [Quickshell.shellPath("core/as-core"), "presse-papiers",
                           "copier", String(id)]
         action.running = true
         if (fermerAuClic) Theme.activePopup = ""
     }
 
     function vider() {
-        action.command = ["python3", Quickshell.shellPath("core/presse_papiers_applet.py"), "vider"]
+        action.command = [Quickshell.shellPath("core/as-core"), "presse-papiers", "vider"]
         action.running = true
     }
 

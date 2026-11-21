@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const BEGIN_MARK: &str = "/* BEGIN aethershell-theme */";
 const END_MARK: &str = "/* END aethershell-theme */";

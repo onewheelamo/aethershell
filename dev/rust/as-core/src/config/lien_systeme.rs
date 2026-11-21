@@ -2,7 +2,7 @@ use crate::common::io::{read_json_value, run_cmd};
 use crate::common::paths::{config_dir, core_dir, home_dir};
 use regex::Regex;
 use serde_json::{json, Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

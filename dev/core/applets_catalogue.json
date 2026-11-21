@@ -46,14 +46,14 @@
         "cle": "style",
         "libelle": "Rendu",
         "valeurs": [
-          {
-            "code": "onde",
-            "nom": "Onde"
-          },
-          {
-            "code": "barres",
-            "nom": "Barres"
-          }
+          { "code": "onde", "nom": "Onde" },
+          { "code": "ruban", "nom": "Ruban" },
+          { "code": "liquide", "nom": "Liquide" },
+          { "code": "barres", "nom": "Barres" },
+          { "code": "miroir", "nom": "Miroir" },
+          { "code": "pics", "nom": "Crêtes" },
+          { "code": "blocs", "nom": "LED" },
+          { "code": "spectre", "nom": "Spectre" }
         ]
       },
       "cases": [

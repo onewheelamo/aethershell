@@ -21,16 +21,7 @@ Item {
 
     Process {
         id: notesLoadProc
-        command: [
-            "python3", "-c",
-            "import os, json\n"
-            + "p = os.path.expanduser('~/.cache/quickshell/quick_notes.json')\n"
-            + "try:\n"
-            + "    d = json.loads(open(p).read())\n"
-            + "    print(json.dumps(d if isinstance(d, list) and d else [{'id': 1, 'text': ''}]))\n"
-            + "except Exception:\n"
-            + "    print(json.dumps([{'id': 1, 'text': ''}]))"
-        ]
+        command: [Quickshell.shellPath("core/as-core"), "quick-notes", "get"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -56,13 +47,7 @@ Item {
 
     function saveQuickNotes() {
         notesSaveProc.environment = ({ "QS_NOTES_JSON": JSON.stringify(root.quickNotes) })
-        notesSaveProc.command = [
-            "python3", "-c",
-            "import os, pathlib\n"
-            + "p = pathlib.Path(os.path.expanduser('~/.cache/quickshell/quick_notes.json'))\n"
-            + "p.parent.mkdir(parents=True, exist_ok=True)\n"
-            + "p.write_text(os.environ.get('QS_NOTES_JSON', '[]'))"
-        ]
+        notesSaveProc.command = [Quickshell.shellPath("core/as-core"), "quick-notes", "save"]
         if (!notesSaveProc.running) notesSaveProc.running = true
     }
 

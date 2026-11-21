@@ -195,6 +195,7 @@ QtObject {
     property real vizEpaisseur: 1.4
     property string vizCouleur: "accent"
     property string vizCouleurIsland: "complement"
+    readonly property var vizStylesValides: ["onde", "ruban", "liquide", "barres", "miroir", "pics", "blocs", "spectre"]
     property string vizStyleClassic: "onde"
     property string vizStyleIsland: "barres"
     readonly property string vizEffectiveStyle: barStyle === "island" ? vizStyleIsland : vizStyleClassic
@@ -620,8 +621,8 @@ QtObject {
         if (typeof data.viz_epaisseur === "number") root.vizEpaisseur = Math.max(0.5, Math.min(4.0, data.viz_epaisseur))
         if (typeof data.viz_couleur === "string" && data.viz_couleur.length > 0) root.vizCouleur = data.viz_couleur
         if (typeof data.viz_couleur_island === "string" && data.viz_couleur_island.length > 0) root.vizCouleurIsland = data.viz_couleur_island
-        if (data.viz_style_classic === "onde" || data.viz_style_classic === "barres") root.vizStyleClassic = data.viz_style_classic
-        if (data.viz_style_island === "onde" || data.viz_style_island === "barres") root.vizStyleIsland = data.viz_style_island
+        if (root.vizStylesValides.indexOf(data.viz_style_classic) >= 0) root.vizStyleClassic = data.viz_style_classic
+        if (root.vizStylesValides.indexOf(data.viz_style_island) >= 0) root.vizStyleIsland = data.viz_style_island
         if (typeof data.bar_bottom === "boolean") root.barBottomVisible = data.bar_bottom
         if (typeof data.bar_left === "boolean") root.barLeftVisible = data.bar_left
         if (typeof data.bar_right === "boolean") root.barRightVisible = data.bar_right

@@ -88,3 +88,27 @@ pub fn tie_to_parent_death() {
         libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
     }
 }
+
+#[allow(dead_code)]
+pub fn now_f64() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0)
+}
+
+#[allow(dead_code)]
+pub fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+#[allow(dead_code)]
+pub fn local_tm(secs: i64) -> libc::tm {
+    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+    let t = secs as libc::time_t;
+    unsafe { libc::localtime_r(&t, &mut tm) };
+    tm
+}

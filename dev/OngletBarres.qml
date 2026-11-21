@@ -1532,50 +1532,62 @@ CollapsibleSection {
                 }
             }
 
-            // Rendu indépendant Barre / Îlot : une ligne qui ne défile pas (onde)
-            // ou des bandes qui montent avec la musique (barres).
+            // Rendu indépendant Barre / Îlot : 8 animations au choix (cava / pwscope).
             Row {
                 width: parent.width
                 spacing: 8
 
                 Text {
                     width: 160
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 4
                     text: "Mode (Barre) :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
-                Repeater {
-                    model: [{ code: "onde", nom: "Onde" },
-                            { code: "barres", nom: "Barres" }]
+                Flow {
+                    width: parent.width - 168
+                    spacing: 6
 
-                    Rectangle {
-                        required property var modelData
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 92
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.vizStyleClassic === modelData.code ? Theme.accent
-                                                                       : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
+                    Repeater {
+                        model: [
+                            { code: "onde",    nom: "Onde" },
+                            { code: "ruban",   nom: "Ruban" },
+                            { code: "liquide", nom: "Liquide" },
+                            { code: "barres",  nom: "Barres" },
+                            { code: "miroir",  nom: "Miroir" },
+                            { code: "pics",    nom: "Crêtes" },
+                            { code: "blocs",   nom: "LED" },
+                            { code: "spectre", nom: "Spectre" }
+                        ]
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.vizStyleClassic === modelData.code
-                                  ? ("✓ " + modelData.nom) : modelData.nom
-                            color: root.vizStyleClassic === modelData.code ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
+                        Rectangle {
+                            required property var modelData
+                            width: 82
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.vizStyleClassic === modelData.code ? Theme.accent
+                                                                           : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.vizStyleClassic = modelData.code
-                                root.runConfigCmd(["style", "viz_style_classic", modelData.code])
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.vizStyleClassic === modelData.code
+                                      ? ("✓ " + modelData.nom) : modelData.nom
+                                color: root.vizStyleClassic === modelData.code ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.vizStyleClassic = modelData.code
+                                    root.runConfigCmd(["style", "viz_style_classic", modelData.code])
+                                }
                             }
                         }
                     }
@@ -1588,42 +1600,55 @@ CollapsibleSection {
 
                 Text {
                     width: 160
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 4
                     text: "Mode (Îlot) :"
                     color: Theme.fg
                     font.pixelSize: Theme.textSm
                     elide: Text.ElideRight
                 }
 
-                Repeater {
-                    model: [{ code: "onde", nom: "Onde" },
-                            { code: "barres", nom: "Barres" }]
+                Flow {
+                    width: parent.width - 168
+                    spacing: 6
 
-                    Rectangle {
-                        required property var modelData
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 92
-                        height: 26
-                        radius: Theme.globalRadius
-                        color: root.vizStyleIsland === modelData.code ? Theme.accent
-                                                                      : Theme.surfaceVariant
-                        border.color: Theme.accent
-                        border.width: 1
+                    Repeater {
+                        model: [
+                            { code: "onde",    nom: "Onde" },
+                            { code: "ruban",   nom: "Ruban" },
+                            { code: "liquide", nom: "Liquide" },
+                            { code: "barres",  nom: "Barres" },
+                            { code: "miroir",  nom: "Miroir" },
+                            { code: "pics",    nom: "Crêtes" },
+                            { code: "blocs",   nom: "LED" },
+                            { code: "spectre", nom: "Spectre" }
+                        ]
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.vizStyleIsland === modelData.code
-                                  ? ("✓ " + modelData.nom) : modelData.nom
-                            color: root.vizStyleIsland === modelData.code ? Theme.bg : Theme.fg
-                            font.pixelSize: Theme.textXs
-                        }
+                        Rectangle {
+                            required property var modelData
+                            width: 82
+                            height: 26
+                            radius: Theme.globalRadius
+                            color: root.vizStyleIsland === modelData.code ? Theme.accent
+                                                                          : Theme.surfaceVariant
+                            border.color: Theme.accent
+                            border.width: 1
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.vizStyleIsland = modelData.code
-                                root.runConfigCmd(["style", "viz_style_island", modelData.code])
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.vizStyleIsland === modelData.code
+                                      ? ("✓ " + modelData.nom) : modelData.nom
+                                color: root.vizStyleIsland === modelData.code ? Theme.bg : Theme.fg
+                                font.pixelSize: Theme.textXs
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.vizStyleIsland = modelData.code
+                                    root.runConfigCmd(["style", "viz_style_island", modelData.code])
+                                }
                             }
                         }
                     }

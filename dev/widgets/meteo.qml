@@ -55,7 +55,7 @@ Item {
             SystemServices.rafraichirMeteo(force)
             return
         }
-        const args = ["python3", Quickshell.shellPath("core/weather_service.py"),
+        const args = [Quickshell.shellPath("core/as-core"), "weather",
                       "--city", root.cityOption]
         if (force)
             args.push("--force")

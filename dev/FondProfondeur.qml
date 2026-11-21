@@ -88,7 +88,7 @@ PanelWindow {
             fenetre.derniereTentative = fenetre.fondCourant
             fenetre.generateurFond = fenetre.fondCourant
             fenetre.generationEnCours = true
-            generateur.command = ["python3", Quickshell.shellPath("core/parallaxe_layers.py"),
+            generateur.command = [Quickshell.shellPath("core/as-core"), "parallaxe",
                                   "generate", "--wallpaper", fenetre.fondCourant,
                                   "--out", fenetre.dossierSpecifique,
                                   // Taille de l'**écran**, pas de la fenêtre : la surface
